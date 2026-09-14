@@ -8,7 +8,8 @@ function sb(){if(!SUPABASE_URL||!SUPABASE_KEY)return null;return createClient(SU
 const defaultSettings={runtime_mode:'openrouter_primary',openrouter_model:process.env.OPENROUTER_MODEL||'openrouter/free',web_search_default:false,temperature:0.6,max_history:16,save_training_candidates:true,allow_paid_external:false,daily_budget_usd:0,public_chat_enabled:true,public_training_enabled:true,public_web_search_enabled:false,public_rate_limit_per_hour:30,public_daily_limit:120,install_enabled:true};
 
 function manifestResponse(){
-  const manifest={name:'MUS AI',short_name:'MUS AI',description:'MUS AI — Learn · Create · Evolve',id:'/',start_url:'/?source=pwa',scope:'/',display:'standalone',display_override:['window-controls-overlay','standalone','minimal-ui'],orientation:'any',background_color:'#06101e',theme_color:'#07111f',lang:'ar',dir:'rtl',categories:['productivity','education','utilities'],icons:[{src:'/icon.svg',sizes:'192x192',type:'image/svg+xml',purpose:'any maskable'}],shortcuts:[{name:'محادثة جديدة',short_name:'دردشة',url:'/?new=1',icons:[{src:'/icon.svg',sizes:'192x192',type:'image/svg+xml'}]}]};
+  const icons=[{src:'/icon.svg',sizes:'192x192',type:'image/svg+xml',purpose:'any'},{src:'/icon.svg',sizes:'512x512',type:'image/svg+xml',purpose:'any maskable'}];
+  const manifest={name:'MUS AI',short_name:'MUS AI',description:'MUS AI — Learn · Create · Evolve',id:'/',start_url:'/?source=pwa',scope:'/',display:'standalone',display_override:['window-controls-overlay','standalone','minimal-ui'],orientation:'any',background_color:'#06101e',theme_color:'#07111f',lang:'ar',dir:'rtl',categories:['productivity','education','utilities'],icons,shortcuts:[{name:'محادثة جديدة',short_name:'دردشة',url:'/?new=1',icons:[icons[0]]}]};
   return new Response(JSON.stringify(manifest),{headers:{'Content-Type':'application/manifest+json','Cache-Control':'public, max-age=3600'}});
 }
 function serviceWorkerResponse(){
