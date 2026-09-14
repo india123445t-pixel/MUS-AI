@@ -11,6 +11,7 @@ function normalizeEndpoint(raw){if(!raw)return null;const url=raw.replace(/\/$/,
 function clamp(n,min,max){return Math.max(min,Math.min(max,Number(n)||0))}
 function safeJson(text){try{return JSON.parse(String(text||'').replace(/^```json\s*/i,'').replace(/```\s*$/,'').trim())}catch{}try{const s=String(text||'');const a=s.indexOf('{'),b=s.lastIndexOf('}');if(a>=0&&b>a)return JSON.parse(s.slice(a,b+1))}catch{}return null}
 function includesAny(text,terms){return terms.some(t=>text.includes(t))}
+function extractCitations(message){return (message?.annotations||[]).filter(a=>a?.type==='url_citation'&&a?.url_citation?.url).slice(0,8).map(a=>({url:String(a.url_citation.url),title:String(a.url_citation.title||''),content:String(a.url_citation.content||'').slice(0,1800)}))}
 
 async function loadRuntime(sb){
   const [cfg,lessons]=await Promise.all([sb.rpc('get_mus_runtime_config'),sb.rpc('get_mus_runtime_lessons',{p_limit:18})]);
@@ -56,8 +57,8 @@ async function selfHosted(messages,settings,opts={}){
   try{
     const key=process.env.MUS_MODEL_KEY||process.env.LOCAL_MODEL_KEY;
     const r=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json',...(key?{Authorization:`Bearer ${key}`}:{})},body:JSON.stringify({model:settings?.self_hosted_model||process.env.MUS_MODEL_NAME||process.env.LOCAL_MODEL_NAME||'mus-ai',messages,temperature:Number(opts.temperature??settings?.temperature??0.6),stream:false}),signal:AbortSignal.timeout(65000)});
-    if(!r.ok)return null;const d=await r.json();const text=d?.choices?.[0]?.message?.content||d?.message?.content||d?.response||null;
-    return text?{text,provider:'mus-engine',model:d?.model||settings?.self_hosted_model||'MUS AI'}:null;
+    if(!r.ok)return null;const d=await r.json();const message=d?.choices?.[0]?.message||null;const text=message?.content||d?.message?.content||d?.response||null;
+    return text?{text,provider:'mus-engine',model:d?.model||settings?.self_hosted_model||'MUS AI',citations:[]}:null;
   }catch{return null}
 }
 
@@ -65,11 +66,13 @@ async function openRouter(messages,webSearch,settings,opts={}){
   const key=process.env.OPENROUTER_API_KEY;if(!key)return null;
   let model=settings?.openrouter_model||process.env.OPENROUTER_MODEL||'openrouter/free';
   if(!settings?.allow_paid_external&&!String(model).includes(':free')&&model!=='openrouter/free')model='openrouter/free';
+  const paidSearchAllowed=!!settings?.allow_paid_external;
   const payload={model,messages,temperature:Number(opts.temperature??settings?.temperature??0.6)};
-  if(webSearch&&settings?.public_web_search_enabled)payload.plugins=[{id:'web',max_results:5}];
+  if(webSearch&&paidSearchAllowed&&settings?.public_web_search_enabled)payload.plugins=[{id:'web',max_results:5}];
   const r=await fetch('https://openrouter.ai/api/v1/chat/completions',{method:'POST',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json','X-Title':'MUS AI'},body:JSON.stringify(payload),signal:AbortSignal.timeout(75000)});
   const d=await r.json();if(!r.ok)throw new Error(d?.error?.message||'تعذر الوصول إلى محرك MUS AI الآن.');
-  return {text:d?.choices?.[0]?.message?.content||'لم يصل رد من النموذج.',provider:'openrouter',model:d?.model||model};
+  const message=d?.choices?.[0]?.message||{};
+  return {text:message?.content||'لم يصل رد من النموذج.',provider:'openrouter',model:d?.model||model,citations:extractCitations(message)};
 }
 
 async function generate(messages,webSearch,settings,opts={}){
@@ -93,10 +96,10 @@ function normalizeVerification(raw){
 }
 
 async function verifyCandidate({input,contract,candidates,settings,webSearch}){
-  if(contract.freshness_required&&!webSearch)return {verdict:'uncertain',confidence:0.35,issues:['Current information was requested but current web evidence was unavailable.']};
+  if(contract.requires_web&&!webSearch)return {verdict:'uncertain',confidence:0.30,issues:['The task needs current/source evidence but web evidence is unavailable under the current zero-cost policy.']};
   const multi=candidates.length>1;
-  const verifierSystem=`You are the MUS AI verification layer. Judge correctness, constraint satisfaction, factual support and whether the answer actually fulfills the task. For mathematics solve independently where practical. For code, review for likely correctness but NEVER claim execution unless execution evidence exists. For research/current facts, reject unsupported current claims. Do not reveal chain-of-thought. Return STRICT JSON only with this schema: {"verdict":"pass|repair|uncertain","confidence":0.0,"issues":["short issue"],"preferred":"A|B|null","corrected_answer":"final answer only if repair is needed or if selecting/merging candidates materially improves correctness"}.`;
-  const payload={task:input,task_contract:contract,candidates:candidates.map((c,i)=>({label:String.fromCharCode(65+i),answer:c.text}))};
+  const verifierSystem=`You are the MUS AI verification layer. Judge correctness, constraint satisfaction, factual support and whether the answer actually fulfills the task. For mathematics solve independently where practical. For code, review for likely correctness but NEVER claim execution unless execution evidence exists. For research/current facts, reject unsupported current claims; supplied citation snippets are evidence only when they actually support the claim. Do not reveal chain-of-thought. Return STRICT JSON only with this schema: {"verdict":"pass|repair|uncertain","confidence":0.0,"issues":["short issue"],"preferred":"A|B|null","corrected_answer":"final answer only if repair is needed or if selecting/merging candidates materially improves correctness"}.`;
+  const payload={task:input,task_contract:contract,candidates:candidates.map((c,i)=>({label:String.fromCharCode(65+i),answer:c.text,citations:c.citations||[]}))};
   const r=await generate([{role:'system',content:verifierSystem},{role:'user',content:JSON.stringify(payload)}],webSearch,settings,{temperature:0.1});
   if(!r)return {verdict:'unresolved',confidence:0,issues:['Verifier unavailable']};
   const v=normalizeVerification(safeJson(r.text));
@@ -129,14 +132,15 @@ export async function POST(req){
     const contract=buildTaskContract(input);
     const maxCalls=clamp(settings?.max_model_calls_per_request??3,1,4);
     const requestedSearch=!!(body.webSearch||settings?.web_search_default);
-    const autoSearch=settings?.intelligence_router_enabled!==false&&contract.requires_web&&!!settings?.public_web_search_enabled;
-    const useSearch=!!settings?.public_web_search_enabled&&(requestedSearch||autoSearch);
+    const paidSearchAllowed=!!settings?.allow_paid_external;
+    const autoSearch=settings?.intelligence_router_enabled!==false&&contract.requires_web&&!!settings?.public_web_search_enabled&&paidSearchAllowed;
+    const useSearch=paidSearchAllowed&&!!settings?.public_web_search_enabled&&(requestedSearch||autoSearch);
     const deep=settings?.intelligence_router_enabled!==false&&settings?.deep_reasoning_enabled!==false&&contract.difficulty==='hard'&&maxCalls>=3;
     const verify=settings?.verification_enabled!==false&&contract.requires_verification&&maxCalls>=(deep?3:2);
-    const route={mode:deep?'deep':'standard',domain:contract.domain,difficulty:contract.difficulty,web_search:useSearch,verification:verify,independent_candidates:deep?2:1,max_model_calls:maxCalls};
+    const route={mode:deep?'deep':'standard',domain:contract.domain,difficulty:contract.difficulty,web_search:useSearch,verification:verify,independent_candidates:deep?2:1,max_model_calls:maxCalls,zero_cost_policy:!paidSearchAllowed};
 
     const lessonText=lessons.length?lessons.map((l,i)=>`${i+1}. ${l.title}: ${l.instruction}`).join('\n'):'لا توجد قواعد إضافية.';
-    const system=`أنت MUS AI، مساعد ذكاء عام احترافي. هدفك تقديم أفضل جواب صحيح وقابل للتحقق بأقل خطوات لازمة. افهم هدف المستخدم والقيود، ولا تختلق حقيقة أو مصدرًا أو تنفيذًا لم يحدث. إذا كانت المعلومة حديثة ولا يوجد بحث حالي متاح فقل بوضوح إنك لا تستطيع تأكيد حداثتها. في البرمجة لا تقل إن الكود تم تشغيله أو اختباره ما لم توجد نتيجة تنفيذ فعلية. في الرياضيات راجع الحساب والقيود. لا تذكر مزود النموذج للمستخدم؛ هويتك MUS AI. فكّر داخليًا ولا تعرض سلسلة تفكير خاصة، بل أعط النتيجة والشرح المفيد فقط.\n\nعقد المهمة:\n${JSON.stringify(contract)}\n\nقواعد MUS AI المعتمدة:\n${lessonText}`;
+    const system=`أنت MUS AI، مساعد ذكاء عام احترافي. هدفك تقديم أفضل جواب صحيح وقابل للتحقق بأقل خطوات لازمة. افهم هدف المستخدم والقيود، ولا تختلق حقيقة أو مصدرًا أو تنفيذًا لم يحدث. إذا كانت المهمة تحتاج معلومات حديثة أو مصادر ولم يتوفر بحث حالي، فقل بوضوح إنك لا تستطيع تأكيد الحداثة أو المصدر الآن بدل اختلاقه. في البرمجة لا تقل إن الكود تم تشغيله أو اختباره ما لم توجد نتيجة تنفيذ فعلية. في الرياضيات راجع الحساب والقيود. لا تذكر مزود النموذج للمستخدم؛ هويتك MUS AI. فكّر داخليًا ولا تعرض سلسلة تفكير خاصة، بل أعط النتيجة والشرح المفيد فقط.\n\nعقد المهمة:\n${JSON.stringify(contract)}\n\nقواعد MUS AI المعتمدة:\n${lessonText}`;
     const maxHistory=Math.max(4,Math.min(64,Number(settings?.max_history||16)));
     const history=Array.isArray(body.history)?body.history.slice(-maxHistory).filter(x=>['user','assistant'].includes(x?.role)&&typeof x?.content==='string').map(x=>({role:x.role,content:x.content.slice(0,14000)})):[];
     const baseMessages=[{role:'system',content:system},...history,{role:'user',content:input}];
@@ -164,10 +168,11 @@ export async function POST(req){
       }catch(e){verification={verdict:'unresolved',confidence:0,issues:['Verification failed safely']}}
     }
 
-    if(contract.freshness_required&&!useSearch){verification={...verification,verdict:'uncertain',confidence:Math.min(verification.confidence||0,0.35),issues:[...(verification.issues||[]),'No current web evidence available']}}
+    if(contract.requires_web&&!useSearch){verification={...verification,verdict:'uncertain',confidence:Math.min(verification.confidence||0,0.30),issues:[...(verification.issues||[]),'No current/source web evidence available under zero-cost policy']}}
 
     const minConfidence=Number(settings?.learning_gate_min_confidence??0.72);
-    const learningEligible=verify&&!contract.high_risk&&verification.verdict==='pass'&&Number(verification.confidence||0)>=minConfidence&&finalResult.text.length>=40;
+    const evidenceReady=!contract.requires_web||(useSearch&&(finalResult.citations||[]).length>0);
+    const learningEligible=verify&&evidenceReady&&!contract.high_risk&&verification.verdict==='pass'&&Number(verification.confidence||0)>=minConfidence&&finalResult.text.length>=40;
     const latency=Date.now()-started;
 
     let logData=null;
@@ -175,7 +180,7 @@ export async function POST(req){
       const logged=await sb.rpc('log_public_exchange_v2',{
         p_session_id:sessionId,p_conversation_id:conversationId,p_user_input:input,p_assistant_output:finalResult.text,
         p_provider:finalResult.provider,p_model:finalResult.model,p_web_search:useSearch,p_ip_hash:hash,p_run_id:runId,
-        p_task_contract:contract,p_route_decision:route,p_verification:{verdict:verification.verdict,confidence:verification.confidence,issues:verification.issues||[],verifier_provider:verification.verifier_provider||null,verifier_model:verification.verifier_model||null},
+        p_task_contract:contract,p_route_decision:{...route,source_count:(finalResult.citations||[]).length},p_verification:{verdict:verification.verdict,confidence:verification.confidence,issues:verification.issues||[],verifier_provider:verification.verifier_provider||null,verifier_model:verification.verifier_model||null},
         p_latency_ms:latency,p_model_calls:modelCalls,p_difficulty:contract.difficulty,p_learning_eligible:learningEligible
       });
       if(!logged.error)logData=logged.data;
