@@ -22,8 +22,17 @@ export async function GET(req){
   if(search.get('icon')==='1')return new Response(null,{status:307,headers:{Location:'/icon.svg','Cache-Control':'public, max-age=3600'}});
   if(search.get('manifest')==='1')return manifestResponse();
   if(search.get('sw')==='1')return serviceWorkerResponse();
+  const client=sb();
+  if(search.get('intelligence')==='1'){
+    if(!client)return NextResponse.json({message:'قاعدة البيانات غير متاحة.'},{status:503});
+    try{
+      const r=await client.rpc('get_mus_intelligence_snapshot');
+      if(r.error)throw r.error;
+      return NextResponse.json({snapshot:r.data||{}},{headers:{'Cache-Control':'no-store'}});
+    }catch(e){return NextResponse.json({message:e?.message||'تعذر تحميل ملخص الذكاء.'},{status:500})}
+  }
   let settings=defaultSettings;
-  try{const client=sb();if(client){const r=await client.rpc('get_mus_runtime_config');if(r.data)settings={...defaultSettings,...r.data}}}catch{}
+  try{if(client){const r=await client.rpc('get_mus_runtime_config');if(r.data)settings={...defaultSettings,...r.data}}}catch{}
   return NextResponse.json({openrouter_configured:!!process.env.OPENROUTER_API_KEY,self_hosted_configured:!!(process.env.MUS_MODEL_URL||process.env.LOCAL_MODEL_URL),settings},{headers:{'Cache-Control':'no-store'}});
 }
 
