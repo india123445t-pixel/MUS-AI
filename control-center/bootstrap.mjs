@@ -18,6 +18,7 @@ let [page,css,icon]=await Promise.all([
 ]);
 
 page=page
+  .replace("const URL=process.env.NEXT_PUBLIC_SUPABASE_URL,KEY=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;","const URL=process.env.NEXT_PUBLIC_SUPABASE_URL||'https://yaqjhcfitxhtzpaswuif.supabase.co',KEY=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||'sb_publishable_1uRtACKcyT2ZQH9ixdKQ-Q_ARbY6xET';")
   .replaceAll('src="/api/status?icon=1"','src="/icon.svg"')
   .replace('href="/" target="_blank"','href="https://ibn-ai-opal.vercel.app/" target="_blank"');
 
