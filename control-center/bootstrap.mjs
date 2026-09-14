@@ -41,10 +41,11 @@ export async function GET(){
   try{const r=await fetch(BASE+'/api/status',{cache:'no-store'});const body=await r.text();return new Response(body,{status:r.status,headers:{'content-type':r.headers.get('content-type')||'application/json','cache-control':'no-store'}})}catch{return Response.json({message:'تعذر الاتصال بتطبيق MUS AI.'},{status:502})}
 }`;
 
-const goalRoute=`const BASE=process.env.MUS_PUBLIC_APP_URL||'https://ibn-ai-opal.vercel.app';
-export async function POST(req){
-  try{const auth=req.headers.get('authorization')||'';const body=await req.text();const r=await fetch(BASE+'/api/goal/run',{method:'POST',headers:{'content-type':'application/json',...(auth?{authorization:auth}:{})},body:body||'{}',cache:'no-store'});const text=await r.text();return new Response(text,{status:r.status,headers:{'content-type':r.headers.get('content-type')||'application/json','cache-control':'no-store'}})}catch{return Response.json({message:'تعذر تشغيل دورة MUS AI.'},{status:502})}
-}`;
+// The Control Center learning-cycle button is intentionally mapped to the
+// objective benchmark runner. That runner enforces authenticated, unseen,
+// hand-authored held-out cases, exact deterministic verification and zero-cost
+// runtime policy before it calls the public MUS AI inference router.
+const goalRoute=benchmarkRoute;
 
 await Promise.all([
   writeFile('app/page.js',page),
