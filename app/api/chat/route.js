@@ -167,7 +167,7 @@ export async function POST(req){
     if(contract.freshness_required&&!useSearch){verification={...verification,verdict:'uncertain',confidence:Math.min(verification.confidence||0,0.35),issues:[...(verification.issues||[]),'No current web evidence available']}}
 
     const minConfidence=Number(settings?.learning_gate_min_confidence??0.72);
-    const learningEligible=!contract.high_risk&&verification.verdict==='pass'&&Number(verification.confidence||0)>=minConfidence&&finalResult.text.length>=40;
+    const learningEligible=verify&&!contract.high_risk&&verification.verdict==='pass'&&Number(verification.confidence||0)>=minConfidence&&finalResult.text.length>=40;
     const latency=Date.now()-started;
 
     let logData=null;
