@@ -53,7 +53,16 @@ export async function GET(req){
   }
   let settings=defaultSettings;
   try{if(client){const r=await client.rpc('get_mus_runtime_config');if(r.data)settings={...defaultSettings,...r.data}}}catch{}
-  return NextResponse.json({openrouter_configured:!!process.env.OPENROUTER_API_KEY,self_hosted_configured:!!(process.env.MUS_MODEL_URL||process.env.LOCAL_MODEL_URL),settings},{headers:{'Cache-Control':'no-store'}});
+  const providers={
+    openrouter:!!process.env.OPENROUTER_API_KEY,
+    groq:!!process.env.GROQ_API_KEY,
+    gemini:!!(process.env.GEMINI_API_KEY||process.env.GOOGLE_API_KEY),
+    mistral:!!process.env.MISTRAL_API_KEY,
+    cerebras:!!process.env.CEREBRAS_API_KEY,
+    huggingface:!!process.env.HF_TOKEN&&process.env.HF_FREE_FALLBACK_ENABLED==='true',
+    self_hosted:!!(process.env.MUS_MODEL_URL||process.env.LOCAL_MODEL_URL)
+  };
+  return NextResponse.json({openrouter_configured:providers.openrouter,self_hosted_configured:providers.self_hosted,providers,free_provider_count:Object.values(providers).filter(Boolean).length,settings},{headers:{'Cache-Control':'no-store'}});
 }
 
 export async function POST(req){
