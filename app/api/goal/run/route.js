@@ -80,22 +80,23 @@ export async function POST(req){
 
     let seenBefore=false;
     if(benchmark){const c=await sb.from('benchmark_results').select('id',{count:'exact',head:true}).eq('benchmark_case_id',benchmark.id);seenBefore=(c.count||0)>0}
-    const runInsert=await sb.from('goal_runs').insert({owner_id:u.id,goal_id:goal.id,domain,task:challenge,answer:student.text,verifier_notes:`${verdict.method}: ${verdict.critique}`,score:verdict.objective?verdict.score:null,cost_usd:0,provider:student.provider,model:student.model,outcome:verdict.objective?(verdict.score>=85?'objective_pass':'objective_fail'):'diagnostic_unverified'}).select('id').single();
+    const repeatObjective=verdict.objective&&(benchmark?seenBefore:(builtInProbe&&(probeSeen.count||0)>0));
+    const runInsert=await sb.from('goal_runs').insert({owner_id:u.id,goal_id:goal.id,domain,task:challenge,answer:student.text,verifier_notes:`${verdict.method}: ${verdict.critique}${repeatObjective?' | repeat_objective=true':''}`,score:verdict.objective?verdict.score:null,cost_usd:0,provider:student.provider,model:student.model,outcome:verdict.objective?(verdict.score>=85?'objective_pass':'objective_fail'):'diagnostic_unverified'}).select('id').single();
 
-    let newSkillScore=Number(target.score)||0;
-    if(verdict.objective){
-      const old=Number(target.score)||0,weight=Number(target.attempts)>0?(seenBefore?0.10:0.30):1;newSkillScore=Number((Number(target.attempts)>0?old*(1-weight)+verdict.score*weight:verdict.score).toFixed(2));
+    let newSkillScore=Number(target.score)||0,skillUpdated=false;
+    if(verdict.objective&&!repeatObjective){
+      const old=Number(target.score)||0,weight=Number(target.attempts)>0?0.30:1;newSkillScore=Number((Number(target.attempts)>0?old*(1-weight)+verdict.score*weight:verdict.score).toFixed(2));
       const wins=(Number(target.wins)||0)+(verdict.score>=85?1:0),attempts=(Number(target.attempts)||0)+1;
-      await sb.from('skill_state').upsert({owner_id:u.id,domain,score:newSkillScore,attempts,wins,updated_at:new Date().toISOString()},{onConflict:'owner_id,domain'});
+      await sb.from('skill_state').upsert({owner_id:u.id,domain,score:newSkillScore,attempts,wins,updated_at:new Date().toISOString()},{onConflict:'owner_id,domain'});skillUpdated=true;
     }
 
     if(benchmark){
-      await sb.from('benchmark_results').insert({owner_id:u.id,benchmark_case_id:benchmark.id,model_label:'MUS AI runtime',answer:student.text,score:verdict.objective?verdict.score:null,judge:verdict.objective?verdict.method:(judge?.model||judge?.provider||'model_judgment'),metadata:{goal_run_id:runInsert.data?.id||null,suite:benchmark.suite,objective_verification:verdict.objective,verification_method:verdict.method,seen_before:seenBefore,student_provider:student.provider,student_model:student.model}});
+      await sb.from('benchmark_results').insert({owner_id:u.id,benchmark_case_id:benchmark.id,model_label:'MUS AI runtime',answer:student.text,score:verdict.objective?verdict.score:null,judge:verdict.objective?verdict.method:(judge?.model||judge?.provider||'model_judgment'),metadata:{goal_run_id:runInsert.data?.id||null,suite:benchmark.suite,objective_verification:verdict.objective,verification_method:verdict.method,seen_before:seenBefore,repeat_objective:repeatObjective,skill_updated:skillUpdated,student_provider:student.provider,student_model:student.model}});
     }
-    if(verdict.objective&&verdict.score<85&&reference){
+    if(verdict.objective&&!repeatObjective&&verdict.score<85&&reference){
       await sb.from('training_examples').insert({owner_id:u.id,user_input:challenge,assistant_bad_answer:student.text,preferred_answer:reference,category:domain,tags:['objective-failure','reference-grounded'],quality_status:'candidate',context_snapshot:{benchmark_case_id:benchmark?.id||null,probe_id:builtInProbe?OBJECTIVE_PROBE.id:null,score:verdict.score,verification_method:verdict.method,source:'objective-reference',goal_run_id:runInsert.data?.id||null}});
     }
 
-    return NextResponse.json({ok:true,goal:goal.name,domain,task:challenge,answer:student.text,score:verdict.objective?verdict.score:null,diagnostic_score:verdict.objective?null:verdict.score,verified:verdict.objective,verification_method:verdict.method,critique:verdict.critique,preferred_answer:reference||verdict.preferred,new_skill_score:newSkillScore,cost_usd:0,provider:student.provider,model:student.model,benchmark:benchmark?{id:benchmark.id,suite:benchmark.suite,difficulty:benchmark.difficulty,seen_before:seenBefore}:builtInProbe?{id:OBJECTIVE_PROBE.id,suite:OBJECTIVE_PROBE.suite,difficulty:4,seen_before:(probeSeen.count||0)>0}:null});
+    return NextResponse.json({ok:true,goal:goal.name,domain,task:challenge,answer:student.text,score:verdict.objective?verdict.score:null,diagnostic_score:verdict.objective?null:verdict.score,verified:verdict.objective,verification_method:verdict.method,critique:verdict.critique,preferred_answer:reference||verdict.preferred,new_skill_score:newSkillScore,skill_updated:skillUpdated,repeat_objective:repeatObjective,cost_usd:0,provider:student.provider,model:student.model,benchmark:benchmark?{id:benchmark.id,suite:benchmark.suite,difficulty:benchmark.difficulty,seen_before:seenBefore}:builtInProbe?{id:OBJECTIVE_PROBE.id,suite:OBJECTIVE_PROBE.suite,difficulty:4,seen_before:(probeSeen.count||0)>0}:null});
   }catch(e){return NextResponse.json({message:e?.message||'فشلت دورة التعلم.'},{status:500})}
 }
