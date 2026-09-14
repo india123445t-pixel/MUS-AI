@@ -15,18 +15,22 @@ async function getAdmin(){
 
 await mkdir('app/api/status',{recursive:true});
 await mkdir('app/api/goal/run',{recursive:true});
+await mkdir('app/intelligence',{recursive:true});
 await mkdir('public',{recursive:true});
 
-let [page,css,icon]=await Promise.all([
+let [page,intelligence,css,icon]=await Promise.all([
   getAdmin(),
+  get('control-center/intelligence-source.js'),
   get('app/globals.css'),
   get('public/icon.svg')
 ]);
 
+const envLine="const URL=process.env.NEXT_PUBLIC_SUPABASE_URL||'https://yaqjhcfitxhtzpaswuif.supabase.co',KEY=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||'sb_publishable_1uRtACKcyT2ZQH9ixdKQ-Q_ARbY6xET';";
 page=page
-  .replace("const URL=process.env.NEXT_PUBLIC_SUPABASE_URL,KEY=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;","const URL=process.env.NEXT_PUBLIC_SUPABASE_URL||'https://yaqjhcfitxhtzpaswuif.supabase.co',KEY=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||'sb_publishable_1uRtACKcyT2ZQH9ixdKQ-Q_ARbY6xET';")
+  .replace("const URL=process.env.NEXT_PUBLIC_SUPABASE_URL,KEY=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;",envLine)
   .replaceAll('src="/api/status?icon=1"','src="/icon.svg"')
-  .replace('href="/" target="_blank"','href="https://ibn-ai-opal.vercel.app/" target="_blank"');
+  .replace('href="/" target="_blank">فتح تطبيق MUS AI ↗</a>','href="/intelligence">Intelligence Lab</a><a href="https://ibn-ai-opal.vercel.app/" target="_blank">فتح تطبيق MUS AI ↗</a>');
+intelligence=intelligence.replace("const URL=process.env.NEXT_PUBLIC_SUPABASE_URL,KEY=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;",envLine);
 
 const layout=`import './globals.css';
 export const metadata={title:'MUS AI Control Center',description:'Private MUS AI administration and model control center',robots:{index:false,follow:false}};
@@ -45,6 +49,7 @@ export async function POST(req){
 
 await Promise.all([
   writeFile('app/page.js',page),
+  writeFile('app/intelligence/page.js',intelligence),
   writeFile('app/globals.css',css),
   writeFile('app/layout.js',layout),
   writeFile('app/api/status/route.js',statusRoute),
