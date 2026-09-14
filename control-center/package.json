@@ -1,0 +1,17 @@
+{
+  "name": "mus-ai-control-center",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "prebuild": "node bootstrap.mjs",
+    "build": "next build",
+    "dev": "node bootstrap.mjs && next dev",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.57.0",
+    "next": "15.5.24",
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
+  }
+}
