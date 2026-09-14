@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { randomUUID } from 'crypto';
 
 const SUPABASE_URL=process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_KEY=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
@@ -23,6 +24,25 @@ export async function GET(req){
   if(search.get('manifest')==='1')return manifestResponse();
   if(search.get('sw')==='1')return serviceWorkerResponse();
   const client=sb();
+
+  if(search.get('benchmark')==='1'){
+    if(!client)return NextResponse.json({message:'قاعدة البيانات غير متاحة.'},{status:503});
+    const token=String(search.get('token')||'');
+    const caseId=String(search.get('case')||'');
+    if(!token||!caseId)return NextResponse.json({message:'Benchmark credentials missing.'},{status:400});
+    try{
+      const gate=await client.rpc('consume_benchmark_case',{p_token:token,p_case_id:caseId});
+      if(gate.error)throw gate.error;
+      if(!gate.data)return NextResponse.json({message:'Benchmark access denied or case unavailable.'},{status:403});
+      const sessionId=randomUUID(),conversationId=randomUUID();
+      const origin=new URL(req.url).origin;
+      const chat=await fetch(`${origin}/api/chat`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({input:gate.data.prompt,sessionId,conversationId,history:[],webSearch:false}),cache:'no-store',signal:AbortSignal.timeout(90000)});
+      const raw=await chat.text();
+      let payload=null;try{payload=JSON.parse(raw)}catch{payload={message:raw}}
+      return NextResponse.json({ok:chat.ok,status:chat.status,case:gate.data,response:payload,session_id:sessionId,conversation_id:conversationId},{status:chat.ok?200:502,headers:{'Cache-Control':'no-store'}});
+    }catch(e){return NextResponse.json({message:e?.message||'تعذر تشغيل اختبار MUS AI.'},{status:500})}
+  }
+
   if(search.get('intelligence')==='1'){
     if(!client)return NextResponse.json({message:'قاعدة البيانات غير متاحة.'},{status:503});
     try{
