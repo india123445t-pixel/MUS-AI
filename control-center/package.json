@@ -1,6 +1,6 @@
 {
   "name": "mus-ai-control-center",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "scripts": {
     "prebuild": "node bootstrap.mjs",
