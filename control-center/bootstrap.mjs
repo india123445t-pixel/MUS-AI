@@ -1,9 +1,15 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 
 const RAW='https://raw.githubusercontent.com/india123445t-pixel/MUS-AI/main';
+const ADMIN_RAW='https://raw.githubusercontent.com/india123445t-pixel/MUS-AI/9d286d87dd0ae1309eea3100dedb9f8b1085135a/app/admin/page.js';
 async function get(path){
   const r=await fetch(`${RAW}/${path}`,{cache:'no-store'});
   if(!r.ok) throw new Error(`Failed to fetch ${path}: ${r.status}`);
+  return r.text();
+}
+async function getAdmin(){
+  const r=await fetch(ADMIN_RAW,{cache:'no-store'});
+  if(!r.ok) throw new Error(`Failed to fetch admin source: ${r.status}`);
   return r.text();
 }
 
@@ -12,7 +18,7 @@ await mkdir('app/api/goal/run',{recursive:true});
 await mkdir('public',{recursive:true});
 
 let [page,css,icon]=await Promise.all([
-  get('app/admin/page.js'),
+  getAdmin(),
   get('app/globals.css'),
   get('public/icon.svg')
 ]);
