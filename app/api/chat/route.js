@@ -62,30 +62,74 @@ async function selfHosted(messages,settings,opts={}){
   }catch{return null}
 }
 
+async function openAICompatible({key,url,model,provider,messages,temperature=0.6,headers={},payloadExtra={}}){
+  if(!key)return null;
+  try{
+    const r=await fetch(url,{method:'POST',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json',...headers},body:JSON.stringify({model,messages,temperature,stream:false,...payloadExtra}),signal:AbortSignal.timeout(75000)});
+    const d=await r.json().catch(()=>null);if(!r.ok||!d)return null;
+    const message=d?.choices?.[0]?.message||{};const text=message?.content||null;
+    return text?{text,provider,model:d?.model||model,citations:extractCitations(message)}:null;
+  }catch{return null}
+}
+
 async function openRouter(messages,webSearch,settings,opts={}){
   const key=process.env.OPENROUTER_API_KEY;if(!key)return null;
   let model=settings?.openrouter_model||process.env.OPENROUTER_MODEL||'openrouter/free';
   if(!settings?.allow_paid_external&&!String(model).includes(':free')&&model!=='openrouter/free')model='openrouter/free';
-  const paidSearchAllowed=!!settings?.allow_paid_external;
-  const payload={model,messages,temperature:Number(opts.temperature??settings?.temperature??0.6)};
-  if(webSearch&&paidSearchAllowed&&settings?.public_web_search_enabled)payload.plugins=[{id:'web',max_results:5}];
-  const r=await fetch('https://openrouter.ai/api/v1/chat/completions',{method:'POST',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json','X-Title':'MUS AI'},body:JSON.stringify(payload),signal:AbortSignal.timeout(75000)});
-  const d=await r.json();if(!r.ok)throw new Error(d?.error?.message||'تعذر الوصول إلى محرك MUS AI الآن.');
-  const message=d?.choices?.[0]?.message||{};
-  return {text:message?.content||'لم يصل رد من النموذج.',provider:'openrouter',model:d?.model||model,citations:extractCitations(message)};
+  const payloadExtra={};
+  if(webSearch&&settings?.allow_paid_external&&settings?.public_web_search_enabled)payloadExtra.plugins=[{id:'web',max_results:5}];
+  return openAICompatible({key,url:'https://openrouter.ai/api/v1/chat/completions',model,provider:'openrouter',messages,temperature:Number(opts.temperature??settings?.temperature??0.6),headers:{'X-Title':'MUS AI'},payloadExtra});
+}
+
+async function groq(messages,settings,opts={}){
+  return openAICompatible({key:process.env.GROQ_API_KEY,url:'https://api.groq.com/openai/v1/chat/completions',model:process.env.GROQ_MODEL||'openai/gpt-oss-120b',provider:'groq',messages,temperature:Number(opts.temperature??settings?.temperature??0.6),payloadExtra:{reasoning_effort:opts.temperature!=null&&Number(opts.temperature)<=0.15?'low':'medium'}});
+}
+
+async function mistral(messages,settings,opts={}){
+  return openAICompatible({key:process.env.MISTRAL_API_KEY,url:'https://api.mistral.ai/v1/chat/completions',model:process.env.MISTRAL_MODEL||'mistral-small-latest',provider:'mistral',messages,temperature:Number(opts.temperature??settings?.temperature??0.6)});
+}
+
+async function cerebras(messages,settings,opts={}){
+  return openAICompatible({key:process.env.CEREBRAS_API_KEY,url:'https://api.cerebras.ai/v1/chat/completions',model:process.env.CEREBRAS_MODEL||'gpt-oss-120b',provider:'cerebras',messages,temperature:Number(opts.temperature??settings?.temperature??0.6),headers:{'X-Cerebras-Version-Patch':'2'}});
+}
+
+async function huggingFace(messages,settings,opts={}){
+  if(process.env.HF_FREE_FALLBACK_ENABLED!=='true')return null;
+  return openAICompatible({key:process.env.HF_TOKEN,url:'https://router.huggingface.co/v1/chat/completions',model:process.env.HF_MODEL||'openai/gpt-oss-120b:cheapest',provider:'huggingface',messages,temperature:Number(opts.temperature??settings?.temperature??0.6)});
+}
+
+async function gemini(messages,settings,opts={}){
+  const key=process.env.GEMINI_API_KEY||process.env.GOOGLE_API_KEY;if(!key)return null;
+  try{
+    const model=process.env.GEMINI_MODEL||'gemini-3.8-flash';
+    const systemParts=messages.filter(m=>m.role==='system').map(m=>String(m.content||''));
+    const contents=messages.filter(m=>m.role!=='system').map(m=>({role:m.role==='assistant'?'model':'user',parts:[{text:String(m.content||'')}]}));
+    const body={contents,generationConfig:{temperature:Number(opts.temperature??settings?.temperature??0.6)},...(systemParts.length?{systemInstruction:{parts:[{text:systemParts.join('\n\n')}]} }:{})};
+    const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':key},body:JSON.stringify(body),signal:AbortSignal.timeout(75000)});
+    const d=await r.json().catch(()=>null);if(!r.ok||!d)return null;
+    const parts=d?.candidates?.[0]?.content?.parts||[];const text=parts.map(p=>p?.text||'').join('').trim();
+    return text?{text,provider:'gemini',model,citations:[]}:null;
+  }catch{return null}
+}
+
+async function externalFreeFallback(messages,webSearch,settings,opts={}){
+  const providers=[
+    ()=>openRouter(messages,webSearch,settings,opts),
+    ()=>groq(messages,settings,opts),
+    ()=>gemini(messages,settings,opts),
+    ()=>mistral(messages,settings,opts),
+    ()=>cerebras(messages,settings,opts),
+    ()=>huggingFace(messages,settings,opts)
+  ];
+  for(const run of providers){try{const r=await run();if(r)return r}catch{}}
+  return null;
 }
 
 async function generate(messages,webSearch,settings,opts={}){
   const mode=settings?.runtime_mode||'openrouter_primary';
-  let result=null;
-  if(mode==='openrouter_primary'||mode==='openrouter_only'){
-    result=await openRouter(messages,webSearch,settings,opts);
-    if(!result&&mode!=='openrouter_only')result=await selfHosted(messages,settings,opts);
-  }else{
-    result=await selfHosted(messages,settings,opts);
-    if(!result&&mode!=='self_hosted_only')result=await openRouter(messages,webSearch,settings,opts);
-  }
-  return result;
+  if(mode==='self_hosted_only')return selfHosted(messages,settings,opts);
+  if(mode==='self_hosted_primary')return await selfHosted(messages,settings,opts)||await externalFreeFallback(messages,webSearch,settings,opts);
+  return await externalFreeFallback(messages,webSearch,settings,opts)||await selfHosted(messages,settings,opts);
 }
 
 function normalizeVerification(raw){
@@ -148,7 +192,7 @@ export async function POST(req){
     let modelCalls=0;
     const candidates=[];
     const first=await generate(baseMessages,useSearch,settings,{temperature:Number(settings?.temperature??0.6)});modelCalls++;
-    if(!first)return NextResponse.json({message:'لا يوجد محرك متاح الآن.'},{status:503});
+    if(!first)return NextResponse.json({message:'لا يوجد محرك مجاني متاح الآن. أضف أحد مفاتيح Gemini أو Groq أو Mistral أو Cerebras إلى إعدادات الخادم.'},{status:503});
     candidates.push(first);
 
     if(deep&&modelCalls<maxCalls-1){
