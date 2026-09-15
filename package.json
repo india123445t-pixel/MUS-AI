@@ -1,6 +1,6 @@
 {
   "name": "mus-ai",
-  "version": "1.1.0-bos.1",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
