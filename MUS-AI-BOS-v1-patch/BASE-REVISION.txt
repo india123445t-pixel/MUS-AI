@@ -1,0 +1,7 @@
+Repository: india123445t-pixel/MUS-AI
+Base branch: main
+Base commit/tree reference observed: f465a28dca98719725d23ed29f389b0149355824
+Base app/api/chat/route.js blob: 6f48fe38d95e6055a155fd488b5c41e1eebe960f
+Generated: 2026-09-15
+
+Apply only after confirming the target repository still descends from / matches this reviewed base or after reviewing the diff against newer changes.

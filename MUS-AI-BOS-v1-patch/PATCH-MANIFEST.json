@@ -1,0 +1,136 @@
+{
+  "artifact": "MUS-AI-BOS-v1-patch",
+  "version": "1.0.0",
+  "base_main": "f465a28dca98719725d23ed29f389b0149355824",
+  "generated_at": "2026-09-15",
+  "test_status": "28/28 BOS tests pass",
+  "syntax_status": "PASS",
+  "build_status": "not run: sandbox DNS/npm cache unavailable",
+  "files": [
+    {
+      "path": "APPLY-BOS-PATCH.ps1",
+      "sha256": "b173176cf5842824febb3690a3788d268b31fc34c5b3d8f4edc53974374ed7fb",
+      "bytes": 2109
+    },
+    {
+      "path": "BASE-REVISION.txt",
+      "sha256": "41030835dc54a386ba27f4fce4919f9d63c05a5d477323b09aa5b6190733e276",
+      "bytes": 381
+    },
+    {
+      "path": "README-BOS-PATCH.md",
+      "sha256": "c31c927c50315903ffa381ea6acbf7f23cc03cb918caf85a7411c35145ccf427",
+      "bytes": 2124
+    },
+    {
+      "path": "app/api/chat/route.js",
+      "sha256": "36db5f0326b4e9139b4def2ac58830c64c3001100c4972d12837514f7aab6c62",
+      "bytes": 11090
+    },
+    {
+      "path": "app/api/internal/bos-status/route.js",
+      "sha256": "1463acc8dbb7670962dae7f47d61dec427ed833e32c2fc0ac73e570d9a84ae82",
+      "bytes": 1585
+    },
+    {
+      "path": "docs/MUS_BOS_v1_IMPLEMENTATION.md",
+      "sha256": "bdc152fa45893f6767b4482467af38ecf6b1e7e50abe9004284529665dd374f7",
+      "bytes": 7502
+    },
+    {
+      "path": "lib/mus/authority.js",
+      "sha256": "4b532dd93b258f95e068cae76687ab64025e8be9938da70c69d55c157991ae27",
+      "bytes": 7844
+    },
+    {
+      "path": "lib/mus/constants.js",
+      "sha256": "d3352c198adbd38c5547820457b24c4c83ae8cf18acc4ce7f0d03e874e292f30",
+      "bytes": 1617
+    },
+    {
+      "path": "lib/mus/context.js",
+      "sha256": "c234e00cbccf9e74d3c52a6bf8f2edcc89e2af7a25f55b794f710877071d24f8",
+      "bytes": 2739
+    },
+    {
+      "path": "lib/mus/domain-protocols.js",
+      "sha256": "c71f57a8afcd8589682eeed352412d64f6e8dc18b71601c0736fb28a69d5016f",
+      "bytes": 7235
+    },
+    {
+      "path": "lib/mus/kernel.js",
+      "sha256": "95b44c17078f2d1ceda82cdf2e578ecb7c223bf4a43083cd855c0ca9eb7ff4fd",
+      "bytes": 14128
+    },
+    {
+      "path": "lib/mus/persona.js",
+      "sha256": "0783574a32d881ea7ab701bf5a7303848ae5facd070b37213d6c967a4cb645aa",
+      "bytes": 2346
+    },
+    {
+      "path": "lib/mus/providers.js",
+      "sha256": "3143040978f7ad73204efae9d28dfa32ad90c68f10b76d1c03acd1ae649a6aca",
+      "bytes": 7087
+    },
+    {
+      "path": "lib/mus/receipts.js",
+      "sha256": "f4acf7db1eeea4d302f08bc82d81ec5f4d36b65b2dc8a627ade6eaa6bc113896",
+      "bytes": 1384
+    },
+    {
+      "path": "lib/mus/response-governor.js",
+      "sha256": "83f60a63da51850fe7b1c291aa6e353bc027b242e57fdd2d53c8de43741ed610",
+      "bytes": 2476
+    },
+    {
+      "path": "lib/mus/security.js",
+      "sha256": "d6f86d40b2a3d088fd1f19eef60547e0205a5e497a735813f5c070294c6920e2",
+      "bytes": 2795
+    },
+    {
+      "path": "lib/mus/state-machines.js",
+      "sha256": "d86b8c27673a20130560b7e8dc1cf6e87d4b5c5e24b5466d29f9c8a9920a9fff",
+      "bytes": 2921
+    },
+    {
+      "path": "lib/mus/tool-registry.js",
+      "sha256": "221380f64bf375af2aea0f5a445208193b607ed1730a4e262d79bbf055360152",
+      "bytes": 4334
+    },
+    {
+      "path": "package.json",
+      "sha256": "b3a2fc859215c4c032d5bde88340889c99f5b15473bcfd6451fa2fdb893da53e",
+      "bytes": 1371
+    },
+    {
+      "path": "supabase/migrations/20260915_mus_bos_v1.sql",
+      "sha256": "d5df2ce049cec930f00ebc47308138a312bf3440a903e9bf084747f4f071dd3f",
+      "bytes": 13523
+    },
+    {
+      "path": "tests/authority-contract.test.mjs",
+      "sha256": "924256e2b126207dfc64cde37c1f3695e8882b1e274a8f1e3194982eef973f83",
+      "bytes": 5637
+    },
+    {
+      "path": "tests/mus-kernel.test.mjs",
+      "sha256": "63283253e961dbc64a3ae2db5eb827640256a8be93640668b5bc579282e59ce3",
+      "bytes": 4504
+    },
+    {
+      "path": "tests/persona-contract.test.mjs",
+      "sha256": "17809c1d075b60ce329cccc336677ba980784a5f5969c3651dc6421775a171c0",
+      "bytes": 1191
+    },
+    {
+      "path": "tests/response-governor.test.mjs",
+      "sha256": "c52cb8fe7d6008ca9c6006c339460fd5c0989bf32a0c3652c7ee29010e415e05",
+      "bytes": 1522
+    },
+    {
+      "path": "tests/security-regression.test.mjs",
+      "sha256": "1056415d7cfc1251ba837b2d1419199158980e9bd4c9f5970d0cad1fb5da71e6",
+      "bytes": 1348
+    }
+  ]
+}
