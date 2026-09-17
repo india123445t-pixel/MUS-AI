@@ -3,7 +3,8 @@
 Safety properties:
 - Exact model + immutable revision are pinned.
 - GPU serving is text-only for the first proof-of-runtime, reducing VRAM pressure.
-- The server scales from zero and is limited to one L40S replica.
+- The server scales from zero and is limited to one replica.
+- The first smoke test uses 2x L4 GPUs with tensor parallelism to avoid the L40S payment-method gate.
 - External inference providers are not used here.
 - The HTTP endpoint requires a bearer API key supplied via the Modal secret
   `mus-model-runtime` (`MUS_MODEL_KEY`).
@@ -34,11 +35,12 @@ MODEL_DIR = MODEL_MOUNT / "Qwen3.8-27B-FP8" / MODEL_REVISION
 VLLM_CACHE_MOUNT = pathlib.Path("/vllm-cache")
 PORT = 8000
 SMOKE_TIMEOUT_SECONDS = 16 * 60
+SMOKE_MAX_MODEL_LEN = 2048
 
 app = modal.App("mus-sovereign-runtime")
 
 # Fail closed if the prepared model volume is missing. This prevents accidentally
-# starting a paid GPU against an empty model store.
+# starting paid GPUs against an empty model store.
 model_volume = modal.Volume.from_name(MODEL_VOLUME_NAME)
 vllm_cache_volume = modal.Volume.from_name(VLLM_CACHE_VOLUME_NAME, create_if_missing=True)
 
@@ -93,7 +95,7 @@ def _wait_for_vllm(process: subprocess.Popen, api_key: str, timeout_seconds: int
 
 @app.server(
     image=vllm_image,
-    gpu="L40S",
+    gpu="L4:2",
     min_containers=0,
     max_containers=1,
     target_concurrency=1,
@@ -136,13 +138,13 @@ class SovereignServer:
             "--api-key",
             api_key,
             "--max-model-len",
-            "4096",
+            str(SMOKE_MAX_MODEL_LEN),
             "--max-num-seqs",
             "1",
             "--gpu-memory-utilization",
             "0.90",
             "--tensor-parallel-size",
-            "1",
+            "2",
             "--language-model-only",
             "--enforce-eager",
             "--uvicorn-log-level",
@@ -156,8 +158,9 @@ class SovereignServer:
                     "event": "starting_vllm",
                     "model": MODEL_ID,
                     "revision": MODEL_REVISION,
-                    "max_model_len": 4096,
-                    "gpu": "L40S",
+                    "max_model_len": SMOKE_MAX_MODEL_LEN,
+                    "gpu": "L4:2",
+                    "tensor_parallel_size": 2,
                     "text_only": True,
                 }
             )
@@ -189,7 +192,7 @@ def smoke_test() -> dict:
     """Trigger one bounded GPU server and verify three short chat completions.
 
     This function never prints or returns MUS_MODEL_KEY. The first request also
-    triggers the scale-from-zero server. HTTP 503 is retried while the L40S
+    triggers the scale-from-zero server. HTTP 503 is retried while the GPU
     container is starting. When this `modal run` invocation finishes, the
     ephemeral App exits; the server is not left deployed persistently.
     """
