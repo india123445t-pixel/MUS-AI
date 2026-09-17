@@ -47,6 +47,7 @@ test('control center source no longer saves legacy learning confidence or reads 
   assert.equal(source.includes("verification?.verdict==='pass'"),false);
   assert.equal(source.includes("route_decision?.mode==='deep'"),false);
   assert.equal(source.includes('task_contract?.domain'),false);
+  assert.equal(source.includes("from '../../../lib/mus/control-center-compat.js'"),true);
 });
 
 test('Arabic structured project planning preserves scheduling dependencies resources and durations',()=>{

@@ -2,7 +2,7 @@
 
 import {useEffect,useMemo,useState} from 'react';
 import {createClient} from '@supabase/supabase-js';
-import {advisoryConfidence,formalLearningEligible,isDeepRoute,isUnresolvedTrace,isVerifiedTrace,traceDomain,verificationLabel} from '../../lib/mus/control-center-compat.js';
+import {advisoryConfidence,formalLearningEligible,isDeepRoute,isUnresolvedTrace,isVerifiedTrace,traceDomain,verificationLabel} from '../../../lib/mus/control-center-compat.js';
 
 const URL=process.env.NEXT_PUBLIC_SUPABASE_URL,KEY=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 const names={reasoning:'الاستدلال',math:'الرياضيات',science:'العلوم',coding:'البرمجة',language:'اللغة',research:'البحث',planning:'التخطيط',knowledge:'المعرفة',general:'عام',software:'البرمجة',data:'البيانات',communication:'التواصل',operations:'العمليات'};
