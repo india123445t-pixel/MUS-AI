@@ -158,9 +158,17 @@ export async function POST(req){
 
     let modelCalls=0;
     const candidates=[];
-    const first=await generateModelResponse(messages,route.web_search,settings,{temperature:Number(settings?.temperature??0.4)});
+    const first=await generateModelResponse(messages,route.web_search,settings,{
+      temperature:Number(settings?.temperature??0.4),
+      includeDiagnostics:true,
+      logDiagnostics:true,
+    });
     modelCalls++;
-    if(!first)return NextResponse.json({message:'لا يوجد محرك استدلال متاح الآن.'},{status:503});
+    if(!first||first.unavailable){
+      const errorClass=first?.error_class||'UNKNOWN_PROVIDER_ERROR';
+      console.warn('MUS_INFERENCE_UNAVAILABLE',{error_class:errorClass,route:settings?.runtime_mode||'openrouter_primary'});
+      return NextResponse.json({message:'لا يوجد محرك استدلال متاح الآن.',error_class:errorClass},{status:503});
+    }
     candidates.push(first);
 
     if(route.reasoning==='deep'&&modelCalls<route.max_model_calls-1){
@@ -185,14 +193,7 @@ export async function POST(req){
     modelCalls=repair.modelCalls;
     if(advisory&&repair.adjudication)advisory={...advisory,adjudication:repair.adjudication};
 
-    // Current public chat has no external executor. Formal verification is therefore deliberately conservative.
-    const deterministic={
-      executionEvidence:false,
-      postconditionEvidence:false,
-      verified:false,
-      refuted:false,
-      conflicting:false,
-    };
+    const deterministic={executionEvidence:false,postconditionEvidence:false,verified:false,refuted:false,conflicting:false};
     const formal=adjudicateFormalVerification({contract,route,candidate:selected,advisoryVerifier:advisory,deterministic});
     const verification={
       required:formal.required,
