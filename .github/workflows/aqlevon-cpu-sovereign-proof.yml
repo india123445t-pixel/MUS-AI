@@ -1,0 +1,150 @@
+name: AQLEVON CPU Sovereign Proof
+
+on:
+  push:
+    branches:
+      - experiment/aqlevon-cpu-sovereign-proof
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sovereign-cpu-proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    env:
+      MODEL_REPO: ggml-org/Qwen3.8-27B-GGUF
+      MODEL_FILE: Qwen3.8-27B-Q4_K_M.gguf
+      MODEL_ALIAS: AQLEVON-27B
+      MODEL_URL: https://huggingface.co/ggml-org/Qwen3.8-27B-GGUF/resolve/main/Qwen3.8-27B-Q4_K_M.gguf?download=true
+    steps:
+      - name: Show initial runner capacity
+        shell: bash
+        run: |
+          set -euxo pipefail
+          uname -a
+          free -h
+          df -h /
+
+      - name: Reclaim preinstalled runner disk
+        shell: bash
+        run: |
+          set -euxo pipefail
+          sudo rm -rf /usr/local/lib/android || true
+          sudo rm -rf /usr/share/dotnet || true
+          sudo rm -rf /opt/ghc || true
+          sudo rm -rf /usr/local/.ghcup || true
+          sudo rm -rf /opt/hostedtoolcache/CodeQL || true
+          sudo apt-get clean || true
+          sudo rm -rf /var/lib/apt/lists/* || true
+          df -h /
+          free -h
+          FREE_GB=$(df -BG --output=avail / | tail -1 | tr -dc '0-9')
+          echo "FREE_GB=${FREE_GB}" >> "$GITHUB_ENV"
+          if [ "${FREE_GB}" -lt 22 ]; then
+            echo "AQLEVON_DISK_GATE_FAIL: need >=22GB free for the 19GB runtime artifact" >&2
+            exit 42
+          fi
+
+      - name: Build llama.cpp CPU server
+        shell: bash
+        run: |
+          set -euxo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential cmake git libcurl4-openssl-dev ca-certificates curl jq
+          git clone --depth 1 https://github.com/ggml-org/llama.cpp.git /tmp/llama.cpp
+          cmake -S /tmp/llama.cpp -B /tmp/llama.cpp/build \
+            -DGGML_CUDA=OFF \
+            -DLLAMA_CURL=ON \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DLLAMA_BUILD_TESTS=OFF
+          cmake --build /tmp/llama.cpp/build -j 4 --target llama-server
+          cp /tmp/llama.cpp/build/bin/llama-server /tmp/llama-server
+          strip /tmp/llama-server || true
+          rm -rf /tmp/llama.cpp
+          sudo apt-get clean || true
+          df -h /
+          /tmp/llama-server --version || true
+
+      - name: Download trusted Qwen3.8-27B Q4 runtime artifact
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p "$RUNNER_TEMP/aqlevon-model"
+          curl -fL --retry 6 --retry-all-errors --connect-timeout 30 \
+            "$MODEL_URL" \
+            -o "$RUNNER_TEMP/aqlevon-model/$MODEL_FILE"
+          ls -lh "$RUNNER_TEMP/aqlevon-model/$MODEL_FILE"
+          BYTES=$(stat -c%s "$RUNNER_TEMP/aqlevon-model/$MODEL_FILE")
+          echo "MODEL_BYTES=$BYTES"
+          if [ "$BYTES" -lt 18000000000 ]; then
+            echo "AQLEVON_MODEL_DOWNLOAD_FAIL: artifact unexpectedly small" >&2
+            exit 43
+          fi
+          df -h /
+          free -h
+
+      - name: Start private OpenAI-compatible llama.cpp endpoint
+        shell: bash
+        run: |
+          set -euxo pipefail
+          MODEL_PATH="$RUNNER_TEMP/aqlevon-model/$MODEL_FILE"
+          nohup /tmp/llama-server \
+            -m "$MODEL_PATH" \
+            --alias "$MODEL_ALIAS" \
+            --host 127.0.0.1 \
+            --port 8080 \
+            --ctx-size 512 \
+            --threads 4 \
+            --parallel 1 \
+            --n-gpu-layers 0 \
+            > "$RUNNER_TEMP/aqlevon-llama.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/aqlevon-llama.pid"
+          for i in $(seq 1 180); do
+            if curl -fsS http://127.0.0.1:8080/health >/tmp/health.json 2>/dev/null; then
+              cat /tmp/health.json
+              echo "AQLEVON_ENDPOINT_HEALTH_PASS"
+              exit 0
+            fi
+            if ! kill -0 "$(cat "$RUNNER_TEMP/aqlevon-llama.pid")" 2>/dev/null; then
+              echo "llama-server exited during model load" >&2
+              tail -200 "$RUNNER_TEMP/aqlevon-llama.log" >&2 || true
+              exit 44
+            fi
+            sleep 5
+          done
+          echo "AQLEVON_ENDPOINT_HEALTH_TIMEOUT" >&2
+          tail -200 "$RUNNER_TEMP/aqlevon-llama.log" >&2 || true
+          exit 45
+
+      - name: OpenAI-compatible sovereign smoke request
+        shell: bash
+        run: |
+          set -euxo pipefail
+          REQUEST='{"model":"AQLEVON-27B","messages":[{"role":"user","content":"Reply with exactly AQLEVON_OK and nothing else."}],"temperature":0,"max_tokens":12,"stream":false}'
+          curl -fsS --max-time 900 \
+            -H 'Content-Type: application/json' \
+            -d "$REQUEST" \
+            http://127.0.0.1:8080/v1/chat/completions \
+            -o "$RUNNER_TEMP/aqlevon-response.json"
+          cat "$RUNNER_TEMP/aqlevon-response.json"
+          jq -e '.choices[0].message.content | strings | length > 0' "$RUNNER_TEMP/aqlevon-response.json" >/dev/null
+          echo "AQLEVON_OPENAI_COMPATIBLE_HTTP_PASS"
+
+      - name: Final proof summary
+        if: always()
+        shell: bash
+        run: |
+          echo '=== AQLEVON CPU SOVEREIGN PROOF SUMMARY ==='
+          free -h || true
+          df -h / || true
+          if [ -f "$RUNNER_TEMP/aqlevon-response.json" ]; then
+            echo 'Response captured: yes'
+          else
+            echo 'Response captured: no'
+          fi
+          if [ -f "$RUNNER_TEMP/aqlevon-llama.log" ]; then
+            echo '--- llama.cpp tail ---'
+            tail -120 "$RUNNER_TEMP/aqlevon-llama.log" || true
+          fi
