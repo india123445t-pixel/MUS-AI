@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { assertNoAuthorityFromUntrusted, sanitizeHistory } from '../lib/kite/security.js';
+import { assertNoAuthorityFromUntrusted, sanitizeHistory } from '../lib/aqlevon/security.js';
 
 
 test('repository-style prompt injection is detectable as untrusted content',()=>{
@@ -15,7 +15,7 @@ test('history sanitation removes bearer-like credentials',()=>{
 });
 
 test('GitHub-style and JWT-like secrets are redacted',async()=>{
-  const { redactSecrets }=await import('../lib/kite/security.js');
+  const { redactSecrets }=await import('../lib/aqlevon/security.js');
   const text='token ghp_abcdefghijklmnopqrstuvwxyz0123456789 and jwt eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abcdefghijklmnopqrstuvwx';
   const out=redactSecrets(text);
   assert.equal(out.includes('ghp_abcdefghijklmnopqrstuvwxyz0123456789'),false);

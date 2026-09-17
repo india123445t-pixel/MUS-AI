@@ -1,14 +1,14 @@
-# KITE AI — Behavioral Operating System v1 Implementation
+# AQLEVON AI — Behavioral Operating System v1 Implementation
 
-This patch translates the frozen KITE AI research architecture into an implementable runtime kernel without pretending the underlying model weights have changed.
+This patch translates the frozen AQLEVON AI research architecture into an implementable runtime kernel without pretending the underlying model weights have changed.
 
 ## What becomes real immediately
 
 ### Chat cognition kernel
 The public `/api/chat` route now constructs a controller-owned TaskContract before model generation. It composes domain protocols, decides Fast/Normal/High routing, sanitizes obvious secret material, and keeps formal verification separate from model agreement.
 
-### KITE personality
-The provider model is treated as an implementation detail. A dedicated persona contract gives KITE AI its own restrained, analytical, non-sycophantic voice. It must not impersonate ChatGPT/Claude/Gemini or inherit provider-specific personality habits.
+### AQLEVON personality
+The provider model is treated as an implementation detail. A dedicated persona contract gives AQLEVON AI its own restrained, analytical, non-sycophantic voice. It must not impersonate ChatGPT/Claude/Gemini or inherit provider-specific personality habits.
 
 ### Truth boundaries
 - model answer != evidence;
@@ -39,7 +39,7 @@ The database migration includes the 16 frozen logical runtime objects plus trust
 The current repository exposes model-provider calls and chat/evaluation APIs, but does not yet contain a registered external ToolSpec/Permit/Executor/Credential-Broker pipeline for arbitrary side effects. Enabling external actions directly from model text would violate the architecture we spent the research phase defining.
 
 The safe next activation step is:
-1. apply the BOS schema to the actual KITE AI Supabase project;
+1. apply the BOS schema to the actual AQLEVON AI Supabase project;
 2. register a small allowlisted ToolSpec set;
 3. add a server-only Credential Broker;
 4. create exact Permit issuance and ActionAttempt dispatch fencing;
@@ -48,11 +48,11 @@ The safe next activation step is:
 
 ## Current database connector limitation found during implementation
 
-The Supabase connector available in this ChatGPT session exposes only project `qkoscgdegnqcypkjrefn` (`mysindbad's Projec`), not the KITE AI project previously identified in research. The migration is therefore prepared but intentionally not executed against that unrelated project.
+The Supabase connector available in this ChatGPT session exposes only project `qkoscgdegnqcypkjrefn` (`mysindbad's Projec`), not the AQLEVON AI project previously identified in research. The migration is therefore prepared but intentionally not executed against that unrelated project.
 
 ## Current GitHub connector limitation found during implementation
 
-The GitHub repository `india123445t-pixel/KITE-AI` is readable, but the connected GitHub app reports `push: false`. ChatGPT plugin permission was raised to full access at the user's explicit request, but OAuth/repository write scope remains read-only. The patch is therefore generated and tested locally, ready to apply as soon as the GitHub connector is reconnected with write access.
+The GitHub repository `india123445t-pixel/AQLEVON-AI` is readable, but the connected GitHub app reports `push: false`. ChatGPT plugin permission was raised to full access at the user's explicit request, but OAuth/repository write scope remains read-only. The patch is therefore generated and tested locally, ready to apply as soon as the GitHub connector is reconnected with write access.
 
 ## Validation
 
@@ -79,44 +79,44 @@ npm run build
 - ActionReceipt never becomes VerificationState truth;
 - illegal state-machine rewrites are rejected;
 - context compaction cannot drop UNKNOWN/blockers/authority-critical state;
-- KITE personality stays provider-independent while controller law remains above personality;
+- AQLEVON personality stays provider-independent while controller law remains above personality;
 - response governance adds deterministic evidence/execution qualifications instead of trusting model wording.
 
 ## Research-to-code map
 
 | Frozen concept | Code / schema |
 |---|---|
-| TaskContract | `lib/kite/kernel.js`, `kite_task_contracts` |
-| DurableConstraint | migration `kite_durable_constraints` |
-| ActionIntent | `kite_action_intents` |
-| Permit | `kite_permits` |
-| ConfirmationRecord | `kite_confirmation_records` |
-| ActionAttempt | `kite_action_attempts` |
-| ActionReceipt | `kite_action_receipts` |
-| Artifact | `kite_artifacts` |
-| EvidenceBinding | `kite_evidence_bindings` |
-| VerificationState | `kite_verification_states` |
-| Claim | `kite_claims` |
-| Response | `kite_responses` |
-| AuditEvent | `kite_audit_events` |
-| ToolSpec / CapabilitySpec | `lib/kite/tool-registry.js` + trusted registry tables, not runtime authority tokens |
-| Permit / authority gate | `lib/kite/authority.js`, `kite_permits` |
-| State machines | `lib/kite/state-machines.js` |
-| Receipt binding | `lib/kite/receipts.js` |
-| Context/compaction | `lib/kite/context.js` |
-| Response Governor | `lib/kite/response-governor.js` |
-| Domain protocols | `lib/kite/domain-protocols.js` |
-| Personality | `lib/kite/persona.js` |
-| Secret boundary | `lib/kite/security.js` |
-| Provider fallback | `lib/kite/providers.js` |
+| TaskContract | `lib/aqlevon/kernel.js`, `aqlevon_task_contracts` |
+| DurableConstraint | migration `aqlevon_durable_constraints` |
+| ActionIntent | `aqlevon_action_intents` |
+| Permit | `aqlevon_permits` |
+| ConfirmationRecord | `aqlevon_confirmation_records` |
+| ActionAttempt | `aqlevon_action_attempts` |
+| ActionReceipt | `aqlevon_action_receipts` |
+| Artifact | `aqlevon_artifacts` |
+| EvidenceBinding | `aqlevon_evidence_bindings` |
+| VerificationState | `aqlevon_verification_states` |
+| Claim | `aqlevon_claims` |
+| Response | `aqlevon_responses` |
+| AuditEvent | `aqlevon_audit_events` |
+| ToolSpec / CapabilitySpec | `lib/aqlevon/tool-registry.js` + trusted registry tables, not runtime authority tokens |
+| Permit / authority gate | `lib/aqlevon/authority.js`, `aqlevon_permits` |
+| State machines | `lib/aqlevon/state-machines.js` |
+| Receipt binding | `lib/aqlevon/receipts.js` |
+| Context/compaction | `lib/aqlevon/context.js` |
+| Response Governor | `lib/aqlevon/response-governor.js` |
+| Domain protocols | `lib/aqlevon/domain-protocols.js` |
+| Personality | `lib/aqlevon/persona.js` |
+| Secret boundary | `lib/aqlevon/security.js` |
+| Provider fallback | `lib/aqlevon/providers.js` |
 
 ## Explicit non-claims
 
 This patch does **not** claim:
-- KITE has new trained weights;
+- AQLEVON has new trained weights;
 - model-generated verification is formal truth;
 - external side-effect tools are production-ready before the broker/permit/executor path is connected;
-- the migration has been applied to the actual KITE Supabase project;
+- the migration has been applied to the actual AQLEVON Supabase project;
 - the GitHub repository has already been modified while the connector remains read-only.
 
 Those boundaries are deliberate rather than missing work.

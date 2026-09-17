@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { governResponse } from '../lib/kite/response-governor.js';
+import { governResponse } from '../lib/aqlevon/response-governor.js';
 
 test('current claim with INCONCLUSIVE evidence receives deterministic evidence qualification',()=>{
   const out=governResponse({

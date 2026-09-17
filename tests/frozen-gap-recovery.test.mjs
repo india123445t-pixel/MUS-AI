@@ -3,16 +3,16 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import {
   isVerifiedTrace,isUnresolvedTrace,isDeepRoute,traceDomain,verificationLabel,formalLearningEligible,
-} from '../lib/kite/control-center-compat.js';
-import { buildTaskContract, detectPlanningIntent } from '../lib/kite/kernel.js';
-import { classifyProviderFailure, safeProviderDiagnostic, PROVIDER_ERROR_CLASSES } from '../lib/kite/providers.js';
+} from '../lib/aqlevon/control-center-compat.js';
+import { buildTaskContract, detectPlanningIntent } from '../lib/aqlevon/kernel.js';
+import { classifyProviderFailure, safeProviderDiagnostic, PROVIDER_ERROR_CLASSES } from '../lib/aqlevon/providers.js';
 import {
   decideControllerAction,createIsolatedResultStore,deterministicFixtureAdapter,runIsolatedEvaluation,
   createCredentialBroker,dispatchRegisteredAction,reconciliationPlan,validateRetryAttempt,
   compensationRequiresSeparateAuthority,recoverCanonicalRuntime,
-} from '../lib/kite/frozen-foundations.js';
-import { createTrustedRegistry } from '../lib/kite/tool-registry.js';
-import { createActionIntent, issuePermit } from '../lib/kite/authority.js';
+} from '../lib/aqlevon/frozen-foundations.js';
+import { createTrustedRegistry } from '../lib/aqlevon/tool-registry.js';
+import { createActionIntent, issuePermit } from '../lib/aqlevon/authority.js';
 
 const decisionBase={task:{id:'t1',phase:'RUNNING',outcome:'NONE'},taskContract:{contract_id:'c1'}};
 
@@ -20,7 +20,7 @@ function executionFixture(){
   const registry=createTrustedRegistry({toolSpecs:[{tool_id:'repo.write',version:'1',provider:'github',adapter_identity:'fake@1',lifecycle:'ACTIVE',capabilities:['WRITE'],resource_types:['repository'],consequential_parameters:['path','content'],reconciliation:{supported:true}}]});
   const tool=registry.getTool('repo.write','1');
   const principal={id:'p1',status:'ACTIVE'},taskContract={contract_id:'c1'};
-  const intent=createActionIntent({task_id:'t1',contract_id:'c1',semantic_action:'update',resource:{provider:'github',tenant:'owner',project:'KITE-AI',environment:'staging',resource_id:'repo1'},parameters:{path:'x',content:'y'},capabilities:['WRITE']});
+  const intent=createActionIntent({task_id:'t1',contract_id:'c1',semantic_action:'update',resource:{provider:'github',tenant:'owner',project:'AQLEVON-AI',environment:'staging',resource_id:'repo1'},parameters:{path:'x',content:'y'},capabilities:['WRITE']});
   const permit=issuePermit({principal,taskContract,intent,toolSpec:tool,constraints:[]});
   const attempt={id:'a1',action_intent_id:intent.id,permit_id:permit.id,phase:'QUEUED',outcome:'NONE'};
   return {registry,tool,principal,taskContract,intent,permit,attempt};
@@ -47,13 +47,13 @@ test('control center source no longer saves legacy learning confidence or reads 
   assert.equal(source.includes("verification?.verdict==='pass'"),false);
   assert.equal(source.includes("route_decision?.mode==='deep'"),false);
   assert.equal(source.includes('task_contract?.domain'),false);
-  assert.equal(source.includes("from '../../../lib/kite/control-center-compat.js'"),true);
+  assert.equal(source.includes("from '../../../lib/aqlevon/control-center-compat.js'"),true);
 });
 
 test('Arabic structured project planning preserves scheduling dependencies resources and durations',()=>{
   const input='خطة مشروع:\nمهمة A: 3 ساعات\nمهمة B: ساعتان وتعتمد على مهمة A\nلدينا عاملان. ما أقل زمن لإنهاء المشروع؟';
   const p=detectPlanningIntent(input);assert.equal(p.detected,true);assert.equal(p.scheduling_intent,true);assert.equal(p.dependency_intent,true);assert.equal(p.resource_constraints,true);assert.equal(p.duration_constraints,true);assert.equal(p.structured_input,true);
-  const c=buildTaskContract(input,{contractId:'plan-ar'});assert.equal(c.primary_domain,'planning');assert.ok(c.domains.includes('planning'));assert.equal(c.protocol_ids.includes('kite.planning.v1'),false);assert.ok(c.success_criteria.some(x=>x.includes('task labels')));assert.deepEqual(c.planning.preserve,['task_labels','quantities','dependencies','resources','durations','objective']);
+  const c=buildTaskContract(input,{contractId:'plan-ar'});assert.equal(c.primary_domain,'planning');assert.ok(c.domains.includes('planning'));assert.equal(c.protocol_ids.includes('aqlevon.planning.v1'),false);assert.ok(c.success_criteria.some(x=>x.includes('task labels')));assert.deepEqual(c.planning.preserve,['task_labels','quantities','dependencies','resources','durations','objective']);
 });
 
 test('English planning recovery recognizes project schedule without creating a Round-G protocol',()=>{

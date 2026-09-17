@@ -12,7 +12,7 @@ function providerFlags(){
     mistral:!!process.env.MISTRAL_API_KEY,
     cerebras:!!process.env.CEREBRAS_API_KEY,
     huggingface:!!process.env.HF_TOKEN&&process.env.HF_FREE_FALLBACK_ENABLED==='true',
-    self_hosted:!!(process.env.KITE_MODEL_URL||process.env.LOCAL_MODEL_URL)
+    self_hosted:!!(process.env.AQLEVON_MODEL_URL||process.env.LOCAL_MODEL_URL)
   };
 }
 
@@ -32,8 +32,8 @@ export async function GET(req){
     if(userResult.error||!userResult.data?.user)return NextResponse.json({message:'جلسة غير صالحة.'},{status:401});
 
     const [snapshotResult,runtimeResult]=await Promise.all([
-      sb.rpc('get_kite_intelligence_snapshot'),
-      sb.rpc('get_kite_runtime_config')
+      sb.rpc('get_aqlevon_intelligence_snapshot'),
+      sb.rpc('get_aqlevon_runtime_config')
     ]);
     if(snapshotResult.error)throw snapshotResult.error;
     if(runtimeResult.error)throw runtimeResult.error;

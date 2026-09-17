@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server';
-import { EFFECT_CAPABILITIES, KITE_BOS_VERSION, VERIFICATION_RESULTS } from '../../../../lib/kite/constants.js';
-import { protocolRegistrySnapshot } from '../../../../lib/kite/domain-protocols.js';
+import { EFFECT_CAPABILITIES, AQLEVON_BOS_VERSION, VERIFICATION_RESULTS } from '../../../../lib/aqlevon/constants.js';
+import { protocolRegistrySnapshot } from '../../../../lib/aqlevon/domain-protocols.js';
 
 export const dynamic='force-dynamic';
 
 export async function GET(){
   return NextResponse.json({
-    name:'KITE AI Behavioral Operating System',
-    version:KITE_BOS_VERSION,
+    name:'AQLEVON AI Behavioral Operating System',
+    version:AQLEVON_BOS_VERSION,
     implementation_state:'kernel-integrated',
     canonical_runtime_objects:16,
     invariants:[
@@ -27,7 +27,7 @@ export async function GET(){
       chat_runtime:'active',
       action_executor:'framework-only until a registered external ToolSpec/Permit path is connected',
       credential_broker:'required before live external actions',
-      durable_constraint_store:'migration prepared; production database migration not auto-applied without the KITE AI Supabase project connection',
+      durable_constraint_store:'migration prepared; production database migration not auto-applied without the AQLEVON AI Supabase project connection',
     },
   },{headers:{'Cache-Control':'no-store'}});
 }

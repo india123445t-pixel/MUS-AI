@@ -1,4 +1,4 @@
-# KITE AI — DOWNLOAD MANIFEST V1
+# AQLEVON AI — DOWNLOAD MANIFEST V1
 
 Purpose: immutable acquisition record for the sovereign self-hosted model runtime. **No model weights are marked acquired until the pinned revision is downloaded and verified.**
 
@@ -9,10 +9,10 @@ Purpose: immutable acquisition record for the sovereign self-hosted model runtim
 - license: `Apache-2.0`
 - serving runtime: `vLLM` OpenAI-compatible server
 - pinned vLLM version for the first Modal runtime: `0.29.0`
-- KITE runtime mode: `self_hosted_only`
+- AQLEVON runtime mode: `self_hosted_only`
 - first context target: `4096` tokens
-- Modal model volume: `kite-model-store`
-- Modal vLLM cache volume: `kite-vllm-cache`
+- Modal model volume: `aqlevon-model-store`
+- Modal vLLM cache volume: `aqlevon-vllm-cache`
 - server path: `/models/Qwen3.8-27B-FP8/017b9c7af6b5689d5dd426a76e0bc077eb5ca20a/`
 - deployment definition: `infra/modal/sovereign_runtime.py`
 
@@ -20,7 +20,7 @@ Purpose: immutable acquisition record for the sovereign self-hosted model runtim
 
 The authoritative per-file inventory is generated only after download by `infra/modal/sovereign_runtime.py` and persisted as:
 
-`/models/Qwen3.8-27B-FP8/017b9c7af6b5689d5dd426a76e0bc077eb5ca20a/KITE_RUNTIME_MANIFEST.json`
+`/models/Qwen3.8-27B-FP8/017b9c7af6b5689d5dd426a76e0bc077eb5ca20a/AQLEVON_RUNTIME_MANIFEST.json`
 
 That runtime manifest records every downloaded file, byte size, and SHA-256 hash.
 
@@ -42,7 +42,7 @@ That runtime manifest records every downloaded file, byte size, and SHA-256 hash
 1. Run model acquisition on CPU first; do not start the L40S merely to download weights.
 2. The first GPU definition is exactly one `L40S` with `max_containers=1` and `min_containers=0`.
 3. The server scales to zero and uses a short idle shutdown window.
-4. The HTTP server must require `KITE_MODEL_KEY` bearer authentication through the Modal secret `kite-model-runtime`.
+4. The HTTP server must require `AQLEVON_MODEL_KEY` bearer authentication through the Modal secret `aqlevon-model-runtime`.
 5. Do not add OpenRouter, Gemini, Claude, OpenAI, Groq, Mistral, Cerebras, Hugging Face inference, or another external inference fallback to `self_hosted_only`.
 6. Do not run a second paid GPU attempt without fresh owner approval.
 7. Owner-authorized actual usage/spend cap for the first real experiment remains **USD $1 total**.
@@ -57,7 +57,7 @@ That runtime manifest records every downloaded file, byte size, and SHA-256 hash
 6. Run `npm run sovereign:test` before endpoint activation.
 7. Run `npm run sovereign:eval` against the real endpoint and record reasoning, coding, Arabic, Moroccan Darija, tool-use, and latency results.
 8. Verify `/health` and `/v1/chat/completions` return successfully through the self-hosted runtime.
-9. Verify KITE uses `runtime_mode=self_hosted_only` and no external inference provider is contacted on either success or failure.
+9. Verify AQLEVON uses `runtime_mode=self_hosted_only` and no external inference provider is contacted on either success or failure.
 10. Mark pass/fail per artifact and per runtime test. Do not mark PASS from download success alone.
 
 ## Retention / deletion rule
@@ -66,4 +66,4 @@ That runtime manifest records every downloaded file, byte size, and SHA-256 hash
 - Never delete the only known-good active artifact before a replacement passes integrity + health + sovereign evaluation.
 - Delete failed/corrupt/incomplete revisions after evidence is retained (revision, hashes, failure reason, timestamps); do not reuse a directory that failed integrity verification.
 - Credentials/API keys are never written into this manifest, model directory, logs, hashes, Git, or model metadata.
-- Weight deletion is an explicit operator action; KITE/LLM text alone has no deletion authority.
+- Weight deletion is an explicit operator action; AQLEVON/LLM text alone has no deletion authority.
