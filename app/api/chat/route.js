@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createHash, randomUUID } from 'crypto';
-import { generateModelResponse } from '../../../lib/aqlevon/providers.js';
+import { generateModelResponse } from '../../../lib/kite/providers.js';
 import {
   adjudicateFormalVerification,
   buildMessages,
@@ -13,10 +13,10 @@ import {
   normalizeAdvisoryVerifier,
   safeJson,
   taskContractDigest,
-} from '../../../lib/aqlevon/kernel.js';
-import { redactSecrets } from '../../../lib/aqlevon/security.js';
-import { AQLEVON_BOS_VERSION } from '../../../lib/aqlevon/constants.js';
-import { governResponse } from '../../../lib/aqlevon/response-governor.js';
+} from '../../../lib/kite/kernel.js';
+import { redactSecrets } from '../../../lib/kite/security.js';
+import { KITE_BOS_VERSION } from '../../../lib/kite/constants.js';
+import { governResponse } from '../../../lib/kite/response-governor.js';
 
 const SUPABASE_URL=process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_KEY=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
@@ -28,7 +28,7 @@ function client(){
 function isUuid(v=''){return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(v))}
 function ipHash(req){
   const raw=(req.headers.get('x-forwarded-for')||req.headers.get('x-real-ip')||'unknown').split(',')[0].trim();
-  return createHash('sha256').update(`aqlevon-ai|${raw}`).digest('hex').slice(0,32);
+  return createHash('sha256').update(`kite-ai|${raw}`).digest('hex').slice(0,32);
 }
 
 async function loadRuntime(sb){
@@ -48,8 +48,8 @@ async function loadRuntime(sb){
   };
   try{
     const [cfg,lessons]=await Promise.all([
-      sb.rpc('get_aqlevon_runtime_config'),
-      sb.rpc('get_aqlevon_runtime_lessons',{p_limit:18}),
+      sb.rpc('get_kite_runtime_config'),
+      sb.rpc('get_kite_runtime_lessons',{p_limit:18}),
     ]);
     return {
       settings:cfg.error?fallback.settings:{...fallback.settings,...(cfg.data||{})},
@@ -85,7 +85,7 @@ async function runAdvisoryVerifier({contract,candidates,settings,webSearch}){
 async function maybeAdjudicateRepair({contract,selected,advisory,candidates,settings,webSearch,maxCalls,modelCalls}){
   if(!advisory?.corrected_answer||advisory.relation!=='REPAIR'||modelCalls>=maxCalls)return {selected,modelCalls,adjudication:null};
   const excluded=[...new Set([...candidates.map(c=>c.provider),advisory.verifier_provider].filter(Boolean))];
-  const system=`You are an independent AQLEVON response adjudicator. Choose between ORIGINAL and REPAIR for the frozen task contract. Do not treat agreement, confidence, or style as truth. Never invent tool execution. Return STRICT JSON only: {"choice":"original|repair|uncertain","reason":"short reason"}.`;
+  const system=`You are an independent KITE response adjudicator. Choose between ORIGINAL and REPAIR for the frozen task contract. Do not treat agreement, confidence, or style as truth. Never invent tool execution. Return STRICT JSON only: {"choice":"original|repair|uncertain","reason":"short reason"}.`;
   const result=await generateModelResponse([
     {role:'system',content:system},
     {role:'user',content:JSON.stringify({task_contract:contract,original:selected.text,repair:advisory.corrected_answer})},
@@ -111,7 +111,7 @@ async function logExchange(sb,{sessionId,conversationId,redactedInput,selected,r
       p_web_search:route.web_search,
       p_ip_hash:requestHash,
       p_run_id:runId,
-      p_task_contract:{...contract,contract_digest:taskContractDigest(contract),bos_version:AQLEVON_BOS_VERSION},
+      p_task_contract:{...contract,contract_digest:taskContractDigest(contract),bos_version:KITE_BOS_VERSION},
       p_route_decision:route,
       p_verification:verification,
       p_latency_ms:latency,
@@ -135,7 +135,7 @@ export async function POST(req){
     const redactedInput=redactSecrets(rawInput);
     const sb=client();
     const {settings,lessons}=await loadRuntime(sb);
-    if(settings.public_chat_enabled===false)return NextResponse.json({message:'AQLEVON AI في وضع صيانة مؤقتًا.'},{status:503});
+    if(settings.public_chat_enabled===false)return NextResponse.json({message:'KITE AI في وضع صيانة مؤقتًا.'},{status:503});
 
     const sessionId=isUuid(body.sessionId)?body.sessionId:randomUUID();
     const conversationId=isUuid(body.conversationId)?body.conversationId:randomUUID();
@@ -166,7 +166,7 @@ export async function POST(req){
     modelCalls++;
     if(!first||first.unavailable){
       const errorClass=first?.error_class||'UNKNOWN_PROVIDER_ERROR';
-      console.warn('AQLEVON_INFERENCE_UNAVAILABLE',{error_class:errorClass,route:settings?.runtime_mode||'openrouter_primary'});
+      console.warn('KITE_INFERENCE_UNAVAILABLE',{error_class:errorClass,route:settings?.runtime_mode||'openrouter_primary'});
       return NextResponse.json({message:'لا يوجد محرك استدلال متاح الآن.',error_class:errorClass},{status:503});
     }
     candidates.push(first);
@@ -220,9 +220,9 @@ export async function POST(req){
 
     return NextResponse.json({
       text:selected.text,
-      provider:'aqlevon-ai',
-      model:'AQLEVON AI',
-      bos_version:AQLEVON_BOS_VERSION,
+      provider:'kite-ai',
+      model:'KITE AI',
+      bos_version:KITE_BOS_VERSION,
       session_id:sessionId,
       conversation_id:conversationId,
       chat_log_id:logData?.chat_log_id||null,
@@ -232,6 +232,6 @@ export async function POST(req){
       epistemic:{verification:verification.result,formal_required:verification.required},
     });
   }catch(error){
-    return NextResponse.json({message:error?.message||'حدث خطأ في خدمة AQLEVON AI.'},{status:500});
+    return NextResponse.json({message:error?.message||'حدث خطأ في خدمة KITE AI.'},{status:500});
   }
 }

@@ -1,4 +1,4 @@
-"""CPU-only preparation of the frozen AQLEVON model artifact on Modal.
+"""CPU-only preparation of the frozen KITE model artifact on Modal.
 
 This script intentionally does not request a GPU and does not require the runtime
 secret. It downloads the exact pinned Hugging Face revision into a persistent
@@ -15,11 +15,11 @@ import modal
 
 MODEL_ID = "Qwen/Qwen3.8-27B-FP8"
 MODEL_REVISION = "017b9c7af6b5689d5dd426a76e0bc077eb5ca20a"
-MODEL_VOLUME_NAME = "aqlevon-model-store"
+MODEL_VOLUME_NAME = "kite-model-store"
 MODEL_MOUNT = pathlib.Path("/models")
 MODEL_DIR = MODEL_MOUNT / "Qwen3.8-27B-FP8" / MODEL_REVISION
 
-app = modal.App("aqlevon-sovereign-model-prepare")
+app = modal.App("kite-sovereign-model-prepare")
 model_volume = modal.Volume.from_name(MODEL_VOLUME_NAME, create_if_missing=True)
 
 image = (
@@ -60,7 +60,7 @@ def prepare_model() -> dict:
         rel_path = path.relative_to(MODEL_DIR)
         # Hugging Face may create local download bookkeeping under .cache.
         # It is not part of the frozen runtime artifact inventory.
-        if ".cache" in rel_path.parts or rel_path.name == "AQLEVON_RUNTIME_MANIFEST.json":
+        if ".cache" in rel_path.parts or rel_path.name == "KITE_RUNTIME_MANIFEST.json":
             continue
 
         size = path.stat().st_size
@@ -81,7 +81,7 @@ def prepare_model() -> dict:
         "total_size_bytes": total_bytes,
         "files": inventory,
     }
-    manifest_path = MODEL_DIR / "AQLEVON_RUNTIME_MANIFEST.json"
+    manifest_path = MODEL_DIR / "KITE_RUNTIME_MANIFEST.json"
     manifest_path.write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2),
         encoding="utf-8",

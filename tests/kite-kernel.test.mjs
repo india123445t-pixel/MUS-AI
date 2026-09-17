@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildTaskContract, buildRouteDecision, adjudicateFormalVerification } from '../lib/aqlevon/kernel.js';
-import { redactSecrets } from '../lib/aqlevon/security.js';
-import { VERIFICATION_RESULTS } from '../lib/aqlevon/constants.js';
+import { buildTaskContract, buildRouteDecision, adjudicateFormalVerification } from '../lib/kite/kernel.js';
+import { redactSecrets } from '../lib/kite/security.js';
+import { VERIFICATION_RESULTS } from '../lib/kite/constants.js';
 
 const settings={
   max_model_calls_per_request:3,

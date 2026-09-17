@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createTrustedRegistry, readQualification } from '../lib/aqlevon/tool-registry.js';
-import { canonicalResource, createActionIntent, issuePermit, preDispatchCheck } from '../lib/aqlevon/authority.js';
-import { transitionActionAttempt, transitionTask, transitionVerification } from '../lib/aqlevon/state-machines.js';
-import { createActionReceipt, receiptProvesWorldState } from '../lib/aqlevon/receipts.js';
-import { buildModelContext, criticalContextManifest, validateCompaction } from '../lib/aqlevon/context.js';
+import { createTrustedRegistry, readQualification } from '../lib/kite/tool-registry.js';
+import { canonicalResource, createActionIntent, issuePermit, preDispatchCheck } from '../lib/kite/authority.js';
+import { transitionActionAttempt, transitionTask, transitionVerification } from '../lib/kite/state-machines.js';
+import { createActionReceipt, receiptProvesWorldState } from '../lib/kite/receipts.js';
+import { buildModelContext, criticalContextManifest, validateCompaction } from '../lib/kite/context.js';
 
 const tool=()=>createTrustedRegistry({toolSpecs:[{
   tool_id:'repo.write',version:'1',provider:'github',adapter_identity:'github-adapter@1',lifecycle:'ACTIVE',
@@ -13,7 +13,7 @@ const tool=()=>createTrustedRegistry({toolSpecs:[{
 }]}).getTool('repo.write','1');
 const principal={id:'p1',status:'ACTIVE'};
 const contract={contract_id:'c1'};
-const resource={provider:'github',tenant:'owner',project:'AQLEVON-AI',environment:'production',resource_id:'repo-123'};
+const resource={provider:'github',tenant:'owner',project:'KITE-AI',environment:'production',resource_id:'repo-123'};
 
 test('canonical resource requires exact tenant/environment/resource identity',()=>{
   assert.throws(()=>canonicalResource({provider:'github',resource_id:'repo-123'}));
@@ -32,14 +32,14 @@ test('Permit binds exact parameters and pre-dispatch drift fails closed',()=>{
 
 test('active DurableConstraint denial prevents Permit issuance',()=>{
   const intent=createActionIntent({task_id:'t1',contract_id:'c1',semantic_action:'update-file',resource,parameters:{path:'x'},capabilities:['WRITE']});
-  const constraints=[{constraint_id:'dc1',version:1,status:'ACTIVE',scope_ref:'AQLEVON-AI',applicability:{tenant:'owner',project:'AQLEVON-AI',capabilities:['WRITE']},rule_hash:'h',rule_spec:{effect:'DENY'}}];
+  const constraints=[{constraint_id:'dc1',version:1,status:'ACTIVE',scope_ref:'KITE-AI',applicability:{tenant:'owner',project:'KITE-AI',capabilities:['WRITE']},rule_hash:'h',rule_spec:{effect:'DENY'}}];
   assert.throws(()=>issuePermit({principal,taskContract:contract,intent,toolSpec:tool(),constraints}),/denies/);
 });
 
 test('changing applicable DurableConstraint set invalidates unconsumed Permit at dispatch',()=>{
   const intent=createActionIntent({task_id:'t1',contract_id:'c1',semantic_action:'update-file',resource,parameters:{path:'x'},capabilities:['WRITE']});
   const permit=issuePermit({principal,taskContract:contract,intent,toolSpec:tool(),constraints:[]});
-  const newConstraint={constraint_id:'dc2',version:1,status:'ACTIVE',scope_ref:'AQLEVON-AI',applicability:{project:'AQLEVON-AI'},rule_hash:'h2',rule_spec:{effect:'REQUIRE'}};
+  const newConstraint={constraint_id:'dc2',version:1,status:'ACTIVE',scope_ref:'KITE-AI',applicability:{project:'KITE-AI'},rule_hash:'h2',rule_spec:{effect:'REQUIRE'}};
   const check=preDispatchCheck({permit,principal,taskContract:contract,intent,toolSpec:tool(),constraints:[newConstraint]});
   assert.equal(check.allowed,false);
   assert.ok(check.reasons.some(x=>x.includes('DurableConstraint')));
