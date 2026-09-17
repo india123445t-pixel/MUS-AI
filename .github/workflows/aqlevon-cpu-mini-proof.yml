@@ -1,0 +1,97 @@
+name: AQLEVON Mini CPU Sovereign Proof
+
+on:
+  push:
+    branches:
+      - experiment/aqlevon-cpu-mini-proof
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  mini-sovereign-proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Capacity
+        shell: bash
+        run: |
+          set -euxo pipefail
+          free -h
+          df -h /
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL || true
+          sudo apt-get clean || true
+          sudo rm -rf /var/lib/apt/lists/* || true
+          free -h
+          df -h /
+
+      - name: Install llama runtime
+        shell: bash
+        run: |
+          set -euxo pipefail
+          curl -fsSL https://llama.app/install.sh | SKIP_CUDA=1 SKIP_ROCM=1 SKIP_VULKAN=1 sh
+          test -x "$HOME/.llama-app/llama"
+          "$HOME/.llama-app/llama" version
+
+      - name: Start Qwen3.8-27B IQ1 endpoint
+        shell: bash
+        run: |
+          set -euxo pipefail
+          nohup "$HOME/.llama-app/llama" serve \
+            -hf unsloth/Qwen3.8-27B-GGUF:UD-IQ1_S \
+            --alias AQLEVON-27B \
+            --host 127.0.0.1 \
+            --port 8080 \
+            --ctx-size 128 \
+            --threads 4 \
+            --parallel 1 \
+            --no-webui \
+            > "$RUNNER_TEMP/aqlevon-mini.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/aqlevon-mini.pid"
+          for i in $(seq 1 150); do
+            if curl -fsS http://127.0.0.1:8080/health > "$RUNNER_TEMP/health.json" 2>/dev/null; then
+              cat "$RUNNER_TEMP/health.json"
+              echo "AQLEVON_MINI_ENDPOINT_HEALTH_PASS"
+              exit 0
+            fi
+            if ! kill -0 "$(cat "$RUNNER_TEMP/aqlevon-mini.pid")" 2>/dev/null; then
+              echo "AQLEVON_MINI_SERVER_EXITED" >&2
+              tail -200 "$RUNNER_TEMP/aqlevon-mini.log" >&2 || true
+              exit 44
+            fi
+            sleep 4
+          done
+          echo "AQLEVON_MINI_ENDPOINT_TIMEOUT" >&2
+          tail -200 "$RUNNER_TEMP/aqlevon-mini.log" >&2 || true
+          exit 45
+
+      - name: OpenAI-compatible response proof
+        shell: bash
+        run: |
+          set -euxo pipefail
+          curl -fsS --max-time 420 \
+            -H 'Content-Type: application/json' \
+            -d '{"model":"AQLEVON-27B","messages":[{"role":"user","content":"Answer only: AQLEVON_OK"}],"temperature":0,"max_tokens":6,"stream":false}' \
+            http://127.0.0.1:8080/v1/chat/completions \
+            -o "$RUNNER_TEMP/aqlevon-mini-response.json"
+          cat "$RUNNER_TEMP/aqlevon-mini-response.json"
+          python3 - <<'PY'
+          import json, os
+          p=os.environ['RUNNER_TEMP']+'/aqlevon-mini-response.json'
+          with open(p, encoding='utf-8') as f: data=json.load(f)
+          text=data['choices'][0]['message']['content']
+          assert isinstance(text,str) and text.strip(), data
+          print('AQLEVON_MINI_OPENAI_COMPATIBLE_HTTP_PASS')
+          print('MODEL_RESPONSE=', repr(text[:200]))
+          PY
+
+      - name: Summary
+        if: always()
+        shell: bash
+        run: |
+          echo '=== AQLEVON MINI PROOF ==='
+          free -h || true
+          df -h / || true
+          test -f "$RUNNER_TEMP/aqlevon-mini-response.json" && cat "$RUNNER_TEMP/aqlevon-mini-response.json" || true
+          test -f "$RUNNER_TEMP/aqlevon-mini.log" && tail -150 "$RUNNER_TEMP/aqlevon-mini.log" || true
