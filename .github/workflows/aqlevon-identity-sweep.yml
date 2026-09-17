@@ -1,0 +1,51 @@
+name: AQLEVON Full Identity Sweep
+
+on:
+  push:
+    branches:
+      - arena/01a0a669-mus-ai
+    paths:
+      - .github/workflows/aqlevon-identity-sweep.yml
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    if: github.event.head_commit.message == 'prepare AQLEVON full identity sweep'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout current branch
+        uses: actions/checkout@v4
+        with:
+          ref: arena/01a0a669-mus-ai
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run guarded identity sweep
+        run: python3 scripts/aqlevon_identity_sweep.py
+
+      - name: Static syntax checks
+        run: npm run bos:check
+
+      - name: BOS and sovereign tests
+        run: npm run bos:test
+
+      - name: Diff integrity
+        run: git diff --check
+
+      - name: Commit verified identity migration
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git commit -m "migrate full project identity to AQLEVON"
+          git push origin HEAD:arena/01a0a669-mus-ai
