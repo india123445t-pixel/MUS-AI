@@ -1,10 +1,10 @@
-"""MUS AI sovereign runtime on Modal.
+"""MUS sovereign runtime serving the AQLEVON-27B model identity.
 
 Safety properties:
-- Exact model + immutable revision are pinned.
+- Public/API model identity is AQLEVON-27B.
+- Exact upstream artifact + immutable revision remain pinned for provenance.
 - GPU serving is text-only for the first proof-of-runtime, reducing VRAM pressure.
 - The server scales from zero and is limited to one replica.
-- The first smoke test uses 2x L4 GPUs with tensor parallelism to avoid the L40S payment-method gate.
 - External inference providers are not used here.
 - The HTTP endpoint requires a bearer API key supplied via the Modal secret
   `mus-model-runtime` (`MUS_MODEL_KEY`).
@@ -24,14 +24,15 @@ import urllib.request
 
 import modal
 
-MODEL_ID = "Qwen/Qwen3.8-27B-FP8"
-MODEL_REVISION = "017b9c7af6b5689d5dd426a76e0bc077eb5ca20a"
+SERVED_MODEL_NAME = "AQLEVON-27B"
+UPSTREAM_MODEL_ID = "Qwen/Qwen3.8-27B-FP8"
+UPSTREAM_MODEL_REVISION = "017b9c7af6b5689d5dd426a76e0bc077eb5ca20a"
 MODEL_VOLUME_NAME = "mus-model-store"
 VLLM_CACHE_VOLUME_NAME = "mus-vllm-cache"
 RUNTIME_SECRET_NAME = "mus-model-runtime"
 
 MODEL_MOUNT = pathlib.Path("/models")
-MODEL_DIR = MODEL_MOUNT / "Qwen3.8-27B-FP8" / MODEL_REVISION
+MODEL_DIR = MODEL_MOUNT / "Qwen3.8-27B-FP8" / UPSTREAM_MODEL_REVISION
 VLLM_CACHE_MOUNT = pathlib.Path("/vllm-cache")
 PORT = 8000
 SMOKE_TIMEOUT_SECONDS = 16 * 60
@@ -122,15 +123,18 @@ class SovereignServer:
             )
 
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-        if manifest.get("repo") != MODEL_ID or manifest.get("revision") != MODEL_REVISION:
-            raise RuntimeError("Model manifest does not match the frozen MUS artifact.")
+        if (
+            manifest.get("repo") != UPSTREAM_MODEL_ID
+            or manifest.get("revision") != UPSTREAM_MODEL_REVISION
+        ):
+            raise RuntimeError("Model manifest does not match the frozen upstream artifact.")
 
         cmd = [
             "vllm",
             "serve",
             str(MODEL_DIR),
             "--served-model-name",
-            MODEL_ID,
+            SERVED_MODEL_NAME,
             "--host",
             "0.0.0.0",
             "--port",
@@ -156,8 +160,9 @@ class SovereignServer:
             json.dumps(
                 {
                     "event": "starting_vllm",
-                    "model": MODEL_ID,
-                    "revision": MODEL_REVISION,
+                    "served_model": SERVED_MODEL_NAME,
+                    "upstream_model": UPSTREAM_MODEL_ID,
+                    "upstream_revision": UPSTREAM_MODEL_REVISION,
                     "max_model_len": SMOKE_MAX_MODEL_LEN,
                     "gpu": "L4:2",
                     "tensor_parallel_size": 2,
@@ -167,7 +172,7 @@ class SovereignServer:
         )
         self.process = subprocess.Popen(cmd)
         _wait_for_vllm(self.process, api_key)
-        print(json.dumps({"event": "vllm_ready", "model": MODEL_ID}))
+        print(json.dumps({"event": "vllm_ready", "model": SERVED_MODEL_NAME}))
 
     @modal.exit()
     def stop(self) -> None:
@@ -211,7 +216,7 @@ def smoke_test() -> dict:
     for index, prompt in enumerate(prompts, start=1):
         payload = json.dumps(
             {
-                "model": MODEL_ID,
+                "model": SERVED_MODEL_NAME,
                 "messages": [{"role": "user", "content": prompt}],
                 "temperature": 0,
                 "max_tokens": 80,
@@ -249,8 +254,9 @@ def smoke_test() -> dict:
 
     result = {
         "status": "PASS",
-        "model": MODEL_ID,
-        "revision": MODEL_REVISION,
+        "model": SERVED_MODEL_NAME,
+        "upstream_model": UPSTREAM_MODEL_ID,
+        "upstream_revision": UPSTREAM_MODEL_REVISION,
         "prompts_ok": len(outputs),
         "outputs": outputs,
     }
