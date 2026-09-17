@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import json
-import os
 import re
 from pathlib import Path
 
 ROOT = Path.cwd()
 SKIP_DIRS = {'.git', 'node_modules', '.next', '.vercel'}
+TEMP_WORKFLOW = Path('.github/workflows/aqlevon-identity-sweep.yml')
 
 UPPER = re.compile(r'(?<![A-Za-z0-9])MUS(?![A-Za-z0-9])')
 TITLE = re.compile(r'(?<![A-Za-z0-9])Mus(?![A-Za-z0-9])')
@@ -28,6 +28,8 @@ def is_skipped(path: Path) -> bool:
     try:
         rel = path.relative_to(ROOT)
     except ValueError:
+        return True
+    if rel == TEMP_WORKFLOW:
         return True
     return any(part in SKIP_DIRS for part in rel.parts)
 
@@ -59,7 +61,6 @@ for path, text in list(text_files()):
         replacement_files.append(path.relative_to(ROOT).as_posix())
 
 renamed_paths = []
-# Rename deepest paths first so imports already rewritten by the text pass keep working.
 for path in sorted(
     [p for p in ROOT.rglob('*') if not is_skipped(p)],
     key=lambda p: len(p.relative_to(ROOT).parts),
@@ -75,7 +76,6 @@ for path in sorted(
     path.rename(target)
     renamed_paths.append({'from': old_rel, 'to': target.relative_to(ROOT).as_posix()})
 
-# Canonical external identity. Qwen upstream provenance is intentionally preserved.
 expected_upstream = 'Qwen/Qwen3.8-27B-FP8'
 provenance_hits = 0
 remaining_legacy = []
@@ -101,7 +101,8 @@ report = {
     'renamed_paths': renamed_paths,
     'upstream_provenance': expected_upstream,
     'upstream_provenance_hits': provenance_hits,
-    'note': 'Legacy product identity removed from repository text/path tokens; upstream Qwen provenance preserved.',
+    'temporary_exclusions': [TEMP_WORKFLOW.as_posix()],
+    'note': 'Legacy product identity removed from repository text/path tokens; upstream Qwen provenance preserved. Temporary workflow is deleted after commit.',
 }
 Path('AQLEVON_IDENTITY_MIGRATION_REPORT.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
 print(json.dumps(report, indent=2))
