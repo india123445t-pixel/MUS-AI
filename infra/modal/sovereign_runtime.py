@@ -2,20 +2,23 @@
 
 Safety properties:
 - Exact model + immutable revision are pinned.
-- `modal run` performs CPU-only download/integrity preparation. It does not start a GPU.
-- The GPU server scales from zero and is limited to one L40S replica.
+- GPU serving is text-only for the first proof-of-runtime, reducing VRAM pressure.
+- The server scales from zero and is limited to one L40S replica.
 - External inference providers are not used here.
 - The HTTP endpoint requires a bearer API key supplied via the Modal secret
   `mus-model-runtime` (`MUS_MODEL_KEY`).
+- Model weights must be prepared first by `infra/modal/prepare_model.py`.
 """
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 import pathlib
 import subprocess
+import time
+import urllib.error
+import urllib.request
 
 import modal
 
@@ -32,14 +35,10 @@ PORT = 8000
 
 app = modal.App("mus-sovereign-runtime")
 
-model_volume = modal.Volume.from_name(MODEL_VOLUME_NAME, create_if_missing=True)
+# Fail closed if the prepared model volume is missing. This prevents accidentally
+# starting a paid GPU against an empty model store.
+model_volume = modal.Volume.from_name(MODEL_VOLUME_NAME)
 vllm_cache_volume = modal.Volume.from_name(VLLM_CACHE_VOLUME_NAME, create_if_missing=True)
-
-download_image = (
-    modal.Image.debian_slim(python_version="3.12")
-    .uv_pip_install("huggingface_hub[hf_xet]>=0.35.0")
-    .env({"HF_XET_HIGH_PERFORMANCE": "1"})
-)
 
 vllm_image = (
     modal.Image.from_registry(
@@ -55,7 +54,9 @@ vllm_image = (
         {
             "HF_HUB_OFFLINE": "1",
             "TRANSFORMERS_OFFLINE": "1",
+            "HF_XET_HIGH_PERFORMANCE": "1",
             "VLLM_CACHE_ROOT": str(VLLM_CACHE_MOUNT),
+            "OMP_NUM_THREADS": "1",
         }
     )
 )
@@ -66,68 +67,26 @@ runtime_secret = modal.Secret.from_name(
 )
 
 
-def _sha256(path: pathlib.Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(8 * 1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
-
-
-@app.function(
-    image=download_image,
-    volumes={str(MODEL_MOUNT): model_volume},
-    cpu=2,
-    memory=4096,
-    timeout=60 * 60,
-)
-def prepare_model() -> dict:
-    """Download the immutable model revision on CPU and persist an integrity manifest."""
-    from huggingface_hub import snapshot_download
-
-    MODEL_DIR.mkdir(parents=True, exist_ok=True)
-    snapshot_download(
-        repo_id=MODEL_ID,
-        revision=MODEL_REVISION,
-        local_dir=str(MODEL_DIR),
+def _wait_for_vllm(process: subprocess.Popen, api_key: str, timeout_seconds: int = 13 * 60) -> None:
+    """Wait until vLLM is actually ready before Modal routes traffic to it."""
+    deadline = time.monotonic() + timeout_seconds
+    request = urllib.request.Request(
+        f"http://127.0.0.1:{PORT}/health",
+        headers={"Authorization": f"Bearer {api_key}"},
     )
 
-    inventory = []
-    total_bytes = 0
-    for path in sorted(p for p in MODEL_DIR.rglob("*") if p.is_file()):
-        rel = path.relative_to(MODEL_DIR).as_posix()
-        size = path.stat().st_size
-        total_bytes += size
-        inventory.append(
-            {
-                "file": rel,
-                "size_bytes": size,
-                "sha256": _sha256(path),
-            }
-        )
+    while time.monotonic() < deadline:
+        if process.poll() is not None:
+            raise RuntimeError(f"vLLM exited during startup with code {process.returncode}")
+        try:
+            with urllib.request.urlopen(request, timeout=2) as response:
+                if 200 <= response.status < 300:
+                    return
+        except (urllib.error.URLError, TimeoutError, ConnectionError):
+            pass
+        time.sleep(2)
 
-    manifest = {
-        "repo": MODEL_ID,
-        "revision": MODEL_REVISION,
-        "server_path": str(MODEL_DIR),
-        "total_files": len(inventory),
-        "total_size_bytes": total_bytes,
-        "files": inventory,
-    }
-    manifest_path = MODEL_DIR / "MUS_RUNTIME_MANIFEST.json"
-    manifest_path.write_text(
-        json.dumps(manifest, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
-    model_volume.commit()
-    return {
-        "repo": MODEL_ID,
-        "revision": MODEL_REVISION,
-        "server_path": str(MODEL_DIR),
-        "total_files": len(inventory),
-        "total_size_bytes": total_bytes,
-        "manifest": str(manifest_path),
-    }
+    raise TimeoutError("vLLM did not become healthy before the startup deadline")
 
 
 @app.server(
@@ -155,7 +114,7 @@ class SovereignServer:
         manifest_path = MODEL_DIR / "MUS_RUNTIME_MANIFEST.json"
         if not manifest_path.exists():
             raise RuntimeError(
-                "Pinned model is not prepared. Run `modal run infra/modal/sovereign_runtime.py` first."
+                "Pinned model is not prepared. Run `modal run infra/modal/prepare_model.py` first."
             )
 
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -176,25 +135,43 @@ class SovereignServer:
             api_key,
             "--max-model-len",
             "4096",
+            "--max-num-seqs",
+            "1",
             "--gpu-memory-utilization",
             "0.90",
             "--tensor-parallel-size",
             "1",
+            "--language-model-only",
             "--enforce-eager",
             "--uvicorn-log-level",
             "warning",
             "--disable-log-requests",
         ]
+
+        print(
+            json.dumps(
+                {
+                    "event": "starting_vllm",
+                    "model": MODEL_ID,
+                    "revision": MODEL_REVISION,
+                    "max_model_len": 4096,
+                    "gpu": "L40S",
+                    "text_only": True,
+                }
+            )
+        )
         self.process = subprocess.Popen(cmd)
+        _wait_for_vllm(self.process, api_key)
+        print(json.dumps({"event": "vllm_ready", "model": MODEL_ID}))
 
     @modal.exit()
     def stop(self) -> None:
-        if getattr(self, "process", None) is not None:
-            self.process.terminate()
-
-
-@app.local_entrypoint()
-def main() -> None:
-    """CPU-only preparation entrypoint. No GPU container is started."""
-    result = prepare_model.remote()
-    print(json.dumps(result, ensure_ascii=False, indent=2))
+        process = getattr(self, "process", None)
+        if process is None:
+            return
+        process.terminate()
+        try:
+            process.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait(timeout=5)
