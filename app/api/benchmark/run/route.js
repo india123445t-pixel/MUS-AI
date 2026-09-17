@@ -22,7 +22,7 @@ function providerFlags(){
     mistral:!!process.env.MISTRAL_API_KEY,
     cerebras:!!process.env.CEREBRAS_API_KEY,
     huggingface:!!process.env.HF_TOKEN&&process.env.HF_FREE_FALLBACK_ENABLED==='true',
-    self_hosted:!!(process.env.MUS_MODEL_URL||process.env.LOCAL_MODEL_URL)
+    self_hosted:!!(process.env.AQLEVON_MODEL_URL||process.env.LOCAL_MODEL_URL)
   };
 }
 
@@ -37,7 +37,7 @@ export async function POST(req){
     const user=userResult.data?.user;
     if(userResult.error||!user)return NextResponse.json({message:'جلسة غير صالحة.'},{status:401});
 
-    const runtimeResult=await sb.rpc('get_mus_runtime_config');
+    const runtimeResult=await sb.rpc('get_aqlevon_runtime_config');
     if(runtimeResult.error)throw runtimeResult.error;
     const settings=runtimeResult.data||{};
     if(settings.allow_paid_external!==false||settings.allow_paid_gpu===true||Number(settings.daily_budget_usd||0)>0){
@@ -95,7 +95,7 @@ export async function POST(req){
     });
     const payload=await chat.json().catch(()=>({}));
     if(!chat.ok||!payload?.text){
-      return NextResponse.json({message:payload?.message||'تعذر تشغيل MUS AI على الاختبار.',blocker:'inference_failed'},{status:chat.status||502});
+      return NextResponse.json({message:payload?.message||'تعذر تشغيل AQLEVON AI على الاختبار.',blocker:'inference_failed'},{status:chat.status||502});
     }
 
     const observed=parseFinalInteger(payload.text);
@@ -106,7 +106,7 @@ export async function POST(req){
     const insert=await sb.from('benchmark_results').insert({
       owner_id:user.id,
       benchmark_case_id:selected.id,
-      model_label:'MUS AI public runtime',
+      model_label:'AQLEVON AI public runtime',
       answer:payload.text,
       score,
       judge:'exact_integer_oracle',

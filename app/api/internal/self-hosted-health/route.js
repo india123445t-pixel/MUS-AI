@@ -1,5 +1,5 @@
 import {NextResponse} from 'next/server';
-import {checkSelfHostedHealth,getSelfHostedRuntimeDescriptor} from '../../../../lib/mus/providers.js';
+import {checkSelfHostedHealth,getSelfHostedRuntimeDescriptor} from '../../../../lib/aqlevon/providers.js';
 
 export const dynamic='force-dynamic';
 

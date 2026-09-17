@@ -1,4 +1,4 @@
-"""MUS sovereign runtime serving the AQLEVON-27B model identity.
+"""AQLEVON sovereign runtime serving the AQLEVON-27B model identity.
 
 Safety properties:
 - Public/API model identity is AQLEVON-27B.
@@ -7,7 +7,7 @@ Safety properties:
 - The server scales from zero and is limited to one replica.
 - External inference providers are not used here.
 - The HTTP endpoint requires a bearer API key supplied via the Modal secret
-  `mus-model-runtime` (`MUS_MODEL_KEY`).
+  `aqlevon-model-runtime` (`AQLEVON_MODEL_KEY`).
 - Model weights must be prepared first by `infra/modal/prepare_model.py`.
 - The smoke-test entrypoint is bounded and the ephemeral app exits after testing.
 """
@@ -27,9 +27,9 @@ import modal
 SERVED_MODEL_NAME = "AQLEVON-27B"
 UPSTREAM_MODEL_ID = "Qwen/Qwen3.8-27B-FP8"
 UPSTREAM_MODEL_REVISION = "017b9c7af6b5689d5dd426a76e0bc077eb5ca20a"
-MODEL_VOLUME_NAME = "mus-model-store"
-VLLM_CACHE_VOLUME_NAME = "mus-vllm-cache"
-RUNTIME_SECRET_NAME = "mus-model-runtime"
+MODEL_VOLUME_NAME = "aqlevon-model-store"
+VLLM_CACHE_VOLUME_NAME = "aqlevon-vllm-cache"
+RUNTIME_SECRET_NAME = "aqlevon-model-runtime"
 
 MODEL_MOUNT = pathlib.Path("/models")
 MODEL_DIR = MODEL_MOUNT / "Qwen3.8-27B-FP8" / UPSTREAM_MODEL_REVISION
@@ -38,7 +38,7 @@ PORT = 8000
 SMOKE_TIMEOUT_SECONDS = 16 * 60
 SMOKE_MAX_MODEL_LEN = 2048
 
-app = modal.App("mus-sovereign-runtime")
+app = modal.App("aqlevon-sovereign-runtime")
 
 # Fail closed if the prepared model volume is missing. This prevents accidentally
 # starting paid GPUs against an empty model store.
@@ -68,7 +68,7 @@ vllm_image = (
 
 runtime_secret = modal.Secret.from_name(
     RUNTIME_SECRET_NAME,
-    required_keys=["MUS_MODEL_KEY"],
+    required_keys=["AQLEVON_MODEL_KEY"],
 )
 
 
@@ -103,7 +103,7 @@ def _wait_for_vllm(process: subprocess.Popen, api_key: str, timeout_seconds: int
     scaledown_window=30,
     startup_timeout=15 * 60,
     port=PORT,
-    unauthenticated=True,  # vLLM itself enforces MUS_MODEL_KEY bearer auth.
+    unauthenticated=True,  # vLLM itself enforces AQLEVON_MODEL_KEY bearer auth.
     volumes={
         str(MODEL_MOUNT): model_volume.with_mount_options(read_only=True),
         str(VLLM_CACHE_MOUNT): vllm_cache_volume,
@@ -111,12 +111,12 @@ def _wait_for_vllm(process: subprocess.Popen, api_key: str, timeout_seconds: int
     secrets=[runtime_secret],
 )
 class SovereignServer:
-    """Authenticated OpenAI-compatible vLLM server for MUS self_hosted_only."""
+    """Authenticated OpenAI-compatible vLLM server for AQLEVON self_hosted_only."""
 
     @modal.enter()
     def start(self) -> None:
-        api_key = os.environ["MUS_MODEL_KEY"]
-        manifest_path = MODEL_DIR / "MUS_RUNTIME_MANIFEST.json"
+        api_key = os.environ["AQLEVON_MODEL_KEY"]
+        manifest_path = MODEL_DIR / "AQLEVON_RUNTIME_MANIFEST.json"
         if not manifest_path.exists():
             raise RuntimeError(
                 "Pinned model is not prepared. Run `modal run infra/modal/prepare_model.py` first."
@@ -196,12 +196,12 @@ class SovereignServer:
 def smoke_test() -> dict:
     """Trigger one bounded GPU server and verify three short chat completions.
 
-    This function never prints or returns MUS_MODEL_KEY. The first request also
+    This function never prints or returns AQLEVON_MODEL_KEY. The first request also
     triggers the scale-from-zero server. HTTP 503 is retried while the GPU
     container is starting. When this `modal run` invocation finishes, the
     ephemeral App exits; the server is not left deployed persistently.
     """
-    api_key = os.environ["MUS_MODEL_KEY"]
+    api_key = os.environ["AQLEVON_MODEL_KEY"]
     base_url = SovereignServer.get_url().rstrip("/")
     endpoint = f"{base_url}/v1/chat/completions"
     deadline = time.monotonic() + 15 * 60

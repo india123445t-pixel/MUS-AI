@@ -1,14 +1,14 @@
-# MUS AI — Behavioral Operating System v1 Implementation
+# AQLEVON AI — Behavioral Operating System v1 Implementation
 
-This patch translates the frozen MUS AI research architecture into an implementable runtime kernel without pretending the underlying model weights have changed.
+This patch translates the frozen AQLEVON AI research architecture into an implementable runtime kernel without pretending the underlying model weights have changed.
 
 ## What becomes real immediately
 
 ### Chat cognition kernel
 The public `/api/chat` route now constructs a controller-owned TaskContract before model generation. It composes domain protocols, decides Fast/Normal/High routing, sanitizes obvious secret material, and keeps formal verification separate from model agreement.
 
-### MUS personality
-The provider model is treated as an implementation detail. A dedicated persona contract gives MUS AI its own restrained, analytical, non-sycophantic voice. It must not impersonate ChatGPT/Claude/Gemini or inherit provider-specific personality habits.
+### AQLEVON personality
+The provider model is treated as an implementation detail. A dedicated persona contract gives AQLEVON AI its own restrained, analytical, non-sycophantic voice. It must not impersonate ChatGPT/Claude/Gemini or inherit provider-specific personality habits.
 
 ### Truth boundaries
 - model answer != evidence;
@@ -39,7 +39,7 @@ The database migration includes the 16 frozen logical runtime objects plus trust
 The current repository exposes model-provider calls and chat/evaluation APIs, but does not yet contain a registered external ToolSpec/Permit/Executor/Credential-Broker pipeline for arbitrary side effects. Enabling external actions directly from model text would violate the architecture we spent the research phase defining.
 
 The safe next activation step is:
-1. apply the BOS schema to the actual MUS AI Supabase project;
+1. apply the BOS schema to the actual AQLEVON AI Supabase project;
 2. register a small allowlisted ToolSpec set;
 3. add a server-only Credential Broker;
 4. create exact Permit issuance and ActionAttempt dispatch fencing;
@@ -48,11 +48,11 @@ The safe next activation step is:
 
 ## Current database connector limitation found during implementation
 
-The Supabase connector available in this ChatGPT session exposes only project `qkoscgdegnqcypkjrefn` (`mysindbad's Projec`), not the MUS AI project previously identified in research. The migration is therefore prepared but intentionally not executed against that unrelated project.
+The Supabase connector available in this ChatGPT session exposes only project `qkoscgdegnqcypkjrefn` (`mysindbad's Projec`), not the AQLEVON AI project previously identified in research. The migration is therefore prepared but intentionally not executed against that unrelated project.
 
 ## Current GitHub connector limitation found during implementation
 
-The GitHub repository `india123445t-pixel/MUS-AI` is readable, but the connected GitHub app reports `push: false`. ChatGPT plugin permission was raised to full access at the user's explicit request, but OAuth/repository write scope remains read-only. The patch is therefore generated and tested locally, ready to apply as soon as the GitHub connector is reconnected with write access.
+The GitHub repository `india123445t-pixel/AQLEVON-AI` is readable, but the connected GitHub app reports `push: false`. ChatGPT plugin permission was raised to full access at the user's explicit request, but OAuth/repository write scope remains read-only. The patch is therefore generated and tested locally, ready to apply as soon as the GitHub connector is reconnected with write access.
 
 ## Validation
 
@@ -79,44 +79,44 @@ npm run build
 - ActionReceipt never becomes VerificationState truth;
 - illegal state-machine rewrites are rejected;
 - context compaction cannot drop UNKNOWN/blockers/authority-critical state;
-- MUS personality stays provider-independent while controller law remains above personality;
+- AQLEVON personality stays provider-independent while controller law remains above personality;
 - response governance adds deterministic evidence/execution qualifications instead of trusting model wording.
 
 ## Research-to-code map
 
 | Frozen concept | Code / schema |
 |---|---|
-| TaskContract | `lib/mus/kernel.js`, `mus_task_contracts` |
-| DurableConstraint | migration `mus_durable_constraints` |
-| ActionIntent | `mus_action_intents` |
-| Permit | `mus_permits` |
-| ConfirmationRecord | `mus_confirmation_records` |
-| ActionAttempt | `mus_action_attempts` |
-| ActionReceipt | `mus_action_receipts` |
-| Artifact | `mus_artifacts` |
-| EvidenceBinding | `mus_evidence_bindings` |
-| VerificationState | `mus_verification_states` |
-| Claim | `mus_claims` |
-| Response | `mus_responses` |
-| AuditEvent | `mus_audit_events` |
-| ToolSpec / CapabilitySpec | `lib/mus/tool-registry.js` + trusted registry tables, not runtime authority tokens |
-| Permit / authority gate | `lib/mus/authority.js`, `mus_permits` |
-| State machines | `lib/mus/state-machines.js` |
-| Receipt binding | `lib/mus/receipts.js` |
-| Context/compaction | `lib/mus/context.js` |
-| Response Governor | `lib/mus/response-governor.js` |
-| Domain protocols | `lib/mus/domain-protocols.js` |
-| Personality | `lib/mus/persona.js` |
-| Secret boundary | `lib/mus/security.js` |
-| Provider fallback | `lib/mus/providers.js` |
+| TaskContract | `lib/aqlevon/kernel.js`, `aqlevon_task_contracts` |
+| DurableConstraint | migration `aqlevon_durable_constraints` |
+| ActionIntent | `aqlevon_action_intents` |
+| Permit | `aqlevon_permits` |
+| ConfirmationRecord | `aqlevon_confirmation_records` |
+| ActionAttempt | `aqlevon_action_attempts` |
+| ActionReceipt | `aqlevon_action_receipts` |
+| Artifact | `aqlevon_artifacts` |
+| EvidenceBinding | `aqlevon_evidence_bindings` |
+| VerificationState | `aqlevon_verification_states` |
+| Claim | `aqlevon_claims` |
+| Response | `aqlevon_responses` |
+| AuditEvent | `aqlevon_audit_events` |
+| ToolSpec / CapabilitySpec | `lib/aqlevon/tool-registry.js` + trusted registry tables, not runtime authority tokens |
+| Permit / authority gate | `lib/aqlevon/authority.js`, `aqlevon_permits` |
+| State machines | `lib/aqlevon/state-machines.js` |
+| Receipt binding | `lib/aqlevon/receipts.js` |
+| Context/compaction | `lib/aqlevon/context.js` |
+| Response Governor | `lib/aqlevon/response-governor.js` |
+| Domain protocols | `lib/aqlevon/domain-protocols.js` |
+| Personality | `lib/aqlevon/persona.js` |
+| Secret boundary | `lib/aqlevon/security.js` |
+| Provider fallback | `lib/aqlevon/providers.js` |
 
 ## Explicit non-claims
 
 This patch does **not** claim:
-- MUS has new trained weights;
+- AQLEVON has new trained weights;
 - model-generated verification is formal truth;
 - external side-effect tools are production-ready before the broker/permit/executor path is connected;
-- the migration has been applied to the actual MUS Supabase project;
+- the migration has been applied to the actual AQLEVON Supabase project;
 - the GitHub repository has already been modified while the connector remains read-only.
 
 Those boundaries are deliberate rather than missing work.

@@ -8,9 +8,9 @@ ROOT = Path.cwd()
 SKIP_DIRS = {'.git', 'node_modules', '.next', '.vercel'}
 TEMP_WORKFLOW = Path('.github/workflows/aqlevon-identity-sweep.yml')
 
-UPPER = re.compile(r'(?<![A-Za-z0-9])MUS(?![A-Za-z0-9])')
-TITLE = re.compile(r'(?<![A-Za-z0-9])Mus(?![A-Za-z0-9])')
-LOWER = re.compile(r'(?<![A-Za-z0-9])mus(?![A-Za-z0-9])')
+UPPER = re.compile(r'(?<![A-Za-z0-9])AQLEVON(?![A-Za-z0-9])')
+TITLE = re.compile(r'(?<![A-Za-z0-9])Aqlevon(?![A-Za-z0-9])')
+LOWER = re.compile(r'(?<![A-Za-z0-9])aqlevon(?![A-Za-z0-9])')
 
 
 def transform_text(text: str) -> str:

@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 
-const ADMIN_RAW='https://raw.githubusercontent.com/india123445t-pixel/MUS-AI/9d286d87dd0ae1309eea3100dedb9f8b1085135a/app/admin/page.js';
+const ADMIN_RAW='https://raw.githubusercontent.com/india123445t-pixel/AQLEVON-AI/9d286d87dd0ae1309eea3100dedb9f8b1085135a/app/admin/page.js';
 async function getAdmin(){
   const r=await fetch(ADMIN_RAW,{cache:'no-store'});
   if(!r.ok) throw new Error(`Failed to fetch admin source: ${r.status}`);
@@ -28,23 +28,23 @@ const envLine="const URL=process.env.NEXT_PUBLIC_SUPABASE_URL||'https://yaqjhcfi
 page=page
   .replace("const URL=process.env.NEXT_PUBLIC_SUPABASE_URL,KEY=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;",envLine)
   .replaceAll('src="/api/status?icon=1"','src="/icon.svg"')
-  .replace('href="/" target="_blank">فتح تطبيق MUS AI ↗</a>','href="/intelligence">Intelligence Lab</a><a href="https://ibn-ai-opal.vercel.app/" target="_blank">فتح تطبيق MUS AI ↗</a>');
+  .replace('href="/" target="_blank">فتح تطبيق AQLEVON AI ↗</a>','href="/intelligence">Intelligence Lab</a><a href="https://ibn-ai-opal.vercel.app/" target="_blank">فتح تطبيق AQLEVON AI ↗</a>');
 intelligence=intelligence.replace("const URL=process.env.NEXT_PUBLIC_SUPABASE_URL,KEY=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;",envLine);
 
 const layout=`import './globals.css';
-export const metadata={title:'MUS AI Control Center',description:'Private MUS AI administration and model control center',robots:{index:false,follow:false}};
+export const metadata={title:'AQLEVON AI Control Center',description:'Private AQLEVON AI administration and model control center',robots:{index:false,follow:false}};
 export const viewport={themeColor:'#07111f',width:'device-width',initialScale:1};
 export default function RootLayout({children}){return <html lang="ar" dir="rtl"><body>{children}</body></html>}`;
 
-const statusRoute=`const BASE=process.env.MUS_PUBLIC_APP_URL||'https://ibn-ai-opal.vercel.app';
+const statusRoute=`const BASE=process.env.AQLEVON_PUBLIC_APP_URL||'https://ibn-ai-opal.vercel.app';
 export async function GET(){
-  try{const r=await fetch(BASE+'/api/status',{cache:'no-store'});const body=await r.text();return new Response(body,{status:r.status,headers:{'content-type':r.headers.get('content-type')||'application/json','cache-control':'no-store'}})}catch{return Response.json({message:'تعذر الاتصال بتطبيق MUS AI.'},{status:502})}
+  try{const r=await fetch(BASE+'/api/status',{cache:'no-store'});const body=await r.text();return new Response(body,{status:r.status,headers:{'content-type':r.headers.get('content-type')||'application/json','cache-control':'no-store'}})}catch{return Response.json({message:'تعذر الاتصال بتطبيق AQLEVON AI.'},{status:502})}
 }`;
 
 // The Control Center learning-cycle button is intentionally mapped to the
 // objective benchmark runner. That runner enforces authenticated, unseen,
 // hand-authored held-out cases, exact deterministic verification and zero-cost
-// runtime policy before it calls the public MUS AI inference router.
+// runtime policy before it calls the public AQLEVON AI inference router.
 const goalRoute=benchmarkRoute;
 
 await Promise.all([
@@ -58,4 +58,4 @@ await Promise.all([
   writeFile('app/api/internal/eval-snapshot/route.js',evalSnapshotRoute),
   writeFile('public/icon.svg',icon)
 ]);
-console.log('MUS AI Control Center source synchronized.');
+console.log('AQLEVON AI Control Center source synchronized.');

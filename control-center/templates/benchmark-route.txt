@@ -1,13 +1,13 @@
 import { createClient } from '@supabase/supabase-js';
 const URL=process.env.NEXT_PUBLIC_SUPABASE_URL||'https://yaqjhcfitxhtzpaswuif.supabase.co',KEY=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||'sb_publishable_1uRtACKcyT2ZQH9ixdKQ-Q_ARbY6xET';
-const BASE=process.env.MUS_PUBLIC_APP_URL||'https://ibn-ai-opal.vercel.app';
+const BASE=process.env.AQLEVON_PUBLIC_APP_URL||'https://ibn-ai-opal.vercel.app';
 function parseFinalInteger(text=''){const m=String(text).match(/(?:^|\n)\s*FINAL\s*[:=]\s*(-?\d+)\s*(?:$|\n)/i);return m?Number(m[1]):null}
 function client(token){if(!URL||!KEY)throw new Error('Supabase environment is not configured.');return createClient(URL,KEY,{global:{headers:{Authorization:`Bearer ${token}`}},auth:{persistSession:false}})}
 export async function POST(req){
  try{
   const auth=req.headers.get('authorization')||'',token=auth.startsWith('Bearer ')?auth.slice(7):'';if(!token)return Response.json({message:'يلزم تسجيل الدخول.'},{status:401});
   const sb=client(token),ur=await sb.auth.getUser(),u=ur.data?.user;if(!u)return Response.json({message:'جلسة غير صالحة.'},{status:401});
-  const rr=await sb.rpc('get_mus_runtime_config');if(rr.error)throw rr.error;const cfg=rr.data||{};
+  const rr=await sb.rpc('get_aqlevon_runtime_config');if(rr.error)throw rr.error;const cfg=rr.data||{};
   if(cfg.allow_paid_external!==false||cfg.allow_paid_gpu===true||Number(cfg.daily_budget_usd||0)>0)return Response.json({message:'سياسة zero-cost غير مضمونة؛ تم إيقاف الاختبار.'},{status:409});
   const status=await fetch(BASE+'/api/status',{cache:'no-store',signal:AbortSignal.timeout(12000)}).then(r=>r.json()).catch(()=>null);
   if(!status||Number(status.free_provider_count||0)<1)return Response.json({message:'لا يوجد inference provider مجاني/محلي مُهيأ حاليًا.',blocker:'no_zero_cost_provider'},{status:503});
@@ -25,12 +25,12 @@ export async function POST(req){
   const prompt=String(selected.prompt||'').trim();if(!prompt)return Response.json({message:'Benchmark غير صالح.'},{status:422});
   const sessionId=crypto.randomUUID(),conversationId=crypto.randomUUID(),started=Date.now();
   const r=await fetch(BASE+'/api/chat',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({input:prompt+'\n\nاختم إجابتك بسطر مستقل بالشكل FINAL: <number>.',history:[],webSearch:false,sessionId,conversationId}),cache:'no-store',signal:AbortSignal.timeout(90000)});
-  const d=await r.json().catch(()=>({}));if(!r.ok||!d?.text)return Response.json({message:d?.message||'تعذر تشغيل MUS AI على الاختبار.',blocker:'inference_failed'},{status:r.status||502});
+  const d=await r.json().catch(()=>({}));if(!r.ok||!d?.text)return Response.json({message:d?.message||'تعذر تشغيل AQLEVON AI على الاختبار.',blocker:'inference_failed'},{status:r.status||502});
   const got=parseFinalInteger(d.text),expected=Number(selected.rubric.exact_value),score=got===expected?100:0,latency=Date.now()-started;
   const evidence={held_out:true,teacher_generated:false,first_exposure:true,objective_verification:true,verification_method:'exact_integer_oracle',expected,observed:got,run_id:d.run_id||null,public_chat_log_id:d.chat_log_id||null,latency_ms:latency,cost_usd:0,student_provider:d.provider||null,student_model:d.model||null};
-  const ins=await sb.from('benchmark_results').insert({owner_id:u.id,benchmark_case_id:selected.id,model_label:'MUS AI public runtime',answer:d.text,score,judge:'exact_integer_oracle',metadata:evidence}).select('id').single();if(ins.error)throw ins.error;
+  const ins=await sb.from('benchmark_results').insert({owner_id:u.id,benchmark_case_id:selected.id,model_label:'AQLEVON AI public runtime',answer:d.text,score,judge:'exact_integer_oracle',metadata:evidence}).select('id').single();if(ins.error)throw ins.error;
   const old=Number(target?.score)||0,attempts=(Number(target?.attempts)||0)+1,wins=(Number(target?.wins)||0)+(score>=85?1:0),next=Number((Number(target?.attempts)>0?old*0.7+score*0.3:score).toFixed(2));
   const su=await sb.from('skill_state').upsert({owner_id:u.id,domain:selected.domain,score:next,attempts,wins,updated_at:new Date().toISOString()},{onConflict:'owner_id,domain'});if(su.error)throw su.error;
   return Response.json({ok:true,benchmark_result_id:ins.data?.id||null,benchmark_id:selected.id,suite:selected.suite,domain:selected.domain,difficulty:selected.difficulty,score,expected,observed:got,first_exposure:true,new_skill_score:next,run_id:d.run_id||null,chat_log_id:d.chat_log_id||null,provider:d.provider||null,model:d.model||null,latency_ms:latency,cost_usd:0,verified:true,verification_method:'exact_integer_oracle'});
- }catch(e){console.error('MUS benchmark route failed',{name:e?.name||'Error',message:e?.message||'unknown'});return Response.json({message:e?.message||'فشل تشغيل Benchmark.',blocker:'benchmark_route_error'},{status:500})}
+ }catch(e){console.error('AQLEVON benchmark route failed',{name:e?.name||'Error',message:e?.message||'unknown'});return Response.json({message:e?.message||'فشل تشغيل Benchmark.',blocker:'benchmark_route_error'},{status:500})}
 }

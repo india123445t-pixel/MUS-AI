@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-const CHAT_KEY='mus-ai-public-chats-v2';
-const SESSION_KEY='mus-ai-public-session-v1';
+const CHAT_KEY='aqlevon-ai-public-chats-v2';
+const SESSION_KEY='aqlevon-ai-public-session-v1';
 
 function uid(){return globalThis.crypto?.randomUUID?.()||`${Date.now()}-${Math.random().toString(36).slice(2)}`}
 function Icon({name,size=18}){
@@ -49,7 +49,7 @@ export default function ChatPage(){
     try{
       const history=previous.slice(-20).map(({role,content})=>({role,content}));
       const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({input:text,history,webSearch,sessionId,conversationId:cid})});
-      const d=await r.json();if(!r.ok)throw Error(d.message||'تعذر الوصول إلى MUS AI.');
+      const d=await r.json();if(!r.ok)throw Error(d.message||'تعذر الوصول إلى AQLEVON AI.');
       const assistant={id:uid(),role:'assistant',content:d.text,chatLogId:d.chat_log_id||null,feedback:null};
       patchChat(cid,c=>({...c,messages:[...c.messages,assistant],updatedAt:Date.now()}));
     }catch(e){setNotice(e.message)}finally{setBusy(false)}
@@ -58,29 +58,29 @@ export default function ChatPage(){
   async function rate(message,rating){if(!message?.chatLogId||!sessionId)return;try{const r=await fetch('/api/status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'feedback',chatLogId:message.chatLogId,sessionId,rating})});if(!r.ok)return;patchChat(activeId,c=>({...c,messages:c.messages.map(m=>m.id===message.id?{...m,feedback:rating}:m),updatedAt:Date.now()}))}catch{}}
   async function install(){if(standalone)return;if(installPrompt){installPrompt.prompt();await installPrompt.userChoice;setInstallPrompt(null);return}setNotice('على الهاتف: افتح قائمة المتصفح ثم اختر «تثبيت التطبيق» أو «إضافة إلى الشاشة الرئيسية».')}
 
-  if(!ready)return <div className="center-screen"><div className="brand-loader"><img src="/api/status?icon=1" alt=""/><b>MUS AI</b></div></div>;
-  if(status?.settings?.public_chat_enabled===false)return <div className="center-screen"><div className="maintenance-card"><img src="/api/status?icon=1" alt="MUS AI"/><h1>MUS AI</h1><p>النظام في وضع صيانة مؤقتًا. عد لاحقًا.</p></div></div>;
+  if(!ready)return <div className="center-screen"><div className="brand-loader"><img src="/api/status?icon=1" alt=""/><b>AQLEVON AI</b></div></div>;
+  if(status?.settings?.public_chat_enabled===false)return <div className="center-screen"><div className="maintenance-card"><img src="/api/status?icon=1" alt="AQLEVON AI"/><h1>AQLEVON AI</h1><p>النظام في وضع صيانة مؤقتًا. عد لاحقًا.</p></div></div>;
 
   return <div className="chat-app public-app" dir="rtl">
     <div className={`mobile-backdrop ${mobileOpen?'show':''}`} onClick={()=>setMobileOpen(false)}/>
     <aside className={`chat-sidebar ${mobileOpen?'open':''}`}>
-      <div className="sidebar-top"><div className="brand-lockup compact"><img className="brand-icon" src="/api/status?icon=1" alt="MUS AI"/><div><strong>MUS AI</strong><span>A SMARTER TOMORROW</span></div></div><button className="icon-btn" onClick={newChat} title="محادثة جديدة"><Icon name="plus"/></button></div>
+      <div className="sidebar-top"><div className="brand-lockup compact"><img className="brand-icon" src="/api/status?icon=1" alt="AQLEVON AI"/><div><strong>AQLEVON AI</strong><span>A SMARTER TOMORROW</span></div></div><button className="icon-btn" onClick={newChat} title="محادثة جديدة"><Icon name="plus"/></button></div>
       <button className="new-chat" onClick={newChat}><Icon name="plus"/><span>محادثة جديدة</span></button>
       <div className="sidebar-label">محادثاتك على هذا الجهاز</div>
-      <div className="conversation-list">{chats.length?chats.map(c=><div key={c.id} className={`conversation-wrap ${activeId===c.id?'active':''}`}><button className="conversation-item" onClick={()=>openChat(c.id)}><Icon name="chat" size={16}/><span>{c.title||'محادثة'}</span></button><button className="delete-chat" onClick={()=>removeChat(c.id)} aria-label="حذف"><Icon name="trash" size={15}/></button></div>):<div className="empty-side">ابدأ أول محادثة مع MUS AI</div>}</div>
-      <div className="sidebar-footer">{status?.settings?.install_enabled!==false&&!standalone&&<button className="install-side" onClick={install}><Icon name="install" size={17}/><span>تثبيت MUS AI</span></button>}<div className="privacy-mini">المحادثات مجهولة الهوية وقد تُستخدم لتحسين MUS AI. لا تشارك معلومات حساسة.</div></div>
+      <div className="conversation-list">{chats.length?chats.map(c=><div key={c.id} className={`conversation-wrap ${activeId===c.id?'active':''}`}><button className="conversation-item" onClick={()=>openChat(c.id)}><Icon name="chat" size={16}/><span>{c.title||'محادثة'}</span></button><button className="delete-chat" onClick={()=>removeChat(c.id)} aria-label="حذف"><Icon name="trash" size={15}/></button></div>):<div className="empty-side">ابدأ أول محادثة مع AQLEVON AI</div>}</div>
+      <div className="sidebar-footer">{status?.settings?.install_enabled!==false&&!standalone&&<button className="install-side" onClick={install}><Icon name="install" size={17}/><span>تثبيت AQLEVON AI</span></button>}<div className="privacy-mini">المحادثات مجهولة الهوية وقد تُستخدم لتحسين AQLEVON AI. لا تشارك معلومات حساسة.</div></div>
     </aside>
 
     <main className="chat-main">
-      <header className="chat-header"><button className="icon-btn mobile-menu" onClick={()=>setMobileOpen(true)}><Icon name="menu"/></button><div className="model-title"><img className="header-icon" src="/api/status?icon=1" alt=""/><div><strong>MUS AI</strong><small>Learn · Create · Evolve</small></div><span className={`status-dot ${status?.openrouter_configured||status?.self_hosted_configured?'online':'offline'}`}/></div>{status?.settings?.install_enabled!==false&&!standalone&&<button className="install-pill" onClick={install}><Icon name="install" size={16}/><span>تثبيت</span></button>}</header>
+      <header className="chat-header"><button className="icon-btn mobile-menu" onClick={()=>setMobileOpen(true)}><Icon name="menu"/></button><div className="model-title"><img className="header-icon" src="/api/status?icon=1" alt=""/><div><strong>AQLEVON AI</strong><small>Learn · Create · Evolve</small></div><span className={`status-dot ${status?.openrouter_configured||status?.self_hosted_configured?'online':'offline'}`}/></div>{status?.settings?.install_enabled!==false&&!standalone&&<button className="install-pill" onClick={install}><Icon name="install" size={16}/><span>تثبيت</span></button>}</header>
       {notice&&<div className="inline-notice">{notice}</div>}
       <section className={`message-stage ${messages.length?'has-messages':'empty-stage'}`}>
-        {!messages.length&&<div className="welcome-state"><img className="welcome-logo" src="/api/status?icon=1" alt="MUS AI"/><h1>كيف أستطيع مساعدتك؟</h1><p>محادثة مباشرة مع MUS AI. لا تحتاج إلى حساب.</p><div className="prompt-grid"><button onClick={()=>setInput('حلّل لي هذه الفكرة بعمق وحدد نقاط القوة والضعف.')}>حلّل فكرة بعمق</button><button onClick={()=>setInput('قارن بين أفضل الحلول لهذه المشكلة واختر الأنسب مع السبب.')}>قارن واختر الأفضل</button><button onClick={()=>setInput('ضع لي خطة عملية واضحة لتحقيق هذا الهدف بأقل تكلفة.')}>ابنِ خطة عملية</button></div></div>}
-        {messages.map((m,i)=><article key={m.id||i} className={`message-row ${m.role}`}><div className="message-avatar">{m.role==='assistant'?<img src="/api/status?icon=1" alt=""/>:'أ'}</div><div className="message-body"><div className="message-name">{m.role==='assistant'?'MUS AI':'أنت'}</div><div className="message-content">{m.content}</div>{m.role==='assistant'&&m.chatLogId&&<div className="message-tools"><button className={m.feedback==='good'?'selected':''} onClick={()=>rate(m,'good')} title="إجابة جيدة"><Icon name="thumbUp" size={16}/></button><button className={m.feedback==='bad'?'selected':''} onClick={()=>rate(m,'bad')} title="إجابة ضعيفة"><Icon name="thumbDown" size={16}/></button></div>}</div></article>)}
-        {busy&&<article className="message-row assistant"><div className="message-avatar"><img src="/api/status?icon=1" alt=""/></div><div className="message-body"><div className="message-name">MUS AI</div><div className="typing"><i/><i/><i/></div></div></article>}
+        {!messages.length&&<div className="welcome-state"><img className="welcome-logo" src="/api/status?icon=1" alt="AQLEVON AI"/><h1>كيف أستطيع مساعدتك؟</h1><p>محادثة مباشرة مع AQLEVON AI. لا تحتاج إلى حساب.</p><div className="prompt-grid"><button onClick={()=>setInput('حلّل لي هذه الفكرة بعمق وحدد نقاط القوة والضعف.')}>حلّل فكرة بعمق</button><button onClick={()=>setInput('قارن بين أفضل الحلول لهذه المشكلة واختر الأنسب مع السبب.')}>قارن واختر الأفضل</button><button onClick={()=>setInput('ضع لي خطة عملية واضحة لتحقيق هذا الهدف بأقل تكلفة.')}>ابنِ خطة عملية</button></div></div>}
+        {messages.map((m,i)=><article key={m.id||i} className={`message-row ${m.role}`}><div className="message-avatar">{m.role==='assistant'?<img src="/api/status?icon=1" alt=""/>:'أ'}</div><div className="message-body"><div className="message-name">{m.role==='assistant'?'AQLEVON AI':'أنت'}</div><div className="message-content">{m.content}</div>{m.role==='assistant'&&m.chatLogId&&<div className="message-tools"><button className={m.feedback==='good'?'selected':''} onClick={()=>rate(m,'good')} title="إجابة جيدة"><Icon name="thumbUp" size={16}/></button><button className={m.feedback==='bad'?'selected':''} onClick={()=>rate(m,'bad')} title="إجابة ضعيفة"><Icon name="thumbDown" size={16}/></button></div>}</div></article>)}
+        {busy&&<article className="message-row assistant"><div className="message-avatar"><img src="/api/status?icon=1" alt=""/></div><div className="message-body"><div className="message-name">AQLEVON AI</div><div className="typing"><i/><i/><i/></div></div></article>}
         <div ref={endRef}/>
       </section>
-      <footer className="composer-wrap"><div className="composer-box"><textarea rows="1" value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send()}}} placeholder="اسأل MUS AI..."/><div className="composer-actions">{status?.settings?.public_web_search_enabled&&<button className={`tool-toggle ${webSearch?'active':''}`} onClick={()=>setWebSearch(v=>!v)} title="بحث ويب"><Icon name="globe" size={17}/><span>بحث الويب</span></button>}<div className="composer-spacer"/><button className="send-btn" onClick={send} disabled={busy||!input.trim()}><Icon name="send" size={17}/></button></div></div><div className="composer-note">قد تُستخدم المحادثات المجهولة لتحسين MUS AI. لا ترسل أسرارًا أو بيانات شخصية حساسة.</div></footer>
+      <footer className="composer-wrap"><div className="composer-box"><textarea rows="1" value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send()}}} placeholder="اسأل AQLEVON AI..."/><div className="composer-actions">{status?.settings?.public_web_search_enabled&&<button className={`tool-toggle ${webSearch?'active':''}`} onClick={()=>setWebSearch(v=>!v)} title="بحث ويب"><Icon name="globe" size={17}/><span>بحث الويب</span></button>}<div className="composer-spacer"/><button className="send-btn" onClick={send} disabled={busy||!input.trim()}><Icon name="send" size={17}/></button></div></div><div className="composer-note">قد تُستخدم المحادثات المجهولة لتحسين AQLEVON AI. لا ترسل أسرارًا أو بيانات شخصية حساسة.</div></footer>
     </main>
   </div>
 }

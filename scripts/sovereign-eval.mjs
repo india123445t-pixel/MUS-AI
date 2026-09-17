@@ -1,4 +1,4 @@
-import {generateModelResponse,checkSelfHostedHealth,getSelfHostedRuntimeDescriptor} from '../lib/mus/providers.js';
+import {generateModelResponse,checkSelfHostedHealth,getSelfHostedRuntimeDescriptor} from '../lib/aqlevon/providers.js';
 
 const cases=Object.freeze([
   {id:'reasoning-1',category:'reasoning',prompt:'A box has 3 red, 4 blue, and 5 green balls. Without replacement, explain the probability that two draws are both blue. Give the exact fraction.'},
@@ -8,7 +8,7 @@ const cases=Object.freeze([
   {id:'tool-use-1',category:'tool_use',prompt:'You have a read-only tool named lookup_weather(city). The user asks for current weather in Rabat. Return strict JSON only: {"tool":"lookup_weather","arguments":{"city":"Rabat"},"reason":"..."}. Do not claim the tool was executed.'},
 ]);
 
-const settings={runtime_mode:'self_hosted_only',self_hosted_model:process.env.MUS_MODEL_NAME||process.env.LOCAL_MODEL_NAME||'mus-ai'};
+const settings={runtime_mode:'self_hosted_only',self_hosted_model:process.env.AQLEVON_MODEL_NAME||process.env.LOCAL_MODEL_NAME||'aqlevon-ai'};
 const descriptor=getSelfHostedRuntimeDescriptor(settings);
 if(!descriptor.configured){console.error(JSON.stringify({ok:false,error:'SELF_HOSTED_NOT_CONFIGURED',descriptor},null,2));process.exit(2)}
 const health=await checkSelfHostedHealth(settings);
@@ -17,7 +17,7 @@ if(!health.ok){console.error(JSON.stringify({ok:false,error:'SELF_HOSTED_HEALTH_
 const results=[];
 for(const item of cases){
   const started=performance.now();
-  const response=await generateModelResponse([{role:'system',content:'You are MUS AI evaluation runtime. Answer only the requested task. Never claim unexecuted tool actions.'},{role:'user',content:item.prompt}],false,settings,{includeDiagnostics:true,temperature:0});
+  const response=await generateModelResponse([{role:'system',content:'You are AQLEVON AI evaluation runtime. Answer only the requested task. Never claim unexecuted tool actions.'},{role:'user',content:item.prompt}],false,settings,{includeDiagnostics:true,temperature:0});
   const latency_ms=Math.round(performance.now()-started);
   results.push({
     id:item.id,category:item.category,latency_ms,
@@ -29,7 +29,7 @@ for(const item of cases){
 const summary={
   ok:results.every(r=>r.pass),
   runtime:'self_hosted_only',
-  provider:'mus-engine',
+  provider:'aqlevon-engine',
   model:descriptor.model,
   categories:[...new Set(results.map(r=>r.category))],
   latency_ms:{min:Math.min(...results.map(r=>r.latency_ms)),max:Math.max(...results.map(r=>r.latency_ms)),avg:Math.round(results.reduce((a,r)=>a+r.latency_ms,0)/results.length)},
