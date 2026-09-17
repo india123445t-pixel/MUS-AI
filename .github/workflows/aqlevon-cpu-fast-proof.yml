@@ -1,0 +1,98 @@
+name: AQLEVON Fast CPU Sovereign Proof
+
+on:
+  push:
+    branches:
+      - experiment/aqlevon-cpu-fast-proof
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fast-sovereign-proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Show runner capacity and reclaim disk
+        shell: bash
+        run: |
+          set -euxo pipefail
+          uname -a
+          free -h
+          df -h /
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL || true
+          sudo apt-get clean || true
+          sudo rm -rf /var/lib/apt/lists/* || true
+          df -h /
+          free -h
+
+      - name: Install official llama.app prebuilt CPU runtime
+        shell: bash
+        run: |
+          set -euxo pipefail
+          curl -fsSL https://llama.app/install.sh | SKIP_CUDA=1 SKIP_ROCM=1 SKIP_VULKAN=1 sh
+          test -x "$HOME/.llama-app/llama"
+          "$HOME/.llama-app/llama" version
+
+      - name: Start Qwen3.8-27B Q2 private OpenAI-compatible endpoint
+        shell: bash
+        run: |
+          set -euxo pipefail
+          nohup "$HOME/.llama-app/llama" serve \
+            -hf unsloth/Qwen3.8-27B-GGUF:UD-Q2_K_XL \
+            --alias AQLEVON-27B \
+            --host 127.0.0.1 \
+            --port 8080 \
+            --ctx-size 256 \
+            --threads 4 \
+            --parallel 1 \
+            --no-webui \
+            > "$RUNNER_TEMP/aqlevon-fast.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/aqlevon-fast.pid"
+          for i in $(seq 1 180); do
+            if curl -fsS http://127.0.0.1:8080/health > "$RUNNER_TEMP/health.json" 2>/dev/null; then
+              cat "$RUNNER_TEMP/health.json"
+              echo "AQLEVON_FAST_ENDPOINT_HEALTH_PASS"
+              exit 0
+            fi
+            if ! kill -0 "$(cat "$RUNNER_TEMP/aqlevon-fast.pid")" 2>/dev/null; then
+              echo "AQLEVON_FAST_SERVER_EXITED" >&2
+              tail -200 "$RUNNER_TEMP/aqlevon-fast.log" >&2 || true
+              exit 44
+            fi
+            sleep 5
+          done
+          echo "AQLEVON_FAST_ENDPOINT_TIMEOUT" >&2
+          tail -200 "$RUNNER_TEMP/aqlevon-fast.log" >&2 || true
+          exit 45
+
+      - name: OpenAI-compatible smoke request
+        shell: bash
+        run: |
+          set -euxo pipefail
+          curl -fsS --max-time 600 \
+            -H 'Content-Type: application/json' \
+            -d '{"model":"AQLEVON-27B","messages":[{"role":"user","content":"Reply with exactly AQLEVON_OK and nothing else."}],"temperature":0,"max_tokens":12,"stream":false}' \
+            http://127.0.0.1:8080/v1/chat/completions \
+            -o "$RUNNER_TEMP/aqlevon-fast-response.json"
+          cat "$RUNNER_TEMP/aqlevon-fast-response.json"
+          python3 - <<'PY'
+          import json, os
+          p=os.environ['RUNNER_TEMP']+'/aqlevon-fast-response.json'
+          with open(p, encoding='utf-8') as f: data=json.load(f)
+          text=data['choices'][0]['message']['content']
+          assert isinstance(text,str) and text.strip(), data
+          print('AQLEVON_FAST_OPENAI_COMPATIBLE_HTTP_PASS')
+          print('MODEL_RESPONSE=', repr(text[:200]))
+          PY
+
+      - name: Final proof summary
+        if: always()
+        shell: bash
+        run: |
+          echo '=== AQLEVON FAST CPU SOVEREIGN PROOF SUMMARY ==='
+          free -h || true
+          df -h / || true
+          if [ -f "$RUNNER_TEMP/aqlevon-fast-response.json" ]; then cat "$RUNNER_TEMP/aqlevon-fast-response.json"; fi
+          if [ -f "$RUNNER_TEMP/aqlevon-fast.log" ]; then tail -150 "$RUNNER_TEMP/aqlevon-fast.log" || true; fi
