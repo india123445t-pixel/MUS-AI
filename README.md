@@ -1,6 +1,6 @@
-# MUS AI
+# AQLEVON AI
 
-MUS AI is an evolving general-purpose AI project focused on maximizing **verified capability per dollar**.
+AQLEVON AI is an evolving general-purpose AI project focused on maximizing **verified capability per dollar**.
 
 ## North Star
 Continuously improve toward measurable superiority over strong reference models across many domains, while minimizing cost, hallucination, and wasted compute.
@@ -10,10 +10,10 @@ Continuously improve toward measurable superiority over strong reference models 
 - **Supabase** — memory, lessons, goals, evaluations, skill state, training candidates
 - **Hugging Face** — open-model research and future model artifacts
 - **GitHub** — source of truth and version history
-- **OpenRouter** — temporary teacher/fallback only; not the final MUS AI model
+- **OpenRouter** — temporary teacher/fallback only; not the final AQLEVON AI model
 
 ## Learning Loop
-Challenge → Attempt → Verify → Save verified experience → Measure skill → Train future MUS AI versions.
+Challenge → Attempt → Verify → Save verified experience → Measure skill → Train future AQLEVON AI versions.
 
 ## Cost Policy
 - Prefer free resources first.
@@ -21,4 +21,4 @@ Challenge → Attempt → Verify → Save verified experience → Measure skill 
 - Optimize for verified capability gained per dollar.
 
 ## Scientific Rule
-MUS AI must never claim it is stronger than another model without repeatable evaluation evidence.
+AQLEVON AI must never claim it is stronger than another model without repeatable evaluation evidence.

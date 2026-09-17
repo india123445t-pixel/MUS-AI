@@ -5,7 +5,7 @@ export async function GET(req){
  try{
   const auth=req.headers.get('authorization')||'',token=auth.startsWith('Bearer ')?auth.slice(7):'';if(!token)return Response.json({message:'يلزم تسجيل الدخول.'},{status:401});
   const sb=client(token),ur=await sb.auth.getUser();if(!ur.data?.user)return Response.json({message:'جلسة غير صالحة.'},{status:401});
-  const [snap,run]=await Promise.all([sb.rpc('get_mus_intelligence_snapshot'),sb.rpc('get_mus_runtime_config')]);if(snap.error)throw snap.error;if(run.error)throw run.error;
+  const [snap,run]=await Promise.all([sb.rpc('get_aqlevon_intelligence_snapshot'),sb.rpc('get_aqlevon_runtime_config')]);if(snap.error)throw snap.error;if(run.error)throw run.error;
   const cfg=run.data||{};
   return Response.json({ok:true,snapshot:snap.data||{},runtime:cfg,evidence_policy:{unseen_first_exposure_required:true,teacher_generated_hidden_benchmark:false,public_feedback_auto_gold:false,weights_trained:false,zero_cost_only:cfg.allow_paid_external===false&&cfg.allow_paid_gpu!==true&&Number(cfg.daily_budget_usd||0)===0}},{headers:{'cache-control':'no-store'}});
  }catch(e){return Response.json({message:e?.message||'تعذر تحميل حالة التقييم.'},{status:500})}

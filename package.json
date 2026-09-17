@@ -1,16 +1,23 @@
 {
-  "name": "mus-ai",
+  "name": "aqlevon-ai",
   "version": "1.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "bos:test": "node --test tests/*.test.mjs",
+    "sovereign:test": "node --test tests/sovereign-runtime.test.mjs",
+    "sovereign:eval": "node scripts/sovereign-eval.mjs",
+    "bos:check": "node --check lib/aqlevon/kernel.js && node --check lib/aqlevon/providers.js && node --check lib/aqlevon/security.js && node --check lib/aqlevon/domain-protocols.js && node --check lib/aqlevon/persona.js && node --check lib/aqlevon/tool-registry.js && node --check lib/aqlevon/authority.js && node --check lib/aqlevon/state-machines.js && node --check lib/aqlevon/context.js && node --check lib/aqlevon/receipts.js && node --check lib/aqlevon/response-governor.js && node --check lib/aqlevon/frozen-foundations.js && node --check lib/aqlevon/control-center-compat.js && node --check scripts/sovereign-eval.mjs && node --check app/api/chat/route.js && node --check app/api/internal/bos-status/route.js && node --check app/api/internal/self-hosted-health/route.js && node --check app/api/status/route.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.0",
     "next": "15.5.24",
     "react": "19.1.0",
     "react-dom": "19.1.0"
+  },
+  "overrides": {
+    "postcss": "8.5.23"
   }
 }
