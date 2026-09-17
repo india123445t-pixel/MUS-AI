@@ -1,5 +1,6 @@
 name: AQLEVON Full Identity Sweep
 
+# Temporary one-shot migration runner. Delete after successful identity migration.
 on:
   push:
     branches:
