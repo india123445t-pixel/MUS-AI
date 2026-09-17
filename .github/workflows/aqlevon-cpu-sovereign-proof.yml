@@ -24,6 +24,7 @@ jobs:
         run: |
           set -euxo pipefail
           uname -a
+          nproc
           free -h
           df -h /
 
@@ -56,7 +57,6 @@ jobs:
           git clone --depth 1 https://github.com/ggml-org/llama.cpp.git /tmp/llama.cpp
           cmake -S /tmp/llama.cpp -B /tmp/llama.cpp/build \
             -DGGML_CUDA=OFF \
-            -DLLAMA_CURL=ON \
             -DBUILD_SHARED_LIBS=OFF \
             -DLLAMA_BUILD_TESTS=OFF
           cmake --build /tmp/llama.cpp/build -j 4 --target llama-server
@@ -95,10 +95,13 @@ jobs:
             --alias "$MODEL_ALIAS" \
             --host 127.0.0.1 \
             --port 8080 \
-            --ctx-size 512 \
+            --ctx-size 256 \
             --threads 4 \
             --parallel 1 \
             --n-gpu-layers 0 \
+            --reasoning off \
+            --reasoning-budget 0 \
+            --no-reasoning-preserve \
             > "$RUNNER_TEMP/aqlevon-llama.log" 2>&1 &
           echo $! > "$RUNNER_TEMP/aqlevon-llama.pid"
           for i in $(seq 1 180); do
@@ -122,8 +125,8 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
-          REQUEST='{"model":"AQLEVON-27B","messages":[{"role":"user","content":"Reply with exactly AQLEVON_OK and nothing else."}],"temperature":0,"max_tokens":12,"stream":false}'
-          curl -fsS --max-time 900 \
+          REQUEST='{"model":"AQLEVON-27B","messages":[{"role":"user","content":"Reply only OK"}],"temperature":0,"max_tokens":4,"stream":false}'
+          curl -fsS --max-time 600 \
             -H 'Content-Type: application/json' \
             -d "$REQUEST" \
             http://127.0.0.1:8080/v1/chat/completions \
@@ -141,6 +144,7 @@ jobs:
           df -h / || true
           if [ -f "$RUNNER_TEMP/aqlevon-response.json" ]; then
             echo 'Response captured: yes'
+            cat "$RUNNER_TEMP/aqlevon-response.json" || true
           else
             echo 'Response captured: no'
           fi
