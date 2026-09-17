@@ -1,0 +1,21 @@
+{
+  "name": "AQLEVON Sovereign CPU Runtime",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+  "hostRequirements": {
+    "cpus": 8,
+    "memory": "32gb",
+    "storage": "64gb"
+  },
+  "forwardPorts": [8080],
+  "portsAttributes": {
+    "8080": {
+      "label": "AQLEVON OpenAI-compatible API",
+      "onAutoForward": "notify"
+    }
+  },
+  "remoteEnv": {
+    "AQLEVON_MODEL_NAME": "AQLEVON-27B",
+    "AQLEVON_MODEL_URL": "http://127.0.0.1:8080/v1/chat/completions"
+  },
+  "postCreateCommand": "sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential cmake git curl jq libcurl4-openssl-dev ca-certificates"
+}
