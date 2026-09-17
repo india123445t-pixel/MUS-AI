@@ -8,6 +8,7 @@ Safety properties:
 - The HTTP endpoint requires a bearer API key supplied via the Modal secret
   `mus-model-runtime` (`MUS_MODEL_KEY`).
 - Model weights must be prepared first by `infra/modal/prepare_model.py`.
+- The smoke-test entrypoint is bounded and the ephemeral app exits after testing.
 """
 
 from __future__ import annotations
@@ -32,6 +33,7 @@ MODEL_MOUNT = pathlib.Path("/models")
 MODEL_DIR = MODEL_MOUNT / "Qwen3.8-27B-FP8" / MODEL_REVISION
 VLLM_CACHE_MOUNT = pathlib.Path("/vllm-cache")
 PORT = 8000
+SMOKE_TIMEOUT_SECONDS = 16 * 60
 
 app = modal.App("mus-sovereign-runtime")
 
@@ -175,3 +177,79 @@ class SovereignServer:
         except subprocess.TimeoutExpired:
             process.kill()
             process.wait(timeout=5)
+
+
+@app.function(
+    secrets=[runtime_secret],
+    timeout=SMOKE_TIMEOUT_SECONDS,
+    cpu=0.125,
+    memory=256,
+)
+def smoke_test() -> dict:
+    """Trigger one bounded GPU server and verify three short chat completions.
+
+    This function never prints or returns MUS_MODEL_KEY. The first request also
+    triggers the scale-from-zero server. HTTP 503 is retried while the L40S
+    container is starting. When this `modal run` invocation finishes, the
+    ephemeral App exits; the server is not left deployed persistently.
+    """
+    api_key = os.environ["MUS_MODEL_KEY"]
+    base_url = SovereignServer.get_url().rstrip("/")
+    endpoint = f"{base_url}/v1/chat/completions"
+    deadline = time.monotonic() + 15 * 60
+
+    prompts = [
+        "أجب بالعربية الفصحى بجملة واحدة: ما فائدة اختبار النظام قبل نشره؟",
+        "جاوب بالدارجة المغربية بجملة قصيرة: علاش خاصنا نجربو النظام قبل ما نستعملوه؟",
+        "احسب 17 × 23 وأعط النتيجة فقط.",
+    ]
+
+    outputs: list[dict] = []
+    for index, prompt in enumerate(prompts, start=1):
+        payload = json.dumps(
+            {
+                "model": MODEL_ID,
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": 0,
+                "max_tokens": 80,
+            }
+        ).encode("utf-8")
+
+        while True:
+            if time.monotonic() >= deadline:
+                raise TimeoutError("Sovereign smoke test exceeded its 15-minute request deadline")
+
+            request = urllib.request.Request(
+                endpoint,
+                data=payload,
+                method="POST",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
+            )
+
+            try:
+                with urllib.request.urlopen(request, timeout=90) as response:
+                    body = json.loads(response.read().decode("utf-8"))
+                content = body["choices"][0]["message"]["content"]
+                outputs.append({"prompt_index": index, "response": content})
+                print(json.dumps({"event": "smoke_prompt_ok", "prompt_index": index}, ensure_ascii=False))
+                break
+            except urllib.error.HTTPError as exc:
+                if exc.code == 503:
+                    time.sleep(3)
+                    continue
+                raise RuntimeError(f"Smoke request failed with HTTP {exc.code}") from exc
+            except (urllib.error.URLError, TimeoutError, ConnectionError):
+                time.sleep(3)
+
+    result = {
+        "status": "PASS",
+        "model": MODEL_ID,
+        "revision": MODEL_REVISION,
+        "prompts_ok": len(outputs),
+        "outputs": outputs,
+    }
+    print(json.dumps(result, ensure_ascii=False))
+    return result
