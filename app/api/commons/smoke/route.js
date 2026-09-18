@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { commonsSubmitAndWait } from '../../../../../lib/aqlevon/commons-edge.js';
+import { commonsSubmitAndWait } from '../../../../lib/aqlevon/commons-edge.js';
 
 export const dynamic='force-dynamic';
 export const maxDuration=60;
