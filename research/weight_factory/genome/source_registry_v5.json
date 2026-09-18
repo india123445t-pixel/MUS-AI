@@ -1,0 +1,421 @@
+{
+  "schema_version": 5,
+  "generated_at": "2026-09-18",
+  "policy": "default_deny",
+  "sources": [
+    {
+      "id": "base_qwen38_27b",
+      "kind": "model",
+      "ref": "Qwen/Qwen3.8-27B",
+      "license": "Apache-2.0",
+      "role": [
+        "canonical_base"
+      ],
+      "admission": "allow",
+      "notes": "Exact revision must be pinned per run."
+    },
+    {
+      "id": "teacher_qwen38_max",
+      "kind": "model",
+      "ref": "Qwen/Qwen3.8-2.4T-A95B",
+      "license": "Qwen3.8-Max-License",
+      "role": [
+        "teacher",
+        "frontier_reference",
+        "architecture_reference"
+      ],
+      "admission": "allow_with_conditions",
+      "notes": "Official license reviewed 2026-09-18. Frontier transfer target/reference only; not tensor-compatible with 27B genes. Re-review commercial conditions and hardware feasibility before use."
+    },
+    {
+      "id": "teacher_deepseek_v4_pro",
+      "kind": "model",
+      "ref": "deepseek-ai/DeepSeek-V4-Pro",
+      "license": "MIT",
+      "role": [
+        "teacher",
+        "benchmark",
+        "recipe"
+      ],
+      "admission": "allow_local_open_weight",
+      "notes": "Different architecture: no direct tensor merge into Qwen. Official HF model card currently marks MIT."
+    },
+    {
+      "id": "teacher_glm53",
+      "kind": "model",
+      "ref": "zai-org/GLM-5.3",
+      "license": "GLM-5.3-License",
+      "role": [
+        "teacher",
+        "benchmark",
+        "recipe",
+        "long_context"
+      ],
+      "admission": "allow_with_conditions",
+      "notes": "Official HF model card/LICENSE reviewed 2026-09-18. Different architecture: behavior/recipe only. Re-review commercial/MaaS conditions before every release."
+    },
+    {
+      "id": "teacher_gpt_oss_120b",
+      "kind": "model",
+      "ref": "openai/gpt-oss-120b",
+      "license": "Apache-2.0",
+      "role": [
+        "teacher",
+        "reasoning_control",
+        "tools"
+      ],
+      "admission": "allow_local_open_weight",
+      "notes": "Use local/open-weight path, not hosted OpenAI output."
+    },
+    {
+      "id": "teacher_kimi_k3",
+      "kind": "model",
+      "ref": "moonshotai/Kimi-K3",
+      "license": "Kimi-K3-License",
+      "role": [
+        "teacher",
+        "long_horizon",
+        "multimodal"
+      ],
+      "admission": "allow_with_conditions",
+      "notes": "Track current Kimi K3 commercial conditions and attribution thresholds; re-review before commercial release."
+    },
+    {
+      "id": "qwen_flash_next",
+      "kind": "model",
+      "ref": "Qwen/Qwen3.8-Flash-Next",
+      "license": "Qwen-Community-License-1.0",
+      "role": [
+        "architecture_reference",
+        "research"
+      ],
+      "admission": "research_only_for_current_commercial_plan",
+      "notes": "Separate commercial review required for the current AQLEVON product plan."
+    },
+    {
+      "id": "qwen_agentworld",
+      "kind": "model_recipe",
+      "ref": "Qwen/Qwen-AgentWorld-35B-A3B",
+      "license": "Apache-2.0",
+      "role": [
+        "world_model_recipe",
+        "agent_training_reference"
+      ],
+      "admission": "recipe_allow",
+      "notes": "Different base/shape; transfer CPT/SFT/GSPO environment-modeling recipe, not tensors."
+    },
+    {
+      "id": "agent0_recipe",
+      "kind": "code_recipe",
+      "ref": "aiming-lab/Agent0",
+      "license": "Apache-2.0",
+      "role": [
+        "self_evolution",
+        "tool_integrated_curriculum"
+      ],
+      "admission": "recipe_allow",
+      "notes": "Use the co-evolution/tool-integrated curriculum recipe. Generated examples still require AQLEVON verifier and contamination gates."
+    },
+    {
+      "id": "rzero_recipe",
+      "kind": "code_recipe",
+      "ref": "Chengsong-Huang/R-Zero",
+      "license": "AUDIT_REQUIRED",
+      "role": [
+        "self_evolution",
+        "challenger_solver"
+      ],
+      "admission": "research_recipe_only_until_license_audit",
+      "notes": "Public repo inspected; no clear license was surfaced in the current audit. Learn from the paper/recipe only until license is confirmed."
+    },
+    {
+      "id": "drzero_recipe",
+      "kind": "code_recipe",
+      "ref": "facebookresearch/drzero",
+      "license": "NONCOMMERCIAL",
+      "role": [
+        "search_self_evolution",
+        "hrpo_reference"
+      ],
+      "admission": "research_only_noncommercial_recipe",
+      "notes": "Repository states non-commercial license. Research reference only for commercial AQLEVON; do not copy code into product/training stack without separate permission."
+    },
+    {
+      "id": "evogm_recipe",
+      "kind": "code_recipe",
+      "ref": "JiangTao97/evogm",
+      "license": "MIT",
+      "role": [
+        "evolutionary_merge_search"
+      ],
+      "admission": "recipe_allow",
+      "notes": "Use as a research implementation reference after two or more compatible promotion-eligible genes exist."
+    },
+    {
+      "id": "terminal_universe",
+      "kind": "paper_dataset_recipe",
+      "ref": "arXiv:2609.04148",
+      "license": "AUDIT_REQUIRED",
+      "role": [
+        "coding_environment_curriculum"
+      ],
+      "admission": "quarantine_until_license_and_contamination_audit",
+      "notes": "High-priority R0-A candidate; benchmark overlap must be checked."
+    },
+    {
+      "id": "openresearcher",
+      "kind": "dataset_recipe",
+      "ref": "OpenResearcher/OpenResearcher-Dataset",
+      "license": "AUDIT_REQUIRED",
+      "role": [
+        "deep_research"
+      ],
+      "admission": "quarantine_until_source_license_and_benchmark_audit",
+      "notes": "Long-horizon research trajectories; audit source licenses and benchmark overlap before ingestion."
+    },
+    {
+      "id": "arywiki_instruct",
+      "kind": "dataset",
+      "ref": "AryWiki-Instruct",
+      "license": "CC article; dataset rights require audit",
+      "role": [
+        "darija_reference"
+      ],
+      "admission": "quarantine_hosted_generation_terms",
+      "notes": "Generated with Gemini-2.5-Flash; do not auto-admit for competitive training until downstream rights are cleared."
+    },
+    {
+      "id": "community_qwen38_fable5_coding_distilled",
+      "kind": "model",
+      "ref": "khazarai/Qwen3.8-27B-Fable-5-Coding-Distilled",
+      "license": "INCOMPLETE_CHAIN",
+      "role": [
+        "recipe_scan",
+        "coding_reference"
+      ],
+      "admission": "quarantine_incomplete_provenance",
+      "notes": "Model card says exact license inheritance, dataset composition/sourcing, training hyperparameters and hardware still require verification. Never use as a weight donor until complete."
+    },
+    {
+      "id": "community_qwen38_merges",
+      "kind": "model_collection",
+      "ref": "HF Qwen3.8-27B merges/adapters",
+      "license": "MIXED",
+      "role": [
+        "recipe_scan"
+      ],
+      "admission": "default_quarantine",
+      "notes": "Require exact base, data provenance, teacher provenance, license chain, target coverage and contamination scan."
+    },
+    {
+      "id": "hosted_openai",
+      "kind": "hosted_service",
+      "ref": "OpenAI hosted",
+      "license": "service_terms",
+      "role": [
+        "external_eval_only"
+      ],
+      "admission": "deny_training_harvest"
+    },
+    {
+      "id": "hosted_anthropic",
+      "kind": "hosted_service",
+      "ref": "Claude hosted",
+      "license": "service_terms",
+      "role": [
+        "external_eval_only"
+      ],
+      "admission": "deny_training_harvest"
+    },
+    {
+      "id": "hosted_gemini",
+      "kind": "hosted_service",
+      "ref": "Gemini API hosted",
+      "license": "service_terms",
+      "role": [
+        "external_eval_only"
+      ],
+      "admission": "deny_training_harvest"
+    },
+    {
+      "id": "tgopd_recipe",
+      "kind": "paper_recipe",
+      "ref": "arXiv:2609.02998",
+      "license": "PAPER_REVIEWED_CODE_AUDIT_REQUIRED",
+      "role": [
+        "teacher_gating",
+        "on_policy_distillation"
+      ],
+      "admission": "research_recipe_only_until_license_audit",
+      "notes": "Prompt-level teacher verification before OPD; use concept until implementation license/code is audited."
+    },
+    {
+      "id": "mt_sdpo_recipe",
+      "kind": "paper_recipe",
+      "ref": "arXiv:2609.02548",
+      "license": "PAPER_REVIEWED_CODE_AUDIT_REQUIRED",
+      "role": [
+        "multi_teacher",
+        "answer_verified_distillation"
+      ],
+      "admission": "research_recipe_only_until_license_audit",
+      "notes": "Answer-verified teacher eligibility; current paper reports code availability, but exact code/data licenses must be pinned before reuse."
+    },
+    {
+      "id": "mergopt_recipe",
+      "kind": "paper_recipe",
+      "ref": "ICLR-2026-MergOPT",
+      "license": "PAPER_REVIEWED_CODE_AUDIT_REQUIRED",
+      "role": [
+        "merge_aware_training"
+      ],
+      "admission": "research_recipe_only_until_license_audit",
+      "notes": "Train experts to remain robust under later merging; concept admitted, code license requires audit."
+    },
+    {
+      "id": "absolute_zero_recipe",
+      "kind": "code_recipe",
+      "ref": "LeapLabTHU/Absolute-Zero-Reasoner",
+      "license": "CODE_LICENSE_AUDIT_REQUIRED",
+      "role": [
+        "self_evolution",
+        "verified_self_play"
+      ],
+      "admission": "research_recipe_only_until_license_audit",
+      "notes": "Research recipe for proposer-solver executable self-play. Paper/code inspected; production/training reuse only after exact repository license audit and sandbox hardening."
+    },
+    {
+      "id": "sage_recipe",
+      "kind": "paper_recipe",
+      "ref": "arXiv:2603.15255",
+      "license": "PAPER_REVIEWED_CODE_AUDIT_REQUIRED",
+      "role": [
+        "self_evolution",
+        "challenger_planner_solver_critic"
+      ],
+      "admission": "research_recipe_only_until_license_audit",
+      "notes": "Multi-agent self-evolution recipe; verify implementation license before code reuse."
+    },
+    {
+      "id": "spell_recipe",
+      "kind": "paper_recipe",
+      "ref": "ICLR-2026-SPELL",
+      "license": "PAPER_REVIEWED_CODE_AUDIT_REQUIRED",
+      "role": [
+        "long_context",
+        "self_play_curriculum"
+      ],
+      "admission": "research_recipe_only_until_license_audit",
+      "notes": "Questioner-responder-verifier long-context curriculum; code repository announced, audit before reuse."
+    },
+    {
+      "id": "rlsvr_recipe",
+      "kind": "paper_recipe",
+      "ref": "arXiv:2607.23802",
+      "license": "PAPER_REVIEWED_CODE_AUDIT_REQUIRED",
+      "role": [
+        "self_verifiable_rewards",
+        "open_ended_rl"
+      ],
+      "admission": "research_recipe_only_until_license_audit",
+      "notes": "Transform open-ended tasks into self-verifiable proxy environments; code/model terms must be audited before reuse."
+    },
+    {
+      "id": "wudi_merge_recipe",
+      "kind": "code_recipe",
+      "ref": "nathanielyvo/WUDI-Merging",
+      "license": "CODE_LICENSE_AUDIT_REQUIRED",
+      "role": [
+        "interference_reduction",
+        "model_merging"
+      ],
+      "admission": "research_recipe_only_until_license_audit",
+      "notes": "Task-vector-guided data-free interference reduction. Use as merge-tournament reference after license audit."
+    },
+    {
+      "id": "sra_cross_tokenizer_recipe",
+      "kind": "paper_recipe",
+      "ref": "ACL-2026-SRA-Span-Representation-Alignment",
+      "license": "PAPER_REVIEWED_CODE_AUDIT_REQUIRED",
+      "role": [
+        "cross_tokenizer_distillation",
+        "representation_alignment"
+      ],
+      "admission": "research_recipe_only_until_license_audit",
+      "notes": "Span-level teacher/student alignment across tokenizer and architecture mismatch. Compare against output-only distillation before promotion."
+    },
+    {
+      "id": "byte_level_distillation_recipe",
+      "kind": "paper_recipe",
+      "ref": "ACL-2026-CustomNLP4U-Byte-Level-Distillation",
+      "license": "PAPER_REVIEWED_CODE_AUDIT_REQUIRED",
+      "role": [
+        "cross_tokenizer_distillation",
+        "byte_interface"
+      ],
+      "admission": "research_recipe_only_until_license_audit",
+      "notes": "Shared byte-level interface for tokenizer-independent teacher/student transfer; research lane only until implementation terms are pinned."
+    },
+    {
+      "id": "sedi_cross_tokenizer_recipe",
+      "kind": "paper_recipe",
+      "ref": "AAAI-2026-SeDi",
+      "license": "PAPER_REVIEWED_CODE_AUDIT_REQUIRED",
+      "role": [
+        "cross_tokenizer_distillation",
+        "distribution_alignment"
+      ],
+      "admission": "research_recipe_only_until_license_audit",
+      "notes": "Semantics/distribution-aware cross-tokenizer transfer with entropy alignment. Must beat output-only baseline on private holdout."
+    },
+    {
+      "id": "rpo_adaptive_reasoning_recipe",
+      "kind": "paper_recipe",
+      "ref": "ACL-2026-Root-token-Policy-Optimization",
+      "license": "PAPER_REVIEWED_CODE_AUDIT_REQUIRED",
+      "role": [
+        "adaptive_reasoning",
+        "compute_efficiency"
+      ],
+      "admission": "research_recipe_only_until_license_audit",
+      "notes": "Optimize initial reason/not-reason decision; paper reports low training-compute overhead. Use for R0-E ablation only."
+    },
+    {
+      "id": "rlvrr_reference_chain_recipe",
+      "kind": "paper_recipe",
+      "ref": "ICLR-2026-RLVRR",
+      "license": "PAPER_REVIEWED_CODE_AUDIT_REQUIRED",
+      "role": [
+        "open_ended_rl",
+        "reference_chain_rewards"
+      ],
+      "admission": "research_recipe_only_until_license_audit",
+      "notes": "Reference-derived reward chains for open-ended generation. Generative/style verifier cannot become sole release judge."
+    },
+    {
+      "id": "dsmoe_recipe",
+      "kind": "paper_recipe",
+      "ref": "ACL-2026-DSMoE",
+      "license": "PAPER_REVIEWED_CODE_AUDIT_REQUIRED",
+      "role": [
+        "moe_domain_steering",
+        "expert_analysis"
+      ],
+      "admission": "research_recipe_only_until_license_audit",
+      "notes": "Training-free domain steering based on empirically observed expert specialization; relevant to future AQLEVON-MoE, not 27B tensor grafting."
+    },
+    {
+      "id": "submoe_recipe",
+      "kind": "paper_recipe",
+      "ref": "AAAI-2026-Sub-MoE",
+      "license": "PAPER_REVIEWED_CODE_AUDIT_REQUIRED",
+      "role": [
+        "moe_compression",
+        "expert_subspace_merging"
+      ],
+      "admission": "research_recipe_only_until_license_audit",
+      "notes": "Subspace expert merging/compression; use only on architecturally compatible MoE checkpoints."
+    }
+  ],
+  "notes": "V5 activates latest frontier teacher/source registry and adds fail-closed cross-architecture distillation, adaptive reasoning, open-ended RLVR, and future MoE research recipes."
+}
