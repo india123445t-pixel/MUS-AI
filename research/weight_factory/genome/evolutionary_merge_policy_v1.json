@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "name": "AQLEVON Merge Lab",
+  "eligibility": {
+    "same_exact_base_revision": true,
+    "compatible_parameter_layout": true,
+    "each_gene_promotion_eligible": true,
+    "pairwise_interference_atlas_required": true,
+    "license_and_provenance_pass": true
+  },
+  "seed_methods": ["weighted_linear", "task_arithmetic", "TIES", "DARE_TIES"],
+  "search_methods": ["evolutionary_coefficient_search", "EvoGM_style_generative_search"],
+  "search_space": [
+    "global_gene_coefficient",
+    "layer_group_coefficient",
+    "density",
+    "sign_conflict_strategy",
+    "gene_inclusion_mask"
+  ],
+  "fitness": {
+    "type": "pareto",
+    "maximize": ["coding", "reasoning", "tool_use", "research", "arabic_darija", "factuality", "long_horizon", "verified_success_per_gpu_second"],
+    "minimize": ["catastrophic_regressions", "latency", "output_tokens", "gpu_seconds"],
+    "hard_reject": ["protected_benchmark_contamination", "catastrophic_regression", "lineage_mismatch", "license_failure"]
+  },
+  "stages": [
+    "cheap_diagnostic_subset",
+    "medium_private_regression_suite",
+    "full_release_harness",
+    "short_consolidation_training",
+    "post_consolidation_full_harness"
+  ],
+  "release_rule": "No evolutionary candidate is released solely because its scalar average score is highest. It must remain on the predeclared Pareto frontier and pass all hard gates."
+}

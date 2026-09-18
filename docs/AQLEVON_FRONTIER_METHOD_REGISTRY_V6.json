@@ -1,0 +1,29 @@
+{
+  "version": 6,
+  "status": "active_research",
+  "updated": "2026-09-18",
+  "selection_law": "objective_verifier_truth > prompt_level_teacher_reliability > domain_reputation",
+  "methods": [
+    {"id":"tgopd","name":"Teacher-Gated On-Policy Distillation","priority":"highest","stage":"G6","purpose":"verify teacher reliability per prompt before dense OPD","reject_if":"gating overhead or verifier errors erase gains"},
+    {"id":"mt_sdpo","name":"Answer-Verified Multi-Teacher Self-Distillation Policy Optimization","priority":"highest","stage":"G6","purpose":"select any teacher that is actually correct on the sample, not just domain-matched","reject_if":"weakest-domain floor or regression vector worsens"},
+    {"id":"mopd","name":"Multi-Teacher On-Policy Distillation","priority":"primary_baseline","stage":"G6","purpose":"integrate specialist RL teachers on student rollouts","reject_if":"teacher imbalance or full-vector regression"},
+    {"id":"mergopt","name":"Merge-Aware Optimizer","priority":"high","stage":"G3","purpose":"train specialist genes to remain robust under later parameter merging","reject_if":"specialist gain or merge robustness is inferior at matched compute"},
+    {"id":"absolute_zero","name":"Absolute Zero Reasoner style self-play","priority":"high_research","stage":"G5","purpose":"propose and solve self-generated verifiable reasoning/code tasks","reject_if":"curriculum saturates, leaks evals, or generated tasks lack learnable information"},
+    {"id":"sage","name":"Challenger-Planner-Solver-Critic self-evolution","priority":"high_research","stage":"G5","purpose":"generate increasingly difficult verified long-horizon tasks","reject_if":"critic drift or verifier failure produces curriculum collapse"},
+    {"id":"spell","name":"Self-Play Long-Context Curriculum","priority":"high_long_context","stage":"R0-J","purpose":"questioner-responder-verifier loop with automatic length/difficulty curriculum","reject_if":"no gain over matched supervised/CPT baseline"},
+    {"id":"rlsvr","name":"RL with Self-Verifiable Rewards","priority":"experimental_open_ended","stage":"G5+","purpose":"transform open-ended tasks into verifiable proxy environments","reject_if":"proxy reward fails to transfer to real open-ended quality"},
+    {"id":"vpr","name":"Verifiable Process Rewards","priority":"high_agentic","stage":"G2-G4","purpose":"dense objective intermediate rewards for long-horizon trajectories","reject_if":"oracle unreliability or reward hacking exceeds outcome baseline"},
+    {"id":"expert_merging","name":"Expert Merging++","priority":"merge_tournament","stage":"G6","purpose":"learn layer/chunk coefficients from unlabeled calibration behavior","reject_if":"inferior to simple TIES/DARE or regression vector worsens"},
+    {"id":"upit","name":"Upcycling Instruction Tuning","priority":"architecture_r1","stage":"R1","purpose":"convert diverse dense specialists/intermediate checkpoints into sparse experts","reject_if":"router collapse or serving cost outweighs verified gain"},
+    {"id":"namex","name":"Nash Merging of Experts","priority":"architecture_r1_challenger","stage":"R1","purpose":"game-theoretic balancing when merging sparse experts","reject_if":"no benefit on AQLEVON expert topology at matched cost"}
+  ],
+  "mandatory_artifacts": [
+    "capability_genome_record",
+    "interference_fingerprint",
+    "training_provenance",
+    "public_eval_vector",
+    "private_eval_vector",
+    "quantization_survival",
+    "artifact_sha256"
+  ]
+}

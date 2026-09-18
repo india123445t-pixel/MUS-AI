@@ -1,0 +1,38 @@
+{
+  "schema_version": 3,
+  "base": {
+    "repo": "Qwen/Qwen3.8-27B",
+    "revision": "1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0",
+    "family": "qwen3_5"
+  },
+  "default_training": {
+    "preferred": "bf16_lora",
+    "experimental": ["qlora_4bit"],
+    "experimental_requires": ["quantization_regression_pass"]
+  },
+  "merge_backends": {
+    "peft_native": "allow",
+    "mergekit_qwen3_5": "blocked_until_roundtrip_support_verified"
+  },
+  "peft_combination_rules": {
+    "svd": {"rank_pattern": "allowed_with_roundtrip"},
+    "cat": {"rank_pattern": "allowed_with_roundtrip"},
+    "linear": {"rank_pattern": "forbidden"},
+    "ties": {"rank_pattern": "forbidden"},
+    "dare_linear": {"rank_pattern": "forbidden"},
+    "dare_ties": {"rank_pattern": "forbidden"},
+    "magnitude_prune": {"rank_pattern": "forbidden"}
+  },
+  "topology_classes": ["FULL_HYBRID_TEXT","ATTENTION_MLP_PARTIAL","MLP_ONLY","CUSTOM_EXPERIMENTAL"],
+  "full_hybrid_required_suffixes": ["q_proj","k_proj","v_proj","o_proj","gate_proj","up_proj","down_proj","in_proj_qkv","in_proj_z","in_proj_b","in_proj_a","out_proj"],
+  "forbidden_scopes": ["model.visual","vision","lm_head","embed_tokens","mtp"],
+  "required_integrity_evidence": ["reload_pass","nonzero_delta_pass","delta_identity_pass","base_hash_match","artifact_hash"],
+  "required_promotion_evidence": ["license_pass","provenance_pass","contamination_pass","target_gain","global_regression_pass"],
+  "required_merge_promotion_evidence": ["interference_atlas_pass","pairwise_behavior_eval_pass","merge_roundtrip_pass"],
+  "required_merge_artifacts": ["interference_report_hash"],
+  "interference_policy": {
+    "metric_policy": "orientation_and_behavior_not_magnitude_only",
+    "hard_numeric_thresholds": "unset_until_first_real_genes",
+    "rule": "a numeric interference score never overrides frozen behavioral regression evidence"
+  }
+}
