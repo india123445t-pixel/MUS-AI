@@ -1,4 +1,5 @@
 import importlib.util
+import hashlib
 import json
 import unittest
 from pathlib import Path
@@ -104,28 +105,41 @@ class TruthGateTests(unittest.TestCase):
         self.assertEqual(result["status"], "INVALID")
         self.assertTrue(any("at least 3" in x for x in result["invalid_reasons"]))
 
-    def test_fingerprints_detect_exact_and_fuzzy_without_plaintext(self):
-        key = b"unit-test-key-never-production"
-        protected_rows = [{"id": "p1", "prompt": "one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen"}]
-        candidate_rows = [
-            {"id": "c1", "text": "one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen"},
-            {"id": "c2", "text": "one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen changed"},
-        ]
-        protected = mod.build_fingerprint_pack(protected_rows, key, ["prompt"], shingle_n=5)
-        candidate = mod.build_fingerprint_pack(candidate_rows, key, ["text"], shingle_n=5)
-        encoded = json.dumps(protected)
-        self.assertNotIn("one two three", encoded)
-        result = mod.scan_fingerprint_packs(protected, candidate, fuzzy_threshold=0.70)
-        self.assertGreaterEqual(result["exact_overlap_count"], 1)
-        self.assertGreaterEqual(result["fuzzy_overlap_count"], 1)
+    def _digest(self, text):
+        return hashlib.sha256(text.encode()).hexdigest()
 
-    def test_wrong_fingerprint_key_does_not_match(self):
-        rows = [{"id": "x", "text": "alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu nu xi"}]
-        a = mod.build_fingerprint_pack(rows, b"key-a", ["text"], shingle_n=5)
-        b = mod.build_fingerprint_pack(rows, b"key-b", ["text"], shingle_n=5)
-        result = mod.scan_fingerprint_packs(a, b, fuzzy_threshold=0.5)
-        self.assertEqual(result["exact_overlap_count"], 0)
-        self.assertEqual(result["fuzzy_overlap_count"], 0)
+    def _pack(self, exact, shingles, item="x", field="text"):
+        return {
+            "schema_version": 1,
+            "algorithm": "HMAC-SHA256 + keyed token shingles",
+            "plaintext_included": False,
+            "shingle_n": 13,
+            "records": [{
+                "id_hmac_sha256": self._digest("id:" + item),
+                "field": field,
+                "exact_hmac_sha256": exact,
+                "shingle_n": 13,
+                "shingle_hmac_sha256": shingles,
+            }],
+        }
+
+    def test_fingerprints_detect_exact_and_fuzzy_without_plaintext(self):
+        e = self._digest("same-exact")
+        s1, s2, s3 = [self._digest(x) for x in ("s1", "s2", "s3")]
+        protected = self._pack(e, [s1, s2, s3], "p1")
+        candidate = self._pack(e, [s1, s2, s3], "c1")
+        encoded = json.dumps(protected)
+        self.assertNotIn("same-exact", encoded)
+        result = mod.scan_fingerprint_packs(protected, candidate, fuzzy_threshold=0.70)
+        self.assertEqual(result["exact_overlap_count"], 1)
+        self.assertEqual(result["fuzzy_overlap_count"], 1)
+
+    def test_plaintext_or_malformed_pack_is_rejected(self):
+        digest = self._digest("x")
+        bad = self._pack(digest, [digest])
+        bad["plaintext_included"] = True
+        with self.assertRaises(ValueError):
+            mod.scan_fingerprint_packs(bad, self._pack(digest, [digest]))
 
     def test_smoke_nonempty_output_is_not_enough(self):
         report = valid_report()
