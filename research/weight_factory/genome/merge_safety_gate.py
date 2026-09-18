@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Fail-closed metadata gate for AQLEVON adapter and merge candidates.
 
-This gate deliberately validates metadata/evidence only. Numerical LoRA-delta identity
-must be produced by the GPU training/merge runner and recorded in the candidate manifest.
+The gate validates lineage, topology, evidence, and merge-promotion artifacts. Numerical
+weight identity and behavioral quality must be produced by the training/merge/evaluation
+runners and recorded in the candidate manifest.
 """
 from __future__ import annotations
 import json
@@ -12,6 +13,19 @@ from pathlib import Path
 def load_json(path: str | Path):
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
+
+
+def _valid_hash(value) -> bool:
+    return isinstance(value, str) and len(value.strip()) >= 16
+
+
+def default_policy_path() -> Path:
+    root = Path(__file__).resolve().parent
+    for name in ("merge_safety_policy_v4.json", "merge_safety_policy_v3.json", "merge_safety_policy_v2.json"):
+        path = root / name
+        if path.exists():
+            return path
+    raise FileNotFoundError("no merge safety policy found")
 
 
 def validate_candidate(candidate: dict, policy: dict) -> list[str]:
@@ -62,9 +76,9 @@ def validate_candidate(candidate: dict, policy: dict) -> list[str]:
     evidence = candidate.get("evidence", {})
     for key in policy["required_integrity_evidence"]:
         val = evidence.get(key)
-        if key == "artifact_hash":
-            if not isinstance(val, str) or len(val.strip()) < 16:
-                errors.append("missing evidence.artifact_hash")
+        if key.endswith("hash"):
+            if not _valid_hash(val):
+                errors.append(f"missing evidence.{key}")
         elif val is not True:
             errors.append(f"missing evidence.{key}")
 
@@ -73,6 +87,24 @@ def validate_candidate(candidate: dict, policy: dict) -> list[str]:
             if evidence.get(key) is not True:
                 errors.append(f"promotion missing evidence.{key}")
 
+    if candidate.get("merge_promotion_requested"):
+        if not candidate.get("promotion_requested"):
+            errors.append("merge promotion requires promotion_requested")
+        if not backend:
+            errors.append("merge promotion requires merge.backend")
+        for key in policy.get("required_merge_promotion_evidence", []):
+            if evidence.get(key) is not True:
+                errors.append(f"merge promotion missing evidence.{key}")
+        artifacts = candidate.get("artifacts", {})
+        for key in policy.get("required_merge_artifacts", []):
+            if not _valid_hash(artifacts.get(key)):
+                errors.append(f"merge promotion missing artifacts.{key}")
+
+        rep = candidate.get("interference_input_representation")
+        expected_rep = policy.get("interference_policy", {}).get("input_representation")
+        if expected_rep and rep != expected_rep:
+            errors.append(f"merge promotion requires interference_input_representation={expected_rep}")
+
     return errors
 
 
@@ -80,7 +112,7 @@ def main():
     import argparse
     p = argparse.ArgumentParser()
     p.add_argument("candidate")
-    p.add_argument("--policy", default=str(Path(__file__).with_name("merge_safety_policy_v2.json")))
+    p.add_argument("--policy", default=str(default_policy_path()))
     args = p.parse_args()
     policy = load_json(args.policy)
     candidate = load_json(args.candidate)

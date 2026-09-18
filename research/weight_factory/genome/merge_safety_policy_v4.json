@@ -1,0 +1,67 @@
+{
+  "schema_version": 4,
+  "base": {
+    "repo": "Qwen/Qwen3.8-27B",
+    "revision": "1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0",
+    "family": "qwen3_5"
+  },
+  "default_training": {
+    "preferred": "bf16_lora",
+    "experimental": ["qlora_4bit"],
+    "experimental_requires": ["quantization_regression_pass"]
+  },
+  "merge_backends": {
+    "peft_native": "allow",
+    "mergekit_qwen3_5": "blocked_until_roundtrip_support_verified"
+  },
+  "peft_combination_rules": {
+    "svd": {"rank_pattern": "allowed_with_roundtrip"},
+    "cat": {"rank_pattern": "allowed_with_roundtrip"},
+    "linear": {"rank_pattern": "forbidden"},
+    "ties": {"rank_pattern": "forbidden"},
+    "ties_svd": {"rank_pattern": "allowed_with_roundtrip"},
+    "dare_linear": {"rank_pattern": "forbidden"},
+    "dare_ties": {"rank_pattern": "forbidden"},
+    "dare_linear_svd": {"rank_pattern": "allowed_with_roundtrip"},
+    "dare_ties_svd": {"rank_pattern": "allowed_with_roundtrip"},
+    "magnitude_prune": {"rank_pattern": "forbidden"},
+    "magnitude_prune_svd": {"rank_pattern": "allowed_with_roundtrip"}
+  },
+  "topology_classes": ["FULL_HYBRID_TEXT", "ATTENTION_MLP_PARTIAL", "MLP_ONLY", "CUSTOM_EXPERIMENTAL"],
+  "full_hybrid_required_suffixes": ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj", "in_proj_qkv", "in_proj_z", "in_proj_b", "in_proj_a", "out_proj"],
+  "forbidden_scopes": ["model.visual", "vision", "lm_head", "embed_tokens", "mtp"],
+  "required_integrity_evidence": ["reload_pass", "nonzero_delta_pass", "delta_identity_pass", "base_hash_match", "artifact_hash"],
+  "required_promotion_evidence": ["license_pass", "provenance_pass", "contamination_pass", "target_gain", "global_regression_pass"],
+  "required_merge_promotion_evidence": [
+    "interference_atlas_pass",
+    "pairwise_behavior_eval_pass",
+    "merge_roundtrip_pass",
+    "quantization_survival_pass"
+  ],
+  "required_merge_artifacts": [
+    "interference_report_hash",
+    "pairwise_eval_manifest_hash",
+    "merge_recipe_hash",
+    "quantized_eval_report_hash"
+  ],
+  "interference_policy": {
+    "input_representation": "effective_parameter_delta",
+    "raw_lora_factor_geometry": "forbidden",
+    "metric_policy": "geometry_is_diagnostic_behavioral_noninferiority_is_authoritative",
+    "hard_numeric_thresholds": "provided_by_frozen_evaluation_manifest_after_real_gene_baselines",
+    "rule": "no scalar interference score may override a frozen behavioral regression failure"
+  },
+  "hard_rejection_thresholds": {
+    "lineage_mismatch_count_max": 0,
+    "parameter_layout_mismatch_count_max": 0,
+    "missing_required_artifact_count_max": 0,
+    "protected_contamination_count_max": 0,
+    "catastrophic_regression_count_max": 0
+  },
+  "architecture_compatibility": {
+    "direct_tensor_merge_requires_same_exact_base_revision": true,
+    "direct_tensor_merge_requires_compatible_parameter_layout": true,
+    "cross_architecture_tensor_grafting": "forbidden",
+    "different_architecture_transfer": ["verified_output_distillation", "recipe", "verified_data", "reward_design", "curriculum", "evaluation_gates"]
+  }
+}
