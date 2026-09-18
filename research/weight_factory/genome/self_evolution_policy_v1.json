@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "status": "research_until_G1_parameter_change_proof",
+  "goal": "Generate verified frontier-of-capability tasks without contaminating release benchmarks or rewarding unverifiable self-judgment.",
+  "roles": {
+    "challenger": "Propose diverse tasks near but not beyond the solver's learnable frontier.",
+    "solver": "Solve tasks under the same tool/authority policy used by AQLEVON training environments.",
+    "verifier": "Deterministic or evidence-grounded judge independent of challenger and solver text claims."
+  },
+  "inspiration": [
+    {"id":"Agent0","use":"recipe_reference","license":"Apache-2.0","focus":"tool-integrated co-evolution"},
+    {"id":"R-Zero","use":"paper_reference_until_license_audit","license":"AUDIT_REQUIRED","focus":"challenger/solver co-evolution"},
+    {"id":"Dr-Zero","use":"concept_reference_only","license":"NONCOMMERCIAL","focus":"search-agent self-evolution and HRPO"}
+  ],
+  "admission": {
+    "requires_objective_verifier": true,
+    "requires_novelty_scan": true,
+    "requires_benchmark_distance_scan": true,
+    "requires_license_provenance": true,
+    "requires_replayable_environment": true,
+    "reject_if_only_llm_judge": true,
+    "reject_if_release_benchmark_near_duplicate": true,
+    "reject_if_unsolved_and_unverifiable": true
+  },
+  "difficulty_control": {
+    "target_band": "tasks should be neither trivial nor impossible for the current solver",
+    "signals": ["solver_success_rate","verifier_confidence","tool_steps","recovery_count","novelty_score"],
+    "promote_band_when": "stable solver success exceeds the configured upper threshold on private curriculum-dev tasks",
+    "decrease_band_when": "solver success collapses or verifier rejection rises"
+  },
+  "anti_collapse": [
+    "domain diversity quotas",
+    "template/semantic deduplication",
+    "failure-cluster balancing",
+    "holdout challenge generator",
+    "no reward for verbosity",
+    "no reward for hidden chain-of-thought",
+    "periodic untouched-base comparison"
+  ],
+  "training_outputs": [
+    "verified task statement",
+    "final answer or tool trajectory",
+    "external verifier evidence",
+    "failure/recovery metadata",
+    "difficulty metadata",
+    "provenance and hashes"
+  ]
+}

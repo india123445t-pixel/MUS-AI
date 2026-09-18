@@ -1,0 +1,82 @@
+{
+  "schema_version": 2,
+  "principle": "Acquire capabilities through verified data/recipes/teachers and same-base genes; never splice incompatible frontier tensors.",
+  "lab_base": "Qwen/Qwen3.8-27B",
+  "frontier_target": "Qwen/Qwen3.8-2.4T-A95B",
+  "capabilities": [
+    {
+      "id":"coding_agentic",
+      "gene":"R0-A",
+      "teachers":["teacher_deepseek_v4_pro","teacher_gpt_oss_120b","teacher_glm52"],
+      "recipes":["agent0_recipe","terminal_universe"],
+      "training":["verified_SFT","executable_RLVR","recovery_curriculum"],
+      "hard_verifiers":["unit_test","build","forbidden_file","diff_scope"],
+      "release_eval":["SWE-style protected suite","Terminal-style protected suite","private minimal-patch holdout"]
+    },
+    {
+      "id":"reasoning_math_science",
+      "gene":"R0-L+R0-E",
+      "teachers":["teacher_deepseek_v4_pro","teacher_gpt_oss_120b","teacher_glm52"],
+      "recipes":["agent0_recipe","rzero_recipe"],
+      "training":["challenger_solver","RLVR","difficulty_banding"],
+      "hard_verifiers":["symbolic_math","python_expression","exact_answer","scientific_unit_checks"],
+      "release_eval":["private reasoning holdout","fresh math/science sets"]
+    },
+    {
+      "id":"tool_use",
+      "gene":"R0-B",
+      "teachers":["teacher_gpt_oss_120b","teacher_deepseek_v4_pro"],
+      "recipes":["agent0_recipe"],
+      "training":["SFT","tool_RLVR","error_recovery"],
+      "hard_verifiers":["json_schema","argument_exactness","tool_execution"],
+      "release_eval":["BFCL-style protected evaluation","private malformed-tool suite"]
+    },
+    {
+      "id":"deep_research",
+      "gene":"R0-C+R0-J",
+      "teachers":["teacher_glm52","teacher_gpt_oss_120b","teacher_deepseek_v4_pro"],
+      "recipes":["openresearcher"],
+      "training":["evidence_SFT","evidence_RL","search_recovery"],
+      "hard_verifiers":["source_claim_entailment","citation_precision","citation_recall","abstention"],
+      "release_eval":["private current-web research suite","protected research benchmarks"]
+    },
+    {
+      "id":"arabic_darija",
+      "gene":"R0-D",
+      "teachers":["base_qwen38_27b","teacher_glm52"],
+      "recipes":[],
+      "training":["native_curated_SFT","tool_language_tasks","code_switch_preference"],
+      "hard_verifiers":["native_review","private_holdout","task_success"],
+      "release_eval":["private Moroccan-native holdout","Arabic technical/tool suite"]
+    },
+    {
+      "id":"long_horizon_agents",
+      "gene":"R0-G+R0-K",
+      "teachers":["teacher_kimi_k3","teacher_glm52","teacher_deepseek_v4_pro"],
+      "recipes":["qwen_agentworld","agent0_recipe"],
+      "training":["world_model_warmup","multi_turn_RL","milestone_rewards"],
+      "hard_verifiers":["state_invariant","environment_transition","milestone_success"],
+      "release_eval":["private long-horizon task worlds","recovery stress suite"]
+    },
+    {
+      "id":"adaptive_reasoning",
+      "gene":"R0-E",
+      "teachers":["teacher_gpt_oss_120b","base_qwen38_27b"],
+      "recipes":[],
+      "training":["effort_conditioned_SFT","accuracy_latency_RL"],
+      "hard_verifiers":["correctness","token_efficiency","latency"],
+      "release_eval":["easy no-overthink suite","hard no-premature-stop suite"]
+    },
+    {
+      "id":"factuality_calibration",
+      "gene":"R0-F",
+      "teachers":["teacher_glm52","teacher_gpt_oss_120b"],
+      "recipes":[],
+      "training":["supported_unsupported_pairs","abstention_preference","tool_required_examples"],
+      "hard_verifiers":["claim_support","calibration","source_required"],
+      "release_eval":["private factuality suite","currentness/tool-required suite"]
+    }
+  ],
+  "teacher_branch_rule": "Teacher outputs are harvested into isolated branches and verified independently; no naive teacher soup.",
+  "frontier_transfer_rule": "Only data, reward design, curriculum and verified recipes transfer from 27B experiments to A95B. Adapter tensors do not transfer across shape/topology."
+}

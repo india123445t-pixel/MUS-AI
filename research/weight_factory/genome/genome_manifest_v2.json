@@ -1,0 +1,56 @@
+{
+  "schema_version": 2,
+  "lab_base": {
+    "repo": "Qwen/Qwen3.8-27B",
+    "revision": "1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0",
+    "license": "Apache-2.0",
+    "family": "qwen3_5",
+    "role": "fast_capability_lab_and_cost_efficient_core",
+    "text_layers": 64,
+    "gated_deltanet_layers": 48,
+    "full_attention_layers": 16
+  },
+  "frontier_transfer_target": {
+    "repo": "Qwen/Qwen3.8-2.4T-A95B",
+    "license": "Qwen3.8-Max-License",
+    "family": "qwen3_5_moe_text",
+    "role": "post_recipe_frontier_scale_target",
+    "total_parameters": "2.4T",
+    "activated_parameters": "95B",
+    "layers": 92,
+    "experts": 512,
+    "activated_routed_experts": 10,
+    "shared_experts": 1,
+    "native_context": 262144,
+    "extended_context": 1010000,
+    "direct_adapter_transfer_from_lab": false,
+    "transfer_mode": ["recipe","verified_data","reward_design","curriculum","evaluation_gates"],
+    "commercial_compliance_watch": true
+  },
+  "allowed_target_suffixes": ["q_proj","k_proj","v_proj","o_proj","gate_proj","up_proj","down_proj","in_proj_qkv","in_proj_z","in_proj_b","in_proj_a","out_proj"],
+  "default_forbidden_scopes": ["model.visual","vision","lm_head","embed_tokens","mtp"],
+  "genes": [
+    {"id":"R0-A","domain":"coding_agentic","status":"planned","training":["SFT","RLVR"],"curriculum":["executable_repo_tasks","terminal_environments","multi_round_recovery"],"verifiers":["unit_test","build","forbidden_file","diff_scope"],"merge_eligible":false},
+    {"id":"R0-B","domain":"tool_use","status":"planned","training":["SFT","RLVR"],"curriculum":["single_call","parallel_call","multi_step","error_recovery"],"verifiers":["json_schema","tool_execution","argument_exactness"],"merge_eligible":false},
+    {"id":"R0-C","domain":"research_citations","status":"planned","training":["SFT","evidence_RL"],"curriculum":["deep_research","multi_source","abstention"],"verifiers":["source_claim_entailment","citation_precision","citation_recall"],"merge_eligible":false},
+    {"id":"R0-D","domain":"arabic_darija","status":"planned","training":["SFT","preference"],"curriculum":["MSA","Darija_script","Arabizi","code_switch","Arabic_tools"],"verifiers":["native_review","task_success","private_holdout"],"merge_eligible":false},
+    {"id":"R0-E","domain":"adaptive_reasoning","status":"planned","training":["SFT","RLVR"],"curriculum":["direct","fast","deep","max"],"verifiers":["correctness","token_efficiency","latency"],"merge_eligible":false},
+    {"id":"R0-F","domain":"factuality_calibration","status":"planned","training":["SFT","preference"],"curriculum":["supported","unsupported","abstain","tool_required"],"verifiers":["claim_support","calibration"],"merge_eligible":false},
+    {"id":"R0-G","domain":"long_horizon_state","status":"planned","training":["SFT","multi_turn_RL"],"curriculum":["goal_ledger","constraint_retention","recovery"],"verifiers":["state_invariant","milestone_success"],"merge_eligible":false},
+    {"id":"R0-H","domain":"minimal_intervention","status":"planned","training":["SFT","preference"],"curriculum":["smallest_diff","protected_files","negative_refactor"],"verifiers":["tests","diff_size","scope_guard"],"merge_eligible":false},
+    {"id":"R0-I","domain":"multi_teacher_adversarial","status":"planned","training":["MoT","adversarial_harvest"],"curriculum":["teacher_specific_branches","real_failure_clusters"],"verifiers":["domain_objective_verifier"],"merge_eligible":false},
+    {"id":"R0-J","domain":"long_context_evidence","status":"planned","training":["SFT","EAPO_style_RL"],"curriculum":["evidence_retrieval","needle_reasoning","long_document_synthesis"],"verifiers":["evidence_span","answer_correctness"],"merge_eligible":false},
+    {"id":"R0-K","domain":"environment_world_model","status":"research","training":["CPT","SFT","GSPO_candidate"],"curriculum":["next_state_prediction","counterfactual_environment"],"verifiers":["next_state_fidelity","OOD_environment"],"merge_eligible":false},
+    {"id":"R0-L","domain":"self_evolving_curriculum","status":"research","training":["challenger_solver","tool_integrated_self_play","RLVR"],"curriculum":["frontier_tasks","difficulty_bands","solver_failure_replay","tool_aware_challenges","cross_domain_transfer"],"verifiers":["objective_verifier","solvability_band","novelty_scan","benchmark_distance","regression_holdout"],"merge_eligible":false}
+  ],
+  "promotion_requirements": ["artifact_hash","exact_lineage","license_pass","provenance_pass","contamination_pass","target_gain","global_regression_pass","reload_pass"],
+  "frontier_scale_promotion_requirements": [
+    "lab_gene_reproducible",
+    "lab_gene_pareto_positive",
+    "recipe_ablation_pass",
+    "frontier_topology_revalidated",
+    "frontier_license_compliance_pass",
+    "compute_budget_approved",
+    "fresh_frontier_base_baseline_recorded"
+  ]
+}
