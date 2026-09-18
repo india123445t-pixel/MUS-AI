@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { randomUUID } from 'crypto';
 
-const URL=process.env.NEXT_PUBLIC_SUPABASE_URL,KEY=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+const URL=process.env.NEXT_PUBLIC_SUPABASE_URL||'https://qkoscgdegnqcypkjrefn.supabase.co',KEY=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||'sb_publishable_wGDAyv5bwOrGjNX6QK0KzQ_K_xWI6w8';
 function client(token){if(!URL||!KEY)throw new Error('Supabase environment is not configured.');return createClient(URL,KEY,{global:{headers:{Authorization:`Bearer ${token}`}},auth:{persistSession:false}})}
 function parseFinalInteger(text=''){const m=String(text).match(/(?:^|\n)\s*FINAL\s*[:=]\s*(-?\d+)\s*(?:$|\n)/i);return m?Number(m[1]):null}
 
