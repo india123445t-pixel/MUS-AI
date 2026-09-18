@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "status": "design_only_until_two_genes_are_promotion_eligible",
+  "private_dev_only_for_search": true,
+  "release_benchmark_tuning_forbidden": true,
+  "methods": [
+    {"id":"weighted_interpolation","stage":0,"class":"baseline"},
+    {"id":"task_arithmetic","stage":0,"class":"baseline"},
+    {"id":"ties","stage":1,"class":"conflict_aware"},
+    {"id":"dare_ties","stage":1,"class":"sparse_conflict_aware"},
+    {"id":"isotropic_subspace","stage":2,"class":"subspace_alignment","source":"arXiv:2502.04959"},
+    {"id":"wudi","stage":2,"class":"data_free_interference","source":"arXiv:2503.08099"},
+    {"id":"tspa","stage":3,"class":"lora_alignment","source":"ACL Findings 2026"},
+    {"id":"enmp","stage":3,"class":"negative_module_pruning","source":"arXiv:2604.17753"},
+    {"id":"evogm","stage":4,"class":"evolutionary_coefficient_search","source":"arXiv:2605.29295"},
+    {"id":"comerge","stage":4,"class":"conflict_preference_coefficient_search","source":"arXiv:2609.02273"}
+  ],
+  "required_metrics": ["target_domains","reasoning","coding","tools","research","arabic_darija","factuality","instruction_following","latency","vram"],
+  "winner_rule": "Pareto-positive on frozen gates or explicit owner-approved tradeoff; never select from one aggregate score only"
+}

@@ -1,0 +1,21 @@
+{
+  "schema_version": 2,
+  "generated_at": "2026-09-18",
+  "policy": "default_deny",
+  "sources": [
+    {"id":"base_qwen38_27b","kind":"model","ref":"Qwen/Qwen3.8-27B","license":"Apache-2.0","role":["canonical_base"],"admission":"allow","notes":"Exact revision must be pinned per run."},
+    {"id":"teacher_deepseek_v4_pro","kind":"model","ref":"deepseek-ai/DeepSeek-V4-Pro","license":"MIT","role":["teacher","benchmark","recipe"],"admission":"allow_local_open_weight","notes":"Different architecture: no direct tensor merge into Qwen."},
+    {"id":"teacher_glm52","kind":"model","ref":"zai-org/GLM-5.2","license":"MIT","role":["teacher","benchmark","recipe"],"admission":"allow_local_open_weight","notes":"Different architecture: behavior/recipe only."},
+    {"id":"teacher_gpt_oss_120b","kind":"model","ref":"openai/gpt-oss-120b","license":"Apache-2.0","role":["teacher","reasoning_control","tools"],"admission":"allow_local_open_weight","notes":"Use local/open-weight path, not hosted OpenAI output."},
+    {"id":"teacher_kimi_k3","kind":"model","ref":"moonshotai/Kimi-K3","license":"Kimi-K3-License","role":["teacher","long_horizon","multimodal"],"admission":"allow_with_conditions","notes":"Track MaaS 12-month revenue threshold and UI attribution clauses; re-review before commercial release."},
+    {"id":"qwen_flash_next","kind":"model","ref":"Qwen/Qwen3.8-Flash-Next","license":"Qwen-Community-License-1.0","role":["architecture_reference","research"],"admission":"research_only_for_current_commercial_plan","notes":"Current license requires separate Qwen license before commercial MaaS or AI Work Assistant use."},
+    {"id":"qwen_agentworld","kind":"model_recipe","ref":"Qwen/Qwen-AgentWorld-35B-A3B","license":"Apache-2.0","role":["world_model_recipe","agent_training_reference"],"admission":"recipe_allow_weights_no_merge","notes":"Different base/shape; transfer CPT/SFT/GSPO environment-modeling recipe."},
+    {"id":"terminal_universe","kind":"paper_dataset_recipe","ref":"arXiv:2609.04148","license":"AUDIT_REQUIRED","role":["coding_environment_curriculum"],"admission":"quarantine_until_license_and_contamination_audit","notes":"High-priority R0-A candidate; benchmark overlap must be checked."},
+    {"id":"openresearcher","kind":"dataset_recipe","ref":"OpenResearcher/OpenResearcher-Dataset","license":"AUDIT_REQUIRED","role":["deep_research"],"admission":"quarantine_until_source_license_and_benchmark_audit","notes":"96K long-horizon trajectories claimed; locally generated with gpt-oss-120b and local retriever."},
+    {"id":"arywiki_instruct","kind":"dataset","ref":"AryWiki-Instruct","license":"CC article; dataset rights require audit","role":["darija_reference"],"admission":"quarantine_hosted_generation_terms","notes":"Generated with Gemini-2.5-Flash; do not auto-admit for competitive training."},
+    {"id":"community_qwen38_merges","kind":"model_collection","ref":"HF Qwen3.8-27B merges/adapters","license":"MIXED","role":["recipe_scan"],"admission":"default_quarantine","notes":"Require exact base, data provenance, teacher provenance, license chain, target coverage and contamination scan."},
+    {"id":"hosted_openai","kind":"hosted_service","ref":"OpenAI hosted","license":"service_terms","role":["external_eval_only"],"admission":"deny_training_harvest"},
+    {"id":"hosted_anthropic","kind":"hosted_service","ref":"Claude hosted","license":"service_terms","role":["external_eval_only"],"admission":"deny_training_harvest"},
+    {"id":"hosted_gemini","kind":"hosted_service","ref":"Gemini API hosted","license":"service_terms","role":["external_eval_only"],"admission":"deny_training_harvest"}
+  ]
+}
