@@ -1,377 +1,444 @@
-# AQLEVON Frontier Weight Strategy V2 — Capability Genome & Evolutionary Weight Foundry
+# AQLEVON Frontier Weight Strategy V2
 
-**Status:** ACTIVE RESEARCH + EXECUTION STRATEGY  
+**Status:** ACTIVE / OWNER PRIORITY / SUPERSEDES V1 WHERE CONFLICTING  
 **Date:** 2026-09-18  
-**Supersedes/extends:** `AQLEVON_FRONTIER_WEIGHT_STRATEGY_V1.md`  
-**Objective:** produce genuinely new AQLEVON checkpoints by combining verified capabilities—not incompatible tensors—using a repeatable evolutionary training/merging loop.
+**Mission:** Build genuinely new AQLEVON weights that become progressively stronger across reasoning, coding, research, tool use, Arabic/Darija, multimodal work, long context, factuality, long-horizon agents, and cost efficiency.
 
-## 1. Non-negotiable truth boundary
+## 0. Non-negotiable truth rule
 
-AQLEVON may target frontier competitiveness, but it must not claim to be stronger than ChatGPT, Claude, Kimi, DeepSeek, GLM, Qwen-Max, or any other frontier system until it wins a predeclared broad common-harness evaluation with acceptable reliability, latency, cost, and contamination evidence.
+AQLEVON may target frontier competitiveness, but no blanket claim such as “stronger than ChatGPT / Claude / Kimi” is allowed without a predeclared common harness, same tool/context allowances, dated model versions, and reproducible evidence.
 
-A new AQLEVON checkpoint exists only after parameters actually change, an artifact is saved, SHA256 is recorded, lineage/data/licenses are documented, and the checkpoint is evaluated against the untouched base.
+A model is not an AQLEVON checkpoint unless parameters changed and the resulting artifact was saved, hashed, and evaluated.
 
-## 2. What "collecting the strongest weights" actually means
+## 1. Core idea: collect capabilities, not incompatible tensors
 
-Directly splicing weights from unrelated architectures is rejected. DeepSeek V4, GLM-5.2, Kimi K3, gpt-oss-120b and Qwen3.8 differ in architecture, dimensions, expert layout, tokenization and training conventions.
+Do not splice unrelated Kimi/GLM/DeepSeek/gpt-oss/Qwen tensors. Instead acquire capabilities through:
+- legally usable open-weight teacher behavior;
+- same-base specialist LoRAs/task deltas;
+- objective RLVR and process rewards;
+- adaptive self-play environments;
+- self-verified synthetic data;
+- architecture ideas reimplemented independently;
+- compatible task-vector/LoRA merging;
+- test-time search used to generate better verified training targets;
+- periodic consolidation into one release checkpoint.
 
-AQLEVON instead collects **capability genes** through:
-1. AQLEVON-owned same-base LoRA/full-delta specialists.
-2. Legally usable local open-weight teachers and verified behavioral distillation.
-3. Executable RL/RLVR with objective rewards.
-4. Self-play curriculum generation with hard verifiers.
-5. Same-base task vectors and LoRA/delta merging.
-6. Conflict-aware/evolutionary merge optimization.
-7. Architecture/training-recipe transfer from incompatible models without copying their tensors.
-8. Continued pretraining or world-model warmup when evidence shows a weight-level deficit cannot be solved by adapters alone.
+## 2. Two-brain development architecture
+
+### 2.1 Research Brain
+Research Brain is not the public release model. It contains:
+- frozen canonical Qwen3.8-27B base;
+- independent specialist LoRAs;
+- experimental LoRA routers;
+- verifier bank;
+- Teacher Council;
+- self-play environment generator;
+- test-time search/reranking;
+- failure memory and curriculum generator.
+
+Purpose: maximize experimentation speed and minimize catastrophic forgetting.
+
+### 2.2 Release Brain
+Release Brain is the single AQLEVON checkpoint served to users.
+
+It is produced periodically by:
+1. selecting only independently verified specialists;
+2. measuring pairwise interference;
+3. task-vector/TIES/DARE/CoMerge experiments;
+4. short consolidation SFT/RL;
+5. complete common-harness regression test;
+6. full-precision approval;
+7. quantization and re-evaluation.
+
+Research Brain may be modular. Release Brain should remain operationally simple.
 
 ## 3. Canonical laboratory base
 
-Base remains:
-`Qwen/Qwen3.8-27B @ 1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0`
+Base: `Qwen/Qwen3.8-27B @ 1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0`.
 
-Reason:
-- Apache-2.0 commercial-friendly base.
-- 27B scale is large enough to expose real capability while still allowing iterative LoRA/QLoRA research.
-- Existing AQLEVON topology lock and one-step probe target this exact family.
-- Native hybrid architecture includes 48 Gated DeltaNet layers and 16 full-attention layers; adapter targeting must cover both.
+Why:
+- 27B dense size permits repeated experiments;
+- native multimodal design;
+- native long context;
+- Apache-2.0 lineage according to current official repository;
+- existing AQLEVON topology lock/preflight already targets this family.
 
-Do not silently switch base, precision, tokenizer, template or revision after an OOM. An OOM is a result.
+Do not silently swap the base revision.
 
-## 4. Capability Genome abstraction
+## 4. Teacher/reference constellation
 
-Every accepted specialist becomes a **gene** with immutable metadata:
-- gene ID/version;
-- exact ancestral base + revision;
-- domain and objective;
-- trainable modules;
-- dataset shards + hashes + licenses;
-- teacher/model provenance if used;
-- verifier type and version;
-- training code commit;
-- seed/hardware/hyperparameters;
-- standalone target-domain gain;
-- global regression vector;
-- contamination scan result;
-- artifact SHA256;
-- merge eligibility.
+Teachers are not automatically mergeable weights. Each is used only through mechanisms permitted by its license and deployment terms.
 
-A gene is `PROMOTION_ELIGIBLE` only if it improves its target capability and does not exceed predeclared regression limits.
+### Qwen3.8-27B
+Roles: base, self-play learner, recovery baseline, multimodal lab model.
 
-## 5. Teacher-specific branches — no teacher soup
+### GLM-5.2 / GLM-5.x open weights
+Roles: long-horizon engineering, 1M-context behavior reference, flexible reasoning effort, coding teacher where license permits.
+Ideas to study independently: IndexShare, speculative/MTP behavior, long-horizon agent training.
 
-New evidence from Merge-of-Thought Distillation shows that the best teacher depends on the student and dataset, and naive multi-teacher unions are not reliably optimal. AQLEVON therefore creates teacher-specific same-base branches instead of mixing all teacher outputs into one SFT corpus.
+### Kimi K3 open weights
+Roles: long-horizon/multimodal teacher/reference subject to Kimi license conditions.
+Ideas: KDA, Attention Residuals, sparse MoE, 1M context, multimodal agentic workflows.
 
-For a domain such as coding:
-- branch DS: verified examples from local DeepSeek V4 teacher;
-- branch GLM: verified examples from local GLM-5.2 teacher;
-- branch OSS: verified examples from local gpt-oss-120b teacher;
-- branch SELF: AQLEVON self-play + executable corrections;
-- branch KIMI only when license/use conditions are satisfied.
+### DeepSeek open-weight family
+Roles: reasoning/coding teacher, RL/reasoning recipe reference where licensing permits.
 
-Each branch is evaluated separately. Only winning branches enter the merge tournament. After a winning merge, run short consolidation training.
+### gpt-oss-120b
+Roles: reasoning-control, structured outputs, tool-use teacher/reference under Apache-2.0 open-weight use.
 
-Research extension: test the 2026 soft-prompt privileged-context multi-teacher method once Qwen3.8 soft-prompt support is topology-verified. It is not the default until reproduced on the AQLEVON base.
+### Closed hosted models
+ChatGPT/Claude/Gemini hosted outputs are not AQLEVON training harvest sources when their terms prohibit competitive-model development. They may be used only for external evaluation/product comparison where allowed.
 
-## 6. R0 specialist genes
+## 5. Capability acquisition engines
 
-- **R0-A Coding/Agentic:** repo navigation, inspect-plan-edit-test-recover, minimal diffs, terminal recovery, multi-round coding.
-- **R0-B Tools/Function Calling:** schema choice, no-call/call, parallel calls, multi-step, malformed/error recovery, exact arguments.
-- **R0-C Research/Evidence:** long-horizon browsing, evidence ledger, claim-source entailment, calibrated abstention.
-- **R0-D Arabic/Darija:** MSA, Moroccan Darija Arabic script, Arabizi, French/English code-switch, technical/tool language.
-- **R0-E Adaptive Reasoning:** direct/fast/deep/max; accuracy-vs-token efficiency.
-- **R0-F Factuality/Calibration:** supported/unsupported/abstain/tool-required pairs and calibration.
-- **R0-G Long-Horizon State:** goal ledger, constraints, completed/failed/pending, recovery.
-- **R0-H Minimal Intervention:** smallest verified diff, protected files, scope discipline.
-- **R0-I Multi-Teacher/Adversarial:** verified failure harvesting across all domains.
-- **R0-J Long-Context Evidence:** evidence extraction and reasoning over long contexts, trained with dense evidence rewards when possible.
-- **R0-K Environment World Model:** predict environment next state/action consequence from allowed trajectories before policy RL.
+### Engine A — Verified Teacher Distillation
+Use Teacher Council to sample N candidates from legally usable local/open teachers. Keep only outputs that pass objective verifiers.
 
-## 7. Coding/agentic priority — executable environments over static demos
+Artifact format:
+`task -> teacher -> answer/tool trajectory -> checks -> verifier -> provenance -> accepted/rejected`.
 
-Terminal-Universe (2026) shows a high-leverage recipe: reconstruct reusable executable environments from public agent trajectories, then generate new tasks across breadth and multi-round depth. Its paper reports that SFT on reconstructed environments improved Qwen3.5-27B substantially on terminal/coding benchmarks. This is unusually transferable to AQLEVON-27B because the scale/family is close.
+### Engine B — Self-Verified Distillation (SVD)
+Use unlabeled prompt pools. AQLEVON generates multiple candidates and filters them with a multi-stage verifier cascade. Only unanimous/high-confidence verified outputs become SFT targets.
 
-AQLEVON action:
-1. audit Terminal-Universe code/data licenses and contamination boundaries;
-2. reconstruct environments only from approved sources;
-3. generate new repository tasks on those environments;
-4. execute tests/builds to verify each task and answer;
-5. keep release benchmarks isolated;
-6. train R0-A first because executable verification provides the cleanest reward.
+Use self-verification only where it is independently calibrated. For executable domains, external verifiers dominate self-judgment.
 
-TerminalTraj-like executable trajectory corpora are candidate sources after the same license/decontamination gate.
+### Engine C — Adaptive Executable Self-Play (AQLEVON-SPADE lane)
+A separate Environment Designer creates executable Python/Gym-style environments near the learner's competence frontier.
 
-## 8. Self-evolving curriculum — AQLEVON Curriculum Forge
+Required gates:
+- syntax/runtime validation;
+- deterministic seed;
+- solvability check;
+- anti-duplicate check;
+- environment provenance hash;
+- no protected benchmark cloning.
 
-Absolute Zero demonstrated a self-play paradigm where the model proposes code/reasoning tasks and a code executor validates both task and solution.
+The Agent learns in these environments. Difficulty adapts using regret/hint-gap style signals.
 
-AQLEVON Curriculum Forge should:
-- generate tasks just beyond current measured capability;
-- require an objective verifier before admission;
-- maintain difficulty bands;
-- enforce task-style diversity;
-- reject duplicates and benchmark-near-duplicates;
-- track which gene/checkpoint failed each task;
-- regenerate adversarial variants from real failures;
-- use curriculum gain, not raw task count, as the objective.
+### Engine D — EnvFactory-style Tool World Synthesis
+Generate stateful tool environments from authentic/open resources, synthesize natural multi-turn intents, and train multi-step tool use with robust executable rewards.
 
-Self-play augments curated/public data; it does not replace independent benchmarks or human/native review.
+Use for R0-B tools and R0-G long-horizon state.
 
-## 9. RL stack — choose algorithm by failure mode
+### Engine E — RLVR
+Objective rewards for:
+- math exact solvers;
+- code tests/builds;
+- function schema/execution;
+- deterministic planning constraints;
+- citation/source checks;
+- structured data tasks;
+- repository repair.
 
-AQLEVON should not declare one RL algorithm universally best.
+### Engine F — Verifiable Process Rewards
+Do not reward only terminal success for long trajectories.
+Where intermediate actions are objectively checkable, add turn/step-level rewards.
 
-### Dense 27B reasoning/code baseline
-- DAPO/GRPO-class objective as a reproducible baseline with executable rewards.
-- DAPO is attractive because it publishes a full large-scale recipe and dynamic sampling/clip strategy.
+Examples:
+- file localization before patch;
+- test reproduction before fix;
+- correct tool selection before tool result;
+- citation evidence selection before final synthesis;
+- constraint satisfaction at each planning step.
 
-### Stable sequence-level RL
-- Test GSPO. Sequence-level importance ratios and clipping are particularly relevant for future MoE AQLEVON, and GSPO was reported to stabilize MoE RL.
+### Engine G — LongRLVR-style context grounding
+For long-context tasks, reward evidence/chunk selection and grounding in addition to final answer correctness.
 
-### Agentic multi-turn
-- Test sub-sequence/Think-Action optimization ideas such as Workflow-R1 GSsPO, where the optimization unit matches semantic action cycles rather than an entire trajectory.
+Target: avoid a model that answers correctly from parametric memory while ignoring supplied context.
 
-### Long-context evidence
-- R0-J should evaluate EAPO-style evidence rewards: reward evidence extraction quality separately from final-answer correctness so lucky guesses do not receive full credit.
+### Engine H — Test-Time Scaling -> Distillation
+At training-data generation time, spend more inference compute than we can afford at runtime:
+- sample multiple candidates;
+- search/rerank;
+- verifier-guided best-of-N;
+- prefix/branch search when justified.
 
-RL promotion rule: no algorithm graduates because a paper reports a higher score. It must beat the AQLEVON baseline under the same model/data/compute budget.
+Then distill the verified best trajectories back into the single-call release model.
 
-## 10. World-model warmup before long-horizon agent RL
+Goal: move expensive inference-time intelligence into weights.
 
-Qwen-AgentWorld provides a useful recipe: CPT -> SFT -> GSPO RL on environment next-state prediction across MCP/Search/Terminal/SWE/Android/Web/OS, with the model card explicitly stating no external API outputs were used in its training pipeline.
+## 6. Coding/agentic frontier lane
 
-AQLEVON should evaluate a separate R0-K branch:
-1. collect allowed environment transition trajectories;
-2. train prediction of the next observable environment state conditioned on state/history/action;
-3. evaluate OOD next-state fidelity;
-4. use the accepted world-model checkpoint or adapter to initialize agent policy post-training;
-5. compare against policy-RL-from-base to determine whether warmup improves sample efficiency and long-horizon stability.
+AQLEVON should import recipes, not benchmark answers, from strong open SWE work.
 
-Do not merge AgentWorld tensors into Qwen3.8-27B; transfer the recipe/task structure only unless exact compatibility is proven.
+High-value recipe components:
+- agentic trajectory SFT;
+- execution-grounded RL;
+- repository navigation;
+- LSP/code-graph tools;
+- failure recovery;
+- test-time verification/ranking;
+- summary-based context management.
 
-## 11. Deep research gene
+Training data must be disjoint from protected release benchmarks.
 
-OpenResearcher releases a 96K long-horizon research-trajectory pipeline generated with local gpt-oss-120b plus a self-built retrieval corpus; QUEST already provides synthetic deep-research SFT/RL recipes in the AQLEVON registry.
+## 7. Continual-learning / anti-forgetting lane
 
-R0-C/R0-J plan:
-- audit OpenResearcher dataset/retriever/source licenses and benchmark contamination;
-- quarantine until audit passes;
-- use evidence-ledger labels: claim -> source -> support span -> status;
-- reward citation entailment and evidence retrieval, not verbose browsing;
-- build a local retrieval corpus so training does not depend on paid search APIs;
-- preserve BrowseComp/GAIA-style release evaluation separation.
+Catastrophic forgetting is a first-class failure.
 
-Reported benchmark claims from project authors are treated as claims until AQLEVON reproduces them.
+Research methods to test:
+- SLoRA-style subspace denoising;
+- soft/strict orthogonal LoRA initialization;
+- PASs-style pathway preservation;
+- continual merge-before-forget;
+- replay from small private capability anchors;
+- frozen base + isolated specialist adapters before consolidation.
 
-## 12. Arabic and Moroccan Darija as a frontier differentiator
+Every specialist training run must execute a global regression suite before promotion.
 
-AQLEVON should aim to be unusually strong in MSA + Moroccan Darija while preserving general capability.
+## 8. Specialist composition: three tiers
 
-Data policy:
-- native-quality Darija > translated English;
-- include Arabic script, Arabizi, French/English code-switch, technical/coding/tool vocabulary;
-- build Arabic function-calling and agent trajectories, not just chat;
-- create a private Moroccan-native holdout not exposed to training generation;
-- keep DialectalArabicMMLU-style data benchmark-only by default;
-- any dataset generated through a hosted model with terms restricting competitive-model development is quarantined until downstream rights are clearly established.
+### Tier 1 — Simple merge baselines
+- weighted delta average;
+- task arithmetic;
+- TIES;
+- DARE/TIES.
 
-AryWiki-Instruct is high-value as a research reference because it contains 46,590 Darija QA pairs, but its generation used Gemini-2.5-Flash; therefore it is not auto-admitted into AQLEVON training. Legal/provenance review is required.
+### Tier 2 — Conflict-driven merge
+Use naive-merge failures as hard negative preference pairs and optimize a tiny set of merge coefficients, CoMerge-style.
 
-## 13. Merge Tournament — 2026 generation
+This is a major V2 priority because it learns directly from interference instead of guessing fixed merge weights.
 
-Baseline tournament:
-1. simple weighted interpolation;
-2. Task Arithmetic;
-3. TIES;
-4. DARE/TIES;
-5. isotropic/common+task-specific-subspace merging;
-6. WUDI/FroM-style data-free candidates where implementation is available and validated;
-7. TSPA for multi-LoRA alignment;
-8. ENMP to prune negative LoRA modules before merge;
-9. EvoGM evolutionary coefficient search;
-10. CoMerge conflict-driven coefficient optimization using naive-merge failures as hard negatives.
+### Tier 3 — Dynamic LoRA experts (research only first)
+Explore:
+- LoRA-Mixer;
+- LD-MoLE;
+- CoMoL;
+- HotMoE/GROLE-style learned routing.
 
-Important new law: **a merge method is not selected globally in advance.** The winner is chosen per gene set by private-development evidence.
+Potential use:
+- Research Brain dynamically composes coding/research/Arabic/tool experts.
+- Periodically distill/router-trace the best compositions into a unified Release Brain.
 
-Private dev data may tune merge coefficients/module masks. Public/release benchmarks may never tune them.
+Do not add runtime expert complexity to the public model until it proves net benefit after latency and memory costs.
 
-## 14. Layer/module interference atlas
-
-Before expensive merge search, construct an interference atlas:
-- adapter A alone score vector;
-- adapter B alone score vector;
-- A+B simple merge score vector;
-- module/layer contribution ablation;
-- cosine/sign conflict statistics for deltas;
-- negative-module candidates;
-- targeted regression examples.
-
-This atlas guides TSPA/ENMP/EvoGM/CoMerge search and prevents wasting GPU on obviously destructive combinations.
-
-## 15. Qwen3.8 hybrid-architecture adapter rule
-
-Qwen3.8-27B has 64 language layers: 48 Gated DeltaNet and 16 full attention. Community evidence confirms that ordinary `q_proj/k_proj/v_proj/o_proj` targeting touches only the full-attention layers.
-
-AQLEVON candidate targets remain:
-`q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj,in_proj_qkv,in_proj_z,in_proj_b,in_proj_a,out_proj`
-
-Default exclusions remain vision tower, embeddings/lm_head, MTP, norms and bias unless a dedicated experiment explicitly enables them.
-
-Any external LoRA that does not cover the intended topology must be scored accordingly; “Apache-2.0” alone is not enough to make it a useful donor.
-
-## 16. Community Qwen3.8 weights policy
-
-The current Qwen3.8-27B tree contains many adapters/fine-tunes/merges, but AQLEVON will not consume them blindly.
-
-Classify every community artifact:
-- `DIRECT_CANDIDATE`: exact base/revision, clean license/data provenance, compatible targets, contamination checked.
-- `RECIPE_ONLY`: useful technique/training configuration, but weights/data provenance insufficient.
-- `QUARANTINE`: incomplete source/license/teacher provenance.
-- `REJECT`: proprietary-hosted-model distill with unclear/forbidden rights, benchmark leakage, incompatible base, or unverifiable artifact.
-
-Observed examples:
-- community code LoRAs can be useful recipe references but may target only standard attention + MLP and miss Gated DeltaNet projections;
-- some coding-distilled releases explicitly have incomplete license/data placeholders -> quarantine;
-- small full-topology LoRA examples confirm correct hybrid targets but also show factual confabulation under aggressive tiny-data SFT -> useful topology example, not a knowledge donor;
-- random community merge soups are never source-of-truth for AQLEVON lineage.
-
-## 17. Strong teachers and commercial gates
-
-Current teacher/reference policy:
-- DeepSeek-V4-Pro: MIT -> strong local teacher/reference candidate.
-- GLM-5.2: MIT -> strong local teacher/reference candidate.
-- gpt-oss-120b: Apache-2.0 -> strong local teacher, reasoning-control/tool reference.
-- Kimi-K3: custom license -> allowed only with recorded conditions; MaaS revenue threshold and display conditions require ongoing compliance review.
-- Qwen3.8-Flash-Next: research/architecture reference only for AQLEVON commercial product unless a separate Qwen commercial license is obtained, because its current license explicitly requires a separate license for commercial MaaS or AI Work Assistant use.
-- Closed hosted GPT/Claude/Gemini: evaluation/reference only where permitted; no competitive training harvest.
-
-## 18. Future AQLEVON architecture research
-
-If AQLEVON eventually trains a new architecture rather than only post-training Qwen3.8, investigate independently implemented ideas from current sparse frontier systems:
-- low active-parameter MoE;
-- sparse/indexed attention for 1M context;
-- Gated DeltaNet + sparse attention hybrids;
-- gated residual pathways;
-- MTP/speculative decoding;
-- environment/world-model auxiliary objectives;
-- adaptive reasoning effort.
-
-Architecture transfer does not mean copying restricted weights.
-
-## 19. Evolutionary Weight Foundry loop
+## 9. AQLEVON Evolution Loop
 
 ```
-Frozen Base B0
-  -> capability defect map
-  -> generate/audit training candidates
-  -> teacher-specific branches
-  -> objective verification
-  -> train specialist genes
-  -> standalone eval + regression
-  -> reject or promote gene
-  -> interference atlas
-  -> merge tournament
-  -> consolidation SFT/RL
-  -> broad eval + contamination scan
-  -> retain winner
-  -> Curriculum Forge generates harder verified failures
-  -> repeat
+Frozen benchmark + private holdouts
+        ↓
+Defect miner clusters failures
+        ↓
+Curriculum designer chooses lane
+        ↓
+[Teacher Council | SVD | SPADE | EnvFactory | RLVR]
+        ↓
+Objective verifier bank
+        ↓
+Clean training shard + provenance
+        ↓
+Specialist LoRA / delta
+        ↓
+Target eval + global regressions
+        ↓
+Keep / reject
+        ↓
+Conflict-aware specialist composition
+        ↓
+Consolidation training
+        ↓
+Full common-harness evaluation
+        ↓
+New AQLEVON checkpoint OR rejection
+        ↓
+Harder failure mining
+        ↺
 ```
 
-The process should be automated enough that AI proposes experiments, data and merge candidates, while deterministic gates control admission and promotion.
+The loop is allowed to automate experiment generation, data generation, verifier generation, hyperparameter proposals and merge search. It is never allowed to promote itself without the frozen gates.
 
-## 20. Novelty hypothesis — not a claim
+## 10. Curriculum allocation
 
-The combination of:
-- defect-first gene creation;
-- teacher-specific branch distillation;
-- objective-verifier admission;
-- self-evolving curriculum;
-- world-model warmup;
-- layer/module interference atlas;
-- evolutionary merge tournament;
-- evidence-aware RL;
-- private-development decontamination gates;
-- economics-aware deployment/Edge/Commons routing
+Training budget should follow measured defects, not equal proportions.
 
-is a strong systems-level research direction for AQLEVON. Do not call it scientifically novel until a broader literature review and prior-art search confirms that an equivalent end-to-end pipeline does not already exist.
+Each evaluation cycle outputs a defect vector:
+- coding repair;
+- tool correctness;
+- research/citation;
+- Arabic/Darija;
+- math/reasoning;
+- long-context grounding;
+- factuality/calibration;
+- long-horizon state;
+- multimodal;
+- efficiency.
 
-## 21. Execution order from today
+Allocate the next training batch to the largest high-value verified gaps while protecting existing strengths.
 
-### G0 — Genome infrastructure (can be done without GPU)
-- executable source/weight admission registry;
-- capability-gene schema;
-- merge-tournament manifest;
-- provenance/license/contamination gates;
-- frozen eval vector schema.
+## 11. Arabic / Darija strategy
 
-### G1 — Real training proof
-- run the existing one-step Qwen3.8-27B probe on real GPU;
-- prove parameter delta + reload + artifact hash;
-- no long run before this passes.
+Do not train Arabic as translation only.
 
-### G2 — R0-A coding gene
-- prioritize executable environment curriculum;
-- SFT first, then verifier-driven RL if compute permits;
-- create separate teacher-specific branches.
+Separate specialists/strata:
+- MSA reasoning;
+- Moroccan Darija Arabic script;
+- Arabizi;
+- French/Darija code-switch;
+- technical/coding language;
+- administration/business;
+- tool calling;
+- culturally natural dialogue.
 
-### G3 — Merge science
-- after at least two independently accepted same-base genes exist, build interference atlas and run baseline merge tournament;
-- only then test TSPA/ENMP/EvoGM/CoMerge.
+Use native Moroccan review for private holdouts. Evaluate semantic correctness and naturalness separately.
 
-### G4 — Research + Arabic/Darija + long-context genes
-- build R0-C/R0-D/R0-J with provenance/native-quality gates.
+For future MoE research, investigate cross-lingual routing alignment: middle-layer task experts that generalize in English may need explicit alignment to Arabic/Darija rather than language-isolated experts.
 
-### G5 — Curriculum Forge + world-model experiment
-- introduce self-play and environment-state prediction only after the base training/evaluation loop is proven reproducible.
+## 12. Multimodal lane
 
-### G6 — AQLEVON-27B-R0 candidate
-- controlled consolidation;
-- full BF16 eval;
-- contamination audit;
-- artifact SHA/license/data manifest;
-- quantize and independently re-evaluate.
+Because Qwen3.8-27B is multimodal, create separate multimodal specialists instead of freezing vision forever once text R0 is stable:
+- screenshot/UI reasoning;
+- document/table understanding;
+- visual coding/debugging;
+- charts/diagrams;
+- image-grounded tool tasks.
 
-## 22. Release rule
+Multimodal data must have objective/grounded verification where possible.
 
-No checkpoint becomes `AQLEVON-27B-R0` until:
-1. real parameters changed;
-2. checkpoint reloads;
-3. artifact SHA256 recorded;
-4. lineage/data/license manifest complete;
-5. target-domain improvements reproduced;
-6. global regressions within frozen limits;
-7. protected benchmark contamination absent;
-8. merge coefficients were never tuned on release test sets;
-9. BF16/FP16 winner was frozen before quantization;
-10. quantized serving artifact separately passes required evals.
+## 13. Data flywheel
 
-## 23. Current truth
+Sources, in priority order:
+1. objective public datasets passing license/provenance gate;
+2. synthetic executable tasks generated from open source material;
+3. Teacher Council verified corrections;
+4. AQLEVON's own verified failures;
+5. human/native-review shards for hard subjective domains;
+6. public product failures only after privacy, consent, de-identification and policy gates.
 
-As of 2026-09-18, the Evolutionary Weight Foundry strategy and supporting research exist, but **no real AQLEVON-27B trained checkpoint has yet been produced**. The existing one-step training probe has not yet executed on a real 27B GPU. This boundary must remain explicit until the first checkpoint artifact exists.
+Never ingest user conversations by default.
 
-## 24. Primary research sources used for V2
+## 14. Verifier hierarchy
 
-- Merge-of-Thought Distillation — arXiv:2509.08814
-- One Student, Many Teachers — arXiv:2607.18293
-- DAPO — arXiv:2503.14476
-- GSPO — arXiv:2507.18071
-- Absolute Zero — arXiv:2505.03335
-- Workflow-R1 / GSsPO — arXiv:2602.01202
-- EAPO (long-context evidence) — ACL 2026 / arXiv:2601.10306
-- Terminal-Universe — arXiv:2609.04148
-- Qwen-AgentWorld-35B-A3B — Qwen model card / arXiv:2606.24597
-- OpenResearcher — open repository and dataset
-- No Task Left Behind / Isotropic Merge — arXiv:2502.04959
-- WUDI-Merging — arXiv:2503.08099
-- MergeBench — arXiv:2505.10833
-- EvoGM — arXiv:2605.29295
-- ENMP — arXiv:2604.17753
-- TSPA — ACL Findings 2026
-- CoMerge — arXiv:2609.02273
-- Qwen3.8-27B official model repository/tree
-- Qwen3.8-Flash-Next current Qwen Community License 1.0
-- DeepSeek-V4-Pro MIT license
-- GLM-5.2 MIT license
-- gpt-oss-120b Apache-2.0 license
-- Kimi-K3 current custom license
+Strongest to weakest:
+1. executable ground truth / unit tests / exact solver;
+2. deterministic schema/constraint/source validation;
+3. multiple independent grounded verifiers;
+4. calibrated learned verifier;
+5. teacher/self-judge consensus.
+
+Lower tiers may propose; higher tiers decide whenever available.
+
+## 15. Test-time intelligence as a training tool
+
+AQLEVON can temporarily use expensive search during R&D even if production cannot.
+
+Use test-time scaling to discover:
+- better solutions;
+- better plans;
+- better tool sequences;
+- corrections to first-pass errors.
+
+Distill verified results so the release checkpoint needs less inference compute.
+
+Benchmark both:
+- single-call model quality;
+- full system quality under fixed compute budgets.
+
+## 16. Compute strategy
+
+Do not start with full 27B full-parameter training.
+
+Order:
+1. one-step LoRA/QLoRA probe;
+2. tiny specialist smoke;
+3. 4B/8B surrogate experiments for recipe search where architecture behavior transfers;
+4. 27B specialist confirmation;
+5. merge/consolidation;
+6. only then large-scale transfer.
+
+SPADE/agentic RL at 27B may require multi-GPU. Validate orchestration first on smaller compatible Qwen models.
+
+## 17. Frontier recipe search
+
+Create an experiment controller that treats training recipes as a search space:
+- dataset mixture;
+- adapter target modules;
+- rank/alpha;
+- curriculum ordering;
+- reward weights;
+- KL strength;
+- GRPO/GSPO/DHPO-style optimizer choice where supported;
+- sampling temperature;
+- verifier budget;
+- number of self-play candidates;
+- merge coefficients.
+
+Use successive halving / early stopping. Kill experiments quickly when target metrics do not move or regressions appear.
+
+## 18. Promotion metric
+
+Primary metric should not be leaderboard average alone.
+
+Use **Cost per Verified Success (CVS)**:
+
+`CVS = total serving/training-adjusted compute cost / number of correctly verified completed tasks`
+
+Track alongside:
+- pass@1;
+- latency/TTFT;
+- output tokens;
+- GPU seconds;
+- failure severity;
+- calibration;
+- regression count.
+
+Goal: be stronger per verified task and per dollar, not merely larger.
+
+## 19. Model-size ladder
+
+### R0 Lab
+Qwen3.8-27B.
+
+### Edge
+Distill successful R0 behaviors into smaller AQLEVON Edge models.
+
+### Max
+Transfer only proven recipes to a larger sparse/open base when license/compute allow.
+
+### Future native AQLEVON architecture
+Architecture R&D may combine independently reimplemented ideas such as hybrid sparse/linear attention, efficient index sharing, stronger MTP/speculative heads, expert routing and long-context mechanisms. This is a separate architecture-training program, not direct tensor merging.
+
+## 20. Immediate execution priorities
+
+P0. Preserve current base/harness/decontamination gates.
+P1. Add SVD generator/filter lane to Teacher Council.
+P2. Add SPADE-inspired executable environment generator in a sandbox.
+P3. Add process-reward interfaces to verifier framework.
+P4. Add long-context grounding reward format.
+P5. Produce first R0-A coding specialist checkpoint.
+P6. Produce R0-B tools specialist.
+P7. Produce R0-D Arabic/Darija specialist.
+P8. Run pairwise interference matrix.
+P9. Baseline Task Arithmetic/TIES/DARE.
+P10. Add CoMerge-style conflict dataset + learned merge coefficient experiment.
+P11. Short consolidation training.
+P12. Quantize only after BF16/FP16 release-gate pass.
+
+## 21. What would be genuinely novel for AQLEVON
+
+The novel system is not one paper copied verbatim. It is the integration:
+- multi-teacher legal capability harvest;
+- self-verified distillation;
+- adaptive executable self-play;
+- dense verifiable process rewards;
+- long-context grounding rewards;
+- defect-driven curricula;
+- anti-forgetting specialist bank;
+- conflict-driven model merging;
+- test-time search distilled back into weights;
+- cost-per-verified-success optimization;
+- Arabic/Darija native specialization;
+- public product failure loop under privacy gates.
+
+This creates an AI-development engine that can keep generating new verified training signal as the model improves instead of exhausting a static dataset.
+
+## 22. Release claim gate
+
+No model is marketed as superior to named closed competitors until:
+- common dated versions are fixed;
+- task/tool/context budgets are matched;
+- external + private benchmarks are run;
+- contamination audit passes;
+- raw outputs and costs are retained;
+- reliability/latency regressions are included.
+
+Until then, report exact per-domain measurements only.
