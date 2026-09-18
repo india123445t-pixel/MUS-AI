@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "status": "research_until_three_promotion_eligible_genes",
+  "product_identity": "AQLEVON",
+  "modes": [
+    {
+      "id": "static_single_gene",
+      "priority": 0,
+      "description": "Choose one trusted gene per request; production baseline."
+    },
+    {
+      "id": "static_premerged_gene_set",
+      "priority": 1,
+      "description": "Use an offline-tested merged adapter produced by the Merge Tournament."
+    },
+    {
+      "id": "logo_instance_dynamic",
+      "priority": 2,
+      "research_source": "ACL 2026 LoRA on the Go",
+      "description": "Instance-level training-free adapter selection/merging; must beat static routing on AQLEVON private dev." 
+    },
+    {
+      "id": "comol_dynamic_core_space",
+      "priority": 3,
+      "research_source": "ACL Findings 2026 CoMoL",
+      "description": "Dynamic core-space LoRA expert composition; experimental until reproduced on Qwen3.8."
+    }
+  ],
+  "serving": {
+    "baseline": "vllm_lora",
+    "runtime_adapter_management": "admin_only",
+    "untrusted_dynamic_load_endpoint": "forbidden",
+    "resolver_policy": "only signed AQLEVON artifacts from trusted local/object storage"
+  },
+  "promotion_metrics": [
+    "task_success",
+    "global_regression",
+    "adapter_selection_accuracy",
+    "ttft",
+    "tokens_per_second",
+    "vram_overhead",
+    "failure_recovery"
+  ]
+}
