@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const URL=process.env.NEXT_PUBLIC_SUPABASE_URL;
-const KEY=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+const URL=process.env.NEXT_PUBLIC_SUPABASE_URL||'https://qkoscgdegnqcypkjrefn.supabase.co';
+const KEY=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||'sb_publishable_wGDAyv5bwOrGjNX6QK0KzQ_K_xWI6w8';
 
 function providerFlags(){
   return {

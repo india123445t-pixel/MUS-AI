@@ -3,8 +3,8 @@
 import {useEffect,useMemo,useState} from 'react';
 import {createClient} from '@supabase/supabase-js';
 
-const URL=process.env.NEXT_PUBLIC_SUPABASE_URL;
-const KEY=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+const URL=process.env.NEXT_PUBLIC_SUPABASE_URL||'https://qkoscgdegnqcypkjrefn.supabase.co';
+const KEY=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||'sb_publishable_wGDAyv5bwOrGjNX6QK0KzQ_K_xWI6w8';
 
 const domainNames={reasoning:'الاستدلال',math:'الرياضيات',science:'العلوم',coding:'البرمجة',language:'اللغة',research:'البحث',planning:'التخطيط',knowledge:'المعرفة',general:'عام',software:'البرمجة',data:'البيانات',communication:'التواصل',operations:'العمليات'};
 const safeModes=['openrouter_primary','openrouter_only','self_hosted_primary','self_hosted_only'];
