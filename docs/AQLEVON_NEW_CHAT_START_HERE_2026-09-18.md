@@ -49,11 +49,13 @@ A real AQLEVON weight artifact requires a parameter-changing training run, non-z
 Repository:
 `india123445t-pixel/MUS-AI`
 
-Current verified `main`:
+Audited functional/code baseline before this recovery-handoff documentation commit:
 `7f2a2ab46636e79dc7e733d6756ab77c94cd8ba8`
 
-Latest commit message:
+Baseline commit message:
 `docs: add AQLEVON autonomous evolution loop v1`
+
+Note: creating/updating this START HERE document itself advances GitHub `main` with documentation-only commits. Therefore a future chat must fetch live `main` again; do not treat `7f2a2ab...` as a permanent HEAD. The audit conclusion is that no application/runtime code changed after this functional baseline during the recovery-document write.
 
 Open pull requests at audit time:
 **none**.
@@ -396,7 +398,7 @@ Never claim:
 ## 16. Exact recovery-audit evidence captured now
 
 Verified during this recovery pass:
-- GitHub `main`: `7f2a2ab46636e79dc7e733d6756ab77c94cd8ba8`.
+- audited functional/code baseline: `7f2a2ab46636e79dc7e733d6756ab77c94cd8ba8`; recovery-document commits may advance live `main` afterward without changing runtime code.
 - no open PRs.
 - Vercel Production deployment: `dpl_WzpBRvJzDZJYmZyswE8EF7pq97D5`, READY, same Git SHA.
 - public Workspace `/`: HTTP 200, full Workspace UI.
