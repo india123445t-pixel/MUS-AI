@@ -1,0 +1,20 @@
+{
+  "version": 5,
+  "status": "active_research",
+  "updated": "2026-09-18",
+  "methods": [
+    {"id":"mopd","name":"Multi-Teacher On-Policy Distillation","priority":"primary_integration_candidate","maturity":"frontier_deployed_and_open_recipes_emerging","requires":"specialist teachers + student rollouts + teacher scoring","aqlevon_stage":"G4","reject_if":"fails full regression vector or causes teacher imbalance"},
+    {"id":"route_mopd","name":"Routed MOPD","priority":"highest","maturity":"research/open-recipe","requires":"domain routing + specialist teachers","aqlevon_stage":"G4","reject_if":"routing error erases specialist gains"},
+    {"id":"mot","name":"Merge-of-Thought Distillation","priority":"experimental_reasoning","maturity":"research","requires":"same-base teacher-specific student branches","aqlevon_stage":"G4","reject_if":"reasoning gain does not generalize or introduces verbosity/regression"},
+    {"id":"ssopd","name":"Self-Supervised On-Policy Distillation","priority":"experimental_rl","maturity":"2026 research","requires":"mixed correct/wrong on-policy rollout groups","aqlevon_stage":"G3+","reject_if":"self-correction/backtracking degrades"},
+    {"id":"dapo","name":"DAPO","priority":"rlvr_baseline","maturity":"strong_baseline","requires":"verifiable rewards","aqlevon_stage":"G2","reject_if":"unstable or inferior at matched compute"},
+    {"id":"acpo","name":"Adaptive Clip Policy Optimization","priority":"rlvr_challenger","maturity":"2026 research","requires":"importance-ratio variance statistics","aqlevon_stage":"G2/G3","reject_if":"no gain over DAPO at matched budget"},
+    {"id":"real","name":"Rewards as Labels","priority":"rlvr_challenger","maturity":"2026 research","requires":"verifiable categorical outcomes","aqlevon_stage":"G2/G3","reject_if":"no gain over DAPO at matched budget"},
+    {"id":"vpr","name":"Verifiable Process Rewards","priority":"agentic_high","maturity":"2026 research","requires":"reliable intermediate oracles","aqlevon_stage":"G2/G3","reject_if":"oracle errors or reward hacking exceed outcome baseline"},
+    {"id":"iso_cts","name":"Isotropic Common+Task-Specific Subspace Merge","priority":"merge_tournament","maturity":"ICML_2025","requires":"compatible task deltas","aqlevon_stage":"G4","reject_if":"inferior to TIES/DARE on AQLEVON genes"},
+    {"id":"apgd_merge","name":"Adaptive Projective Gradient Descent Merge","priority":"merge_tournament","maturity":"ICML_2025","requires":"compatible expert models","aqlevon_stage":"G4","reject_if":"training-light optimization cost exceeds gain"},
+    {"id":"expert_merging","name":"Expert Merging","priority":"merge_tournament","maturity":"ICLR_2026","requires":"same-base experts + unlabeled calibration data","aqlevon_stage":"G4","reject_if":"layer alignment fails or regression vector worsens"},
+    {"id":"sparse_upcycling","name":"Dense-to-MoE Sparse Upcycling","priority":"architecture_r1","maturity":"established_research","requires":"custom MoE architecture + continued training","aqlevon_stage":"R1","reject_if":"serving complexity or compute/quality ratio worse than dense"},
+    {"id":"upit","name":"Upcycling Instruction Tuning","priority":"architecture_r1","maturity":"research","requires":"diverse specialist/intermediate experts + router init","aqlevon_stage":"R1","reject_if":"expert collapse or router instability"}
+  ]
+}
