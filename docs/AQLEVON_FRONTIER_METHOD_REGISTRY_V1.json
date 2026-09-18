@@ -1,0 +1,24 @@
+{
+  "version": "1.0",
+  "date": "2026-09-18",
+  "purpose": "Research registry for AQLEVON capability synthesis and weight-integration experiments",
+  "methods": [
+    {"id":"weighted_linear_merge","class":"same_base_merge","maturity":"baseline","use_when":"low-interference compatible deltas","gate":"exact same base/revision"},
+    {"id":"task_arithmetic","class":"same_base_merge","maturity":"baseline","use_when":"interpretable task deltas","gate":"same topology and ancestry"},
+    {"id":"ties","class":"same_base_merge","maturity":"established","use_when":"sign conflicts / noisy task deltas","gate":"evaluate against simple averaging"},
+    {"id":"dare_ties","class":"same_base_merge","maturity":"established_experimental","use_when":"sparse delta processing may reduce interference","gate":"must preserve target gains"},
+    {"id":"cat_merging","class":"conflict_aware_merge","maturity":"research_2025","use_when":"conflict-prone task-vector components","evidence":"ICML 2025"},
+    {"id":"adaptive_projective_merge","class":"subspace_merge","maturity":"research_2025","use_when":"shared subspace can retain task-specific information","evidence":"ICML 2025"},
+    {"id":"score_subspace_merge","class":"subspace_merge","maturity":"research_2026","use_when":"singular subspace conflicts / domain shifts","evidence":"CVPR 2026"},
+    {"id":"ct_merging","class":"lora_merge","maturity":"research_2026","use_when":"multiple compatible LoRA specialists with consensus subspaces","evidence":"arXiv 2607.20561"},
+    {"id":"rlvr","class":"post_training","maturity":"core","use_when":"objective final reward exists","gate":"verifier integrity + anti-reward-hacking"},
+    {"id":"verifiable_process_rewards","class":"post_training","maturity":"research_2026","use_when":"intermediate agent actions are objectively checkable","gate":"reliable process oracle"},
+    {"id":"knowledge_to_verification","class":"data_and_rl","maturity":"research_2026","use_when":"knowledge/research tasks need verifiable supervision","gate":"source/evidence verifier"},
+    {"id":"evolutionary_verifiable_synthesis","class":"data_factory","maturity":"research_2026","use_when":"need scalable hard verified tasks from small seeds","gate":"task + verifier both validated"},
+    {"id":"teacher_tournament","class":"distillation","maturity":"aqlevon_design","use_when":"multiple legal local teachers available","gate":"objective verifier selects; no majority-as-truth"},
+    {"id":"expert_upcycling","class":"architecture_scaling","maturity":"research_2026","use_when":"dense/sparse specialist merge interference becomes limiting","gate":"separate AQLEVON v2 experiment"},
+    {"id":"dynamic_upcycling_moe","class":"expert_composition","maturity":"research_2026","use_when":"preserve separate dense expertise without forcing single dense delta","gate":"research-only until reproduced"},
+    {"id":"moe_to_dense_distillation","class":"compression","maturity":"research_2026","use_when":"frontier sparse teacher too expensive for serving","gate":"distilled student must pass global regression"},
+    {"id":"edge_distillation","class":"compression","maturity":"planned","use_when":"local/browser low-cost serving","gate":"must not silently replace frontier model on hard tasks"}
+  ]
+}
