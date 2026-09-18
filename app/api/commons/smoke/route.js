@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { commonsSubmitAndWait } from '../../../../lib/aqlevon/commons-edge.js';
 
 export const dynamic='force-dynamic';
-export const maxDuration=60;
+export const maxDuration=120;
 
 export async function GET(){
   const result=await commonsSubmitAndWait({
@@ -11,7 +11,7 @@ export async function GET(){
     messages:[{role:'user',content:'Reply exactly COMMONS_SMOKE_OK'}],
     temperature:0,
     model:'AQLEVON-27B',
-    timeoutMs:30000,
+    timeoutMs:90000,
     pollMs:500
   });
   return NextResponse.json({ok:!!result,result:result||null},{status:result?200:503,headers:{'Cache-Control':'no-store'}});
