@@ -62,7 +62,7 @@ async function runJob(id){
   let input={}; try{input=JSON.parse(j0.input||'{}')}catch{}
   const prompt=input.prompt||input.question||input.goal||j0.title;
   try{
-    const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+    const r=await fetch('/api/commons/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
       input:prompt,history:[],webSearch:false,sessionId:ensureSession(),conversationId:uid()
     })});
     const d=await r.json().catch(()=>({}));
@@ -214,7 +214,7 @@ async function streamChat(chatId,payload,signal){
     else{prompt=[...c.messages].reverse().find(x=>x.role==='user')?.content||''}
     history=c.messages.slice(0,-1).slice(-20).map(({role,content})=>({role,content}));c.updated_at=now();return s});
   if(!prompt)throw Error('No user message to send');
-  const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},signal,body:JSON.stringify({input:prompt,history,webSearch:!!payload.useWebSearch,reasoning:payload.reasoning,sessionId:ensureSession(),conversationId:id})});
+  const r=await fetch('/api/commons/chat',{method:'POST',headers:{'Content-Type':'application/json'},signal,body:JSON.stringify({input:prompt,history,webSearch:!!payload.useWebSearch,reasoning:payload.reasoning,sessionId:ensureSession(),conversationId:id})});
   const d=await r.json().catch(()=>({}));if(!r.ok)throw Error(d.message||'AQLEVON runtime unavailable');
   const text=String(d.text||'');
   update(s=>{const c=findChat(s,id);if(!c)return s;c.messages.push({id:uid(),role:'assistant',content:text,created_at:now(),chatLogId:d.chat_log_id||null});if(!c.title||c.title==='New chat')c.title=prompt.slice(0,70)||'Chat';c.updated_at=now();return s});
