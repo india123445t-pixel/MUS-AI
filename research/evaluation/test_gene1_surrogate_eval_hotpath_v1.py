@@ -150,3 +150,114 @@ class TestHotPath(unittest.TestCase):
 
     def test_no_tuning_frozen_law_identity(self):
         self.assertEqual(self.law["law_sha256"],"70581a21c26605317afcb314d990fa2f78b621bf44af1747d8caac6168385ec0")
+
+    def test_valid_ingest_is_pre_score_only(self):
+        ingest=self.ingest()
+        self.assertEqual(ingest["state"],hp.STATE_READY_TO_REGISTER)
+        self.assertFalse(ingest["hidden_eval_compute_authorized_by_this_receipt"])
+        self.assertFalse(ingest["authority"]["authoritative_for_model_promotion"])
+        self.assertTrue(verify_p2_self_digest(ingest,"ingest_receipt_sha256"))
+
+    def test_structurally_rehashed_candidate_wrong_base_fails(self):
+        bad=copy.deepcopy(self.candidate); bad["base"]["revision"]="wrong"
+        bad["manifest_id"]=hp._candidate_manifest_id(bad)
+        bad["manifest_sha256"]=canonical_p2_sha256({k:v for k,v in bad.items() if k!="manifest_sha256"})
+        self.assertIn("candidate_base_identity",hp.validate_a1_candidate_manifest(bad))
+
+    def test_candidate_wrong_training_shard_fails(self):
+        bad=copy.deepcopy(self.candidate); bad["training_shard_manifest_sha256"]=H("9")
+        bad["manifest_id"]=hp._candidate_manifest_id(bad); bad["manifest_sha256"]=canonical_p2_sha256({k:v for k,v in bad.items() if k!="manifest_sha256"})
+        self.assertIn("candidate_training_shard_binding",hp.validate_a1_candidate_manifest(bad))
+
+    def test_candidate_manifest_tamper_fails(self):
+        bad=copy.deepcopy(self.candidate); bad["adapter_state_sha256"]=H("9")
+        self.assertTrue(any("self-digest" in x or "manifest" in x for x in hp.validate_a1_candidate_manifest(bad)))
+
+    def test_training_receipt_raw_hash_mismatch_fails(self):
+        _,e=hp.validate_training_receipt(self.raw+b" ",candidate=self.candidate)
+        self.assertIn("training_receipt_raw_sha_mismatch",e)
+
+    def test_training_receipt_must_bind_run_manifest(self):
+        obj=copy.deepcopy(self.tr); obj.pop("run_manifest_sha256"); raw=receipt_bytes(obj); c=candidate_for_receipt(raw)
+        _,e=hp.validate_training_receipt(raw,candidate=c)
+        self.assertIn("training_receipt_missing_binding:run_manifest",e)
+
+    def test_training_receipt_wrong_seed_fails(self):
+        obj=copy.deepcopy(self.tr); obj["seed"]=999; raw=receipt_bytes(obj); c=candidate_for_receipt(raw)
+        _,e=hp.validate_training_receipt(raw,candidate=c)
+        self.assertIn("training_receipt_binding_mismatch:seed",e)
+
+    def test_training_receipt_hidden_answer_nested_fails(self):
+        obj=copy.deepcopy(self.tr); obj["debug"]={"hidden_answer":"secret"}; raw=receipt_bytes(obj); c=candidate_for_receipt(raw)
+        _,e=hp.validate_training_receipt(raw,candidate=c)
+        self.assertTrue(any(x.startswith("forbidden_training_material_key") for x in e))
+
+    def test_private_eval_file_hash_leak_fails(self):
+        obj=copy.deepcopy(self.tr); obj["debug"]={"opaque":p4.W02_EVAL_SECRET_FILE_SHA256}; raw=receipt_bytes(obj); c=candidate_for_receipt(raw)
+        _,e=hp.validate_training_receipt(raw,candidate=c)
+        self.assertTrue(any(x.startswith("private_eval_file_identity_leaked") for x in e))
+
+    def test_zero_delta_fails(self):
+        obj=copy.deepcopy(self.tr); obj["training"]["changed_elements"]=0; raw=receipt_bytes(obj); c=candidate_for_receipt(raw)
+        _,e=hp.validate_training_receipt(raw,candidate=c)
+        self.assertIn("training_receipt_nonzero_delta_missing",e)
+
+    def test_run_manifest_sealed_eval_consumption_fails(self):
+        bad=copy.deepcopy(self.run); bad["sealed_eval_consumed"]=True; bad["manifest_sha256"]=canonical_p2_sha256({k:v for k,v in bad.items() if k!="manifest_sha256"})
+        with patch.object(hp,"A1_RUN_MANIFEST_SHA256",bad["manifest_sha256"]):
+            self.assertIn("run_manifest_binding:sealed_eval_consumed",hp.validate_a1_run_manifest(bad))
+
+    def test_command_lock_fallback_fails(self):
+        bad=copy.deepcopy(self.lock); bad["automatic_fallback"]=True; bad["lock_sha256"]=canonical_p2_sha256({k:v for k,v in bad.items() if k!="lock_sha256"})
+        with patch.multiple(hp,A1_RUN_MANIFEST_SHA256=self.run["manifest_sha256"],A1_COMMAND_SHA256=bad["command_sha256"],A1_COMMAND_LOCK_SHA256=bad["lock_sha256"]):
+            self.assertIn("command_lock_binding:automatic_fallback",hp.validate_a1_command_lock(bad,run_manifest=self.run))
+
+    def test_wrong_sampling_stage_binding_fails(self):
+        bad=copy.deepcopy(self.binding); bad["sampling_profile_sha256"]=H("9")
+        bad["stage_binding_sha256"]=canonical_p2_sha256({k:v for k,v in bad.items() if k!="stage_binding_sha256"})
+        e=hp.validate_surrogate_stage_binding(bad,law=self.law)
+        self.assertTrue(any("sampling" in x for x in e))
+
+    def test_single_candidate_registration_does_not_select_winner(self):
+        ingest=self.ingest(); reg=hp.build_a1_single_candidate_registration(law=self.law,stage_binding=self.binding,ingest=ingest)
+        self.assertEqual(reg["selection_authority"],"NONE_SINGLE_CANDIDATE_REALITY_EVIDENCE_ONLY")
+        self.assertEqual(hp.validate_a1_single_candidate_registration(reg,law=self.law,stage_binding=self.binding,ingest=ingest),[])
+
+    def test_hidden_eval_readiness_requires_manager_chronology(self):
+        ingest=self.ingest(); reg=hp.build_a1_single_candidate_registration(law=self.law,stage_binding=self.binding,ingest=ingest)
+        ver=freeze_fixture(self.law,self.binding,reg)
+        ready=hp.hidden_eval_readiness(law=self.law,stage_binding=self.binding,registration=reg,freeze_verification=ver,ingest=ingest)
+        self.assertEqual(ready["state"],hp.STATE_READY_FOR_HIDDEN_EVAL)
+        self.assertEqual(ready["selection_authority"],"NONE_SINGLE_CANDIDATE_REALITY_EVIDENCE_ONLY")
+
+    def test_hidden_eval_rejects_anchor_after_unseal(self):
+        ingest=self.ingest(); reg=hp.build_a1_single_candidate_registration(law=self.law,stage_binding=self.binding,ingest=ingest)
+        ver=freeze_fixture(self.law,self.binding,reg,anchored="2026-09-19T10:02:00Z",unsealed="2026-09-19T10:01:00Z")
+        ready=hp.hidden_eval_readiness(law=self.law,stage_binding=self.binding,registration=reg,freeze_verification=ver,ingest=ingest)
+        self.assertEqual(ready["state"],hp.STATE_INVALID_EVALUATION)
+        self.assertIn("a1_freeze_verification_chronology",ready["reasons"])
+
+    def test_hotpath_registration_tamper_fails(self):
+        ingest=self.ingest(); reg=hp.build_a1_single_candidate_registration(law=self.law,stage_binding=self.binding,ingest=ingest)
+        reg["candidate_artifact_manifest_sha256"]=H("0")
+        self.assertTrue(hp.validate_a1_single_candidate_registration(reg,law=self.law,stage_binding=self.binding,ingest=ingest))
+
+    def test_registration_entry_preserves_frozen_budget(self):
+        ingest=self.ingest(); entry=hp.registration_entry_from_ingest(ingest,training_gpu_milliseconds=1234)
+        self.assertEqual(entry["training_budget_manifest_sha256"],self.binding["matched_training_budget_manifest_sha256"])
+        self.assertEqual(entry["candidate_slot"],"challenger_a")
+
+    def test_score_card_classification_rejected_and_pass(self):
+        base_kwargs=dict(law=self.law,binding=self.binding,slot="challenger_a",artifact=H("a"),recipe=H("b"),primary1=6,primary4=8,arm_id=hp.A1_ARM_ID,training_seed=1701)
+        rejected=score_card(**base_kwargs,reality="REJECTED")
+        passed=score_card(**base_kwargs,reality="REALITY_PASS")
+        self.assertEqual(hp.classify_existing_p4_score_card(rejected,law=self.law,stage_binding=self.binding),hp.STATE_REJECTED_ARM)
+        self.assertEqual(hp.classify_existing_p4_score_card(passed,law=self.law,stage_binding=self.binding),hp.STATE_EVIDENCE_READY)
+
+    def test_laundered_ingest_authority_detected_by_self_hash(self):
+        ingest=self.ingest(); ingest["authority"]["authoritative_for_model_promotion"]=True
+        self.assertFalse(verify_p2_self_digest(ingest,"ingest_receipt_sha256"))
+
+
+if __name__ == "__main__":
+    unittest.main()
