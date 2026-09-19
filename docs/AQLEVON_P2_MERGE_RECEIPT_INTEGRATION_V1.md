@@ -1,7 +1,7 @@
 # AQLEVON P2.1 Merge Receipt Integration V1
 
-**Worker:** 04 — Merge / Interference / Architecture    
-**Task:** `P2.1-A04-MERGE-RECEIPT-INTEGRATION`    
+**Worker:** 04 — Merge / Interference / Architecture  
+**Task:** `P2.1-A04-MERGE-RECEIPT-INTEGRATION`  
 **Status:** control-plane implementation for Manager review; no model merge or weight claim.
 
 ## Purpose
