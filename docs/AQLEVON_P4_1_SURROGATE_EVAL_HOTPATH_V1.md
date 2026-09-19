@@ -76,7 +76,7 @@ When Worker 03 delivers A1 artifacts, Worker 05 executes the following order wit
 6. Require the receipt to bind the exact A1 run manifest, frozen plan, arm and seed, exactly 12 optimizer updates, nonzero parameter delta, successful save/reload equality, and the same adapter-state identity as the candidate manifest.
 7. Recursively reject sealed/private/protected evaluation leakage, including nested debug/metadata/error structures and private evaluation file hashes.
 8. Validate the frozen P4 surrogate stage binding and exact sampling/harness identities.
-9. Emit a self-hashed `AQLEVON_P4_1_A1_INGEST_RECEIPT_V1` with status `READY_TO_REGISTER_PRE_SCORE` only if every pre-score check passes.
+9. Emit a self-hashed `AQLEVON_P4_1_SURROGATE_CANDIDATE_INGEST_RECEIPT_V1` with status `READY_TO_REGISTER_PRE_SCORE` only if every pre-score check passes.
 10. Create a single-candidate A1 registration for **reality evidence only**, before hidden score unsealing.
 11. Require a Manager-verifiable immutable preregistration anchor whose chronology predates hidden score unsealing.
 12. Only then return `READY_FOR_HIDDEN_EVALUATION`.
@@ -102,6 +102,19 @@ It can authorize hidden evaluation chronology for A1, but it cannot:
 - promote a model;
 - replace the later comparative P4 tournament receipt.
 
+## Zero-delay CLI surface
+
+The P4.1 implementation exposes the complete handoff path so no code changes are needed when A1 arrives:
+
+```text
+validate-a1-ingest
+build-a1-registration
+check-hidden-eval-readiness
+classify-score-card
+```
+
+`validate-a1-ingest` is the only step that accepts raw Worker-03 candidate/training evidence. `build-a1-registration` records the single A1 candidate without any winner authority. `check-hidden-eval-readiness` requires the Manager-verifiable immutable chronology before hidden evaluation. `classify-score-card` maps only an already-valid frozen P4 score card to `REJECTED_ARM` or `EVIDENCE_SUPPORTS_MANAGER_RECIPE_DECISION`; it does not rank arms or select a 27B recipe.
+
 ## Exact hot-path output states
 
 - `INVALID_CANDIDATE` — candidate/run/training identity failed before hidden evaluation.
@@ -118,8 +131,8 @@ Final local Worker-05 lineage rerun for this P4.1 snapshot:
 - P1 truth gate: **23/23 PASS**
 - P2/P2.1 Evaluation Decision Receipt: **45/45 PASS**
 - P4 Gene #1 Reality Tournament: **55/55 PASS**
-- P4.1 Surrogate Eval Hot Path: **22/22 PASS**
-- total: **145/145 PASS**
+- P4.1 Surrogate Eval Hot Path: **25/25 PASS**
+- total: **148/148 PASS**
 - Python compilation: PASS
 - JSON validation: PASS
 
@@ -147,7 +160,10 @@ P4.1 regression coverage specifically includes:
 - frozen 12-update budget preserved;
 - frozen `REJECTED` reality result maps to `REJECTED_ARM`;
 - frozen `REALITY_PASS` maps only to evidence supporting Manager decision;
-- authority laundering invalidates the self-hash.
+- authority laundering invalidates the self-hash;
+- CLI build-registration end-to-end;
+- CLI hidden-evaluation readiness end-to-end;
+- CLI frozen score-card classification end-to-end.
 
 ## Current physical truth
 
