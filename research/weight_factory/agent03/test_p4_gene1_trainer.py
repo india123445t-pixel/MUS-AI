@@ -12,7 +12,7 @@ import p4_sft_surrogate as sft
 import p4_surrogate_tournament as tour
 
 H = lambda x: hashlib.sha256(x.encode()).hexdigest()
-RUN_MANIFEST_SHA = "7ac6452cd904ee379781a742d8e8284faf8576d6d335c59f8b9a650b3834e141"
+RUN_MANIFEST_SHA = "39b03bd9f7fff7ab67096b6393e2683604079c372b7edf180b34a79e9a47d78a"
 
 
 def plan_fixture():
