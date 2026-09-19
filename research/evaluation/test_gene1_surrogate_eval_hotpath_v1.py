@@ -1,7 +1,11 @@
 import copy
 import hashlib
 import json
+import subprocess
+import sys
+import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 import gene1_reality_tournament_v1 as p4
@@ -257,6 +261,42 @@ class TestHotPath(unittest.TestCase):
     def test_laundered_ingest_authority_detected_by_self_hash(self):
         ingest=self.ingest(); ingest["authority"]["authoritative_for_model_promotion"]=True
         self.assertFalse(verify_p2_self_digest(ingest,"ingest_receipt_sha256"))
+
+    def test_cli_build_registration(self):
+        ingest=self.ingest()
+        with tempfile.TemporaryDirectory() as td:
+            td=Path(td)
+            lawp=td/'law.json'; bindp=td/'binding.json'; ingp=td/'ingest.json'; outp=td/'registration.json'
+            for path,obj in ((lawp,self.law),(bindp,self.binding),(ingp,ingest)):
+                path.write_text(json.dumps(obj,sort_keys=True),encoding='utf-8')
+            cp=subprocess.run([sys.executable,str(Path(hp.__file__)), 'build-a1-registration', '--law',str(lawp), '--stage-binding',str(bindp), '--ingest',str(ingp), '--output',str(outp)],capture_output=True,text=True)
+            self.assertEqual(cp.returncode,0,cp.stdout+cp.stderr)
+            reg=json.loads(outp.read_text(encoding='utf-8'))
+            self.assertEqual(hp.validate_a1_single_candidate_registration(reg,law=self.law,stage_binding=self.binding,ingest=ingest),[])
+
+    def test_cli_hidden_eval_readiness(self):
+        ingest=self.ingest(); reg=hp.build_a1_single_candidate_registration(law=self.law,stage_binding=self.binding,ingest=ingest); ver=freeze_fixture(self.law,self.binding,reg)
+        with tempfile.TemporaryDirectory() as td:
+            td=Path(td)
+            objs={'law':self.law,'binding':self.binding,'ingest':ingest,'registration':reg,'freeze':ver}
+            paths={}
+            for name,obj in objs.items():
+                path=td/(name+'.json'); path.write_text(json.dumps(obj,sort_keys=True),encoding='utf-8'); paths[name]=path
+            outp=td/'readiness.json'
+            cp=subprocess.run([sys.executable,str(Path(hp.__file__)), 'check-hidden-eval-readiness', '--law',str(paths['law']), '--stage-binding',str(paths['binding']), '--ingest',str(paths['ingest']), '--registration',str(paths['registration']), '--freeze-verification',str(paths['freeze']), '--output',str(outp)],capture_output=True,text=True)
+            self.assertEqual(cp.returncode,0,cp.stdout+cp.stderr)
+            self.assertEqual(json.loads(outp.read_text(encoding='utf-8'))['state'],hp.STATE_READY_FOR_HIDDEN_EVAL)
+
+    def test_cli_score_card_classification(self):
+        card=score_card(law=self.law,binding=self.binding,slot='challenger_a',artifact=H('a'),recipe=H('b'),primary1=6,primary4=8,arm_id=hp.A1_ARM_ID,training_seed=1701,reality='REJECTED')
+        with tempfile.TemporaryDirectory() as td:
+            td=Path(td)
+            lawp=td/'law.json'; bindp=td/'binding.json'; cardp=td/'card.json'
+            for path,obj in ((lawp,self.law),(bindp,self.binding),(cardp,card)):
+                path.write_text(json.dumps(obj,sort_keys=True),encoding='utf-8')
+            cp=subprocess.run([sys.executable,str(Path(hp.__file__)), 'classify-score-card', '--law',str(lawp), '--stage-binding',str(bindp), '--score-card',str(cardp)],capture_output=True,text=True)
+            self.assertEqual(cp.returncode,0,cp.stdout+cp.stderr)
+            self.assertEqual(json.loads(cp.stdout)['state'],hp.STATE_REJECTED_ARM)
 
 
 if __name__ == "__main__":
