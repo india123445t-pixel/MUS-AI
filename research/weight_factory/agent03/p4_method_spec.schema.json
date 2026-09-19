@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AQLEVON P4 Gene #1 Method Tournament Spec V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version","spec_kind","hash_profile","worker_id","task_id","arms","spec_sha256"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "spec_kind": {"const": "AQLEVON_P4_GENE1_METHOD_TOURNAMENT_SPEC_V1"},
+    "hash_profile": {"const": "AQLEVON_CANONICAL_JSON_SHA256_V1"},
+    "worker_id": {"const": "01"},
+    "task_id": {"const": "P4-A01-METHOD-TOURNAMENT-DIRECTOR"},
+    "arms": {
+      "type": "array", "minItems": 1, "maxItems": 3,
+      "items": {
+        "type": "object",
+        "required": ["arm_id","method","seed_policy","budget","optimizer","stop_conditions","runner_parameters"],
+        "properties": {
+          "arm_id": {"type": "string", "minLength": 1},
+          "method": {"enum": ["SFT_LORA_CONTROL","RLVR_CONTROL","SDPO_RICH_FEEDBACK","OPSA_TEACHER_FREE","SEQUENTIAL_OPD_THEN_RLVR","VERIFIER_TRIGGERED_TRD"]},
+          "seed_policy": {"type": "object"},
+          "budget": {"type": "object"},
+          "optimizer": {"type": "object"},
+          "stop_conditions": {"type": "array"},
+          "runner_parameters": {"type": "object"}
+        }
+      }
+    },
+    "spec_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}
