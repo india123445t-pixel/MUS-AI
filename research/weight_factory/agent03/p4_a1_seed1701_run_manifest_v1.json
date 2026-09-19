@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "manifest_kind": "AQLEVON_P4_SURROGATE_RUN_MANIFEST_V1",
+  "hash_profile": "AQLEVON_CANONICAL_JSON_SHA256_V1",
+  "task_id": "P4-A03-GENE1-PHYSICAL-TRAINER",
+  "arm_id": "P4_A1_RLVR_CONTROL",
+  "seed": 1701,
+  "profile_id": "p4-surrogate-1x24",
+  "training_plan_sha256": "2ad7de02027e7b4eb1546486c1f02999b361585a38fc8316c17efbea9e1993c2",
+  "command_sha256": "3c898f3ff29619200b0792c9d19be9381e5b3bb2cd286a4ea86f121cb947e372",
+  "student_model": {
+    "repo": "Qwen/Qwen3.5-4B-Base",
+    "revision": "daa9c16f371249f9ad1c75a9ed6f956c08ea08f5",
+    "precision": "bf16",
+    "quantization": "none"
+  },
+  "method_reference": {
+    "repo": "lasgroup/SDPO",
+    "commit": "7c457fc1b1f636ae794eb0362ba37d4743b06fbc",
+    "config": "baseline_grpo"
+  },
+  "worker01_method_spec_canonical_sha256": "7c6cc62b6ae20fd49038198865567df75f1a105607bd9d32d974530bd9894f1d",
+  "worker02_training_manifest_sha256": "f7499362fdd7e6fd4bc91682a5f1c03767c98685c045ad50a712711c6c4ad55f",
+  "worker02_training_shard_sha256": "59480e9ff48b36a0efb77a36d3e35d9f656ef4dee0ce18489d3017c92b2a0d49",
+  "worker02_training_visible_pack_sha256": "35c7ebe6d5e82f42d7553fa28391f6d82c8800d6eced582d06881c8eb17d9d6b",
+  "worker02_split_sha256": "3cd1c0d32cad8cc7edf55c9392292828d54d2b4bd16ad50d0e70e26ba3dd9202",
+  "worker02_sealed_eval_commitment_sha256": "7e0463ddf6068fe66d85b5798b4f8037489c99dcd452376e8144dff0a122f4e5",
+  "worker05_evaluation_law_sha256": "70581a21c26605317afcb314d990fa2f78b621bf44af1747d8caac6168385ec0",
+  "worker05_sampling_profile_sha256": "4dde4741da4c1c469ee6fe555ea9041ad985de829eefb76b702ff0c82e528903",
+  "worker06_compute_profile": "p4-surrogate-1x24",
+  "worker06_reference_commit": "7204c7ae84eb6d246603fda960cffe02c2b6279e",
+  "worker03_sources": {
+    "trainer_git_blob_sha1": "6fedac7c2f0c00c5ed8b83110dbd1b064ebb5fff",
+    "tournament_git_blob_sha1": "585acf1d1142629ec75a9a31b9437f346861012f",
+    "reward_git_blob_sha1": "c9db3e315299cce59c5d4cece7de86302c10c614"
+  },
+  "budget": {
+    "optimizer_updates": 12,
+    "prompts_per_update": 4,
+    "rollouts_per_prompt": 4,
+    "student_rollout_ceiling": 192,
+    "student_response_token_ceiling": 393216
+  },
+  "sealed_eval_consumed": false,
+  "g1_rerun": false,
+  "automatic_fallback": false,
+  "paid_compute_requires_manager_authorization": true,
+  "capability_gain_claim": false,
+  "manifest_sha256": "317c27c9ff6cbd8045db7a49560ad854deb23adff658b9f899323ff7fcea6685"
+}
