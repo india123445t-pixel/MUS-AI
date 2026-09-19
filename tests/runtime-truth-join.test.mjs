@@ -64,7 +64,7 @@ test('caller verified=true is non-authoritative without an immutable verificatio
 test('Worker-05 evaluation receipt identity verifies only matching successful candidate attempts',()=>{
   const a=receipt();
   const authority={
-    manifest_kind:EVALUATION_DECISION_RECEIPT_KIND,
+    receipt_kind:EVALUATION_DECISION_RECEIPT_KIND,
     receipt_sha256:E,
     candidate_artifact_manifest_sha256:C,
     final_status:'PROMOTION_ELIGIBLE',
@@ -103,7 +103,7 @@ test('Manager-approved objective verifier requires exact attempt binding and app
 test('failed attempts always retain cost in numerator but can never be verified successes',()=>{
   const success=receipt({attemptId:'a-ok',gpuSeconds:4,cost:0.004});
   const failed=receipt({attemptId:'a-fail',status:'failure',gpuSeconds:2,cost:0.002});
-  const evalAuthority={manifest_kind:EVALUATION_DECISION_RECEIPT_KIND,receipt_sha256:E,candidate_artifact_manifest_sha256:C,final_status:'PROMOTION_ELIGIBLE'};
+  const evalAuthority={receipt_kind:EVALUATION_DECISION_RECEIPT_KIND,receipt_sha256:E,candidate_artifact_manifest_sha256:C,final_status:'PROMOTION_ELIGIBLE'};
   const joins=[
     {attempt_receipt_sha256:success.receipt_sha256,verification_receipt_sha256:E},
     {attempt_receipt_sha256:failed.receipt_sha256,verification_receipt_sha256:E},
