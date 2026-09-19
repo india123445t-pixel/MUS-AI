@@ -1,0 +1,18 @@
+{
+  "binding_kind": "AQLEVON_GENE1_WORKER02_PUBLIC_PACK_BINDING_V1",
+  "binding_sha256": "d9a81a9730e1dac02ecf8b032191a8d878e00d9a25547712168afb0a725095e5",
+  "eval_secret_file_sha256": "e61883f5f794ed6e82bb29b5718b09334ed2f29fa60bc5c1b7f7c6e1e86a8db6",
+  "hash_profile": "AQLEVON_CANONICAL_JSON_SHA256_V1",
+  "schema_version": 1,
+  "sealed_eval_commitment_sha256": "7e0463ddf6068fe66d85b5798b4f8037489c99dcd452376e8144dff0a122f4e5",
+  "sealed_eval_pack_sha256": "b30b85c59784f9a5b553f4182f8cdc8462c2880dddaadd528ed37ac3aee683bb",
+  "sealed_eval_plaintext_file_sha256": "ce17cdee667f2a53adf38000f2ace652cc1b4659187640a49f04858dceadbd0e",
+  "sealed_plaintext_visibility": "MANAGER_AND_WORKER05_ONLY",
+  "split_commitment_sha256": "3cd1c0d32cad8cc7edf55c9392292828d54d2b4bd16ad50d0e70e26ba3dd9202",
+  "training_shard_file_sha256": "59480e9ff48b36a0efb77a36d3e35d9f656ef4dee0ce18489d3017c92b2a0d49",
+  "training_shard_manifest_sha256": "f7499362fdd7e6fd4bc91682a5f1c03767c98685c045ad50a712711c6c4ad55f",
+  "training_visible_pack_sha256": "35c7ebe6d5e82f42d7553fa28391f6d82c8800d6eced582d06881c8eb17d9d6b",
+  "training_worker_visibility": "FORBIDDEN",
+  "worker02_p4_branch": "agent/02-p4-gene1-data-verifier-pack-v1",
+  "worker02_p4_commit": "abb94ef134e2e97036b6959dbc9db4278d3736b6"
+}
