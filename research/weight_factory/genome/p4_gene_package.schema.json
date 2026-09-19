@@ -1,0 +1,142 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "AQLEVON_GENE_PACKAGE_V1",
+  "title": "AQLEVON Gene Package V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "package_kind",
+    "package_id",
+    "hash_profile",
+    "truth_boundary",
+    "target_capability",
+    "base_identity",
+    "adapter_identity",
+    "promotion_binding",
+    "training_binding",
+    "compute_binding",
+    "compatibility",
+    "rollback",
+    "integration_hook",
+    "package_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "package_kind": {"const": "AQLEVON_GENE_PACKAGE_V1"},
+    "package_id": {"type": "string", "pattern": "^aqlevon-gene-package-v1:sha256:[0-9a-f]{64}$"},
+    "hash_profile": {"const": "AQLEVON_CANONICAL_JSON_SHA256_V1"},
+    "truth_boundary": {"const": "PROMOTED_GENE_PACKAGE_REQUIRES_WORKER05_EVIDENCE_AND_MANAGER_ACCEPTANCE"},
+    "target_capability": {
+      "type": "object",
+      "required": ["capability_id", "capability_version"],
+      "properties": {
+        "capability_id": {"type": "string", "minLength": 1},
+        "capability_version": {"type": "integer", "minimum": 1}
+      }
+    },
+    "base_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repo", "revision", "base_manifest_sha256", "tokenizer_sha256", "config_sha256"],
+      "properties": {
+        "repo": {"type": "string", "minLength": 1},
+        "revision": {"type": "string", "minLength": 1},
+        "base_manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "tokenizer_sha256": {"$ref": "#/$defs/sha256"},
+        "config_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "adapter_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["candidate_artifact_manifest_sha256", "adapter_state_sha256", "artifact_file_tree_sha256"],
+      "properties": {
+        "candidate_artifact_manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "adapter_state_sha256": {"$ref": "#/$defs/sha256"},
+        "artifact_file_tree_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "promotion_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evaluation_decision_receipt_sha256", "worker05_status", "manager_acceptance_record_sha256"],
+      "properties": {
+        "evaluation_decision_receipt_sha256": {"$ref": "#/$defs/sha256"},
+        "worker05_status": {"const": "PROMOTION_ELIGIBLE"},
+        "manager_acceptance_record_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "training_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["training_shard_manifest_sha256", "training_run_receipt_sha256"],
+      "properties": {
+        "training_shard_manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "training_run_receipt_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "compute_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["runtime_receipt_kind", "runtime_attempt_receipt_sha256s", "runtime_attempt_receipt_set_sha256"],
+      "properties": {
+        "runtime_receipt_kind": {"const": "AQLEVON_RUNTIME_ATTEMPT_RECEIPT_V1"},
+        "runtime_attempt_receipt_sha256s": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/sha256"}
+        },
+        "runtime_attempt_receipt_set_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "compatibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["topology_class", "parameter_layout_sha256", "quantization"],
+      "properties": {
+        "topology_class": {"type": "string", "minLength": 1},
+        "parameter_layout_sha256": {"$ref": "#/$defs/sha256"},
+        "quantization": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "quantized_candidate_manifest_sha256", "evaluation_decision_receipt_sha256"],
+          "properties": {
+            "status": {"enum": ["NOT_TESTED", "PASS", "FAIL"]},
+            "quantized_candidate_manifest_sha256": {"oneOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]},
+            "evaluation_decision_receipt_sha256": {"oneOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]}
+          }
+        }
+      }
+    },
+    "rollback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rollback_action", "base_is_immutable", "adapter_detach_without_base_mutation", "previous_gene_package_sha256"],
+      "properties": {
+        "rollback_action": {"const": "DETACH_ADAPTER_RESTORE_IMMUTABLE_BASE"},
+        "base_is_immutable": {"const": true},
+        "adapter_detach_without_base_mutation": {"const": true},
+        "previous_gene_package_sha256": {"oneOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]}
+      }
+    },
+    "integration_hook": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["eligible_for_future_gene_pair_check", "real_multi_gene_integration_authorized", "dormant_methods_until_two_manager_accepted_genes"],
+      "properties": {
+        "eligible_for_future_gene_pair_check": {"const": true},
+        "real_multi_gene_integration_authorized": {"const": false},
+        "dormant_methods_until_two_manager_accepted_genes": {
+          "type": "array",
+          "items": {"enum": ["ties", "dare", "della", "ctm", "hard_top1_router", "mopd"]}
+        }
+      }
+    },
+    "package_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}
