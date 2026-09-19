@@ -153,3 +153,164 @@ jobs:
               assert out["score"]==1.0, (task["task_id"],out)
           print("P4_REWARD_ORACLE_56_PASS")
           PY
+
+
+      - name: Install exact pre-GPU CPU runtime dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check --index-url https://download.pytorch.org/whl/cpu torch==2.7.1
+          python -m pip install --disable-pip-version-check \
+            transformers==5.17.0 peft==0.21.0 accelerate==1.15.0 \
+            pyarrow==22.0.0 qwen-vl-utils==0.0.14 hydra-core==1.3.2 \
+            "ray[default]==2.53.0" torchdata==0.11.0 tensordict==0.10.0 \
+            datasets==4.4.2 codetiming==1.4.0 safetensors psutil huggingface-hub pillow
+
+      - name: Stage pinned SDPO and model metadata only
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo mkdir -p /workspace
+          sudo chown -R "$(id -u):$(id -g)" /workspace
+          rm -rf /workspace/SDPO /workspace/MUS-AI /workspace/models /workspace/aqlevon_p4
+          git clone --quiet https://github.com/lasgroup/SDPO.git /workspace/SDPO
+          git -C /workspace/SDPO checkout --quiet 7c457fc1b1f636ae794eb0362ba37d4743b06fbc
+          cp -a "$GITHUB_WORKSPACE" /workspace/MUS-AI
+          mkdir -p /workspace/aqlevon_p4/data /workspace/models/qwen35-4b-daa9c16f3712
+          cp /tmp/p4data/train.parquet /workspace/aqlevon_p4/data/train.parquet
+          cp /tmp/p4data/test.parquet /workspace/aqlevon_p4/data/test.parquet
+          python - <<'PY'
+          from huggingface_hub import snapshot_download
+          snapshot_download(
+              repo_id="Qwen/Qwen3.5-4B-Base",
+              revision="daa9c16f371249f9ad1c75a9ed6f956c08ea08f5",
+              local_dir="/workspace/models/qwen35-4b-daa9c16f3712",
+              ignore_patterns=["*.safetensors","*.bin","*.pt","*.pth","*.gguf","*.onnx","*.h5"],
+          )
+          PY
+
+      - name: Patch exact pinned SDPO and verify patch identities
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /workspace/MUS-AI
+          python research/weight_factory/agent03/p4_patch_sdpo_transformers5_compat.py
+          python - <<'PY'
+          import hashlib
+          from pathlib import Path
+          expected={
+            "/workspace/SDPO/verl/utils/model.py":"135f61865fcbe057d29da90bf07968b04dd778e2e96a31d3ad640a8650155f8d",
+            "/workspace/SDPO/verl/workers/fsdp_workers.py":"e0ec49a1b891daed8f180a35f5d1d7e5147a3a8289c3787fc7688892e0e55fed",
+          }
+          for p,want in expected.items():
+              got=hashlib.sha256(Path(p).read_bytes()).hexdigest()
+              assert got==want,(p,got,want)
+              print("PATCH_SHA_PASS",p,got)
+          PY
+
+      - name: Full pre-GPU CPU runtime preflight
+        shell: bash
+        env:
+          USER: root
+          EXPERIMENT: AQLEVON-P4-A1-seed1701
+          TASK: /workspace/aqlevon_p4/data
+          PYTHONPATH: /workspace/SDPO:/workspace/MUS-AI/research/weight_factory/agent03/runtime_compat:/workspace/MUS-AI/research/weight_factory/agent03
+          CUDA_VISIBLE_DEVICES: ""
+        run: |
+          set -euo pipefail
+          cd /workspace/MUS-AI/research/weight_factory/agent03
+          python - <<'PY'
+          import hashlib, json, os, sys
+          from pathlib import Path
+
+          import hydra
+          import ray
+          from omegaconf import OmegaConf
+
+          import p4_gene1_trainer as c
+          import p4_surrogate_tournament as t
+
+          plan=Path("p4_frozen_training_plan_v1.json")
+          run=json.loads(Path("p4_a1_seed1701_run_manifest_v1.json").read_text())
+          lock=json.loads(Path("p4_a1_seed1701_command_lock_v1.json").read_text())
+          argv=t.build_a1_argv(plan,Path("/workspace"))
+
+          assert argv==lock["argv"]
+          assert argv[:3]==["env","USER=root","bash"]
+          assert c.canonical_sha256(argv)==run["command_sha256"]==lock["command_sha256"]
+          assert os.environ["USER"]=="root"
+          assert os.environ.get("CUDA_VISIBLE_DEVICES")==""
+
+          os.environ["EXPERIMENT"]=argv[4]
+          os.environ["TASK"]=argv[6]
+          with hydra.initialize_config_dir(config_dir="/workspace/SDPO/verl/trainer/config",version_base=None):
+              cfg=hydra.compose(config_name=argv[5],overrides=argv[7:])
+          OmegaConf.resolve(cfg)
+          assert cfg.vars.dir=="/users/root/SDPO",cfg.vars.dir
+          assert cfg.trainer.project_name=="SDPO-root",cfg.trainer.project_name
+          assert str(cfg.data.train_files)=="/workspace/aqlevon_p4/data/train.parquet"
+          assert str(cfg.data.val_files)=="/workspace/aqlevon_p4/data/test.parquet"
+          print("HYDRA_OMEGACONF_EXACT_PASS")
+
+          t.install_runtime_compat()
+          from verl.utils import hf_processor, hf_tokenizer
+          model="/workspace/models/qwen35-4b-daa9c16f3712"
+          tokenizer=hf_tokenizer(model,trust_remote_code=False)
+          processor=hf_processor(model,trust_remote_code=False,use_fast=True)
+          processor=t.bridge_processor_chat_template(processor,model)
+          assert processor is not None
+          assert processor.__class__.__name__=="Qwen3VLProcessor",processor.__class__.__name__
+          tt=tokenizer.chat_template
+          pt=processor.chat_template
+          assert isinstance(tt,str) and tt and pt==tt
+          template_sha=hashlib.sha256(tt.encode()).hexdigest()
+          assert template_sha=="a4aee8afcf2e0711942cf848899be66016f8d14a889ff9ede07bca099c28f715",template_sha
+          print("PROCESSOR_TEMPLATE_PASS",template_sha)
+
+          from verl.trainer.main_ppo import create_rl_dataset, create_rl_sampler
+          from verl.trainer.ppo.utils import need_critic, need_reference_policy
+          from verl.utils.config import validate_config
+
+          validate_config(cfg, use_reference_policy=need_reference_policy(cfg), use_critic=need_critic(cfg))
+          train=create_rl_dataset(cfg.data.train_files,cfg.data,tokenizer,processor,is_train=True)
+          val=create_rl_dataset(cfg.data.val_files,cfg.data,tokenizer,processor,is_train=False)
+          sampler=create_rl_sampler(cfg.data,train)
+          assert len(train)==56,len(train)
+          assert len(val)==56,len(val)
+          assert sampler is not None
+          print("DATASET_SAMPLER_PASS",len(train),len(val),type(sampler).__name__)
+
+          runtime_env={
+              "env_vars":{
+                  "USER":"root",
+                  "EXPERIMENT":"AQLEVON-P4-A1-seed1701",
+                  "TASK":"/workspace/aqlevon_p4/data",
+                  "PYTHONPATH":"/workspace/SDPO:/workspace/MUS-AI/research/weight_factory/agent03/runtime_compat:/workspace/MUS-AI/research/weight_factory/agent03",
+                  "CUDA_VISIBLE_DEVICES":"",
+              }
+          }
+          ray.init(num_cpus=2,include_dashboard=False,runtime_env=runtime_env,log_to_driver=True)
+
+          @ray.remote
+          def worker_probe():
+              import os
+              from omegaconf import OmegaConf
+              x=OmegaConf.create({"user":"${oc.env:USER}"})
+              OmegaConf.resolve(x)
+              import verl.workers.fsdp_workers as fw
+              return {
+                  "user":os.environ.get("USER"),
+                  "resolved_user":x.user,
+                  "cuda_visible":os.environ.get("CUDA_VISIBLE_DEVICES"),
+                  "fsdp_workers":str(Path(fw.__file__).resolve()),
+              }
+
+          probe=ray.get(worker_probe.remote())
+          ray.shutdown()
+          assert probe["user"]=="root",probe
+          assert probe["resolved_user"]=="root",probe
+          assert probe["cuda_visible"]=="",probe
+          assert probe["fsdp_workers"].endswith("/workspace/SDPO/verl/workers/fsdp_workers.py"),probe
+          print("FRESH_RAY_FSDP_IMPORT_PASS",json.dumps(probe,sort_keys=True))
+          print("P4_PRE_GPU_CPU_PREFLIGHT_PASS")
+          PY
