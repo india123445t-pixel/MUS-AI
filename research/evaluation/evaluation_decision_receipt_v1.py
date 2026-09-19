@@ -21,6 +21,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from eval_truth_gate import evaluate_release as evaluate_release_p1
+
 HEX64 = re.compile(r"^[0-9a-f]{64}$")
 HEX40 = re.compile(r"^[0-9a-f]{40}$")
 RECEIPT_KIND = "AQLEVON_EVALUATION_DECISION_RECEIPT_V1"
@@ -45,6 +47,10 @@ def canonical_sha256(value: Any) -> str:
 
 def valid_sha256(value: Any) -> bool:
     return isinstance(value, str) and bool(HEX64.fullmatch(value))
+
+
+def actual_evaluation_code_sha256() -> str:
+    return hashlib.sha256(Path(__file__).with_name("eval_truth_gate.py").read_bytes()).hexdigest()
 
 
 def _self_digest(value: dict[str, Any], field: str) -> str:
@@ -292,6 +298,9 @@ def build_evaluation_decision_receipt(
         raise ValueError("experiment manifest policy binding mismatch")
     if not valid_sha256(evaluation_code_sha256):
         raise ValueError("evaluation_code_sha256 invalid")
+    actual_code_sha = actual_evaluation_code_sha256()
+    if evaluation_code_sha256 != actual_code_sha:
+        raise ValueError("evaluation_code_sha256 does not identify the P1 gate code executing this receipt")
 
     expected_request = build_anchor_request(
         experiment_manifest_sha256=experiment_sha,
@@ -307,6 +316,9 @@ def build_evaluation_decision_receipt(
 
     if report.get("experiment_manifest_sha256") != experiment_sha:
         raise ValueError("report/experiment manifest binding mismatch")
+    recomputed_gate_result = evaluate_release_p1(report, policy, experiment_manifest, scan_receipt)
+    if gate_result != recomputed_gate_result:
+        raise ValueError("gate result does not exactly match a fresh P1 evaluation recomputation")
     if gate_result.get("experiment_manifest_sha256") != experiment_sha:
         raise ValueError("gate result/experiment manifest binding mismatch")
     if gate_result.get("policy_id") != policy.get("policy_id"):
@@ -543,6 +555,8 @@ def main(argv: list[str] | None = None) -> int:
         gate_result = _load(args.gate_result)
         scan = _load(args.scan_receipt)
         code_sha = hashlib.sha256(Path(args.evaluation_code).read_bytes()).hexdigest()
+        if code_sha != actual_evaluation_code_sha256():
+            raise SystemExit("--evaluation-code must be byte-identical to the P1 eval_truth_gate.py used by this receipt builder")
         receipt = build_evaluation_decision_receipt(
             candidate_artifact_manifest=candidate,
             experiment_manifest=experiment,
