@@ -115,13 +115,13 @@ test('approved REJECTED evaluation does not count as verified success',()=>{
   assert.equal(summary.verified_successes,0);
 });
 
-test('same approved receipt identity with conflicting projections invalidates authority',()=>{
+test('tampered evaluation projection cannot reuse an approved self-digest identity',()=>{
   const a=receipt();
-  const first=evalReceipt({id:'same-id',status:'PROMOTION_ELIGIBLE'});
-  const second=evalReceipt({id:'same-id',status:'REJECTED'});
-  const summary=summarizeVerifiedEfficiency([a],{approvedEvaluationReceipts:[first,second]});
+  const first=evalReceipt({status:'PROMOTION_ELIGIBLE'});
+  const tampered={...first,final_status:'REJECTED'};
+  const summary=summarizeVerifiedEfficiency([a],{approvedEvaluationReceipts:[first,tampered]});
   assert.equal(summary.status,'INVALID');
-  assert.ok(summary.invalid_reason_codes.includes('approved_truth_identity_conflict'));
+  assert.ok(summary.invalid_reason_codes.includes('approved_evaluation_receipt_invalid'));
 });
 
 test('Manager-approved per-attempt objective PASS verifies only its linked attempt',()=>{
