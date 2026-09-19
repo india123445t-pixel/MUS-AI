@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {buildRuntimeAccounting,normalizeOpenAIUsage,summarizeVerifiedEfficiency} from '../lib/aqlevon/runtime-economics.js';
+import {buildRuntimeAccounting,normalizeBoundedInteger,normalizeOpenAIUsage,parseStrictBoundedInteger,sanitizeEndpointForLog,summarizeVerifiedEfficiency} from '../lib/aqlevon/runtime-economics.js';
 
 test('runtime accounting normalizes OpenAI usage and derives bounded compute economics',()=>{
   const usage=normalizeOpenAIUsage({
@@ -30,7 +30,7 @@ test('runtime accounting refuses to invent GPU energy or cost when hardware meta
   assert.equal(metrics.completion_tokens_per_second,2);
 });
 
-test('compute-per-verified-success charges failed attempts to the efficiency denominator',()=>{
+test('compute-per-verified-success charges failed attempts to the efficiency numerator',()=>{
   const summary=summarizeVerifiedEfficiency([
     {verified:true,runtime_metrics:{allocated_gpu_seconds:4,estimated_energy_wh:0.4,estimated_gpu_cost_usd:0.004}},
     {verified:false,runtime_metrics:{allocated_gpu_seconds:2,estimated_energy_wh:0.2,estimated_gpu_cost_usd:0.002}},
@@ -40,4 +40,26 @@ test('compute-per-verified-success charges failed attempts to the efficiency den
   assert.equal(summary.gpu_seconds_per_verified_success,6);
   assert.equal(summary.estimated_energy_wh_per_verified_success,0.6);
   assert.equal(summary.estimated_gpu_cost_usd_per_verified_success,0.006);
+});
+
+test('concurrency normalization is always an explicit bounded integer',()=>{
+  assert.equal(normalizeBoundedInteger(undefined,{defaultValue:1,min:1,max:16}),1);
+  assert.equal(normalizeBoundedInteger('garbage',{defaultValue:1,min:1,max:16}),1);
+  assert.equal(normalizeBoundedInteger('2.9',{defaultValue:1,min:1,max:16}),2);
+  assert.equal(normalizeBoundedInteger('0',{defaultValue:1,min:1,max:16}),1);
+  assert.equal(normalizeBoundedInteger('-4',{defaultValue:1,min:1,max:16}),1);
+  assert.equal(normalizeBoundedInteger('16',{defaultValue:1,min:1,max:16}),16);
+  assert.equal(normalizeBoundedInteger('999',{defaultValue:1,min:1,max:16}),16);
+});
+
+test('strict timeout parser rejects malformed, decimal, and out-of-range values',()=>{
+  assert.equal(parseStrictBoundedInteger(undefined,{defaultValue:240000,min:100,max:900000}),240000);
+  assert.equal(parseStrictBoundedInteger('120000',{defaultValue:240000,min:100,max:900000}),120000);
+  for(const bad of ['abc','100.5','99','900001','-1','Infinity'])assert.equal(parseStrictBoundedInteger(bad,{defaultValue:240000,min:100,max:900000}),null);
+});
+
+test('endpoint log sanitizer strips userinfo, query credentials, and path tokens by logging origin only',()=>{
+  const safe=sanitizeEndpointForLog('https://alice:secret@example.com:8443/private/signed-token/v1?token=query-secret#frag');
+  assert.equal(safe,'https://example.com:8443');
+  for(const secret of ['alice','secret','signed-token','query-secret'])assert.equal(safe.includes(secret),false);
 });
