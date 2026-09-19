@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import {randomUUID} from 'node:crypto';
 import {buildRuntimeAccounting,normalizeBoundedInteger,parseStrictBoundedInteger,sanitizeEndpointForLog} from '../lib/aqlevon/runtime-economics.js';
-import {buildRequestIdentity,buildRuntimeAttemptReceipt,hashRuntimeResult,validateRuntimeReceiptIdentityConfig} from '../lib/aqlevon/runtime-receipts.js';
+import {P2_HASH_PROFILE,buildRequestIdentity,buildRuntimeAttemptReceipt,hashRuntimeResult,validateRuntimeReceiptIdentityConfig} from '../lib/aqlevon/runtime-receipts.js';
 
 const COMMONS_URL=process.env.AQLEVON_COMMONS_URL||'https://qkoscgdegnqcypkjrefn.supabase.co/functions/v1/aqlevon-commons';
 const WORKER_TOKEN=process.env.AQLEVON_COMMONS_WORKER_TOKEN||'';
@@ -157,7 +157,7 @@ async function processOne(slot){
     const claimed=await commons({
       op:'claim',
       worker_token:WORKER_TOKEN,
-      capabilities:{protocol:'openai-compatible',model:MODEL_NAME,engine:'local',max_concurrency:CONCURRENCY,runtime_metrics:'v1',runtime_attempt_receipt:RECEIPTS_CONFIGURED?'v1':'unavailable'}
+      capabilities:{protocol:'openai-compatible',model:MODEL_NAME,engine:'local',max_concurrency:CONCURRENCY,runtime_metrics:'v1',runtime_attempt_receipt:RECEIPTS_CONFIGURED?'v1':'unavailable',runtime_receipt_hash_profile:RECEIPTS_CONFIGURED?P2_HASH_PROFILE:'unavailable'}
     });
     job=claimed.job||null;
     if(job){
@@ -190,6 +190,6 @@ async function workerLoop(slot){
   }while(!stopping);
 }
 
-console.log(JSON.stringify({event:'commons_worker_start',model:MODEL_NAME,model_origin:MODEL_LOG_ORIGIN,concurrency:CONCURRENCY,model_timeout_ms:MODEL_TIMEOUT_MS,runtime_attempt_receipt:RECEIPTS_CONFIGURED?'v1':'unavailable'}));
+console.log(JSON.stringify({event:'commons_worker_start',model:MODEL_NAME,model_origin:MODEL_LOG_ORIGIN,concurrency:CONCURRENCY,model_timeout_ms:MODEL_TIMEOUT_MS,runtime_attempt_receipt:RECEIPTS_CONFIGURED?'v1':'unavailable',runtime_receipt_hash_profile:RECEIPTS_CONFIGURED?P2_HASH_PROFILE:'unavailable'}));
 await Promise.all(Array.from({length:CONCURRENCY},(_,slot)=>workerLoop(slot)));
 console.log(JSON.stringify({event:'commons_worker_stop'}));
