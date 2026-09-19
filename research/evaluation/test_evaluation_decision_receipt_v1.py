@@ -198,7 +198,7 @@ def full_fixture():
         candidate_artifact_manifest=cand,
         experiment_manifest=exp,
         policy=POLICY,
-        evaluation_code_sha256=hashlib.sha256((HERE / "eval_truth_gate.py").read_bytes()).hexdigest(),
+        evaluation_code_sha256=p2.actual_evaluation_code_sha256(),
         anchor_request=req,
         anchor_verification=ver,
         report=rep,
@@ -302,44 +302,68 @@ class P2EvaluationDecisionReceiptTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "report/experiment"):
             p2.build_evaluation_decision_receipt(
                 candidate_artifact_manifest=cand, experiment_manifest=exp, policy=POLICY,
-                evaluation_code_sha256=SHA_A, anchor_request=req, anchor_verification=ver,
+                evaluation_code_sha256=p2.actual_evaluation_code_sha256(), anchor_request=req, anchor_verification=ver,
                 report=rep, gate_result=gate, scan_receipt=scan)
 
     def test_build_rejects_harness_mismatch(self):
         cand, exp, _, scan, rep, gate, req, ver, _ = full_fixture()
         rep["runs"]["candidate"]["harness_manifest_sha256"] = SHA_F
+        gate = p1.evaluate_release(rep, POLICY, exp, scan)
         with self.assertRaisesRegex(ValueError, "candidate run harness"):
             p2.build_evaluation_decision_receipt(
                 candidate_artifact_manifest=cand, experiment_manifest=exp, policy=POLICY,
-                evaluation_code_sha256=SHA_A, anchor_request=req, anchor_verification=ver,
+                evaluation_code_sha256=p2.actual_evaluation_code_sha256(), anchor_request=req, anchor_verification=ver,
                 report=rep, gate_result=gate, scan_receipt=scan)
 
     def test_build_rejects_provenance_binding_mismatch(self):
         cand, exp, _, scan, rep, gate, req, ver, _ = full_fixture()
         rep["provenance"]["license_provenance_receipt_sha256"] = SHA_F
+        gate = p1.evaluate_release(rep, POLICY, exp, scan)
         with self.assertRaisesRegex(ValueError, "provenance receipt"):
             p2.build_evaluation_decision_receipt(
                 candidate_artifact_manifest=cand, experiment_manifest=exp, policy=POLICY,
-                evaluation_code_sha256=SHA_A, anchor_request=req, anchor_verification=ver,
+                evaluation_code_sha256=p2.actual_evaluation_code_sha256(), anchor_request=req, anchor_verification=ver,
                 report=rep, gate_result=gate, scan_receipt=scan)
 
     def test_build_rejects_scan_binding_mismatch(self):
         cand, exp, _, scan, rep, gate, req, ver, _ = full_fixture()
         rep["contamination"]["scan_receipt_sha256"] = SHA_F
+        gate = p1.evaluate_release(rep, POLICY, exp, scan)
         with self.assertRaisesRegex(ValueError, "contamination scan"):
             p2.build_evaluation_decision_receipt(
                 candidate_artifact_manifest=cand, experiment_manifest=exp, policy=POLICY,
-                evaluation_code_sha256=SHA_A, anchor_request=req, anchor_verification=ver,
+                evaluation_code_sha256=p2.actual_evaluation_code_sha256(), anchor_request=req, anchor_verification=ver,
                 report=rep, gate_result=gate, scan_receipt=scan)
 
     def test_build_rejects_incomplete_red_team_evidence(self):
         cand, exp, _, scan, rep, gate, req, ver, _ = full_fixture()
         rep["red_team"]["classes"].pop(next(iter(rep["red_team"]["classes"])))
-        # P2 receipt root must fail even if a caller tries to reuse an old gate result.
+        gate = p1.evaluate_release(rep, POLICY, exp, scan)
+        # Even with a freshly recomputed INVALID gate result, P2 refuses an incomplete evidence root.
         with self.assertRaisesRegex(ValueError, "red-team"):
             p2.build_evaluation_decision_receipt(
                 candidate_artifact_manifest=cand, experiment_manifest=exp, policy=POLICY,
-                evaluation_code_sha256=SHA_A, anchor_request=req, anchor_verification=ver,
+                evaluation_code_sha256=p2.actual_evaluation_code_sha256(), anchor_request=req, anchor_verification=ver,
+                report=rep, gate_result=gate, scan_receipt=scan)
+
+    def test_fake_or_stale_gate_result_cannot_be_laundered_into_receipt(self):
+        cand, exp, _, scan, rep, gate, req, ver, _ = full_fixture()
+        fake = copy.deepcopy(gate)
+        fake["status"] = "REJECTED"
+        fake["failures"] = ["fabricated downstream decision"]
+        with self.assertRaisesRegex(ValueError, "fresh P1 evaluation recomputation"):
+            p2.build_evaluation_decision_receipt(
+                candidate_artifact_manifest=cand, experiment_manifest=exp, policy=POLICY,
+                evaluation_code_sha256=p2.actual_evaluation_code_sha256(),
+                anchor_request=req, anchor_verification=ver, report=rep,
+                gate_result=fake, scan_receipt=scan)
+
+    def test_wrong_evaluation_code_hash_is_rejected(self):
+        cand, exp, _, scan, rep, gate, req, ver, _ = full_fixture()
+        with self.assertRaisesRegex(ValueError, "does not identify"):
+            p2.build_evaluation_decision_receipt(
+                candidate_artifact_manifest=cand, experiment_manifest=exp, policy=POLICY,
+                evaluation_code_sha256=SHA_F, anchor_request=req, anchor_verification=ver,
                 report=rep, gate_result=gate, scan_receipt=scan)
 
     def test_receipt_exports_no_raw_outcomes_or_protected_plaintext(self):
@@ -351,16 +375,17 @@ class P2EvaluationDecisionReceiptTests(unittest.TestCase):
         self.assertNotIn('"answer"', encoded)
 
     def test_reason_codes_export_hash_codes_not_raw_reasons(self):
-        cand, exp, _, scan, rep, gate, req, ver, _ = full_fixture()
-        gate = copy.deepcopy(gate)
-        gate["status"] = "REJECTED"
-        gate["failures"] = ["secret internal diagnostic text"]
+        cand, exp, _, scan, rep, _, req, ver, _ = full_fixture()
+        rep["efficiency"]["cost_per_verified_success"] = {"baseline": 0.0, "candidate": 0.01}
+        gate = p1.evaluate_release(rep, POLICY, exp, scan)
+        self.assertEqual(gate["status"], "REJECTED")
+        raw_failure = gate["failures"][0]
         receipt = p2.build_evaluation_decision_receipt(
             candidate_artifact_manifest=cand, experiment_manifest=exp, policy=POLICY,
-            evaluation_code_sha256=SHA_A, anchor_request=req, anchor_verification=ver,
+            evaluation_code_sha256=p2.actual_evaluation_code_sha256(), anchor_request=req, anchor_verification=ver,
             report=rep, gate_result=gate, scan_receipt=scan)
         encoded = json.dumps(receipt)
-        self.assertNotIn("secret internal diagnostic text", encoded)
+        self.assertNotIn(raw_failure, encoded)
         self.assertTrue(receipt["failure_reason_codes"][0].startswith("FAILURE_"))
 
     def test_forbidden_plaintext_key_in_receipt_is_invalid(self):
