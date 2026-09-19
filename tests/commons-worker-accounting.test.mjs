@@ -79,6 +79,7 @@ test('commons worker can opt into bounded parallel claims so upstream engines ca
   let completes=0;
   let inFlight=0;
   let maxInFlight=0;
+  let maxAdvertised=null;
   let child=null;
   const server=http.createServer(async(req,res)=>{
     let raw='';for await(const chunk of req)raw+=chunk;
@@ -86,6 +87,7 @@ test('commons worker can opt into bounded parallel claims so upstream engines ca
     if(req.url==='/commons'){
       res.setHeader('content-type','application/json');
       if(body.op==='claim'){
+        maxAdvertised=body.capabilities?.max_concurrency;
         const index=nextJob++;
         const job=index<2?{id:`job-${index+1}`,model_request:{messages:[{role:'user',content:`ping-${index+1}`}],model:'AQLEVON-27B'}}:null;
         res.end(JSON.stringify({ok:true,job}));
@@ -116,7 +118,7 @@ test('commons worker can opt into bounded parallel claims so upstream engines ca
       AQLEVON_COMMONS_URL:`http://127.0.0.1:${port}/commons`,
       AQLEVON_COMMONS_WORKER_TOKEN:'parallel-worker-secret',
       AQLEVON_MODEL_URL:`http://127.0.0.1:${port}`,
-      AQLEVON_COMMONS_CONCURRENCY:'2',
+      AQLEVON_COMMONS_CONCURRENCY:'2.9',
       AQLEVON_COMMONS_POLL_MS:'500',
     },
     stdio:['ignore','pipe','pipe']
@@ -128,6 +130,7 @@ test('commons worker can opt into bounded parallel claims so upstream engines ca
   assert.ok(code===0||signal==='SIGTERM',stderr);
   assert.equal(completes,2);
   assert.equal(maxInFlight,2,'two claimed jobs should overlap at the model endpoint');
+  assert.equal(maxAdvertised,2,'decimal concurrency must advertise the same integer slot count');
   assert.equal((stdout+stderr).includes('parallel-worker-secret'),false);
   const start=stdout.split('\n').filter(Boolean).map(line=>JSON.parse(line)).find(x=>x.event==='commons_worker_start');
   assert.equal(start.concurrency,2);
