@@ -209,6 +209,8 @@ def seal_gene_package(
     target_capability: Mapping[str, Any],
     manager_acceptance_record_sha256: str,
     compute_receipts: Sequence[Mapping[str, Any]],
+    training_shard_manifest_sha256: str,
+    training_run_receipt_sha256: str,
     quantization_compatibility: Mapping[str, Any] | None = None,
     previous_gene_package_sha256: str | None = None,
     candidate_validator: Callable[[Any], list[str]] | None = None,
@@ -241,10 +243,18 @@ def seal_gene_package(
     if not is_sha(manager_acceptance_record_sha256):
         raise ValueError("Manager acceptance record SHA-256 is required")
 
-    training_shard_sha = candidate_manifest.get("training_shard_manifest_sha256")
-    training_run_sha = candidate_manifest.get("training_run_receipt_sha256")
-    if not is_sha(training_shard_sha) or not is_sha(training_run_sha):
+    candidate_training_shard_sha = candidate_manifest.get("training_shard_manifest_sha256")
+    candidate_training_run_sha = candidate_manifest.get("training_run_receipt_sha256")
+    if not is_sha(candidate_training_shard_sha) or not is_sha(candidate_training_run_sha):
         raise ValueError("promoted Gene Package requires bound training shard + training run receipts")
+    if not is_sha(training_shard_manifest_sha256):
+        raise ValueError("training_shard_manifest_sha256 must be a lowercase SHA-256")
+    if not is_sha(training_run_receipt_sha256):
+        raise ValueError("training_run_receipt_sha256 must be a lowercase SHA-256")
+    if training_shard_manifest_sha256 != candidate_training_shard_sha:
+        raise ValueError("training shard identity does not match Candidate Artifact binding")
+    if training_run_receipt_sha256 != candidate_training_run_sha:
+        raise ValueError("training run receipt identity does not match Candidate Artifact binding")
 
     if not isinstance(target_capability, Mapping):
         raise ValueError("target_capability must be an object")
@@ -320,8 +330,8 @@ def seal_gene_package(
             "manager_acceptance_record_sha256": manager_acceptance_record_sha256,
         },
         "training_binding": {
-            "training_shard_manifest_sha256": training_shard_sha,
-            "training_run_receipt_sha256": training_run_sha,
+            "training_shard_manifest_sha256": candidate_training_shard_sha,
+            "training_run_receipt_sha256": candidate_training_run_sha,
         },
         "compute_binding": {
             "runtime_receipt_kind": RUNTIME_RECEIPT_KIND,
