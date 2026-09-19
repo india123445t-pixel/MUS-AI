@@ -7,7 +7,7 @@
   "seed": 1701,
   "profile_id": "p4-surrogate-1x24",
   "training_plan_sha256": "3cd6e0bada2535a80f83f400f45f5d0fdc5ad8d938f42757785335959f331095",
-  "command_sha256": "d3521f721ea1c34045792fd14275242cfbdeb37cf11f36a81f727c17bd6bd050",
+  "command_sha256": "a72f0bcaeaf8b1864a040b0ef458fff2398f08cfcaf3b0b464dc519ef70e382f",
   "student_model": {
     "repo": "Qwen/Qwen3.5-4B-Base",
     "revision": "daa9c16f371249f9ad1c75a9ed6f956c08ea08f5",
@@ -31,7 +31,7 @@
   "worker06_reference_commit": "7204c7ae84eb6d246603fda960cffe02c2b6279e",
   "worker03_sources": {
     "trainer_git_blob_sha1": "14b5573f682c0b50860a570f1328b3b0eca21032",
-    "tournament_git_blob_sha1": "a20ef3e2af1e77c264f4a59a4216605f6826ac14",
+    "tournament_git_blob_sha1": "ac9f0381bd03659696d73140aa7bd21fa50c4725",
     "reward_git_blob_sha1": "c9db3e315299cce59c5d4cece7de86302c10c614"
   },
   "budget": {
@@ -53,5 +53,5 @@
   "automatic_fallback": false,
   "paid_compute_requires_manager_authorization": true,
   "capability_gain_claim": false,
-  "manifest_sha256": "3717c01c4a291eb94931923c1332a94a64cbf9fa7290527c08f592a0f5aa9867"
+  "manifest_sha256": "4d673cb52f624148109a172c56d7bdcbf0d1b019632649258fe12c29b3d88453"
 }
