@@ -13,7 +13,9 @@ from training_signal_gate_v1 import (
     record_content_sha256, sha256_text, source_registry_sha256,
 )
 from training_shard_manifest_v1 import (
-    MANIFEST_KIND, RECORD_DIGEST_SCHEME, ManifestError,
+    MANIFEST_KIND, RECORD_DIGEST_SCHEME, HASH_PROFILE, SHARD_DIGEST_SCHEME,
+    SOURCE_REVISION_ENCODING_SCHEME, CONTAMINATION_EVIDENCE_SCHEME,
+    LANGUAGE_AUDIT_APPLICABILITY_SCHEME, ManifestError, canonical_p2_json_bytes,
     build_training_shard_manifest, validate_training_shard_manifest, validate_training_shard_artifact,
 )
 
@@ -110,6 +112,11 @@ class TrainingShardManifestTests(unittest.TestCase):
     def test_build_valid_manifest(self):
         manifest, shard = build()
         self.assertEqual(manifest['manifest_kind'], MANIFEST_KIND)
+        self.assertEqual(manifest['hash_profile'], HASH_PROFILE)
+        self.assertEqual(manifest['shard_digest_scheme'], SHARD_DIGEST_SCHEME)
+        self.assertEqual(manifest['source_revision_encoding_scheme'], SOURCE_REVISION_ENCODING_SCHEME)
+        self.assertEqual(manifest['contamination_evidence_scheme'], CONTAMINATION_EVIDENCE_SCHEME)
+        self.assertEqual(manifest['language_audit_applicability_scheme'], LANGUAGE_AUDIT_APPLICABILITY_SCHEME)
         self.assertEqual(manifest['row_count'], 2)
         self.assertEqual(manifest['decision_counts'], {'ADMIT': 2, 'QUARANTINE': 1, 'DENY': 1})
         self.assertEqual(manifest['admitted_record_content_digest_scheme'], RECORD_DIGEST_SCHEME)
@@ -169,6 +176,41 @@ class TrainingShardManifestTests(unittest.TestCase):
         # Alter manifest only enough to pass byte hash/size checks; self/identity then no longer validate.
         self.assertNotEqual(noncanonical, shard)
         self.assertNotEqual(hashlib.sha256(noncanonical).hexdigest(), manifest['shard_file_sha256'])
+
+    def test_p21_hash_profile_is_required_and_unknown_profile_rejected(self):
+        manifest, _ = build()
+        missing = copy.deepcopy(manifest); del missing['hash_profile']
+        self.assertTrue(validate_training_shard_manifest(missing)[1].startswith('manifest_missing:'))
+        bad = copy.deepcopy(manifest); bad['hash_profile'] = 'UNKNOWN_PROFILE'
+        self.assertEqual(validate_training_shard_manifest(bad), (False, 'invalid_hash_profile'))
+
+    def test_p21_hash_profile_forbids_float_and_non_ascii_keys(self):
+        with self.assertRaisesRegex(ManifestError, 'float_forbidden'):
+            canonical_p2_json_bytes({'x': 1.25})
+        with self.assertRaisesRegex(ManifestError, 'non_ascii_or_invalid_key'):
+            canonical_p2_json_bytes({'é': 'value'})
+
+    def test_p21_encoding_schemes_fail_closed(self):
+        fields = {
+            'shard_digest_scheme': 'invalid_shard_digest_scheme',
+            'source_revision_encoding_scheme': 'invalid_source_revision_encoding_scheme',
+            'contamination_evidence_scheme': 'invalid_contamination_evidence_scheme',
+            'language_audit_applicability_scheme': 'invalid_language_audit_applicability_scheme',
+        }
+        for field, reason in fields.items():
+            with self.subTest(field=field):
+                manifest, _ = build(); manifest[field] = 'OTHER_V1'
+                self.assertEqual(validate_training_shard_manifest(manifest), (False, reason))
+
+    def test_p21_self_hash_changes_when_semantic_scheme_changes(self):
+        manifest, _ = build()
+        original_id = manifest['manifest_id']; original_self = manifest['manifest_sha256']
+        changed = copy.deepcopy(manifest)
+        changed['source_revision_encoding_scheme'] = 'OTHER_V1'
+        self.assertNotEqual(changed['source_revision_encoding_scheme'], manifest['source_revision_encoding_scheme'])
+        self.assertEqual(validate_training_shard_manifest(changed), (False, 'invalid_source_revision_encoding_scheme'))
+        self.assertEqual(manifest['manifest_id'], original_id)
+        self.assertEqual(manifest['manifest_sha256'], original_self)
 
     def test_provenance_bundle_must_be_nonempty_object(self):
         for bad in ({}, [], 'x', None):
