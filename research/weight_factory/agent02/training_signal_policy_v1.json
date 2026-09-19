@@ -1,13 +1,27 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "policy_id": "AQLEVON_TRAINING_SIGNAL_ADMISSION_V1",
+  "policy_revision": 2,
   "default_decision": "DENY",
-  "allowed_source_admissions": [
+  "trainable_source_kinds": [
+    "dataset",
+    "generated_dataset",
+    "synthetic_dataset",
+    "curated_dataset"
+  ],
+  "recipe_only_source_kinds": [
+    "code_recipe",
+    "model_recipe",
+    "paper_recipe",
+    "dataset_recipe",
+    "paper_dataset_recipe",
+    "model_recipe_collection",
+    "recipe"
+  ],
+  "trainable_source_admissions": [
     "allow",
     "candidate_allow",
-    "allow_with_conditions",
-    "allow_local_open_weight",
-    "recipe_allow"
+    "allow_with_conditions"
   ],
   "allowed_license_statuses": [
     "cleared",
@@ -45,10 +59,11 @@
     "max_semantic_duplicate_score": 0.96
   },
   "learnability": {
+    "mode": "research_heuristic",
     "min_attempts": 4,
     "min_student_success_rate": 0.05,
     "max_student_success_rate": 0.85,
-    "note": "Initial curriculum heuristic, not a release threshold. Tune only from measured learning-progress ablations."
+    "note": "Configurable curriculum heuristic only; not a release threshold or canonical truth. Tune from measured learning-progress ablations."
   },
   "language_quality": {
     "lanes_requiring_audit": [
