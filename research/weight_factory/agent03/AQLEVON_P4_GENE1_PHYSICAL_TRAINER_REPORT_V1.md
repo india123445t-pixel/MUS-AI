@@ -243,6 +243,28 @@ Because no owned/donated/free compatible GPU is available in this Worker environ
 Worker 03 additionally freezes the exact argv through command SHA
 `3c898f3ff29619200b0792c9d19be9381e5b3bb2cd286a4ea86f121cb947e372`
 and command-lock SHA
-`3aeb611ebdf1eeb168820eba954305e8688b5beebad6463f01b3421ca4d588f6`.
+`ca990271f70a7b3d4536f3e29e1a31ce033e80ce8b7a95468832695f07378e9e`.
 
 No candidate or capability gain exists yet. Worker 05 remains evaluation authority and Manager remains acceptance authority.
+
+
+## Manager authorization gate — final pre-spend state
+
+Current verified branch head before this documentation-only commit:
+`b15418929039be0b80752ecc9df58a53dce10332`.
+
+Latest dedicated current-head GitHub Actions evidence:
+- `Agent03 P4 CPU Gate`: run `35428593349`, job `105858870277`, **SUCCESS**.
+- `P4 Agent03 Exact Contract`: run `35428593348`, job `105858870104`, **SUCCESS**.
+- unit/contract suite: **21/21 PASS**.
+- real W01/W02/W05 frozen-plan regeneration: PASS.
+- exact W02 56-row Parquet conversion/schema: PASS.
+- public objective reward on all 56 training-visible oracle programs: **56/56 PASS**.
+- stable identity check:
+  - plan `3cd6e0bada2535a80f83f400f45f5d0fdc5ad8d938f42757785335959f331095`
+  - run manifest `5a3f9df84d89216f4e227c187a53997aceb2e8c8e4727c053a531f295e26d6b5`
+  - command `3c898f3ff29619200b0792c9d19be9381e5b3bb2cd286a4ea86f121cb947e372`
+  - command lock `ca990271f70a7b3d4536f3e29e1a31ce033e80ce8b7a95468832695f07378e9e`
+  - all links PASS.
+
+No free/owned/donated compatible GPU is visible to Worker 03. Therefore the task is now blocked only on Manager authorization for one paid A1 seed1701 calibrator run. No paid compute will be launched before that explicit authorization.
