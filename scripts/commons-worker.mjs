@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import {randomUUID} from 'node:crypto';
 import {buildRuntimeAccounting,normalizeBoundedInteger,parseStrictBoundedInteger,sanitizeEndpointForLog} from '../lib/aqlevon/runtime-economics.js';
-import {buildRequestIdentity,buildRuntimeAttemptReceipt,hashRuntimeResult,isSha256Hex} from '../lib/aqlevon/runtime-receipts.js';
+import {buildRequestIdentity,buildRuntimeAttemptReceipt,hashRuntimeResult,validateRuntimeReceiptIdentityConfig} from '../lib/aqlevon/runtime-receipts.js';
 
 const COMMONS_URL=process.env.AQLEVON_COMMONS_URL||'https://qkoscgdegnqcypkjrefn.supabase.co/functions/v1/aqlevon-commons';
 const WORKER_TOKEN=process.env.AQLEVON_COMMONS_WORKER_TOKEN||'';
@@ -14,10 +14,14 @@ const CONFIGURED_CONCURRENCY=normalizeBoundedInteger(process.env.AQLEVON_COMMONS
 const CONCURRENCY=ONCE?1:CONFIGURED_CONCURRENCY;
 const MODEL_TIMEOUT_MS=parseStrictBoundedInteger(process.env.AQLEVON_COMMONS_MODEL_TIMEOUT_MS,{defaultValue:240000,min:100,max:900000});
 const MODEL_LOG_ORIGIN=sanitizeEndpointForLog(MODEL_URL);
-const CANDIDATE_MANIFEST_SHA=String(process.env.AQLEVON_CANDIDATE_ARTIFACT_MANIFEST_SHA256||'').trim().toLowerCase();
-const HARNESS_MANIFEST_SHA=String(process.env.AQLEVON_RUNTIME_HARNESS_MANIFEST_SHA256||'').trim().toLowerCase();
-const RECEIPT_CONFIG_REQUESTED=!!CANDIDATE_MANIFEST_SHA||!!HARNESS_MANIFEST_SHA;
-const RECEIPTS_CONFIGURED=isSha256Hex(CANDIDATE_MANIFEST_SHA)&&isSha256Hex(HARNESS_MANIFEST_SHA);
+const RECEIPT_IDENTITY=validateRuntimeReceiptIdentityConfig({
+  candidateArtifactManifestSha256:process.env.AQLEVON_CANDIDATE_ARTIFACT_MANIFEST_SHA256,
+  harnessManifestSha256:process.env.AQLEVON_RUNTIME_HARNESS_MANIFEST_SHA256,
+});
+const CANDIDATE_MANIFEST_SHA=RECEIPT_IDENTITY.candidate_artifact_manifest_sha256;
+const HARNESS_MANIFEST_SHA=RECEIPT_IDENTITY.harness_manifest_sha256;
+const RECEIPT_CONFIG_REQUESTED=RECEIPT_IDENTITY.requested;
+const RECEIPTS_CONFIGURED=RECEIPT_IDENTITY.configured;
 
 if(!WORKER_TOKEN){
   console.error('AQLEVON_COMMONS_WORKER_TOKEN is required.');
@@ -28,7 +32,7 @@ if(MODEL_TIMEOUT_MS===null){
   process.exit(2);
 }
 if(RECEIPT_CONFIG_REQUESTED&&!RECEIPTS_CONFIGURED){
-  console.error(JSON.stringify({event:'commons_worker_config_error',field:'runtime_receipt_identity',reason:'candidate_and_harness_sha256_required'}));
+  console.error(JSON.stringify({event:'commons_worker_config_error',field:'runtime_receipt_identity',reason:RECEIPT_IDENTITY.reason}));
   process.exit(2);
 }
 
