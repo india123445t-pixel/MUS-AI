@@ -296,4 +296,123 @@ def validate_a1_candidate_manifest(candidate: Any) -> list[str]:
         errors.append("candidate_manifest_id")
     errors.extend(_scan_forbidden_training_material(candidate, "candidate_manifest"))
     errors.extend(_scan_pre_score_leakage(candidate, "candidate_manifest"))
-    re
+    return sorted(set(errors))
+
+
+def validate_training_receipt(training_receipt_bytes: bytes, *, candidate: dict[str, Any]) -> tuple[dict[str, Any] | None, list[str]]:
+    errors: list[str] = []
+    if sha256_bytes(training_receipt_bytes) != candidate.get("training_run_receipt_sha256"):
+        errors.append("training_receipt_raw_sha_mismatch")
+    try:
+        receipt = json.loads(training_receipt_bytes.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return None, sorted(set(errors + ["training_receipt_not_utf8_json"]))
+    if not isinstance(receipt, dict):
+        return None, sorted(set(errors + ["training_receipt_not_object"]))
+    errors.extend(_scan_forbidden_training_material(receipt, "training_receipt"))
+    errors.extend(_scan_pre_score_leakage(receipt, "training_receipt"))
+    errors.extend(_require_unique_value(receipt, ("run_manifest_sha256",), A1_RUN_MANIFEST_SHA256, "run_manifest"))
+    errors.extend(_require_unique_value(receipt, ("training_plan_sha256", "plan_sha256"), A1_PLAN_SHA256, "training_plan"))
+    errors.extend(_require_unique_value(receipt, ("arm_id",), A1_ARM_ID, "arm_id"))
+    errors.extend(_require_unique_value(receipt, ("seed", "training_seed"), A1_SEED, "seed"))
+    errors.extend(_require_unique_value(receipt, ("sealed_eval_consumed",), False, "sealed_eval_consumed"))
+    errors.extend(_require_unique_value(receipt, ("capability_gain_claim",), False, "capability_gain_claim"))
+    errors.extend(_require_unique_value(receipt, ("reload_hash_match",), True, "reload_hash_match"))
+    errors.extend(_require_unique_value(receipt, ("optimizer_updates",), 12, "optimizer_updates"))
+    changed = _collect_key_values(receipt, "changed_elements")
+    if not changed or any(type(x) is not int or x <= 0 for x in changed):
+        errors.append("training_receipt_nonzero_delta_missing")
+    candidate_state = candidate.get("adapter_state_sha256")
+    state_values: list[Any] = []
+    for key in ("adapter_state_sha256", "saved_adapter_state_sha256", "post_state_sha256", "reloaded_adapter_state_sha256"):
+        state_values.extend(_collect_key_values(receipt, key))
+    if candidate_state not in state_values:
+        errors.append("training_receipt_candidate_state_mismatch")
+    return receipt, sorted(set(errors))
+
+
+def validate_surrogate_stage_binding(stage_binding: Any, *, law: dict[str, Any]) -> list[str]:
+    errors = list(p4.validate_stage_binding(stage_binding, law=law))
+    if not isinstance(stage_binding, dict):
+        return sorted(set(errors + ["stage_binding_not_object"]))
+    if stage_binding.get("stage") != "surrogate" or stage_binding.get("round_mode") != "initial12":
+        errors.append("stage_binding_not_a1_initial12")
+    if stage_binding.get("sampling_profile_sha256") != law.get("sampling_profile_sha256"):
+        errors.append("stage_binding_sampling_profile")
+    for field in ("harness_manifest_sha256", "task_factory_manifest_sha256", "hidden_canary_manifest_sha256", "anti_shortcut_manifest_sha256", "metamorphic_manifest_sha256", "reality_policy_sha256"):
+        if not valid_sha256(stage_binding.get(field)):
+            errors.append(f"stage_binding_eval_identity:{field}")
+    return sorted(set(errors))
+
+
+def build_a1_ingest_receipt(
+    *, law: dict[str, Any], stage_binding: dict[str, Any], run_manifest: dict[str, Any], command_lock: dict[str, Any],
+    candidate: dict[str, Any], training_receipt_bytes: bytes, recipe_spec_sha256: str,
+    compute_receipt_sha256: str, training_budget_manifest_sha256: str,
+) -> dict[str, Any]:
+    errors: list[str] = []
+    if law != p4.frozen_gene1_evaluation_law():
+        errors.append("frozen_law_byte_semantics_mismatch")
+    errors.extend(p4.validate_evaluation_law(law))
+    errors.extend(validate_surrogate_stage_binding(stage_binding, law=law))
+    errors.extend(validate_a1_run_manifest(run_manifest))
+    errors.extend(validate_a1_command_lock(command_lock, run_manifest=run_manifest))
+    errors.extend(validate_a1_candidate_manifest(candidate))
+    receipt, receipt_errors = validate_training_receipt(training_receipt_bytes, candidate=candidate)
+    errors.extend(receipt_errors)
+    for field, value in (
+        ("recipe_spec_sha256", recipe_spec_sha256),
+        ("compute_receipt_sha256", compute_receipt_sha256),
+        ("training_budget_manifest_sha256", training_budget_manifest_sha256),
+    ):
+        if not valid_sha256(value):
+            errors.append(f"invalid_input_hash:{field}")
+    if training_budget_manifest_sha256 != stage_binding.get("matched_training_budget_manifest_sha256"):
+        errors.append("training_budget_stage_binding_mismatch")
+    if errors:
+        raise HotPathError(STATE_INVALID_CANDIDATE + ":" + ";".join(sorted(set(errors))))
+    body = {
+        "schema_version": 1,
+        "receipt_kind": HOTPATH_KIND,
+        "hash_profile": HASH_PROFILE,
+        "task_id": "P4.1-A05-SURROGATE-EVAL-HOTPATH",
+        "parent_task_id": "P4-A05-GENE1-REALITY-TOURNAMENT",
+        "state": STATE_READY_TO_REGISTER,
+        "law_sha256": law["law_sha256"],
+        "stage_binding_sha256": stage_binding["stage_binding_sha256"],
+        "candidate_slot": A1_SLOT,
+        "arm_id": A1_ARM_ID,
+        "training_seed": A1_SEED,
+        "w03_tested_source_commit": W03_TESTED_SOURCE_COMMIT,
+        "training_plan_sha256": A1_PLAN_SHA256,
+        "run_manifest_sha256": A1_RUN_MANIFEST_SHA256,
+        "command_sha256": A1_COMMAND_SHA256,
+        "command_lock_sha256": A1_COMMAND_LOCK_SHA256,
+        "candidate_artifact_manifest_sha256": candidate["manifest_sha256"],
+        "training_run_receipt_sha256": candidate["training_run_receipt_sha256"],
+        "recipe_spec_sha256": recipe_spec_sha256,
+        "compute_receipt_sha256": compute_receipt_sha256,
+        "training_budget_manifest_sha256": training_budget_manifest_sha256,
+        "base_repo": SURROGATE_REPO,
+        "base_revision": SURROGATE_REVISION,
+        "harness_manifest_sha256": stage_binding["harness_manifest_sha256"],
+        "sampling_profile_sha256": law["sampling_profile_sha256"],
+        "sealed_eval_consumed_by_training": False,
+        "hidden_eval_compute_authorized_by_this_receipt": False,
+        "next_requirement": "BUILD_CANDIDATE_REGISTRATION_AND_MANAGER_VERIFIABLE_FREEZE_BEFORE_SCORE_UNSEAL",
+        "authority": {
+            "authority_kind": HOTPATH_AUTHORITY_KIND,
+            "authoritative_for_evaluation_result": False,
+            "authoritative_for_model_promotion": False,
+            "manager_acceptance_required": True,
+        },
+    }
+    _ = receipt  # parsed and semantically checked above; plaintext is never copied into ingest evidence.
+    return _seal(body, "ingest_receipt_sha256")
+
+
+def build_a1_single_candidate_registration(*, law: dict[str, Any], stage_binding: dict[str, Any], ingest: dict[str, Any]) -> dict[str, Any]:
+    """Pre-register exactly one A1 candidate before any hidden score is opened.
+
+    This P4.1 overlay exists because the frozen P4 batch tournament registration
+   
