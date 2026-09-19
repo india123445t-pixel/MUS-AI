@@ -35,7 +35,12 @@ SCHEMA_VERSION = 1
 RECORD_DIGEST_SCHEME = "AQLEVON_SORTED_RECORD_CONTENT_SHA256_LIST_V1"
 DECISION_LOG_SCHEME = "AQLEVON_ADMISSION_DECISION_LOG_V1"
 MANIFEST_ID_SCHEME = "AQLEVON_TRAINING_SHARD_IDENTITY_V1"
+HASH_PROFILE = "AQLEVON_CANONICAL_JSON_SHA256_V1"
 SHARD_ROW_KIND = "AQLEVON_TRAINING_SHARD_ROW_V1"
+SHARD_DIGEST_SCHEME = "AQLEVON_CANONICAL_TRAINING_SHARD_JSONL_SHA256_V1"
+SOURCE_REVISION_ENCODING_SCHEME = "AQLEVON_SORTED_SOURCE_REVISION_TRIPLES_V1"
+CONTAMINATION_EVIDENCE_SCHEME = "AQLEVON_PROTECTED_TRAINING_CONTAMINATION_EVIDENCE_V1"
+LANGUAGE_AUDIT_APPLICABILITY_SCHEME = "AQLEVON_P1_LANGUAGE_AUDIT_APPLICABILITY_V1"
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _DECISIONS = (ADMIT, QUARANTINE, DENY)
 
@@ -80,6 +85,32 @@ def _load_jsonl(path: pathlib.Path) -> list[dict[str, Any]]:
 
 def _canonical_json_sha256(value: Any) -> str:
     return _sha256_bytes(canonical_json_bytes(value))
+
+
+def _p2_canon(value: Any) -> Any:
+    """Canonicalize authoritative P2 self-hash payloads per Manager profile P2.1."""
+    import unicodedata
+    if isinstance(value, str):
+        return unicodedata.normalize("NFKC", value).replace("\r\n", "\n").replace("\r", "\n")
+    if value is None or type(value) in (bool, int):
+        return value
+    if isinstance(value, float):
+        raise ManifestError("p2_hash_profile_float_forbidden")
+    if isinstance(value, list):
+        return [_p2_canon(x) for x in value]
+    if isinstance(value, dict):
+        if not all(isinstance(k, str) and k and all(ord(ch) < 128 for ch in k) for k in value):
+            raise ManifestError("p2_hash_profile_non_ascii_or_invalid_key")
+        return {k: _p2_canon(value[k]) for k in sorted(value, key=lambda x: x.encode("ascii"))}
+    raise ManifestError(f"p2_hash_profile_unsupported_type:{type(value).__name__}")
+
+
+def canonical_p2_json_bytes(value: Any) -> bytes:
+    return json.dumps(_p2_canon(value), ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")
+
+
+def _p2_self_sha256(value: Any) -> str:
+    return _sha256_bytes(canonical_p2_json_bytes(value))
 
 
 def _decision_of(row: dict[str, Any]) -> str:
@@ -272,7 +303,7 @@ def _manifest_identity_payload(manifest: dict[str, Any]) -> dict[str, Any]:
 
 
 def _manifest_id(manifest: dict[str, Any]) -> str:
-    return f"aqlevon-training-shard-v1:{_canonical_json_sha256(_manifest_identity_payload(manifest))}"
+    return f"aqlevon-training-shard-v1:{_p2_self_sha256(_manifest_identity_payload(manifest))}"
 
 
 def build_training_shard_manifest(
@@ -335,6 +366,7 @@ def build_training_shard_manifest(
     manifest: dict[str, Any] = {
         "schema_version": SCHEMA_VERSION,
         "manifest_kind": MANIFEST_KIND,
+        "hash_profile": HASH_PROFILE,
         "manifest_id": "",
         "admission_policy_id": policy_id,
         "admission_policy_sha256": admission_policy_sha,
@@ -342,6 +374,7 @@ def build_training_shard_manifest(
         "protected_training_contamination_manifest_sha256": protected_manifest_sha,
         "protected_training_contamination_receipt_sha256": receipts,
         "admission_gate_code_sha256": gate_code_sha,
+        "shard_digest_scheme": SHARD_DIGEST_SCHEME,
         "shard_file_sha256": shard_sha,
         "byte_size": len(shard_bytes),
         "row_count": len(admitted),
@@ -351,11 +384,14 @@ def build_training_shard_manifest(
         "decision_log_sha256": decision_log_sha,
         "decision_counts": decision_counts,
         "provenance_license_evidence_bundle_sha256": provenance_sha,
+        "source_revision_encoding_scheme": SOURCE_REVISION_ENCODING_SCHEME,
+        "contamination_evidence_scheme": CONTAMINATION_EVIDENCE_SCHEME,
+        "language_audit_applicability_scheme": LANGUAGE_AUDIT_APPLICABILITY_SCHEME,
         "language_audit_receipt_sha256": language_receipts,
         "created_from": created_from,
     }
     manifest["manifest_id"] = _manifest_id(manifest)
-    manifest["manifest_sha256"] = _canonical_json_sha256(manifest)
+    manifest["manifest_sha256"] = _p2_self_sha256(manifest)
 
     ok, reason = validate_training_shard_manifest(manifest)
     if not ok:
@@ -367,14 +403,16 @@ def validate_training_shard_manifest(manifest: Any) -> tuple[bool, str]:
     if not isinstance(manifest, dict):
         return False, "manifest_not_object"
     required = {
-        "schema_version", "manifest_kind", "manifest_id", "admission_policy_id",
+        "schema_version", "manifest_kind", "hash_profile", "manifest_id", "admission_policy_id",
         "admission_policy_sha256", "source_registry_snapshot_sha256",
         "protected_training_contamination_manifest_sha256",
         "protected_training_contamination_receipt_sha256", "admission_gate_code_sha256",
-        "shard_file_sha256", "byte_size", "row_count",
+        "shard_digest_scheme", "shard_file_sha256", "byte_size", "row_count",
         "admitted_record_content_digest_scheme", "admitted_record_content_digest_sha256",
         "decision_log_scheme", "decision_log_sha256", "decision_counts",
-        "provenance_license_evidence_bundle_sha256", "language_audit_receipt_sha256",
+        "provenance_license_evidence_bundle_sha256",
+        "source_revision_encoding_scheme", "contamination_evidence_scheme",
+        "language_audit_applicability_scheme", "language_audit_receipt_sha256",
         "created_from", "manifest_sha256",
     }
     missing = sorted(required - set(manifest))
@@ -387,6 +425,8 @@ def validate_training_shard_manifest(manifest: Any) -> tuple[bool, str]:
         return False, "invalid_schema_version"
     if manifest["manifest_kind"] != MANIFEST_KIND:
         return False, "invalid_manifest_kind"
+    if manifest["hash_profile"] != HASH_PROFILE:
+        return False, "invalid_hash_profile"
     if not isinstance(manifest["manifest_id"], str) or not manifest["manifest_id"].startswith("aqlevon-training-shard-v1:"):
         return False, "invalid_manifest_id"
     if not isinstance(manifest["admission_policy_id"], str) or not manifest["admission_policy_id"]:
@@ -402,10 +442,18 @@ def validate_training_shard_manifest(manifest: Any) -> tuple[bool, str]:
         return False, "invalid_byte_size"
     if type(manifest["row_count"]) is not int or manifest["row_count"] <= 0:
         return False, "invalid_row_count"
+    if manifest["shard_digest_scheme"] != SHARD_DIGEST_SCHEME:
+        return False, "invalid_shard_digest_scheme"
     if manifest["admitted_record_content_digest_scheme"] != RECORD_DIGEST_SCHEME:
         return False, "invalid_record_digest_scheme"
     if manifest["decision_log_scheme"] != DECISION_LOG_SCHEME:
         return False, "invalid_decision_log_scheme"
+    if manifest["source_revision_encoding_scheme"] != SOURCE_REVISION_ENCODING_SCHEME:
+        return False, "invalid_source_revision_encoding_scheme"
+    if manifest["contamination_evidence_scheme"] != CONTAMINATION_EVIDENCE_SCHEME:
+        return False, "invalid_contamination_evidence_scheme"
+    if manifest["language_audit_applicability_scheme"] != LANGUAGE_AUDIT_APPLICABILITY_SCHEME:
+        return False, "invalid_language_audit_applicability_scheme"
 
     counts = manifest["decision_counts"]
     if not isinstance(counts, dict) or set(counts) != set(_DECISIONS):
@@ -442,8 +490,8 @@ def validate_training_shard_manifest(manifest: Any) -> tuple[bool, str]:
     try:
         expected_id = _manifest_id(manifest)
         without_self = {k: manifest[k] for k in manifest if k != "manifest_sha256"}
-        expected_self = _canonical_json_sha256(without_self)
-    except (KeyError, TypeError, ValueError):
+        expected_self = _p2_self_sha256(without_self)
+    except (KeyError, TypeError, ValueError, ManifestError):
         return False, "manifest_uncanonicalizable"
     if manifest["manifest_id"] != expected_id:
         return False, "manifest_id_mismatch"
