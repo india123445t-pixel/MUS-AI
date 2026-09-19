@@ -718,3 +718,196 @@ def build_reality_gate_evidence(
     policy: dict[str, Any],
     checkpoint_curve: list[dict[str, Any]],
     seed_null_result: dict[str, Any] | None = None,
+    method_level_claim: bool = False,
+) -> dict[str, Any]:
+    result = evaluate_reality_gate(
+        baseline_pack=baseline_pack,
+        candidate_pack=candidate_pack,
+        policy=policy,
+        checkpoint_curve=checkpoint_curve,
+        seed_null_result=seed_null_result,
+        method_level_claim=method_level_claim,
+    )
+    failure_codes, failure_digest = _reason_codes("REALITY", result["failure_reasons"])
+    evidence = {
+        "schema_version": 1,
+        "evidence_kind": REALITY_EVIDENCE_KIND,
+        "hash_profile": HASH_PROFILE,
+        "reality_policy_sha256": policy["policy_sha256"],
+        "reality_gate_code_sha256": actual_reality_gate_code_sha256(),
+        "baseline_outcome_pack_sha256": baseline_pack["outcome_pack_sha256"],
+        "candidate_outcome_pack_sha256": candidate_pack["outcome_pack_sha256"],
+        "baseline_candidate_artifact_manifest_sha256": baseline_pack["candidate_artifact_manifest_sha256"],
+        "candidate_artifact_manifest_sha256": candidate_pack["candidate_artifact_manifest_sha256"],
+        "harness_manifest_sha256": candidate_pack["harness_manifest_sha256"],
+        "task_factory_manifest_sha256": candidate_pack["task_factory_manifest_sha256"],
+        "hidden_canary_manifest_sha256": candidate_pack["hidden_canary_manifest_sha256"],
+        "baseline_raw_outcome_log_sha256": baseline_pack["raw_outcome_log_sha256"],
+        "candidate_raw_outcome_log_sha256": candidate_pack["raw_outcome_log_sha256"],
+        "metrics": {
+            "baseline": result["baseline_summary"],
+            "candidate": result["candidate_summary"],
+            "primary_clean_pass_delta_basis_points": result["primary_clean_pass_delta_basis_points"],
+            "transfer_clean_pass_delta_basis_points": result["transfer_clean_pass_delta_basis_points"],
+            "hack_gap_increase_basis_points": result["hack_gap_increase_basis_points"],
+        },
+        "checkpoint_curve": result["checkpoint_curve"],
+        "seed_vs_resampling_null": result["seed_vs_resampling_null"],
+        "method_level_claim": result["method_level_claim"],
+        "final_status": result["status"],
+        "failure_reason_codes": failure_codes,
+        "failure_reason_set_sha256": failure_digest,
+        "promotion_authority": _promotion_authority_boundary(),
+        "truth_boundary": "REALITY_PASS_IS_EVIDENCE_ONLY_PROMOTION_REQUIRES_EVALUATION_DECISION_RECEIPT_AND_MANAGER_REVIEW",
+    }
+    _assert_no_forbidden_plaintext(evidence)
+    evidence["evidence_sha256"] = _sha256_json(evidence)
+    invalid = validate_reality_gate_evidence(evidence, policy=policy)
+    if invalid:
+        raise RealityGateError("; ".join(invalid))
+    return evidence
+
+
+def validate_reality_gate_evidence(
+    evidence: Any, *, policy: dict[str, Any] | None = None,
+    baseline_pack: dict[str, Any] | None = None, candidate_pack: dict[str, Any] | None = None,
+    checkpoint_curve: list[dict[str, Any]] | None = None, seed_null_result: dict[str, Any] | None = None,
+) -> list[str]:
+    invalid: list[str] = []
+    if not isinstance(evidence, dict):
+        return ["reality evidence must be an object"]
+    required = {
+        "schema_version", "evidence_kind", "hash_profile", "reality_policy_sha256",
+        "reality_gate_code_sha256", "baseline_outcome_pack_sha256", "candidate_outcome_pack_sha256",
+        "baseline_candidate_artifact_manifest_sha256", "candidate_artifact_manifest_sha256",
+        "harness_manifest_sha256", "task_factory_manifest_sha256", "hidden_canary_manifest_sha256",
+        "baseline_raw_outcome_log_sha256", "candidate_raw_outcome_log_sha256", "metrics",
+        "checkpoint_curve", "seed_vs_resampling_null", "method_level_claim", "final_status",
+        "failure_reason_codes", "failure_reason_set_sha256", "promotion_authority",
+        "truth_boundary", "evidence_sha256",
+    }
+    if not _exact_keys(evidence, required):
+        invalid.append("reality evidence schema mismatch")
+    if evidence.get("schema_version") != 1 or evidence.get("evidence_kind") != REALITY_EVIDENCE_KIND:
+        invalid.append("reality evidence identity mismatch")
+    if evidence.get("hash_profile") != HASH_PROFILE:
+        invalid.append("reality evidence hash_profile mismatch")
+    if not verify_p2_self_digest(evidence, "evidence_sha256"):
+        invalid.append("reality evidence self-digest mismatch")
+    for field in (
+        "reality_policy_sha256", "reality_gate_code_sha256", "baseline_outcome_pack_sha256",
+        "candidate_outcome_pack_sha256", "baseline_candidate_artifact_manifest_sha256",
+        "candidate_artifact_manifest_sha256", "harness_manifest_sha256",
+        "task_factory_manifest_sha256", "hidden_canary_manifest_sha256",
+        "baseline_raw_outcome_log_sha256", "candidate_raw_outcome_log_sha256",
+        "failure_reason_set_sha256", "evidence_sha256",
+    ):
+        if not valid_sha256(evidence.get(field)):
+            invalid.append(f"reality evidence {field} invalid")
+    if valid_sha256(evidence.get("reality_gate_code_sha256")) and evidence.get("reality_gate_code_sha256") != actual_reality_gate_code_sha256():
+        invalid.append("reality evidence code identity mismatch")
+    if evidence.get("baseline_candidate_artifact_manifest_sha256") == evidence.get("candidate_artifact_manifest_sha256"):
+        invalid.append("reality evidence baseline/candidate identity collision")
+    if evidence.get("final_status") not in {"REJECTED", "REALITY_PASS"}:
+        invalid.append("reality evidence final_status invalid")
+    if not isinstance(evidence.get("failure_reason_codes"), list) or any(not isinstance(x, str) for x in evidence.get("failure_reason_codes", [])):
+        invalid.append("reality evidence failure_reason_codes invalid")
+    authority = evidence.get("promotion_authority")
+    if not isinstance(authority, dict):
+        invalid.append("reality evidence promotion authority missing")
+    else:
+        if authority.get("authority_kind") != AUTHORITY_KIND:
+            invalid.append("reality evidence authority kind mismatch")
+        if authority.get("authoritative_for_model_promotion") is not False:
+            invalid.append("reality evidence must not be promotion authority")
+        if authority.get("authoritative_for_arbitrary_runtime_attempts") is not False:
+            invalid.append("reality evidence must not be runtime-attempt authority")
+        if authority.get("promotion_requirement") != "VALID_AQLEVON_EVALUATION_DECISION_RECEIPT_V1_PLUS_MANAGER_REVIEW":
+            invalid.append("reality evidence promotion requirement mismatch")
+    if evidence.get("truth_boundary") != "REALITY_PASS_IS_EVIDENCE_ONLY_PROMOTION_REQUIRES_EVALUATION_DECISION_RECEIPT_AND_MANAGER_REVIEW":
+        invalid.append("reality evidence truth boundary mismatch")
+    if policy is not None:
+        policy_invalid = validate_policy(policy)
+        if policy_invalid:
+            invalid.extend(f"policy invalid:{x}" for x in policy_invalid)
+        elif evidence.get("reality_policy_sha256") != policy.get("policy_sha256"):
+            invalid.append("reality evidence policy binding mismatch")
+    try:
+        _assert_no_forbidden_plaintext(evidence)
+    except RealityGateError as exc:
+        invalid.append(str(exc))
+    # Authoritative evidence must not contain direct floats anywhere.
+    def has_float(value: Any) -> bool:
+        if isinstance(value, float):
+            return True
+        if isinstance(value, list):
+            return any(has_float(x) for x in value)
+        if isinstance(value, dict):
+            return any(has_float(x) for x in value.values())
+        return False
+    if has_float(evidence):
+        invalid.append("reality evidence contains direct float")
+    support_values = (baseline_pack, candidate_pack, checkpoint_curve)
+    if any(x is not None for x in support_values):
+        if not all(x is not None for x in support_values) or policy is None:
+            invalid.append("reality evidence semantic validation requires policy+baseline+candidate+curve together")
+        else:
+            try:
+                expected = build_reality_gate_evidence(
+                    baseline_pack=baseline_pack, candidate_pack=candidate_pack, policy=policy,
+                    checkpoint_curve=checkpoint_curve, seed_null_result=seed_null_result,
+                    method_level_claim=evidence.get("method_level_claim") is True,
+                )
+                if expected != evidence:
+                    invalid.append("reality evidence does not match fresh recomputation from supporting evidence")
+            except (RealityGateError, TypeError, ValueError) as exc:
+                invalid.append(f"reality evidence semantic recomputation failed:{exc}")
+    return sorted(set(invalid))
+
+
+def _load(path: str) -> Any:
+    return json.loads(Path(path).read_text(encoding="utf-8"))
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="AQLEVON P3 Reality Gate V1")
+    sub = parser.add_subparsers(dest="cmd", required=True)
+    build = sub.add_parser("build-evidence")
+    for name in ("baseline", "candidate", "policy", "curve"):
+        build.add_argument(f"--{name}", required=True)
+    build.add_argument("--seed-null")
+    build.add_argument("--method-level-claim", action="store_true")
+    validate = sub.add_parser("validate-evidence")
+    validate.add_argument("--evidence", required=True)
+    validate.add_argument("--policy")
+    validate.add_argument("--baseline")
+    validate.add_argument("--candidate")
+    validate.add_argument("--curve")
+    validate.add_argument("--seed-null")
+    args = parser.parse_args()
+    if args.cmd == "build-evidence":
+        evidence = build_reality_gate_evidence(
+            baseline_pack=_load(args.baseline),
+            candidate_pack=_load(args.candidate),
+            policy=_load(args.policy),
+            checkpoint_curve=_load(args.curve),
+            seed_null_result=_load(args.seed_null) if args.seed_null else None,
+            method_level_claim=args.method_level_claim,
+        )
+        print(json.dumps(evidence, ensure_ascii=False, sort_keys=True, separators=(",", ":")))
+        return 0
+    evidence = _load(args.evidence)
+    policy = _load(args.policy) if args.policy else None
+    errors = validate_reality_gate_evidence(
+        evidence, policy=policy,
+        baseline_pack=_load(args.baseline) if args.baseline else None,
+        candidate_pack=_load(args.candidate) if args.candidate else None,
+        checkpoint_curve=_load(args.curve) if args.curve else None,
+        seed_null_result=_load(args.seed_null) if args.seed_null else None,
+    )
+    print(json.dumps({"status": "VALID" if not errors else "INVALID", "invalid_reasons": errors}, sort_keys=True))
+    return 0 if not errors else 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
