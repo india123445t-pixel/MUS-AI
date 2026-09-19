@@ -6,9 +6,8 @@
   "arm_id": "P4_A1_RLVR_CONTROL",
   "seed": 1701,
   "profile_id": "p4-surrogate-1x24",
-  "training_plan_sha256": "2ad7de02027e7b4eb1546486c1f02999b361585a38fc8316c17efbea9e1993c2",
+  "training_plan_sha256": "3cd6e0bada2535a80f83f400f45f5d0fdc5ad8d938f42757785335959f331095",
   "command_sha256": "3c898f3ff29619200b0792c9d19be9381e5b3bb2cd286a4ea86f121cb947e372",
-  "command_lock_sha256": "bf029c3d7b01ff02733e14f95faad1b3a5420fb21c50bfe3eb43acacfeeb50e3",
   "student_model": {
     "repo": "Qwen/Qwen3.5-4B-Base",
     "revision": "daa9c16f371249f9ad1c75a9ed6f956c08ea08f5",
@@ -33,8 +32,7 @@
   "worker03_sources": {
     "trainer_git_blob_sha1": "6fedac7c2f0c00c5ed8b83110dbd1b064ebb5fff",
     "tournament_git_blob_sha1": "585acf1d1142629ec75a9a31b9437f346861012f",
-    "reward_git_blob_sha1": "c9db3e315299cce59c5d4cece7de86302c10c614",
-    "command_lock_git_blob_sha1": "ba7b4b0831de2cbfd87fe3af12c8359414df3cc2"
+    "reward_git_blob_sha1": "c9db3e315299cce59c5d4cece7de86302c10c614"
   },
   "budget": {
     "optimizer_updates": 12,
@@ -45,6 +43,7 @@
   },
   "data_preparation": {
     "format": "parquet",
+    "pyarrow_version": "22.0.0",
     "source": "exact_worker02_public_training_shard_and_training_visible_pack",
     "generated_on_execution_host": true,
     "sealed_eval_consumed": false
@@ -54,5 +53,5 @@
   "automatic_fallback": false,
   "paid_compute_requires_manager_authorization": true,
   "capability_gain_claim": false,
-  "manifest_sha256": "7ac6452cd904ee379781a742d8e8284faf8576d6d335c59f8b9a650b3834e141"
+  "manifest_sha256": "4b51b8c143e2b5c6cbdcc65d5cd8b356e207b4d7d0fb8641b0d991abb1f8f690"
 }
