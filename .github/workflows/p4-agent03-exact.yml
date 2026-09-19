@@ -64,7 +64,7 @@ jobs:
             --w02-binding /tmp/p4inputs/w02_binding.json \
             --w05-law /tmp/p4inputs/w05_law.json \
             --output /tmp/p4inputs/generated_plan.json
-          cmp -s /tmp/p4inputs/generated_plan.json p4_frozen_training_plan_v1.json
+          diff -u p4_frozen_training_plan_v1.json /tmp/p4inputs/generated_plan.json
 
       - name: Prepare and inspect real parquet
         working-directory: research/weight_factory/agent03
