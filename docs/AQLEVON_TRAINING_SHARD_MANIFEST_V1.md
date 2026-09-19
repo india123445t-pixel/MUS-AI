@@ -91,6 +91,23 @@ The plaintext decision log is not embedded in the manifest. Any decision-row mut
 
 Unknown top-level manifest fields are rejected so downstream lanes cannot smuggle duplicate correctness/promotion truth into this schema.
 
+## P2.1 canonical hash / concrete encoding amendment
+
+After Worker-01 contract audit, Manager amended the frozen P2 contract. V1 now implements those binding requirements explicitly:
+
+- `hash_profile: AQLEVON_CANONICAL_JSON_SHA256_V1` is mandatory and unknown/missing profiles are rejected;
+- `manifest_sha256` and deterministic `manifest_id` use the Manager profile: compact UTF-8 JSON, ASCII byte-sorted object keys, preserved array order, NFKC strings, CRLF/CR→LF normalization, booleans/null, ordinary integers, and **no direct floating-point values** in the authoritative self-hash payload;
+- floats/NaN/Infinity are therefore not silently serialized into the self-hash identity. AQLEVON V1 contains no self-hashed non-integral numeric fields; a future such value must first be represented as a Manager-profile canonical decimal string;
+- concrete algorithm identifiers are mandatory:
+  - `admitted_record_content_digest_scheme = AQLEVON_SORTED_RECORD_CONTENT_SHA256_LIST_V1`;
+  - `shard_digest_scheme = AQLEVON_CANONICAL_TRAINING_SHARD_JSONL_SHA256_V1`;
+  - `source_revision_encoding_scheme = AQLEVON_SORTED_SOURCE_REVISION_TRIPLES_V1`;
+  - `contamination_evidence_scheme = AQLEVON_PROTECTED_TRAINING_CONTAMINATION_EVIDENCE_V1`;
+  - `language_audit_applicability_scheme = AQLEVON_P1_LANGUAGE_AUDIT_APPLICABILITY_V1`;
+  - `decision_log_scheme = AQLEVON_ADMISSION_DECISION_LOG_V1`.
+
+Consumers can therefore validate the whole manifest without guessing the meaning of flexible/optional fields.
+
 ## Artifact validator
 
 `validate_training_shard_artifact(manifest, shard_bytes)` validates both the receipt and artifact:
@@ -157,11 +174,11 @@ Construction is fail-closed and writes outputs only after all checks pass.
 
 Local isolated suite on exact implementation:
 - P1 admission regressions: **38/38 PASS**;
-- P2 manifest regressions: **30/30 PASS**;
-- combined: **68/68 PASS**;
+- P2 manifest regressions: **34/34 PASS**;
+- combined: **72/72 PASS**;
 - Python compilation: PASS;
 - policy JSON parse: PASS.
 
-P2 coverage includes determinism under input reordering, record tamper, partition mismatch, admission replay mismatch, policy semantic mismatch, gate-code mismatch, source-registry binding, immutable revisions, language-audit receipts, protected-manifest tamper, provenance binding/type hardening, decision-log binding, self-hash tamper, unknown-field rejection, safe shard projection, exact artifact validation, CLI determinism, and malformed-config fail-closed behavior.
+P2 coverage includes determinism under input reordering, record tamper, partition mismatch, admission replay mismatch, policy semantic mismatch, gate-code mismatch, source-registry binding, immutable revisions, language-audit receipts, protected-manifest tamper, provenance binding/type hardening, decision-log binding, self-hash tamper, unknown-field rejection, safe shard projection, exact artifact validation, CLI determinism, malformed-config fail-closed behavior, mandatory/known hash profile, P2.1 float/key restrictions, and all concrete encoding-scheme identifiers.
 
 No model training, parameter update, checkpoint creation, capability gain, release decision, paid compute, or merge to `main` is performed or claimed by this artifact.
