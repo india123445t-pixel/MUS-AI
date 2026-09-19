@@ -31,7 +31,7 @@
   "worker06_reference_commit": "7204c7ae84eb6d246603fda960cffe02c2b6279e",
   "worker03_sources": {
     "trainer_git_blob_sha1": "14b5573f682c0b50860a570f1328b3b0eca21032",
-    "tournament_git_blob_sha1": "f3879aef87bbb2481ec5a9f606887985bcadc349",
+    "tournament_git_blob_sha1": "e6baffccdf61f847f2ea6137ca6359c758b5892f",
     "reward_git_blob_sha1": "c9db3e315299cce59c5d4cece7de86302c10c614",
     "runtime_compat_sitecustomize_git_blob_sha1": "ef9c92fb0923ad444f33d33a24ef557cd2af0fcf",
     "sdpo_tf5_patch_git_blob_sha1": "81d4c2e2df463293c16a3a3d5ff84f0ecb991fd2"
@@ -44,6 +44,7 @@
     "pre_gpu_dataset_val_rows": 56,
     "ray_worker_env_propagation": true,
     "python_startup_pth_sha256": "4119c98997a9b56ea1d97cfbd9dd5100b5f515566217b01b86cf4732d14f3498",
+    "ray_runtime_env_callable_injection": false,
     "sdpo_tf5_compat_patch": {
       "base_commit": "7c457fc1b1f636ae794eb0362ba37d4743b06fbc",
       "patched_model_py_sha256": "135f61865fcbe057d29da90bf07968b04dd778e2e96a31d3ad640a8650155f8d",
@@ -70,5 +71,5 @@
   "automatic_fallback": false,
   "paid_compute_requires_manager_authorization": true,
   "capability_gain_claim": false,
-  "manifest_sha256": "c869200039d9595a18c5fc9636184e043951986d0c31d90d4546490b26ceb281"
+  "manifest_sha256": "5819cfa5296cae5d68657a7b7c9f453e64fb3536846b805dfa9741a88244b521"
 }
