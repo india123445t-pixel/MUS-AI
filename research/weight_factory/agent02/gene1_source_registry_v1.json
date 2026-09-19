@@ -1,0 +1,1 @@
+{"policy":"default_deny","registry_kind":"AQLEVON_GENE1_SOURCE_REGISTRY_V1","schema_version":1,"sources":[{"admission":"allow","id":"aqlevon-gene1-owned-synthetic-v1","kind":"synthetic_dataset","license_status":"cleared","provenance_status":"complete","source_artifact_sha256":"ddc97008f765842fc9bdd6fd4045bf77a8181cc1990465aabd607308198c7bd9"}]}
