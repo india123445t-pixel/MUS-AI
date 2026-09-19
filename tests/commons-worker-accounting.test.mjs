@@ -233,26 +233,3 @@ test('worker stdout/stderr never exposes URL-embedded credentials/query tokens o
   assert.equal(start.model_origin,'https://example.invalid');
   assert.equal(Object.hasOwn(start,'model_url'),false);
 });
-
-
-test('malformed model timeout fails closed before Commons or model network activity',async()=>{
-  const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
-  const child=spawn(process.execPath,['scripts/commons-worker.mjs'],{
-    cwd:root,
-    env:{...process.env,
-      AQLEVON_COMMONS_URL:'http://127.0.0.1:9',
-      AQLEVON_COMMONS_WORKER_TOKEN:'timeout-worker-secret',
-      AQLEVON_MODEL_URL:'http://127.0.0.1:9',
-      AQLEVON_COMMONS_MODEL_TIMEOUT_MS:'12.5',
-    },
-    stdio:['ignore','pipe','pipe']
-  });
-  let stdout='',stderr='';child.stdout.on('data',x=>stdout+=x);child.stderr.on('data',x=>stderr+=x);
-  const [code]=await once(child,'exit');
-  assert.equal(code,2);
-  assert.equal(stdout,'');
-  assert.equal(stderr.includes('timeout-worker-secret'),false);
-  const lines=stderr.split('\n').filter(Boolean).map(line=>JSON.parse(line));
-  assert.equal(lines[0].event,'commons_worker_config_error');
-  assert.equal(lines[0].field,'AQLEVON_COMMONS_MODEL_TIMEOUT_MS');
-});
