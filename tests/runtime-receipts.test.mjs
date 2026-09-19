@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  buildRequestIdentity,buildRuntimeAttemptReceipt,hashRuntimeResult,sha256Text,
+  CANONICAL_HASH_PROFILE,buildRequestIdentity,buildRuntimeAttemptReceipt,canonicalJson,hashRuntimeResult,sha256Canonical,sha256Text,
   validateRuntimeReceiptIdentityConfig,verifyRuntimeAttemptReceipt
 } from '../lib/aqlevon/runtime-receipts.js';
 import {buildRuntimeAccounting,summarizeVerifiedEfficiency} from '../lib/aqlevon/runtime-economics.js';
@@ -20,11 +20,13 @@ function receipt({attempt='attempt-1',task='task-1',candidate=CANDIDATE,status='
     rawResultSha256:hashRuntimeResult({choices:[{message:{content:'private response fixture'}}]})
   });
 }
+function withReceiptDigest(body){return {...body,receipt_sha256:sha256Canonical(body)}}
 function evalReceipt({id='eval-1',candidate=CANDIDATE,status='PROMOTION_ELIGIBLE'}={}){
-  return {schema_version:1,receipt_kind:'AQLEVON_EVALUATION_DECISION_RECEIPT_V1',receipt_sha256:sha256Text(id),candidate_artifact_manifest_sha256:candidate,final_status:status};
+  void id;
+  return withReceiptDigest({schema_version:1,receipt_kind:'AQLEVON_EVALUATION_DECISION_RECEIPT_V1',hash_profile:CANONICAL_HASH_PROFILE,candidate_artifact_manifest_sha256:candidate,final_status:status});
 }
 function objectiveReceipt({id='obj-1',attemptReceipt,candidate=CANDIDATE,verdict='PASS'}={}){
-  return {receipt_sha256:sha256Text(id),attempt_receipt_sha256:attemptReceipt.receipt_sha256,candidate_artifact_manifest_sha256:candidate,verdict};
+  return withReceiptDigest({hash_profile:CANONICAL_HASH_PROFILE,objective_receipt_id:id,attempt_receipt_sha256:attemptReceipt.receipt_sha256,candidate_artifact_manifest_sha256:candidate,verdict});
 }
 
 test('runtime receipt identity config is disabled only when both identities are absent',()=>{
@@ -86,16 +88,16 @@ test('legacy raw receipt plus approval-hash fields are rejected instead of silen
   assert.ok(summary.invalid_reason_codes.includes('truth_authority_schema'));
 });
 
-test('Manager-approved promotion evaluation can verify successful attempt for matching candidate',()=>{
+test('candidate-level PROMOTION_ELIGIBLE does not blanket-verify runtime attempts',()=>{
   const a=receipt({ms:1000,cost:0.01});
   const e=evalReceipt();
   const summary=summarizeVerifiedEfficiency([a],{approvedEvaluationReceipts:[e]});
   assert.equal(summary.status,'VALID');
-  assert.equal(summary.verified_successes,1);
-  assert.equal(summary.verified_by_evaluation,1);
+  assert.equal(summary.verified_successes,0);
+  assert.equal(summary.verified_by_evaluation,0);
   assert.equal(summary.verified_by_objective,0);
   assert.equal(summary.approved_evaluation_receipts,1);
-  assert.equal(summary.gpu_seconds_per_verified_success,1);
+  assert.equal(summary.gpu_seconds_per_verified_success,null);
 });
 
 test('approved evaluation for a different candidate does not verify the attempt',()=>{
@@ -148,8 +150,8 @@ test('conflicting approved objective receipts fail closed for verification while
 test('failed transport never becomes verified and still charges numerator cost',()=>{
   const ok=receipt({attempt:'ok',task:'t-ok',status:'success',ms:1000,cost:0.01});
   const failed=receipt({attempt:'bad',task:'t-bad',status:'failed',failure:'model_http_503',ms:2000,cost:0.02});
-  const e=evalReceipt();
-  const summary=summarizeVerifiedEfficiency([ok,failed],{approvedEvaluationReceipts:[e]});
+  const objective=objectiveReceipt({attemptReceipt:ok});
+  const summary=summarizeVerifiedEfficiency([ok,failed],{approvedObjectiveVerifierReceipts:[objective]});
   assert.equal(summary.status,'VALID');
   assert.equal(summary.transport_successes,1);
   assert.equal(summary.transport_failures,1);
@@ -161,8 +163,53 @@ test('failed transport never becomes verified and still charges numerator cost',
 
 test('malformed Manager-approved evaluation receipt invalidates the authoritative truth join',()=>{
   const a=receipt();
-  const bad={receipt_kind:'AQLEVON_EVALUATION_DECISION_RECEIPT_V1',receipt_sha256:sha256Text('approved-bad'),candidate_artifact_manifest_sha256:'not-a-hash',final_status:'PROMOTION_ELIGIBLE'};
+  const bad=withReceiptDigest({schema_version:1,receipt_kind:'AQLEVON_EVALUATION_DECISION_RECEIPT_V1',hash_profile:CANONICAL_HASH_PROFILE,candidate_artifact_manifest_sha256:'not-a-hash',final_status:'PROMOTION_ELIGIBLE'});
   const summary=summarizeVerifiedEfficiency([a],{approvedEvaluationReceipts:[bad]});
   assert.equal(summary.status,'INVALID');
   assert.ok(summary.invalid_reason_codes.includes('approved_evaluation_receipt_invalid'));
+});
+
+
+test('P2.1 canonical hash profile normalizes Unicode/newlines and non-integral numbers without exponent',()=>{
+  assert.equal(canonicalJson({text:'e\u0301\r\nline',tiny:1e-7}),'{"text":"é\\nline","tiny":"0.0000001"}');
+  assert.equal(sha256Canonical({tiny:1e-7}),sha256Canonical({tiny:'0.0000001'}));
+});
+
+test('runtime receipt carries canonical hash profile and canonical decimal metrics',()=>{
+  const r=receipt({ms:1250,cost:0.01});
+  assert.equal(r.hash_profile,CANONICAL_HASH_PROFILE);
+  assert.equal(typeof r.runtime_metrics.elapsed_ms,'number');
+  assert.equal(typeof r.runtime_metrics.estimated_gpu_cost_usd,'string');
+  assert.equal(verifyRuntimeAttemptReceipt(r).ok,true);
+});
+
+test('missing or unknown hash profile makes runtime and approved truth receipts fail closed',()=>{
+  const r=receipt();
+  const missing={...r}; delete missing.hash_profile;
+  assert.equal(verifyRuntimeAttemptReceipt(missing).ok,false);
+  const e=evalReceipt();
+  const bad={...e,hash_profile:'UNKNOWN_PROFILE'};
+  const summary=summarizeVerifiedEfficiency([r],{approvedEvaluationReceipts:[bad]});
+  assert.equal(summary.status,'INVALID');
+  assert.ok(summary.invalid_reason_codes.includes('approved_evaluation_receipt_invalid'));
+});
+
+test('tampered Manager-approved objective receipt is rejected by shared canonical self-digest',()=>{
+  const a=receipt();
+  const o=objectiveReceipt({attemptReceipt:a});
+  const tampered={...o,verdict:'FAIL'};
+  const summary=summarizeVerifiedEfficiency([a],{approvedObjectiveVerifierReceipts:[tampered]});
+  assert.equal(summary.status,'INVALID');
+  assert.ok(summary.invalid_reason_codes.includes('approved_objective_receipt_invalid'));
+});
+
+test('runtime efficiency summary declares a bound operational population identity',()=>{
+  const a=receipt();
+  const o=objectiveReceipt({attemptReceipt:a});
+  const summary=summarizeVerifiedEfficiency([a],{approvedObjectiveVerifierReceipts:[o]});
+  assert.equal(summary.population_scope.scope_kind,'AQLEVON_RUNTIME_OPERATIONAL_EFFICIENCY_SCOPE_V1');
+  assert.equal(summary.population_scope.hash_profile,CANONICAL_HASH_PROFILE);
+  assert.equal(summary.population_scope.identity_status,'BOUND');
+  assert.match(summary.population_scope.population_identity_sha256,/^[0-9a-f]{64}$/);
+  assert.deepEqual(summary.population_scope.attempt_receipt_sha256s,[a.receipt_sha256]);
 });
