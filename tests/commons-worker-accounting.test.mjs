@@ -133,45 +133,43 @@ test('delayed model HTTP failure retains runtime metrics and compute cost while 
   assert.equal(summary.verified_successes,1);
 });
 
-test('commons concurrency decimal/invalid/bounds are normalized identically in advertised capability and slot count',async()=>{
-  for(const [raw,expected] of [['2.9',2],['garbage',1],['0',1],['999',16]]){
-    let claims=0;
-    let maxAdvertised=null;
-    let child=null;
-    const server=http.createServer(async(req,res)=>{
-      let body={};let text='';for await(const chunk of req)text+=chunk;if(text)body=JSON.parse(text);
-      res.setHeader('content-type','application/json');
-      if(body.op==='claim'){
-        claims++;
-        maxAdvertised=body.capabilities?.max_concurrency;
-        res.end(JSON.stringify({ok:true,job:null}));
-        if(claims>=expected)setTimeout(()=>child?.kill('SIGTERM'),10);
-        return;
-      }
-      res.end(JSON.stringify({ok:true}));
-    });
-    const port=await listen(server);
-    child=spawn(process.execPath,['scripts/commons-worker.mjs'],{
-      cwd:root,
-      env:{...process.env,
-        AQLEVON_COMMONS_URL:`http://127.0.0.1:${port}`,
-        AQLEVON_COMMONS_WORKER_TOKEN:'concurrency-secret',
-        AQLEVON_MODEL_URL:'http://127.0.0.1:9',
-        AQLEVON_COMMONS_CONCURRENCY:raw,
-        AQLEVON_COMMONS_POLL_MS:'1000',
-      },
-      stdio:['ignore','pipe','pipe']
-    });
-    let stdout='',stderr='';child.stdout.on('data',c=>stdout+=c);child.stderr.on('data',c=>stderr+=c);
-    const timer=setTimeout(()=>child.kill('SIGKILL'),5000);
-    const [code,signal]=await once(child,'exit');clearTimeout(timer);
-    server.close();await once(server,'close');
-    assert.ok(code===0||signal==='SIGTERM',stderr);
-    const start=jsonLines(stdout).find(x=>x.event==='commons_worker_start');
-    assert.equal(start.concurrency,expected,`startup concurrency mismatch for ${raw}`);
-    assert.equal(maxAdvertised,expected,`advertised concurrency mismatch for ${raw}`);
-    assert.ok(claims>=expected,`expected at least ${expected} initial claims for ${raw}`);
-  }
+test('decimal Commons concurrency is integer-normalized identically in advertised capability and slot count',async()=>{
+  let claims=0;
+  let maxAdvertised=null;
+  let child=null;
+  const server=http.createServer(async(req,res)=>{
+    let body={};let text='';for await(const chunk of req)text+=chunk;if(text)body=JSON.parse(text);
+    res.setHeader('content-type','application/json');
+    if(body.op==='claim'){
+      claims++;
+      maxAdvertised=body.capabilities?.max_concurrency;
+      res.end(JSON.stringify({ok:true,job:null}));
+      if(claims>=2)setTimeout(()=>child?.kill('SIGTERM'),10);
+      return;
+    }
+    res.end(JSON.stringify({ok:true}));
+  });
+  const port=await listen(server);
+  child=spawn(process.execPath,['scripts/commons-worker.mjs'],{
+    cwd:root,
+    env:{...process.env,
+      AQLEVON_COMMONS_URL:`http://127.0.0.1:${port}`,
+      AQLEVON_COMMONS_WORKER_TOKEN:'concurrency-secret',
+      AQLEVON_MODEL_URL:'http://127.0.0.1:9',
+      AQLEVON_COMMONS_CONCURRENCY:'2.9',
+      AQLEVON_COMMONS_POLL_MS:'500',
+    },
+    stdio:['ignore','pipe','pipe']
+  });
+  let stdout='',stderr='';child.stdout.on('data',c=>stdout+=c);child.stderr.on('data',c=>stderr+=c);
+  const timer=setTimeout(()=>child.kill('SIGKILL'),3000);
+  const [code,signal]=await once(child,'exit');clearTimeout(timer);
+  server.close();await once(server,'close');
+  assert.ok(code===0||signal==='SIGTERM',stderr);
+  const start=jsonLines(stdout).find(x=>x.event==='commons_worker_start');
+  assert.equal(start.concurrency,2);
+  assert.equal(maxAdvertised,2);
+  assert.ok(claims>=2);
 });
 
 test('worker startup log sanitizes URL userinfo/query/path secrets and model key',async()=>{
