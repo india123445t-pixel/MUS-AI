@@ -221,3 +221,150 @@ This lane measures and gates compute. It does not prove a capability gain.
 - Worker 05 supplies evaluation evidence.
 - Manager alone accepts/rejects Gene #1.
 - No production deployment or `main` merge is authorized here.
+
+
+---
+
+## 12. P4.1 accelerated surrogate retry guard
+
+Task overlay: `P4.1-A06-RETRY-COST-GUARD`.
+
+### Exact A1 identity bound by this overlay
+
+This section is preparation only and does **not** authorize spend.
+
+- run task: `P4-A03-GENE1-PHYSICAL-TRAINER`
+- arm: `P4_A1_RLVR_CONTROL`
+- seed: `1701`
+- compute profile: `p4-surrogate-1x24`
+- training-plan SHA-256: `3cd6e0bada2535a80f83f400f45f5d0fdc5ad8d938f42757785335959f331095`
+- run-manifest SHA-256: `7152cdea6ffd082f632a819e153122b401bd7394ed0273a327537ca961c7fe45`
+- command SHA-256: `3ad2fd2cd5303e1eb4ea71f3e25edf07d38269df1b5b3c8b6e98c8553e017400`
+- command-lock SHA-256: `f1d05b53d0e00b07f7f4d60c90a6bf489f4cd2bd118b2b6a6b38c66026cee44e`
+
+Retry07 and every older authorization are stale/consumed and must not be reused.
+
+### Manager authorization TEMPLATE ONLY — intentionally invalid until Manager fills it
+
+Do not copy this template into execution as-is. The numeric/cost placeholders deliberately make it invalid. After the Manager chooses every ceiling, generate the canonical object through `buildManagerComputeAuthorization()` and use its resulting self-hash as the separately supplied expected authorization SHA.
+
+```json
+{
+  "schema_version": 1,
+  "authorization_kind": "AQLEVON_MANAGER_COMPUTE_AUTHORIZATION_V1",
+  "hash_profile": "AQLEVON_CANONICAL_JSON_SHA256_V1",
+  "authorization_id": "<MANAGER_NEW_UNIQUE_SINGLE_USE_ID>",
+  "run_task_id": "P4-A03-GENE1-PHYSICAL-TRAINER",
+  "run_manifest_sha256": "7152cdea6ffd082f632a819e153122b401bd7394ed0273a327537ca961c7fe45",
+  "profile_id": "p4-surrogate-1x24",
+  "compute_origin": "paid_manager_authorized",
+  "max_billed_seconds": "<MANAGER_INTEGER>",
+  "max_total_cost_usd": "<MANAGER_CANONICAL_DECIMAL>",
+  "max_hourly_rate_usd": "<MANAGER_CANONICAL_DECIMAL>",
+  "max_artifact_egress_bytes": "<MANAGER_INTEGER>",
+  "single_use": true,
+  "authorization_sha256": "<DERIVE_ONLY_AFTER_MANAGER_FILLS_ALL_FIELDS>"
+}
+```
+
+No Worker may choose these ceilings on the Manager's behalf.
+
+### Current public RunPod planning snapshot — checked 2026-09-19
+
+Public Community Cloud model listings currently show:
+- RTX A5000 24GB: about **$0.16/h**
+- RTX 3090 24GB: about **$0.22/h**
+- RTX 4090 24GB: about **$0.34/h**
+
+Public Secure Cloud pricing is higher (for example A5000 24GB about **$0.27/h**, 3090 about **$0.50/h**, 4090 about **$0.74/h**). RunPod states Pod billing is per second. Public pages indicate broad inventory across regions, but they do not prove that a particular account/region has the requested card available at launch time.
+
+Sources:
+- https://www.runpod.io/gpu-models
+- https://www.runpod.io/pricing
+- https://www.runpod.io/articles/guides/ai-server-cost
+
+### Cost-ceiling options — recommendations only, NOT authorization
+
+For one GPU and compute charge only, `cost = hourly_rate × billed_seconds / 3600`.
+
+| Optional time ceiling | A5000 Community @ $0.16/h | 3090 Community @ $0.22/h | 4090 Community @ $0.34/h |
+|---|---:|---:|---:|
+| 15 min | $0.040 | $0.055 | $0.085 |
+| 30 min | $0.080 | $0.110 | $0.170 |
+| 60 min | $0.160 | $0.220 | $0.340 |
+
+These are decision aids only. They exclude any storage/tax/other provider charges and do not replace provider-actual billing. The Manager must choose the exact GPU class/provider lane, time, hourly-rate cap, total-cost cap, and egress cap.
+
+### Why the cheapest hourly GPU may not be the cheapest successful experiment
+
+Compare expected cost per valid evidence result rather than hourly rate alone:
+
+`expected_compute_cost_per_valid_result ≈ hourly_rate × expected_billed_hours_per_attempt × expected_attempts_to_valid_result`.
+
+At the public Community rates above, with equal success probability:
+- a 3090 at $0.22/h must finish in at most **72.7%** of the A5000's billed time to beat a $0.16/h A5000 on compute charge;
+- a 4090 at $0.34/h must finish in at most **47.1%** of the A5000's billed time to beat it;
+- a higher-priced lane can still win if it materially reduces bootstrap failures/retries or setup/download delay.
+
+Do not assume those speed or reliability ratios; measure them on the exact workload if the Manager authorizes a run.
+
+### P4.1 watchdog hardening
+
+Paid execution now reserves a fixed **5-second shutdown margin** before the Manager's `max_billed_seconds` boundary. At that margin:
+1. the payload process group receives `SIGTERM`;
+2. if it has not exited within **1 second**, the process group receives `SIGKILL`;
+3. the attempt remains a failed measurable receipt with `manager_budget_timeout`.
+
+If less than the 5-second safety margin remains when dispatch starts, execution fails closed before launching the payload.
+
+This protects the payload runtime budget. Provider billing is stopped separately by immediate pod deletion after artifact/receipt capture.
+
+### Secret/log boundary
+
+The dispatcher itself logs only hash identity for payload argv, never raw argv. P4.1 additionally removes secret-like environment variable names (API keys, tokens, secrets, passwords, credentials/private keys) from the payload environment before launch, including provider API keys such as `RUNPOD_API_KEY`.
+
+Provider lifecycle credentials stay outside the repository and outside the training payload. A fixed training command must not contain credentials in raw argv.
+
+### Single-use replay guard
+
+A fresh Manager authorization produces a fresh authorization SHA. Before payload launch, the dispatcher atomically creates:
+
+`manager-authorization-<AUTH_SHA>.used`
+
+with exclusive-create semantics. A second attempt using the same authorization in the same receipt workspace fails closed with `manager_authorization_already_used`.
+
+The marker is an operational local guard, not a global distributed lock. If a pod/workspace is recreated, the Manager must still issue a **new** single-use authorization rather than copying the old authorization file.
+
+### One-command RunPod stop/destroy path
+
+Current `runpodctl` uses the noun-verb lifecycle interface. The destructive one-shot stop path is:
+
+```bash
+runpodctl pod delete <pod-id>
+```
+
+For a guarded shell wrapper, register deletion before dispatch so failures still tear the pod down:
+
+```bash
+POD_ID="<exact-created-pod-id>"
+trap 'runpodctl pod delete "$POD_ID" >/dev/null 2>&1 || true' EXIT INT TERM
+
+# Exact Manager-authorized dispatcher command goes here.
+<AUTHORIZED_AQLEVON_DISPATCH_COMMAND>
+RUN_CODE=$?
+
+# Copy only required evidence before normal exit if the workflow needs it.
+<ARTIFACT_COPY_COMMAND>
+
+exit "$RUN_CODE"
+```
+
+After deletion, `runpodctl pod list` / `runpodctl pod get <pod-id>` should be used to verify lifecycle state. Never leave a paid Pod alive waiting for Worker 05. Current CLI reference: https://github.com/runpod/runpodctl
+
+### Failed-attempt accounting
+
+A failed payload still emits its Compute Attempt Receipt with elapsed time / allocated GPU-seconds when measurable. P4 cost finalization accepts failed outcomes with incomplete token/example counters, so failed GPU time and billed cost remain in the candidate cost numerator instead of disappearing.
+
+### P4.1 no-spend statement
+
+This overlay performs CPU/control-plane preparation only. It creates no Pod, buys no GPU, starts no paid endpoint/storage, reruns no G1 work, changes no production system, and makes no capability-gain claim.
