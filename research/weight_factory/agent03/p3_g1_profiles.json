@@ -1,0 +1,49 @@
+{
+  "automatic_fallback": false,
+  "hardware_order": [
+    "1x80",
+    "2x48",
+    "4x24"
+  ],
+  "model": {
+    "precision": "bf16",
+    "quantization": "none",
+    "repo": "Qwen/Qwen3.8-27B",
+    "revision": "1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0"
+  },
+  "profiles": {
+    "1x80": {
+      "backend": "single",
+      "gpus": 1,
+      "min_vram_mib_each": 77824,
+      "status": "PRIMARY_PREPARED_NOT_EXECUTED"
+    },
+    "2x48": {
+      "accelerate_config": "accelerate_fsdp2_2x48.yaml",
+      "backend": "FSDP2",
+      "gpus": 2,
+      "min_vram_mib_each": 46080,
+      "status": "FALLBACK_PREPARED_NOT_EXECUTED"
+    },
+    "4x24": {
+      "accelerate_config": "accelerate_fsdp2_4x24.yaml",
+      "backend": "FSDP2",
+      "gpus": 4,
+      "min_vram_mib_each": 22528,
+      "status": "FALLBACK_PREPARED_NOT_EXECUTED"
+    }
+  },
+  "qlora": {
+    "automatic_replacement_of_bf16": false,
+    "status": "EXPERIMENTAL_ONLY"
+  },
+  "schema_version": 1,
+  "surrogate": {
+    "precision": "bf16",
+    "quantization": "none",
+    "repo": "Qwen/Qwen3.5-4B-Base",
+    "revision": "daa9c16f371249f9ad1c75a9ed6f956c08ea08f5"
+  },
+  "task_id": "P3-A03-G1-READY",
+  "truth_boundary": "NO_PHYSICAL_RUN_OR_CAPABILITY_GAIN_HAS_OCCURRED"
+}
