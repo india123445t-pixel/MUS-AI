@@ -1359,11 +1359,12 @@ def build_surrogate_recipe_decision(*, law: dict[str, Any], round_bundles: list[
             invalid.append(f"surrogate round build failed:{seed}:{exc}")
             continue
         round_status = decision.get("decision_status")
-        if seed == law["surrogate_selection_law"]["screen_seed"]:
+        current_mode_for_status = bundle["stage_binding"].get("round_mode")
+        if seed == law["surrogate_selection_law"]["screen_seed"] and current_mode_for_status == "initial12":
             if round_status != "SURROGATE_SCREEN_RANKING_READY":
                 invalid.append(f"surrogate screen seed not ranking-ready:{seed}:{round_status}")
         elif round_status not in {"SURROGATE_SCREEN_RANKING_READY", "REJECTED"}:
-            invalid.append(f"surrogate confirmation seed evidence invalid:{seed}:{round_status}")
+            invalid.append(f"surrogate seed evidence invalid:{seed}:{round_status}")
         if bundle["stage_binding"].get("stage") != "surrogate":
             invalid.append(f"surrogate seed round stage mismatch:{seed}")
         current_mode = bundle["stage_binding"].get("round_mode")
@@ -1397,14 +1398,16 @@ def build_surrogate_recipe_decision(*, law: dict[str, Any], round_bundles: list[
 
     screen_seed = law["surrogate_selection_law"]["screen_seed"]
     top_two: list[str] = []
-    if screen_seed in per_seed_decisions:
+    if round_mode == "extension24" and isinstance(parent_surrogate_recipe_decision, dict):
+        parent_top_two = parent_surrogate_recipe_decision.get("screen_top_two_survivor_slots")
+        if isinstance(parent_top_two, list):
+            top_two = list(parent_top_two)
+        if len(top_two) != 2:
+            invalid.append("extension parent does not bind exactly two ambiguity arms")
+    elif screen_seed in per_seed_decisions:
         top_two = list(per_seed_decisions[screen_seed].get("top_two_survivor_slots", []))
         if len(top_two) != 2:
             invalid.append("screen round did not produce exactly two survivors")
-    if round_mode == "extension24" and isinstance(parent_surrogate_recipe_decision, dict):
-        parent_top_two = parent_surrogate_recipe_decision.get("screen_top_two_survivor_slots")
-        if top_two != parent_top_two:
-            invalid.append("extension C24 candidate set differs from parent ambiguity top two")
     for seed in law["surrogate_selection_law"]["confirmation_seeds"]:
         reg = registrations_by_seed.get(seed)
         slots = [e.get("candidate_slot") for e in reg.get("entries", [])] if isinstance(reg, dict) else []
@@ -1525,6 +1528,17 @@ def validate_surrogate_recipe_decision(receipt: Any, *, law: dict[str, Any], rou
     invalid = [f"law invalid:{x}" for x in validate_evaluation_law(law)]
     if not isinstance(receipt, dict):
         return invalid + ["surrogate recipe decision must be object"]
+    required = {
+        "schema_version", "receipt_kind", "hash_profile", "law_sha256", "stage_binding_sha256",
+        "round_mode", "parent_surrogate_recipe_decision_sha256", "seed_round_decision_sha256",
+        "screen_top_two_survivor_slots", "aggregate_by_slot", "arm_failure_summary",
+        "candidate_artifact_manifest_sha256_by_slot_by_seed", "recipe_spec_sha256_by_slot",
+        "selected_candidate_slot", "selected_arm_id", "selected_recipe_spec_sha256",
+        "extension_required", "decision_status", "decision_reason_codes", "decision_reason_set_sha256",
+        "gene1_tournament_code_sha256", "authority", "surrogate_recipe_decision_sha256",
+    }
+    if not _exact_keys(receipt, required):
+        return invalid + ["surrogate recipe decision schema mismatch"]
     if receipt.get("schema_version") != 1 or receipt.get("receipt_kind") != FINAL_SURROGATE_DECISION_KIND:
         invalid.append("surrogate recipe decision identity mismatch")
     if receipt.get("hash_profile") != HASH_PROFILE or not verify_p2_self_digest(receipt, "surrogate_recipe_decision_sha256"):
@@ -1533,21 +1547,70 @@ def validate_surrogate_recipe_decision(receipt: Any, *, law: dict[str, Any], rou
         invalid.append("surrogate recipe decision law mismatch")
     if receipt.get("decision_status") not in ALLOWED_FINAL_SURROGATE_STATUS:
         invalid.append("surrogate recipe decision status invalid")
+    round_mode = receipt.get("round_mode")
+    parent_sha = receipt.get("parent_surrogate_recipe_decision_sha256")
+    if round_mode not in {"initial12", "extension24"}:
+        invalid.append("surrogate recipe decision round mode invalid")
+    if round_mode == "initial12" and parent_sha is not None:
+        invalid.append("initial12 surrogate recipe decision cannot bind parent")
+    if round_mode == "extension24" and not valid_sha256(parent_sha):
+        invalid.append("extension24 surrogate recipe decision missing parent ambiguity receipt")
     seed_hashes = receipt.get("seed_round_decision_sha256")
     expected_seeds = [law["surrogate_selection_law"]["screen_seed"], *law["surrogate_selection_law"]["confirmation_seeds"]]
     if not isinstance(seed_hashes, dict) or sorted(seed_hashes) != sorted(str(x) for x in expected_seeds) or any(not valid_sha256(v) for v in seed_hashes.values()):
         invalid.append("surrogate recipe decision seed receipt bindings invalid")
-    if not valid_sha256(receipt.get("decision_reason_set_sha256")) or not valid_sha256(receipt.get("gene1_tournament_code_sha256")) or not valid_sha256(receipt.get("surrogate_recipe_decision_sha256")):
+    if not valid_sha256(receipt.get("stage_binding_sha256")) or not valid_sha256(receipt.get("decision_reason_set_sha256")) or not valid_sha256(receipt.get("gene1_tournament_code_sha256")) or not valid_sha256(receipt.get("surrogate_recipe_decision_sha256")):
         invalid.append("surrogate recipe decision digest binding invalid")
+    if receipt.get("gene1_tournament_code_sha256") != actual_gene1_tournament_code_sha256():
+        invalid.append("surrogate recipe decision code identity mismatch")
+    top_two = receipt.get("screen_top_two_survivor_slots")
+    if not isinstance(top_two, list) or len(top_two) != 2 or len(set(top_two)) != 2 or any(slot not in law["arm_slots"] for slot in top_two):
+        invalid.append("surrogate recipe decision top-two slots invalid")
+        top_two = []
+    aggs = receipt.get("aggregate_by_slot")
+    if not isinstance(aggs, dict) or any(slot not in top_two for slot in aggs):
+        invalid.append("surrogate recipe decision aggregate slots invalid")
+    else:
+        agg_required = {
+            "median_transfer_clean_pass_at_4_count", "worst_seed_transfer_clean_pass_at_4_count",
+            "median_primary_clean_pass_at_4_count", "worst_seed_primary_clean_pass_at_4_count",
+            "median_hack_gap_at_4_count", "median_training_gpu_milliseconds", "simplicity_rank",
+        }
+        for slot, agg in aggs.items():
+            if not _exact_keys(agg, agg_required):
+                invalid.append(f"surrogate recipe aggregate schema mismatch:{slot}")
+            elif any(type(agg.get(k)) is not int or agg[k] < 0 for k in agg_required):
+                invalid.append(f"surrogate recipe aggregate numeric invalid:{slot}")
+    failures = receipt.get("arm_failure_summary")
+    if not isinstance(failures, dict) or any(slot not in top_two for slot in failures) or any(not isinstance(v, list) or any(not isinstance(x, str) for x in v) for v in failures.values()):
+        invalid.append("surrogate recipe arm failure summary invalid")
+    recipes = receipt.get("recipe_spec_sha256_by_slot")
+    if not isinstance(recipes, dict) or any(slot not in top_two or not valid_sha256(v) for slot, v in recipes.items()):
+        invalid.append("surrogate recipe hash map invalid")
+    artifacts = receipt.get("candidate_artifact_manifest_sha256_by_slot_by_seed")
+    if not isinstance(artifacts, dict) or any(slot not in top_two for slot in artifacts):
+        invalid.append("surrogate recipe artifact map invalid")
+    else:
+        for slot, seed_map in artifacts.items():
+            if not isinstance(seed_map, dict) or set(seed_map) != {str(x) for x in expected_seeds} or any(not valid_sha256(v) for v in seed_map.values()):
+                invalid.append(f"surrogate recipe artifact seed map invalid:{slot}")
+    codes = receipt.get("decision_reason_codes")
+    if not isinstance(codes, list) or any(not isinstance(code, str) or not code.startswith("P4_") for code in codes):
+        invalid.append("surrogate recipe decision reason codes invalid")
     status = receipt.get("decision_status")
     if status == "SURROGATE_RECIPE_SELECTED":
-        if receipt.get("selected_candidate_slot") not in law["arm_slots"] or receipt.get("selected_arm_id") != law["arm_id_by_slot"].get(receipt.get("selected_candidate_slot")) or not valid_sha256(receipt.get("selected_recipe_spec_sha256")):
+        slot = receipt.get("selected_candidate_slot")
+        if slot not in aggs or slot not in recipes or receipt.get("selected_arm_id") != law["arm_id_by_slot"].get(slot) or receipt.get("selected_recipe_spec_sha256") != recipes.get(slot):
             invalid.append("selected surrogate recipe identity invalid")
         if receipt.get("extension_required") is not False:
             invalid.append("selected surrogate recipe cannot require extension")
-    if status == "SURROGATE_MORE_EVIDENCE_REQUIRED":
-        if receipt.get("selected_candidate_slot") is not None or receipt.get("selected_recipe_spec_sha256") is not None or receipt.get("extension_required") is not True:
+    else:
+        if receipt.get("selected_candidate_slot") is not None or receipt.get("selected_arm_id") is not None or receipt.get("selected_recipe_spec_sha256") is not None:
+            invalid.append("non-selected surrogate recipe receipt cannot carry selected identity")
+        if status == "SURROGATE_MORE_EVIDENCE_REQUIRED" and (receipt.get("extension_required") is not True or round_mode != "initial12"):
             invalid.append("surrogate ambiguity status fields invalid")
+        if round_mode == "extension24" and receipt.get("extension_required") is True:
+            invalid.append("extension24 receipt cannot request another extension")
     authority = receipt.get("authority")
     if not isinstance(authority, dict) or authority.get("authority_kind") != AUTHORITY_KIND or authority.get("authoritative_for_model_promotion") is not False or authority.get("authoritative_for_arbitrary_runtime_attempts") is not False or authority.get("manager_acceptance_required") is not True:
         invalid.append("surrogate recipe decision authority laundering detected")
@@ -1563,6 +1626,7 @@ def validate_surrogate_recipe_decision(receipt: Any, *, law: dict[str, Any], rou
         except (Gene1TournamentError, TypeError, ValueError) as exc:
             invalid.append(f"surrogate recipe decision semantic recomputation failed:{exc}")
     return sorted(set(invalid))
+
 
 def validate_tournament_decision(receipt: Any, *, law: dict[str, Any] | None = None) -> list[str]:
     invalid: list[str] = []
