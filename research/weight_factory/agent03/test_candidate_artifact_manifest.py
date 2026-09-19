@@ -5,6 +5,7 @@ import hashlib
 import json
 import tempfile
 import unittest
+from decimal import Decimal
 from pathlib import Path
 
 import candidate_artifact_manifest as cam
@@ -74,11 +75,105 @@ class CandidateArtifactManifestTests(unittest.TestCase):
         m2 = cam.build_manifest(adapter_spec(), self.root)
         self.assertEqual(m1, m2)
         self.assertEqual(m1["manifest_kind"], cam.MANIFEST_KIND)
-        self.assertEqual(m1["manifest_id"], cam.MANIFEST_ID_PREFIX + m1["manifest_sha256"])
+        self.assertEqual(m1["hash_profile"], cam.HASH_PROFILE)
+        self.assertEqual(m1["manifest_id"], cam.compute_manifest_id(m1))
         self.assertEqual(m1["manifest_sha256"], cam.compute_manifest_sha256(m1))
+        self.assertNotEqual(m1["manifest_id"].split(":")[-1], m1["manifest_sha256"])
         paths = [x["path"] for x in m1["artifact_files"]]
         self.assertEqual(paths, sorted(paths))
         self.assertEqual(cam.validate_manifest(m1, self.root), [])
+
+
+    def test_p21_hash_profile_required_and_unknown_rejected(self):
+        m = cam.build_manifest(adapter_spec(), self.root)
+        missing = copy.deepcopy(m)
+        del missing["hash_profile"]
+        errors = cam.validate_manifest(missing)
+        self.assertTrue(any("missing top-level fields: hash_profile" in x for x in errors))
+        self.assertTrue(any("hash_profile must equal" in x for x in errors))
+
+        unknown = copy.deepcopy(m)
+        unknown["hash_profile"] = "UNKNOWN_PROFILE"
+        errors = cam.validate_manifest(unknown)
+        self.assertTrue(any("hash_profile must equal" in x for x in errors))
+
+    def test_p21_interop_vector_nfkc_newlines_ascii_order_and_digest(self):
+        payload = {
+            "z": "Ａ\r\nCafe\u0301",
+            "a": [1, True, None, {"line": "x\ry"}],
+            "hash_profile": cam.HASH_PROFILE,
+        }
+        expected = (
+            b'{"a":[1,true,null,{"line":"x\\ny"}],'
+            b'"hash_profile":"AQLEVON_CANONICAL_JSON_SHA256_V1",'
+            b'"z":"A\\nCaf\xc3\xa9"}'
+        )
+        actual = cam.canonical_p2_json_bytes(payload)
+        self.assertEqual(actual, expected)
+        self.assertEqual(
+            cam.sha256_bytes(actual),
+            "57a289efd889602d76395057bae6f06602308c273fe8b27dbefe78ec65b4ebce",
+        )
+        # NFKC-equivalent/LF-normalized input must interoperate to the same bytes.
+        equivalent = {
+            "hash_profile": cam.HASH_PROFILE,
+            "a": [1, True, None, {"line": "x\ny"}],
+            "z": "A\nCafé",
+        }
+        self.assertEqual(cam.canonical_p2_json_bytes(equivalent), expected)
+
+    def test_p21_ascii_authoritative_keys_fail_closed(self):
+        with self.assertRaisesRegex(ValueError, "ASCII"):
+            cam.canonical_p2_json_bytes({"é": "value"})
+        with self.assertRaisesRegex(ValueError, "ASCII"):
+            cam.canonical_p2_json_bytes({"": "value"})
+
+    def test_p21_non_integral_numeric_objects_fail_closed(self):
+        for value in (1.25, float("nan"), float("inf"), Decimal("1.25")):
+            with self.subTest(value=repr(value)):
+                with self.assertRaisesRegex(ValueError, "non-integral numeric"):
+                    cam.canonical_p2_json_bytes({"x": value})
+        self.assertEqual(cam.canonical_p2_json_bytes({"i": -12, "b": True}), b'{"b":true,"i":-12}')
+
+    def test_p21_canonical_decimal_string_vectors(self):
+        vectors = {
+            "0": "0",
+            "-0": "0",
+            "-0.000": "0",
+            "001.2300": "1.23",
+            "-001.200": "-1.2",
+            "10.000": "10",
+        }
+        for raw, expected in vectors.items():
+            self.assertEqual(cam.canonical_decimal_string(raw), expected)
+        for bad in ("+1.2", "1e3", "NaN", "Infinity", "1.", ".5"):
+            with self.subTest(bad=bad):
+                with self.assertRaisesRegex(ValueError, "invalid decimal string"):
+                    cam.canonical_decimal_string(bad)
+
+    def test_p21_exact_self_digest_excludes_only_manifest_sha256(self):
+        m = cam.build_manifest(adapter_spec(), self.root)
+        payload = copy.deepcopy(m)
+        payload.pop("manifest_sha256")
+        self.assertEqual(cam.canonical_p2_json_sha256(payload), m["manifest_sha256"])
+        without_id = copy.deepcopy(payload)
+        without_id.pop("manifest_id")
+        self.assertNotEqual(cam.canonical_p2_json_sha256(without_id), m["manifest_sha256"])
+        self.assertEqual(m["manifest_id"], cam.compute_manifest_id(m))
+
+    def test_p21_uppercase_sha256_rejected(self):
+        s = adapter_spec()
+        s["tokenizer_sha256"] = H["tokenizer"].upper()
+        with self.assertRaisesRegex(ValueError, "lowercase"):
+            cam.build_manifest(s, self.root)
+
+    def test_artifact_stage_remains_workflow_metadata_not_truth(self):
+        m = cam.build_manifest(adapter_spec(), self.root)
+        m["artifact_stage"] = "release_candidate"
+        m = cam.seal_manifest(m)
+        self.assertEqual(cam.validate_manifest(m, self.root), [])
+        for forbidden in cam.FORBIDDEN_TRUTH_FIELDS:
+            self.assertNotIn(forbidden, m)
 
     def test_artifact_byte_tamper_fails_closed(self):
         m = cam.build_manifest(adapter_spec(), self.root)
@@ -91,7 +186,7 @@ class CandidateArtifactManifestTests(unittest.TestCase):
         m["artifact_stage"] = "promotion_candidate"
         errors = cam.validate_manifest(m)
         self.assertIn("manifest_sha256 self-digest mismatch", errors)
-        self.assertIn("manifest_id does not match self-digest", errors)
+        self.assertIn("manifest_id identity digest mismatch", errors)
 
     def test_unknown_or_evaluation_truth_fields_fail_closed(self):
         m = cam.build_manifest(adapter_spec(), self.root)
@@ -250,6 +345,7 @@ class CandidateArtifactManifestTests(unittest.TestCase):
         m = cam.build_probe_only_manifest_from_g1(report_path, root, bindings)
         self.assertEqual(m["artifact_type"], "adapter")
         self.assertEqual(m["artifact_stage"], "probe_only")
+        self.assertEqual(m["hash_profile"], cam.HASH_PROFILE)
         self.assertEqual(m["topology_class"], "CUSTOM_EXPERIMENTAL")
         self.assertEqual(m["training_run_receipt_sha256"], cam.sha256_file(report_path))
         self.assertEqual(

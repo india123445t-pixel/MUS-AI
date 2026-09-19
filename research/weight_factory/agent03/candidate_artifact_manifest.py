@@ -16,15 +16,19 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import numbers
 import os
 import re
 import stat
+import unicodedata
 from pathlib import Path, PurePosixPath
 from typing import Any
 
 SCHEMA_VERSION = 1
 MANIFEST_KIND = "AQLEVON_CANDIDATE_ARTIFACT_MANIFEST_V1"
 MANIFEST_ID_PREFIX = "aqlevon-candidate-artifact-v1:sha256:"
+MANIFEST_ID_SCHEME = "AQLEVON_CANDIDATE_ARTIFACT_IDENTITY_V1"
+HASH_PROFILE = "AQLEVON_CANONICAL_JSON_SHA256_V1"
 
 ARTIFACT_TYPES = {
     "adapter",
@@ -84,6 +88,7 @@ REQUIRED_TOP_LEVEL = {
     "schema_version",
     "manifest_kind",
     "manifest_id",
+    "hash_profile",
     "artifact_type",
     "artifact_stage",
     "base",
@@ -105,7 +110,10 @@ REQUIRED_TOP_LEVEL = {
 
 
 def canonical_json_bytes(value: Any) -> bytes:
-    """Canonical JSON used by all V1 identities."""
+    """Legacy deterministic JSON helper for non-self-hash evidence digests.
+
+    P2 manifest self-digests MUST use ``canonical_p2_json_bytes`` below.
+    """
     return json.dumps(
         value,
         ensure_ascii=False,
@@ -113,6 +121,76 @@ def canonical_json_bytes(value: Any) -> bytes:
         separators=(",", ":"),
         allow_nan=False,
     ).encode("utf-8")
+
+
+def _normalize_p2_string(value: str) -> str:
+    return unicodedata.normalize("NFKC", value).replace("\r\n", "\n").replace("\r", "\n")
+
+
+def canonical_decimal_string(value: str) -> str:
+    """Return the Manager-profile canonical decimal-string representation.
+
+    Direct non-integral numeric objects are forbidden in authoritative hash
+    payloads. Lanes that need a fractional value must first encode it as a
+    canonical decimal string. Candidate Artifact Manifest V1 currently has no
+    fractional numeric field; this helper exists to make the P2.1 law explicit
+    and testable rather than inviting ad-hoc future formatting.
+    """
+    if not isinstance(value, str):
+        raise ValueError("canonical decimal input must be a string")
+    value = _normalize_p2_string(value)
+    if "\n" in value or not re.fullmatch(r"-?(?:0|[0-9]+)(?:\.[0-9]+)?", value):
+        raise ValueError("invalid decimal string: exponent/plus/non-decimal syntax forbidden")
+    negative = value.startswith("-")
+    body = value[1:] if negative else value
+    integer, dot, fraction = body.partition(".")
+    integer = integer.lstrip("0") or "0"
+    fraction = fraction.rstrip("0") if dot else ""
+    if integer == "0" and not fraction:
+        return "0"
+    out = integer + (("." + fraction) if fraction else "")
+    return ("-" if negative else "") + out
+
+
+def _p2_canon(value: Any) -> Any:
+    """Canonicalize one authoritative hash payload per Manager P2.1 profile."""
+    if isinstance(value, str):
+        return _normalize_p2_string(value)
+    if value is None or type(value) is bool:
+        return value
+    if type(value) is int:
+        return value
+    if isinstance(value, numbers.Number):
+        raise ValueError(
+            "P2 canonical hash payload forbids direct non-integral numeric values; "
+            "use a canonical decimal string"
+        )
+    if isinstance(value, list):
+        return [_p2_canon(item) for item in value]
+    if isinstance(value, dict):
+        for key in value:
+            if not isinstance(key, str) or not key or any(ord(ch) >= 128 for ch in key):
+                raise ValueError("P2 canonical hash object keys must be non-empty ASCII strings")
+        return {
+            key: _p2_canon(value[key])
+            for key in sorted(value, key=lambda item: item.encode("ascii"))
+        }
+    raise ValueError(f"P2 canonical hash payload type is unsupported: {type(value).__name__}")
+
+
+def canonical_p2_json_bytes(value: Any) -> bytes:
+    """Serialize the Manager-frozen AQLEVON_CANONICAL_JSON_SHA256_V1 profile."""
+    return json.dumps(
+        _p2_canon(value),
+        ensure_ascii=False,
+        sort_keys=False,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+
+
+def canonical_p2_json_sha256(value: Any) -> str:
+    return sha256_bytes(canonical_p2_json_bytes(value))
 
 
 def sha256_bytes(data: bytes) -> str:
@@ -195,24 +273,42 @@ def artifact_file_tree_sha256(entries: list[dict[str, Any]]) -> str:
     return canonical_json_sha256(entries)
 
 
+def _manifest_identity_payload(manifest: dict[str, Any]) -> dict[str, Any]:
+    semantic = {
+        key: value
+        for key, value in manifest.items()
+        if key not in {"manifest_id", "manifest_sha256"}
+    }
+    return {"scheme": MANIFEST_ID_SCHEME, "manifest": semantic}
+
+
+def compute_manifest_identity_sha256(manifest: dict[str, Any]) -> str:
+    return canonical_p2_json_sha256(_manifest_identity_payload(manifest))
+
+
+def compute_manifest_id(manifest: dict[str, Any]) -> str:
+    return MANIFEST_ID_PREFIX + compute_manifest_identity_sha256(manifest)
+
+
 def _manifest_payload_for_self_hash(manifest: dict[str, Any]) -> dict[str, Any]:
+    # P2.1 exact exclusion rule: omit ONLY the self-digest field. manifest_id
+    # remains inside the authoritative self-hash payload.
     payload = dict(manifest)
-    payload.pop("manifest_id", None)
     payload.pop("manifest_sha256", None)
     return payload
 
 
 def compute_manifest_sha256(manifest: dict[str, Any]) -> str:
-    return canonical_json_sha256(_manifest_payload_for_self_hash(manifest))
+    return canonical_p2_json_sha256(_manifest_payload_for_self_hash(manifest))
 
 
 def seal_manifest(manifest: dict[str, Any]) -> dict[str, Any]:
     out = dict(manifest)
+    out["hash_profile"] = HASH_PROFILE
     out["manifest_id"] = ""
     out["manifest_sha256"] = ""
-    digest = compute_manifest_sha256(out)
-    out["manifest_sha256"] = digest
-    out["manifest_id"] = MANIFEST_ID_PREFIX + digest
+    out["manifest_id"] = compute_manifest_id(out)
+    out["manifest_sha256"] = compute_manifest_sha256(out)
     return out
 
 
@@ -279,6 +375,8 @@ def validate_manifest(manifest: Any, artifact_root: str | Path | None = None) ->
         errors.append(f"schema_version must equal {SCHEMA_VERSION}")
     if manifest.get("manifest_kind") != MANIFEST_KIND:
         errors.append(f"manifest_kind must equal {MANIFEST_KIND}")
+    if manifest.get("hash_profile") != HASH_PROFILE:
+        errors.append(f"hash_profile must equal {HASH_PROFILE}")
 
     artifact_type = manifest.get("artifact_type")
     stage = manifest.get("artifact_stage")
@@ -387,11 +485,18 @@ def validate_manifest(manifest: Any, artifact_root: str | Path | None = None) ->
         if training_shard is not None or training_run is not None or merge_recipe is not None:
             errors.append("quantized_serving_artifact identity must use parent lineage; training/merge receipts belong to parent")
 
-    expected_digest = compute_manifest_sha256(manifest)
-    if manifest.get("manifest_sha256") != expected_digest:
-        errors.append("manifest_sha256 self-digest mismatch")
-    if manifest.get("manifest_id") != MANIFEST_ID_PREFIX + expected_digest:
-        errors.append("manifest_id does not match self-digest")
+    if manifest.get("hash_profile") == HASH_PROFILE:
+        try:
+            expected_id = compute_manifest_id(manifest)
+            expected_digest = compute_manifest_sha256(manifest)
+        except ValueError as exc:
+            errors.append(f"P2 canonical hash payload invalid: {exc}")
+        else:
+            if manifest.get("manifest_id") != expected_id:
+                errors.append("manifest_id identity digest mismatch")
+            if manifest.get("manifest_sha256") != expected_digest:
+                errors.append("manifest_sha256 self-digest mismatch")
+    # Unknown/missing hash profiles are never guessed or validated under a fallback.
 
     if artifact_root is not None:
         try:
@@ -426,6 +531,7 @@ def build_manifest(spec: dict[str, Any], artifact_root: str | Path) -> dict[str,
     manifest = {
         "schema_version": SCHEMA_VERSION,
         "manifest_kind": MANIFEST_KIND,
+        "hash_profile": HASH_PROFILE,
         "manifest_id": "",
         "artifact_type": spec.get("artifact_type"),
         "artifact_stage": spec.get("artifact_stage"),
