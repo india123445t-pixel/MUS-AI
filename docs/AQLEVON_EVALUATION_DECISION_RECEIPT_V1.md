@@ -1,197 +1,222 @@
-# AQLEVON Evaluation Decision Receipt V1
+# AQLEVON Evaluation Decision Receipt V1 — P2.1 Interoperability
 
 **Worker:** 05 — Evaluation / Truth / Red-Team  
-**Task:** `P2-A05-EVAL-DECISION-RECEIPT`  
-**Status:** P2 implementation artifact; subordinate to Manager-frozen `/AQLEVON/Coordination/AQLEVON_P2_INTEGRATION_CONTRACTS_V1.md`.
+**Task:** `P2.1-R05-EVAL-HASH-INTEROP`  
+**Status:** P2.1 repair artifact; subordinate to Manager-frozen `/AQLEVON/Coordination/AQLEVON_P2_INTEGRATION_CONTRACTS_V1.md` amendment.
 
 ## Purpose
 
-P1 established a fail-closed evaluation gate. P2 turns that gate decision into one immutable cross-lane receipt that Worker 04, Worker 06, and the Manager can consume without retyping evaluation truth as free booleans.
+P1 established the fail-closed evaluation gate. P2 introduced one immutable cross-lane Evaluation Decision Receipt. P2.1 repairs its cross-lane identity so Workers 03/04/06 and Manager verify exactly the same self-hash bytes and do not infer authority that the receipt does not possess.
 
 Canonical receipt kind:
 
 `AQLEVON_EVALUATION_DECISION_RECEIPT_V1`
 
-This implementation exports no protected prompt/answer plaintext and no raw paired outcome arrays.
+Canonical P2.1 hash profile:
+
+`AQLEVON_CANONICAL_JSON_SHA256_V1`
+
+The receipt exports no protected prompt/answer plaintext and no raw paired outcome arrays.
+
+## P2.1 canonical self-hash profile
+
+All Worker-05 P2.1 self-hashed cross-lane records carry:
+
+`hash_profile: AQLEVON_CANONICAL_JSON_SHA256_V1`
+
+This applies to:
+- `AQLEVON_EVALUATION_DECISION_RECEIPT_V1` / `receipt_sha256`;
+- `AQLEVON_PREREGISTRATION_ANCHOR_REQUEST_V1` / `request_sha256`;
+- `AQLEVON_PREREGISTRATION_ANCHOR_VERIFICATION_V1` / `verification_record_sha256`.
+
+The implementation follows the Manager-frozen profile:
+- SHA-256 over UTF-8 compact JSON with only the exact self-digest field omitted;
+- authoritative object keys must be non-empty ASCII and are sorted lexicographically by ASCII byte value;
+- arrays preserve order;
+- strings are Unicode NFKC-normalized and `CRLF` / `CR` normalize to `LF` before serialization;
+- booleans/null use JSON literals;
+- integers remain ordinary base-10 JSON integers;
+- direct non-integral numeric values are forbidden in authoritative self-hash payloads;
+- producer-side non-integral metrics are converted to canonical decimal strings with no exponent, no leading `+`, no unnecessary leading zero, no trailing fractional zero, and `-0` normalized to `0`;
+- self-digest and all cross-lane SHA-256 lexemes are lowercase 64-hex.
+
+The accepted Worker-06 cross-language vector is reproduced in Worker-05 tests:
+
+```text
+{"10":"ten","2":"two","text":"é\nline","tiny":"0.0000001"}
+SHA-256 = 1b1580a59f4ae1efdf8ed0fc7a86ffbcf1ee32d9f6d3294840afecd8a55f8b19
+```
+
+Worker-05 validation rejects missing/unknown hash profiles rather than guessing another canonicalizer.
+
+## Candidate Artifact Manifest boundary
+
+Worker 03 remains authority for Candidate Artifact Manifest semantics: artifact type/stage, layout, topology, file tree, lineage, and G1 `probe_only` restrictions.
+
+P2.1 standardizes only shared integrity. Worker 05 therefore verifies:
+- `manifest_kind = AQLEVON_CANDIDATE_ARTIFACT_MANIFEST_V1`;
+- `hash_profile = AQLEVON_CANONICAL_JSON_SHA256_V1`;
+- lowercase `manifest_sha256`;
+- the shared P2.1 canonical self-digest.
+
+Worker 05 does **not** reinterpret `artifact_stage` as promotion authorization. `promotion_candidate`, `merge_candidate`, and `release_candidate` remain workflow intent only.
 
 ## Receipt bindings
 
 The receipt self-hash binds:
-- `candidate_artifact_manifest_sha256` from the Worker-03/Manager contract;
+- `candidate_artifact_manifest_sha256`;
 - `experiment_manifest_sha256`;
-- preregistration anchor request + Manager-verifiable external anchor identity;
-- `evaluation_policy_sha256`;
-- exact `evaluation_code_sha256`, verified against the P1 gate file that is actually re-executed by the receipt builder;
+- preregistration anchor identity/evidence;
+- inherited P1 `evaluation_policy_sha256`;
+- exact `evaluation_code_sha256`, verified against the P1 gate file actually executed;
 - frozen `harness_manifest_sha256`;
 - `provenance_receipt_sha256`;
 - `contamination_scan_receipt_sha256`;
-- derived `red_team_evidence_root_sha256` over the complete policy-required class set;
-- base raw-output and run-trace SHA-256 values;
-- candidate raw-output and run-trace SHA-256 values;
-- every required target/protected domain metric summary;
-- paired uncertainty/significance diagnostics;
-- efficiency summaries;
+- complete `red_team_evidence_root_sha256`;
+- base and candidate raw-output/run-trace SHA-256 values;
+- required target/protected domain metric summaries and uncertainty/significance diagnostics;
+- evaluation-efficiency scope + population identity;
+- efficiency metric summary;
+- runtime-attempt authority boundary;
 - final `INVALID | REJECTED | PROMOTION_ELIGIBLE` status;
 - hash-derived invalid/failure reason codes and sealed reason-set digests;
 - final receipt SHA-256.
 
-`PROMOTION_ELIGIBLE` is explicitly not a release declaration. Manager review and an independent rerun remain mandatory.
+`PROMOTION_ELIGIBLE` remains **candidate-level evaluation truth only**. It is not final release authorization and it is not arbitrary runtime-attempt correctness.
 
-## One-authority-per-fact rule
+## Evaluation-efficiency population/scope identity
 
-Worker 05 does **not** redefine Worker 03's Candidate Artifact Manifest semantics or self-digest canonicalization. At this boundary Worker 05 consumes only:
-- canonical manifest kind `AQLEVON_CANDIDATE_ARTIFACT_MANIFEST_V1`;
-- its 64-hex SHA-256 identity.
+P2.1 makes Worker-05 efficiency evidence population explicit and distinct from Worker-06 operational/runtime economics.
 
-Worker 03 remains authority for artifact content/layout/tree validity. Worker 05 is authority for evaluation decision truth. Worker 04/06 should consume the Worker-05 receipt identity, not reconstruct evaluation booleans.
+Every receipt carries:
+- `efficiency_scope.hash_profile = AQLEVON_CANONICAL_JSON_SHA256_V1`;
+- `efficiency_scope_kind = AQLEVON_EVALUATION_HARNESS_EFFICIENCY_SCOPE_V1`;
+- `population_kind = AQLEVON_FROZEN_EVALUATION_ITEM_POPULATION_V1`;
+- experiment + harness identities;
+- base/candidate raw-output SHA-256 values;
+- base/candidate run-trace SHA-256 values;
+- per-required-domain item counts;
+- deterministic `population_root_sha256`;
+- `metric_evidence_kind = AQLEVON_EVALUATION_REPORT_AGGREGATE_EFFICIENCY_V1`;
+- `runtime_evidence_consumed = false`;
+- `runtime_attempt_set_sha256 = null`;
+- explicit boundary `FROZEN_EVALUATION_HARNESS_ONLY_NOT_OPERATIONAL_RUNTIME_ATTEMPTS`.
 
-## Preregistration anchor interface
+This prevents equal metric names from implying equal evidence populations. If a future Manager-approved Worker-05 extension consumes Worker-06 runtime receipts, it must bind that exact runtime receipt/root; this implementation does not claim such consumption.
 
-A self-hashed experiment manifest is tamper-evident but does not prove *when* it existed. P2 therefore adds two separate objects:
+## Runtime-attempt authority boundary
+
+Every receipt explicitly carries:
+- `authority_kind = AQLEVON_CANDIDATE_LEVEL_EVAL_NOT_ATTEMPT_AUTHORITY_V1`;
+- `authoritative_for_arbitrary_runtime_attempts = false`;
+- `attempt_set_root_sha256 = null`;
+- per-attempt truth requirement pointing to a Manager-approved per-attempt objective verifier or a future Manager-approved exact-attempt-set extension.
+
+Therefore Worker 06 may accept a valid P2.1 receipt as candidate-level truth metadata, but may not count arbitrary attempts as verified successes from `PROMOTION_ELIGIBLE` alone.
+
+## Preregistration chronology interface
+
+A self-hashed experiment manifest is tamper-evident but does not prove *when* it existed. Worker 05 keeps two separate P2.1 self-hashed objects:
 
 1. `AQLEVON_PREREGISTRATION_ANCHOR_REQUEST_V1`
-   - binds experiment manifest, evaluation policy, candidate artifact identity, and requested anchor kind;
-   - self-hashed;
-   - is **not** chronology proof.
+   - binds candidate artifact, experiment manifest, policy and requested anchor kind;
+   - carries the canonical P2.1 hash profile;
+   - is not chronology proof by itself.
 
 2. `AQLEVON_PREREGISTRATION_ANCHOR_VERIFICATION_V1`
-   - allowed `anchor_kind`: `git_commit | immutable_object | append_only_ledger`;
+   - carries the canonical P2.1 hash profile;
+   - allowed anchor kind: `git_commit | immutable_object | append_only_ledger`;
    - binds the exact anchor request;
-   - carries an immutable external reference;
-   - requires `external_evidence_sha256`;
-   - requires `manager_authority_id`;
-   - requires `manager_attestation_sha256` for the separately stored Manager-owned attestation artifact;
-   - requires RFC3339 UTC `anchored_at_utc` and `verified_at_utc`, with verification not earlier than anchoring;
-   - self-hashed for tamper evidence.
+   - requires immutable external reference;
+   - requires external evidence SHA-256;
+   - requires Manager authority identity;
+   - requires separately stored Manager-attestation SHA-256;
+   - requires RFC3339 UTC anchor/verification timestamps with valid ordering;
+   - is self-hashed for tamper evidence.
 
-The helper that canonicalizes this record does **not** confer Manager authority. The Manager must independently resolve the external immutable reference and verify the external evidence + Manager attestation artifacts. This deliberately prevents `self_hash` or caller-supplied `verified=true` from becoming chronology truth.
+The helper does not confer Manager authority. Manager must independently resolve the immutable reference and verify evidence/attestation. Self-hash, caller boolean, or caller-controlled timestamp alone remains non-authoritative.
 
-No actual production/preregistered evaluation anchor is created by this P2 implementation because no real AQLEVON promotion candidate/output run exists yet.
+No production preregistration anchor is fabricated because no real AQLEVON promotion-candidate evaluation exists yet.
 
-## Fail-closed behavior
+## Decision-integrity hardening retained
 
-Receipt construction freshly re-runs the P1 `evaluate_release()` gate and rejects any caller-supplied `gate_result` that differs byte-for-byte at the canonical object level. This prevents stale/fabricated downstream decisions from being wrapped in a valid receipt.
+Receipt construction freshly reruns P1 `evaluate_release()` and rejects a supplied `gate_result` unless it exactly matches fresh P1 recomputation. This prevents stale/fabricated downstream decisions from being wrapped in a valid P2.1 receipt.
 
-Receipt construction rejects mismatches in:
-- candidate artifact identity shape/kind;
-- experiment manifest binding;
-- policy binding;
-- anchor request/verification binding;
-- missing external anchor evidence;
-- missing Manager attestation evidence;
-- anchor timestamp format/order;
-- base/candidate harness identity;
-- raw outputs/run traces;
-- provenance receipt;
-- contamination scan receipt;
-- complete red-team class set/evidence;
-- required domain diagnostics;
-- efficiency evidence;
+It also rejects:
+- wrong evaluation-code identity;
+- experiment/policy mismatch;
+- base/candidate harness mismatch;
+- provenance mismatch;
+- contamination receipt mismatch;
+- incomplete Red-Team class coverage/evidence;
+- malformed domain/statistical diagnostics;
+- malformed efficiency evidence;
 - unsupported final status;
-- stale/fabricated gate result;
-- evaluation-code hash not matching the gate code actually executed.
-
-Receipt validation also rejects tampered self-digests and any forbidden prompt/answer/plaintext keys.
+- protected/raw plaintext keys.
 
 ## Reason-code privacy
 
-The P1 gate may retain detailed failure text in sealed evaluation artifacts. The cross-lane P2 receipt exports only stable hash-derived codes such as:
-- `INVALID_<16 hex>`;
-- `FAILURE_<16 hex>`.
-
-It also binds the full sealed reason sets by SHA-256. This lets consumers compare decisions without exporting diagnostic text that could reveal private evaluation details.
+Detailed P1 failure text remains sealed. Cross-lane receipts export stable hash-derived reason codes plus SHA-256 roots of complete reason sets, not private diagnostic prose.
 
 ## CLI
 
-Create an anchor request:
+The existing commands remain:
 
 ```text
-python evaluation_decision_receipt_v1.py anchor-request \
-  --experiment-manifest EXPERIMENT.json \
-  --policy release_gate_policy_v1.json \
-  --candidate-artifact-manifest CANDIDATE.json \
-  --anchor-kind git_commit \
-  --output ANCHOR_REQUEST.json
+python evaluation_decision_receipt_v1.py anchor-request ...
+python evaluation_decision_receipt_v1.py validate-anchor ...
+python evaluation_decision_receipt_v1.py build-receipt ...
+python evaluation_decision_receipt_v1.py validate-receipt ...
 ```
 
-Validate a Manager verification record:
-
-```text
-python evaluation_decision_receipt_v1.py validate-anchor \
-  --anchor-request ANCHOR_REQUEST.json \
-  --anchor-verification ANCHOR_VERIFICATION.json
-```
-
-Build the decision receipt after P1 evaluation has completed:
-
-```text
-python evaluation_decision_receipt_v1.py build-receipt \
-  --candidate-artifact-manifest CANDIDATE.json \
-  --experiment-manifest EXPERIMENT.json \
-  --policy release_gate_policy_v1.json \
-  --evaluation-code eval_truth_gate.py \
-  --anchor-request ANCHOR_REQUEST.json \
-  --anchor-verification ANCHOR_VERIFICATION.json \
-  --report REPORT.json \
-  --gate-result GATE_RESULT.json \
-  --scan-receipt SCAN_RECEIPT.json \
-  --output EVALUATION_DECISION_RECEIPT.json
-```
-
-Validate receipt identity/bindings:
-
-```text
-python evaluation_decision_receipt_v1.py validate-receipt \
-  --receipt EVALUATION_DECISION_RECEIPT.json \
-  --candidate-artifact-manifest CANDIDATE.json \
-  --experiment-manifest EXPERIMENT.json \
-  --policy release_gate_policy_v1.json \
-  --anchor-request ANCHOR_REQUEST.json \
-  --anchor-verification ANCHOR_VERIFICATION.json
-```
+Generated P2.1 anchor and evaluation receipt objects now carry the frozen hash profile automatically.
 
 ## Consumer law
 
 ### Worker 04
-Consume:
-- receipt kind;
-- receipt SHA-256;
-- candidate artifact manifest SHA-256;
-- final status;
-- metric summaries required by merge policy.
-
-Do not invent evaluation margins or substitute `behavior_pass=true` for this receipt.
+Consume the P2.1 receipt identity/status under the Manager phase split. Do not recreate evaluation truth from legacy booleans or artifact-stage labels.
 
 ### Worker 06
-Use receipt identity only as correctness/promotion truth joined to runtime attempt receipts. Runtime measurements remain Worker 06 truth; correctness is not a runtime field.
+A valid candidate-level P2.1 Evaluation Decision Receipt may be consumed as candidate truth metadata. It cannot blanket-verify runtime attempts. P2.1 attempt-level verified-success requires Manager-approved per-attempt objective-verifier receipts until a future exact-attempt-set extension is approved.
 
 ## Tests
 
-The final local suite runs P1 + P2 together:
-- P1 accepted repair regressions: **23/23 PASS**;
-- P2 receipt/anchor regressions: **29/29 PASS**;
-- combined: **52/52 PASS**;
-- `py_compile`: PASS.
+Final local suite after P2.1 repair:
+- accepted P1 suite: **23/23 PASS**;
+- Worker-05 P2/P2.1 suite: **45/45 PASS**;
+- combined: **68/68 PASS**;
+- `py_compile`: PASS;
+- policy JSON validation: PASS.
 
-P2 regressions include:
-- self-hash alone cannot satisfy external anchor evidence;
-- missing Manager attestation is invalid;
-- anchor request is bound to candidate artifact + experiment + policy;
-- anchor tampering / kind mismatch / timestamp errors fail closed;
-- incomplete Red-Team class set fails closed even if an old gate result is reused;
-- report/experiment, harness, provenance and scan mismatches fail closed;
-- receipt tampering and policy/candidate binding mismatch fail closed;
-- no raw outcomes or protected prompt/answer keys are exported;
-- fake/stale gate-result laundering is rejected;
-- wrong evaluation-code identity is rejected;
-- CLI build + validation end-to-end passes.
+Independent cross-language verification was also run against a generated P2.1 Evaluation Decision Receipt using a Node verifier that mirrors the accepted Worker-06 `verifyP2SelfDigest` profile. Result: **PASS** — Python receipt SHA `ff823ca12dd01365c0b7ee64168357662c56cc4aae20966ba6b3c678a0eee151` exactly matched the Node-computed digest and contained no direct float. This is fixture evidence only, not a production receipt.
+
+New P2.1 coverage includes:
+- exact cross-language canonical JSON/hash vector shared with accepted Worker 06;
+- NFKC + newline normalization;
+- non-ASCII authoritative key rejection;
+- direct float rejection;
+- decimal canonicalization / negative-zero normalization;
+- anchor request + verification hash-profile enforcement;
+- Candidate Artifact Manifest hash-profile/self-digest enforcement;
+- Evaluation Decision Receipt hash-profile/self-digest enforcement;
+- exact digest-field exclusion rule;
+- explicit evaluation-efficiency population/scope root;
+- explicit separation from Worker-06 runtime population/scope;
+- no direct floats in the authoritative receipt payload;
+- candidate-level receipt non-authority for arbitrary runtime attempts;
+- fail-closed runtime-authority laundering attempt;
+- population-root tamper detection even after outer receipt rehash.
+
+P1/P2 regressions for chronology, stale gate-result laundering, red-team completeness, provenance/scan/harness mismatch, no protected plaintext, and CLI end-to-end validation remain green.
 
 ## Truth boundary
 
-This P2 artifact does not:
-- create new AQLEVON weights;
-- prove capability improvement;
+This P2.1 repair does not:
+- create or improve model weights;
+- prove capability gain;
 - authorize release;
+- authorize arbitrary runtime-attempt correctness;
 - create a production preregistration anchor;
 - change Manager-frozen canonical architecture;
+- modify another worker branch;
 - merge any PR to `main`.
