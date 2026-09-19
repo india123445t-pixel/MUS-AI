@@ -193,3 +193,40 @@ test('delayed model HTTP failure retains runtime metrics and compute cost while 
   assert.ok(summary.estimated_gpu_cost_usd_total>0.001);
   assert.equal(summary.verified_successes,1);
 });
+
+
+test('worker stdout/stderr never exposes URL-embedded credentials/query tokens or model key',async()=>{
+  let claimCount=0;
+  const server=http.createServer(async(req,res)=>{
+    let raw='';for await(const chunk of req)raw+=chunk;
+    const body=raw?JSON.parse(raw):{};
+    res.setHeader('content-type','application/json');
+    if(body.op==='claim')claimCount++;
+    res.end(JSON.stringify({ok:true,job:null}));
+  });
+  const port=await listen(server);
+  const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
+  const child=spawn(process.execPath,['scripts/commons-worker.mjs'],{
+    cwd:root,
+    env:{...process.env,
+      AQLEVON_COMMONS_URL:`http://127.0.0.1:${port}`,
+      AQLEVON_COMMONS_WORKER_TOKEN:'log-worker-secret',
+      AQLEVON_MODEL_URL:'https://url-user-secret:url-pass-secret@example.invalid/path-signed-secret/v1?token=query-secret',
+      AQLEVON_MODEL_KEY:'model-key-secret',
+      AQLEVON_COMMONS_ONCE:'1',
+    },
+    stdio:['ignore','pipe','pipe']
+  });
+  let stdout='',stderr='';child.stdout.on('data',x=>stdout+=x);child.stderr.on('data',x=>stderr+=x);
+  const [code]=await once(child,'exit');
+  server.close();await once(server,'close');
+  assert.equal(code,0,stderr);
+  assert.equal(claimCount,1);
+  const combined=stdout+stderr;
+  for(const secret of ['url-user-secret','url-pass-secret','path-signed-secret','query-secret','model-key-secret']){
+    assert.equal(combined.includes(secret),false,`secret leaked: ${secret}`);
+  }
+  const start=stdout.split('\n').filter(Boolean).map(line=>JSON.parse(line)).find(x=>x.event==='commons_worker_start');
+  assert.equal(start.model_origin,'https://example.invalid');
+  assert.equal(Object.hasOwn(start,'model_url'),false);
+});
