@@ -2,147 +2,91 @@
 
 **Task:** `P4-A03-GENE1-PHYSICAL-TRAINER`  
 **Worker:** `03`  
-**Date:** 2026-09-19  
-**Base:** Worker-03 P3 head `4a7a5fa2c2c4ba5f291564251c290e2c416ce6ec`  
-**Status:** implementation/preparation complete; physical surrogate execution **BLOCKED by explicit W01+W02 dependency**.
+**Status:** SURROGATE PREPARATION COMPLETE — A1 PHYSICAL RUN AWAITS EXACT MANAGER PAID AUTHORIZATION  
+**Branch:** `agent/03-p4-gene1-physical-trainer`  
+**PR:** #30  
+**Parent:** Worker-03 P3 `4a7a5fa2c2c4ba5f291564251c290e2c416ce6ec`
 
 ## Starting truth
 
-G1/R0-A is complete and passed on the canonical base. This P4 lane does not contain a G1 rerun command and treats the G1 source commit as historical evidence only.
+G1 already passed physically and is frozen as `ALREADY_PASSED_DO_NOT_RERUN`. This P4 lane contains no G1 rerun.
 
-Canonical base remains:
-- `Qwen/Qwen3.8-27B`
-- revision `1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0`
-- BF16 adapter-only policy unless Manager explicitly authorizes a different update class.
+## Real P4 inputs consumed
 
-Same-architecture surrogate remains:
-- `Qwen/Qwen3.5-4B-Base`
-- revision `daa9c16f371249f9ad1c75a9ed6f956c08ea08f5`.
+Worker 01:
+- spec kind `AQLEVON_P4_METHOD_TOURNAMENT_SPEC_V1`
+- canonical SHA256 `7c6cc62b6ae20fd49038198865567df75f1a105607bd9d32d974530bd9894f1d`
+- arms: A0 SFT control / A1 RLVR control / A2 SDPO rich-feedback
+- order: A1 seed1701 -> A0 seed1701 -> A2 seed1701 if preflight passes
+- same-architecture student: `Qwen/Qwen3.5-4B-Base@daa9c16f...`
+- common adapter: BF16 LoRA r4/alpha4, full-attention q/v only.
 
-## Explicit P4 dependency check
+Worker 02:
+- 56 canonical training rows
+- shard SHA256 `59480e9ff48b36a0efb77a36d3e35d9f656ef4dee0ce18489d3017c92b2a0d49`
+- manifest SHA256 `f7499362fdd7e6fd4bc91682a5f1c03767c98685c045ad50a712711c6c4ad55f`
+- training-visible pack SHA256 `35c7ebe6d5e82f42d7553fa28391f6d82c8800d6eced582d06881c8eb17d9d6b`
+- split SHA256 `3cd1c0d32cad8cc7edf55c9392292828d54d2b4bd16ad50d0e70e26ba3dd9202`
+- sealed eval remains hash-only/forbidden to Worker03.
 
-P4 states that Worker 03 begins surrogate training only when **Worker 01 method specs + Worker 02 training-visible pack** exist.
+Worker 05:
+- candidate-blind law frozen before scores
+- law SHA256 `70581a21c26605317afcb314d990fa2f78b621bf44af1747d8caac6168385ec0`
+- sampling SHA256 `4dde4741da4c1c469ee6fe555ea9041ad985de829eefb76b702ff0c82e528903`.
 
-Checked twice during this execution:
-- `/AQLEVON/Coordination/AGENT_01.md` remains version 10 and contains no `P4-A01-METHOD-TOURNAMENT-DIRECTOR` completion/input;
-- `/AQLEVON/Coordination/AGENT_02.md` remains version 8 and contains no `P4-A02-GENE1-DATA-VERIFIER-PACK` completion/input;
-- GitHub search found no P4 W01/W02 PRs and expected P4 branch names were absent at the time of the second check.
+Worker 06:
+- surrogate compute profile `p4-surrogate-1x24`
+- paid execution requires explicit Manager authorization.
 
-Therefore Worker 03 must not invent a method winner, method arm list, P4 training shard, or sealed-evaluation boundary. Physical surrogate training has not started.
+## Implemented / repaired in this PR
 
-## Implemented now
+- real W01/W02/W05 contract consumer (old blocked placeholder contract removed);
+- exact P2.1-style canonical hashes and immutable frozen plan;
+- sanitized AQLEVON-owned objective reward for A1/A2;
+- no expected state/oracle/canary text in rich feedback;
+- SDPO/GRPO launcher pinned to `lasgroup/SDPO@7c457fc1...`;
+- W01 package versions enforced (`transformers 5.17.0 / peft 0.21.0 / accelerate 1.15.0`);
+- LoRA only: r4/alpha4, `self_attn.q_proj/v_proj` only;
+- A0 SFT control bound to the same exact training shard;
+- 12-update screen budget / 4 prompts / 4 RL rollouts / frozen sampling;
+- no automatic fallback, no QLoRA, no model revision mutation;
+- paid run gate binds exact plan SHA + command SHA + profile.
 
-### 1. `p4_gene1_trainer.py`
-Fail-closed P4 input/freeze/execution contract:
-- accepts only `AQLEVON_P4_GENE1_METHOD_TOURNAMENT_SPEC_V1` from Worker 01 / exact P4 task identity;
-- enforces 1–3 method arms only;
-- supports the P3/P4 frozen method vocabulary but does not select a winner;
-- rejects any hidden/sealed/protected-evaluation reference from method parameters or training rows;
-- validates the complete P2.1 Training Shard Manifest field surface, P2.1 self-digest, shard byte identity, row count and trainable-row shape;
-- freezes exact method spec SHA, manifest SHA, shard bytes SHA, model/revision/precision and arm parameters into `AQLEVON_P4_GENE1_FROZEN_TRAINING_PLAN_V1`;
-- freezes `g1_status=ALREADY_PASSED_DO_NOT_RERUN`;
-- creates immutable command locks with `automatic_fallback=false` and `g1_rerun=false`;
-- paid execution fails closed without an exact Manager authorization bound to plan SHA + command SHA + profile;
-- training-run receipt explicitly says `NOT_EVALUATED_BY_WORKER05` and `capability_gain_claim=false`.
+## Frozen run preparation
 
-### 2. `p4_method_spec.schema.json`
-Machine-readable handoff contract for Worker-01 P4 method freeze. It requires:
-- Worker 01 P4 authority identity;
-- maximum three arms;
-- exact supported method identifiers;
-- seed/budget/optimizer/stop/runner parameters;
-- P2.1 hash profile and self-hash identity.
+Frozen plan:
+- `plan_sha256 = 2ad7de02027e7b4eb1546486c1f02999b361585a38fc8316c17efbea9e1993c2`
 
-The Python validator remains authoritative for self-digest and forbidden-evaluation checks.
+First run per W01 order:
+- arm: `P4_A1_RLVR_CONTROL`
+- seed: `1701`
+- profile: `p4-surrogate-1x24`
+- `command_sha256 = 267ad42d23f4fd0dafb86dd669414de37becbb22aa4dc24cf1c144767e7eec95`
+- `lock_sha256 = e37e5f4be9002c152aa4daead72c84a8ee6d6645b71520b2075aa0465d28e0d0`
+- automatic fallback: false
+- G1 rerun: false.
 
-### 3. `p4_sft_surrogate.py`
-Physical SFT/LoRA surrogate control runner ready for the simple control arm:
-- exact pinned `Qwen/Qwen3.5-4B-Base` revision;
-- exact package profile `transformers 5.17.0 / peft 0.21.0 / accelerate 1.15.0`;
-- BF16 only, no QLoRA;
-- q/v LoRA discovery, frozen rank from run parameters;
-- deterministic seed must be present in frozen W01 spec;
-- optimizer-update ceiling comes only from the frozen plan;
-- training data comes only from the exact Worker-02 shard bound into the plan;
-- nonfinite/zero-gradient/nonzero-delta checks;
-- adapter save/reload state SHA equality;
-- GPU-seconds and peak VRAM telemetry;
-- output status is only `COMPLETED_ARTIFACT_PENDING_WORKER05_EVALUATION`;
-- never emits capability/promotion truth.
+The exact plan and exact A1 command lock are checked into this branch.
 
-Non-SFT method arms are deliberately not fabricated before W01 freezes P4 arms. A non-SFT arm passed to this runner fails closed.
+## Verification
 
-## Manager paid-run authorization gate
+Local exact-source verification before publication:
+- `py_compile`: PASS
+- schema JSON parse: PASS
+- contract/unit suite: **17/17 PASS**
+- real W01/W02/W05 `freeze-plan`: PASS
+- 56-row train-visible data conversion: PASS
+- A1 command generation/lock: PASS
+- no local/free GPU exists in this Worker environment (`nvidia-smi` unavailable).
 
-`AQLEVON_MANAGER_PAID_RUN_AUTHORIZATION_V1` must bind all of:
-- P4 task id;
-- frozen training-plan SHA;
-- exact canonical command SHA;
-- exact hardware/profile string;
-- Manager authority identity;
-- provider;
-- max budget;
-- max wall time;
-- authorization timestamp;
-- P2.1-style self digest.
+## Physical truth
 
-A paid flag without this exact object fails before subprocess launch. This applies both to surrogate paid runs and eventual 27B training. No authorization object was fabricated by Worker 03.
+No P4 GPU run has occurred yet.
+No paid compute has been used in P4.
+No surrogate candidate exists yet.
+No 27B Gene #1 run exists.
+No capability-gain claim is made.
 
-## Tests
+The next action is exactly one A1 seed1701 run after Manager authorizes the frozen paid command/profile/budget. Its measured Worker06-attributed GPU-seconds becomes `C12`, the ceiling for A0/A2.
 
-Final local CPU/unit suite:
-- `14/14 PASS`;
-- `py_compile` PASS for both Python modules and tests;
-- JSON Schema parse PASS.
-
-Coverage includes:
-- valid P4 method spec;
-- >3 arms rejection;
-- P3/non-P4 Worker-01 authority rejection;
-- hidden/sealed eval reference rejection;
-- complete Training Shard manifest + exact byte binding;
-- shard tamper rejection;
-- private-eval leakage in training row rejection;
-- frozen plan exact input bindings;
-- explicit G1 `DO_NOT_RERUN` lock;
-- command lock self-digest;
-- paid run without Manager authorization rejection;
-- authorization plan/profile/command binding;
-- training receipt cannot claim capability gain;
-- direct float rejection under canonical hash profile;
-- SFT frozen seed/budget enforcement;
-- SFT runner rejecting non-SFT methods.
-
-No GPU test was run because the required P4 W01/W02 inputs do not yet exist, and no paid run was authorized for this P4 task.
-
-## Remaining critical path / blocker
-
-Worker 03 can proceed immediately when both exact dependencies appear:
-1. Worker-01 P4 machine-readable method spec (<=3 arms) compatible with the contract or accompanied by Manager-approved interface adjustment;
-2. Worker-02 P4 training-visible shard + valid P2.1 Training Shard Manifest, without sealed evaluation assets.
-
-Then the legal sequence is:
-- freeze exact P4 plan;
-- run only the smallest Manager-authorized/free surrogate compute necessary for the frozen arms;
-- emit one candidate artifact/report per arm/seed;
-- Worker 05 evaluates hidden evidence;
-- wait for Worker-05 decision + Manager recipe authorization;
-- only then one canonical 27B Gene #1 training run;
-- emit nonzero delta/save-reload/hashes/training receipt/Candidate Artifact Manifest;
-- Worker 05 reality evaluation;
-- Manager alone accepts/rejects capability gain.
-
-There is no legal path to the 27B candidate before surrogate decision + Manager authorization.
-
-## Deliberately not done
-
-- no G1 rerun;
-- no surrogate GPU execution using stale P3 method/data inputs;
-- no 27B Gene #1 training;
-- no paid GPU execution;
-- no sealed evaluation access;
-- no Worker-05 evaluation claim;
-- no capability-gain claim;
-- no production mutation;
-- no `main` merge;
-- no modification of another worker branch.
+No merge to `main`, no production mutation, no sealed-eval plaintext access.
