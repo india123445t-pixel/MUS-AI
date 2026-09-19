@@ -30,9 +30,10 @@
   "worker06_compute_profile": "p4-surrogate-1x24",
   "worker06_reference_commit": "7204c7ae84eb6d246603fda960cffe02c2b6279e",
   "worker03_sources": {
-    "trainer_git_blob_sha1": "6fedac7c2f0c00c5ed8b83110dbd1b064ebb5fff",
+    "trainer_git_blob_sha1": "14b5573f682c0b50860a570f1328b3b0eca21032",
     "tournament_git_blob_sha1": "585acf1d1142629ec75a9a31b9437f346861012f",
-    "reward_git_blob_sha1": "c9db3e315299cce59c5d4cece7de86302c10c614"
+    "reward_git_blob_sha1": "c9db3e315299cce59c5d4cece7de86302c10c614",
+    "command_lock_git_blob_sha1": "033956659d4bc52b4133c77c3e919f172de353c6"
   },
   "budget": {
     "optimizer_updates": 12,
@@ -53,5 +54,5 @@
   "automatic_fallback": false,
   "paid_compute_requires_manager_authorization": true,
   "capability_gain_claim": false,
-  "manifest_sha256": "4b51b8c143e2b5c6cbdcc65d5cd8b356e207b4d7d0fb8641b0d991abb1f8f690"
+  "manifest_sha256": "39b03bd9f7fff7ab67096b6393e2683604079c372b7edf180b34a79e9a47d78a"
 }
