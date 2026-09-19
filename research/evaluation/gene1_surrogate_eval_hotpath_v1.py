@@ -415,4 +415,118 @@ def build_a1_single_candidate_registration(*, law: dict[str, Any], stage_binding
     """Pre-register exactly one A1 candidate before any hidden score is opened.
 
     This P4.1 overlay exists because the frozen P4 batch tournament registration
-   
+    requires >=2 arms. It does not modify that law and cannot select a method.
+    """
+    errors = p4.validate_evaluation_law(law) + validate_surrogate_stage_binding(stage_binding, law=law)
+    if not isinstance(ingest, dict) or ingest.get("receipt_kind") != HOTPATH_KIND or not verify_p2_self_digest(ingest, "ingest_receipt_sha256"):
+        errors.append("ingest_receipt_invalid")
+    elif ingest.get("law_sha256") != law.get("law_sha256") or ingest.get("stage_binding_sha256") != stage_binding.get("stage_binding_sha256"):
+        errors.append("ingest_parent_binding_mismatch")
+    if errors:
+        raise HotPathError(STATE_INVALID_EVALUATION + ":" + ";".join(sorted(set(errors))))
+    body = {
+        "schema_version": 1,
+        "registration_kind": HOTPATH_REGISTRATION_KIND,
+        "hash_profile": HASH_PROFILE,
+        "law_sha256": law["law_sha256"],
+        "stage_binding_sha256": stage_binding["stage_binding_sha256"],
+        "candidate_slot": A1_SLOT,
+        "arm_id": A1_ARM_ID,
+        "training_seed": A1_SEED,
+        "candidate_artifact_manifest_sha256": ingest["candidate_artifact_manifest_sha256"],
+        "training_run_receipt_sha256": ingest["training_run_receipt_sha256"],
+        "run_manifest_sha256": ingest["run_manifest_sha256"],
+        "command_lock_sha256": ingest["command_lock_sha256"],
+        "harness_manifest_sha256": stage_binding["harness_manifest_sha256"],
+        "sampling_profile_sha256": law["sampling_profile_sha256"],
+        "score_visibility_at_registration": "NO_A1_HIDDEN_SCORES_OR_OUTPUTS_OBSERVED",
+        "selection_authority": "NONE_SINGLE_CANDIDATE_REALITY_EVIDENCE_ONLY",
+        "chronology_requirement": "THIS_REGISTRATION_MUST_BE_MANAGER_VERIFIABLY_ANCHORED_BEFORE_A1_SCORE_UNSEAL",
+    }
+    return _seal(body, "registration_sha256")
+
+
+def validate_a1_single_candidate_registration(registration: Any, *, law: dict[str, Any], stage_binding: dict[str, Any], ingest: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    required = {
+        "schema_version", "registration_kind", "hash_profile", "law_sha256", "stage_binding_sha256",
+        "candidate_slot", "arm_id", "training_seed", "candidate_artifact_manifest_sha256",
+        "training_run_receipt_sha256", "run_manifest_sha256", "command_lock_sha256",
+        "harness_manifest_sha256", "sampling_profile_sha256", "score_visibility_at_registration",
+        "selection_authority", "chronology_requirement", "registration_sha256",
+    }
+    if not _exact_keys(registration, required):
+        return ["a1_registration_schema"]
+    if registration.get("schema_version") != 1 or registration.get("registration_kind") != HOTPATH_REGISTRATION_KIND:
+        errors.append("a1_registration_identity")
+    if registration.get("hash_profile") != HASH_PROFILE or not verify_p2_self_digest(registration, "registration_sha256"):
+        errors.append("a1_registration_self_digest")
+    expected = {
+        "law_sha256": law.get("law_sha256"),
+        "stage_binding_sha256": stage_binding.get("stage_binding_sha256"),
+        "candidate_slot": A1_SLOT,
+        "arm_id": A1_ARM_ID,
+        "training_seed": A1_SEED,
+        "candidate_artifact_manifest_sha256": ingest.get("candidate_artifact_manifest_sha256"),
+        "training_run_receipt_sha256": ingest.get("training_run_receipt_sha256"),
+        "run_manifest_sha256": ingest.get("run_manifest_sha256"),
+        "command_lock_sha256": ingest.get("command_lock_sha256"),
+        "harness_manifest_sha256": stage_binding.get("harness_manifest_sha256"),
+        "sampling_profile_sha256": law.get("sampling_profile_sha256"),
+        "score_visibility_at_registration": "NO_A1_HIDDEN_SCORES_OR_OUTPUTS_OBSERVED",
+        "selection_authority": "NONE_SINGLE_CANDIDATE_REALITY_EVIDENCE_ONLY",
+    }
+    for key, wanted in expected.items():
+        if registration.get(key) != wanted:
+            errors.append(f"a1_registration_binding:{key}")
+    errors.extend(_scan_pre_score_leakage(registration, "a1_registration"))
+    return sorted(set(errors))
+
+
+def _parse_utc(value: Any, label: str) -> datetime:
+    if not isinstance(value, str) or not value.endswith("Z"):
+        raise HotPathError(f"{label}_must_be_rfc3339_utc")
+    try:
+        dt = datetime.fromisoformat(value[:-1] + "+00:00")
+    except ValueError as exc:
+        raise HotPathError(f"{label}_invalid") from exc
+    if dt.tzinfo is None or dt.utcoffset() != timezone.utc.utcoffset(dt):
+        raise HotPathError(f"{label}_not_utc")
+    return dt
+
+
+def finalize_a1_freeze_verification(payload: dict[str, Any]) -> dict[str, Any]:
+    body = dict(payload)
+    body["schema_version"] = 1
+    body["verification_kind"] = HOTPATH_FREEZE_KIND
+    body["hash_profile"] = HASH_PROFILE
+    return _seal(body, "verification_record_sha256")
+
+
+def validate_a1_freeze_verification(verification: Any, *, law: dict[str, Any], stage_binding: dict[str, Any], registration: dict[str, Any], ingest: dict[str, Any]) -> list[str]:
+    errors = validate_a1_single_candidate_registration(registration, law=law, stage_binding=stage_binding, ingest=ingest)
+    required = {
+        "schema_version", "verification_kind", "hash_profile", "law_sha256", "stage_binding_sha256",
+        "registration_sha256", "anchor_kind", "immutable_reference", "external_evidence_sha256",
+        "manager_authority_id", "manager_attestation_sha256", "anchored_at_utc", "scores_unsealed_at_utc",
+        "chronology_statement", "verification_record_sha256",
+    }
+    if not _exact_keys(verification, required):
+        return sorted(set(errors + ["a1_freeze_verification_schema"]))
+    if verification.get("schema_version") != 1 or verification.get("verification_kind") != HOTPATH_FREEZE_KIND:
+        errors.append("a1_freeze_verification_identity")
+    if verification.get("hash_profile") != HASH_PROFILE or not verify_p2_self_digest(verification, "verification_record_sha256"):
+        errors.append("a1_freeze_verification_self_digest")
+    if verification.get("law_sha256") != law.get("law_sha256") or verification.get("stage_binding_sha256") != stage_binding.get("stage_binding_sha256") or verification.get("registration_sha256") != registration.get("registration_sha256"):
+        errors.append("a1_freeze_verification_parent_binding")
+    if verification.get("anchor_kind") not in {"git_commit", "immutable_object", "append_only_ledger"}:
+        errors.append("a1_freeze_verification_anchor_kind")
+    if not isinstance(verification.get("immutable_reference"), str) or not verification["immutable_reference"]:
+        errors.append("a1_freeze_verification_reference")
+    for field in ("external_evidence_sha256", "manager_attestation_sha256"):
+        if not valid_sha256(verification.get(field)):
+            errors.append(f"a1_freeze_verification_hash:{field}")
+    if not isinstance(verification.get("manager_authority_id"), str) or not verification["manager_authority_id"]:
+        errors.append("a1_freeze_verification_manager")
+    try:
+        anchored = _parse_utc(verification.get("anc
