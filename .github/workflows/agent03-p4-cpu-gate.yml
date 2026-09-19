@@ -1,0 +1,64 @@
+name: Agent03 P4 CPU Gate
+
+on:
+  push:
+    branches:
+      - agent/03-p4-gene1-physical-trainer
+  pull_request:
+    branches:
+      - agent/03-p3-g1-ready
+    paths:
+      - 'research/weight_factory/agent03/**'
+      - '.github/workflows/agent03-p4-cpu-gate.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  p4-agent03-cpu:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: research/weight_factory/agent03
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Compile P4 Python
+        run: |
+          python -m py_compile             p4_gene1_trainer.py             p4_aqlevon_reward.py             p4_surrogate_tournament.py             p4_sft_surrogate.py             test_p4_gene1_trainer.py
+      - name: Parse frozen JSON
+        run: |
+          python - <<'PY'
+          import json
+          for p in [
+              'p4_method_spec.schema.json',
+              'p4_frozen_training_plan_v1.json',
+              'p4_a1_seed1701_run_manifest_v1.json',
+              'p4_a1_seed1701_command_lock_v1.json',
+          ]:
+              json.load(open(p, encoding='utf-8'))
+              print('JSON_PASS', p)
+          PY
+      - name: Run P4 CPU contract tests
+        run: python -m unittest -v test_p4_gene1_trainer.py
+      - name: Verify final A1 identities
+        run: |
+          python - <<'PY'
+          import json
+          import p4_gene1_trainer as c
+          import p4_surrogate_tournament as t
+          from pathlib import Path
+          plan_path=Path('p4_frozen_training_plan_v1.json')
+          run=json.load(open('p4_a1_seed1701_run_manifest_v1.json',encoding='utf-8'))
+          lock=json.load(open('p4_a1_seed1701_command_lock_v1.json',encoding='utf-8'))
+          assert c.verify_self_digest(run,'manifest_sha256')
+          assert c.verify_self_digest(lock,'lock_sha256')
+          argv=t.build_a1_argv(plan_path,Path('/workspace'))
+          assert c.canonical_sha256(argv)==run['command_sha256']==lock['command_sha256']
+          assert lock['run_manifest_sha256']==run['manifest_sha256']
+          assert lock['training_plan_sha256']==run['training_plan_sha256']
+          assert lock['g1_rerun'] is False and lock['automatic_fallback'] is False
+          print('A1_IDENTITY_PASS',run['manifest_sha256'],lock['lock_sha256'])
+          PY
