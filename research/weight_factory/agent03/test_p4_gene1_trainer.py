@@ -246,6 +246,8 @@ class RunnerTests(unittest.TestCase):
                 "baseline_grpo",
                 "trainer.n_gpus_per_node=1",
                 "actor_rollout_ref.rollout.tensor_model_parallel_size=1",
+                "ray_kwargs.ray_init.runtime_env.env_vars.PYTHONPATH",
+                "ray_kwargs.ray_init.runtime_env.env_vars.USER=root",
                 "max_model_len=4096",
                 "actor_rollout_ref.rollout.max_model_len=4096",
                 "train.parquet",
