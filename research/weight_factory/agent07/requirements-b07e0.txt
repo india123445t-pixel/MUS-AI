@@ -1,0 +1,7 @@
+# Runtime for the B07-E0 GPU path. Install torch using the CUDA-specific wheel
+# appropriate to the authorized machine before installing this file.
+numpy>=2.0,<3
+transformers==5.17.0
+peft==0.21.0
+accelerate>=1.10,<2
+safetensors>=0.6,<1
