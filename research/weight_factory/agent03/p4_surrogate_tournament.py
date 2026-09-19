@@ -322,6 +322,8 @@ def check_runtime(sdpo_root: Path) -> dict[str, Any]:
         pyarrow_version = md.version("pyarrow")
     except md.PackageNotFoundError as exc:
         raise c.ContractError("pyarrow_required_for_sdpo_parquet") from exc
+    if pyarrow_version != "22.0.0":
+        raise c.ContractError("sdpo_pyarrow_version_mismatch:"+pyarrow_version)
     return {
         "sdpo_commit": c.SDPO_COMMIT,
         "packages": got,
