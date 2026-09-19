@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "authorization_kind": "AQLEVON_MANAGER_COMPUTE_AUTHORIZATION_V1",
+  "hash_profile": "AQLEVON_CANONICAL_JSON_SHA256_V1",
+  "authorization_id": "P4-A1-RUNPOD-4090-20260919-06-PROCESSOR-BRIDGE",
+  "run_task_id": "P4-A03-GENE1-PHYSICAL-TRAINER",
+  "run_manifest_sha256": "11ede4257355220e268fdfbc1c37e4e03f73fd258c13e22ac75d980c5b30d502",
+  "profile_id": "p4-surrogate-1x24",
+  "compute_origin": "paid_manager_authorized",
+  "max_billed_seconds": 1500,
+  "max_total_cost_usd": "0.35",
+  "max_hourly_rate_usd": "0.80",
+  "max_artifact_egress_bytes": 5368709120,
+  "single_use": true,
+  "authorization_sha256": "41224a830a87774ba91db97dc38d0fcc2982f58f5137e934352f62395aed00c2"
+}

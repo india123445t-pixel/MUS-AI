@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "record_kind": "AQLEVON_MANAGER_P4_RUNTIME_COMPATIBILITY_SUPERSESSION_V1",
+  "task_id": "P4-A03-GENE1-PHYSICAL-TRAINER",
+  "scope": ["P4_A1_RLVR_CONTROL"],
+  "reason": "Pinned Transformers 5.17.0 exposes the exact Qwen3.5-4B-Base AutoProcessor without processor.chat_template although the exact pinned tokenizer_config carries the canonical chat_template. veRL RLHFDataset therefore filtered all 56 text-only rows as overlong after processor.apply_chat_template raised.",
+  "observed_error": "ValueError: Cannot use apply_chat_template because this processor does not have a chat template.",
+  "repair": "For the exact staged qwen35-4b-daa9c16f3712 model only, copy processor.tokenizer.chat_template onto processor.chat_template before veRL imports main_ppo.",
+  "preserved_contract": {
+    "student_model": "Qwen/Qwen3.5-4B-Base@daa9c16f371249f9ad1c75a9ed6f956c08ea08f5",
+    "optimizer_updates": 12,
+    "prompts_per_update": 4,
+    "rollouts_per_prompt": 4,
+    "precision": "bf16",
+    "lora_r": 4,
+    "lora_alpha": 4,
+    "target_scope": "full-attention q_proj/v_proj only",
+    "training_rows": 56,
+    "sealed_eval_consumed": false,
+    "automatic_fallback": false,
+    "g1_rerun": false
+  },
+  "capability_gain_claim": false,
+  "manager_review_required": true
+}

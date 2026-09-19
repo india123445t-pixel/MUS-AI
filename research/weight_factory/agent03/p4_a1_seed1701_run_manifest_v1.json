@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "manifest_kind": "AQLEVON_P4_SURROGATE_RUN_MANIFEST_V1",
+  "hash_profile": "AQLEVON_CANONICAL_JSON_SHA256_V1",
+  "task_id": "P4-A03-GENE1-PHYSICAL-TRAINER",
+  "arm_id": "P4_A1_RLVR_CONTROL",
+  "seed": 1701,
+  "profile_id": "p4-surrogate-1x24",
+  "training_plan_sha256": "3cd6e0bada2535a80f83f400f45f5d0fdc5ad8d938f42757785335959f331095",
+  "command_sha256": "3ad2fd2cd5303e1eb4ea71f3e25edf07d38269df1b5b3c8b6e98c8553e017400",
+  "student_model": {
+    "repo": "Qwen/Qwen3.5-4B-Base",
+    "revision": "daa9c16f371249f9ad1c75a9ed6f956c08ea08f5",
+    "precision": "bf16",
+    "quantization": "none"
+  },
+  "method_reference": {
+    "repo": "lasgroup/SDPO",
+    "commit": "7c457fc1b1f636ae794eb0362ba37d4743b06fbc",
+    "config": "baseline_grpo"
+  },
+  "worker01_method_spec_canonical_sha256": "7c6cc62b6ae20fd49038198865567df75f1a105607bd9d32d974530bd9894f1d",
+  "worker02_training_manifest_sha256": "f7499362fdd7e6fd4bc91682a5f1c03767c98685c045ad50a712711c6c4ad55f",
+  "worker02_training_shard_sha256": "59480e9ff48b36a0efb77a36d3e35d9f656ef4dee0ce18489d3017c92b2a0d49",
+  "worker02_training_visible_pack_sha256": "35c7ebe6d5e82f42d7553fa28391f6d82c8800d6eced582d06881c8eb17d9d6b",
+  "worker02_split_sha256": "3cd1c0d32cad8cc7edf55c9392292828d54d2b4bd16ad50d0e70e26ba3dd9202",
+  "worker02_sealed_eval_commitment_sha256": "7e0463ddf6068fe66d85b5798b4f8037489c99dcd452376e8144dff0a122f4e5",
+  "worker05_evaluation_law_sha256": "70581a21c26605317afcb314d990fa2f78b621bf44af1747d8caac6168385ec0",
+  "worker05_sampling_profile_sha256": "4dde4741da4c1c469ee6fe555ea9041ad985de829eefb76b702ff0c82e528903",
+  "worker06_compute_profile": "p4-surrogate-1x24",
+  "worker06_reference_commit": "7204c7ae84eb6d246603fda960cffe02c2b6279e",
+  "worker03_sources": {
+    "trainer_git_blob_sha1": "14b5573f682c0b50860a570f1328b3b0eca21032",
+    "tournament_git_blob_sha1": "20accc2df44c5a5db002e14a0f3842e459631987",
+    "reward_git_blob_sha1": "c9db3e315299cce59c5d4cece7de86302c10c614",
+    "runtime_compat_sitecustomize_git_blob_sha1": "ef9c92fb0923ad444f33d33a24ef557cd2af0fcf",
+    "sdpo_tf5_patch_git_blob_sha1": "81d4c2e2df463293c16a3a3d5ff84f0ecb991fd2"
+  },
+  "runtime_compatibility": {
+    "qwen_vl_utils_version": "0.0.14",
+    "processor_template_bridge": "processor.tokenizer.chat_template_to_processor.chat_template_exact_qwen35_staged_model_only",
+    "canonical_chat_template_sha256": "a4aee8afcf2e0711942cf848899be66016f8d14a889ff9ede07bca099c28f715",
+    "pre_gpu_dataset_train_rows": 56,
+    "pre_gpu_dataset_val_rows": 56,
+    "ray_worker_env_propagation": true,
+    "python_startup_pth_sha256": "4119c98997a9b56ea1d97cfbd9dd5100b5f515566217b01b86cf4732d14f3498",
+    "ray_runtime_env_callable_injection": false,
+    "sdpo_tf5_compat_patch": {
+      "base_commit": "7c457fc1b1f636ae794eb0362ba37d4743b06fbc",
+      "patched_model_py_sha256": "135f61865fcbe057d29da90bf07968b04dd778e2e96a31d3ad640a8650155f8d",
+      "patched_fsdp_workers_py_sha256": "e0ec49a1b891daed8f180a35f5d1d7e5147a3a8289c3787fc7688892e0e55fed",
+      "ray_preflight_pass": true
+    }
+  },
+  "budget": {
+    "optimizer_updates": 12,
+    "prompts_per_update": 4,
+    "rollouts_per_prompt": 4,
+    "student_rollout_ceiling": 192,
+    "student_response_token_ceiling": 393216
+  },
+  "data_preparation": {
+    "format": "parquet",
+    "pyarrow_version": "22.0.0",
+    "source": "exact_worker02_public_training_shard_and_training_visible_pack",
+    "generated_on_execution_host": true,
+    "sealed_eval_consumed": false
+  },
+  "sealed_eval_consumed": false,
+  "g1_rerun": false,
+  "automatic_fallback": false,
+  "paid_compute_requires_manager_authorization": true,
+  "capability_gain_claim": false,
+  "manifest_sha256": "7152cdea6ffd082f632a819e153122b401bd7394ed0273a327537ca961c7fe45"
+}
