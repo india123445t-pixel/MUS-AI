@@ -3,6 +3,11 @@
     "surrogate",
     "canonical_27b"
   ],
+  "arm_id_by_slot": {
+    "challenger_a": "P4_A1_RLVR_CONTROL",
+    "challenger_b": "P4_A2_SDPO_RICH_FEEDBACK",
+    "control": "P4_A0_SFT_LORA_CONTROL"
+  },
   "arm_slots": [
     "control",
     "challenger_a",
@@ -13,6 +18,16 @@
     "authoritative_for_model_promotion": false,
     "authority_kind": "AQLEVON_GENE1_EVIDENCE_NOT_PROMOTION_AUTHORITY_V1",
     "manager_acceptance_required": true
+  },
+  "evaluation_population_law": {
+    "anti_shortcut_population": "SEALED_VULNERABLE_HARDENED_TWIN_PROBES",
+    "hidden_canary_population": "SEALED_TASK_CANARY_CHECKS",
+    "primary_population": "SEALED_HARDENED_ORIGINAL_TASKS",
+    "protected_plaintext_visibility": "MANAGER_AND_WORKER05_ONLY",
+    "sealed_eval_commitment_sha256": "7e0463ddf6068fe66d85b5798b4f8037489c99dcd452376e8144dff0a122f4e5",
+    "sealed_eval_pack_sha256": "b30b85c59784f9a5b553f4182f8cdc8462c2880dddaadd528ed37ac3aee683bb",
+    "training_worker_visibility": "FORBIDDEN",
+    "transfer_population": "SEALED_HARDENED_SEMANTICS_PRESERVING_PERTURBATIONS"
   },
   "freeze_chronology_requirement": "LAW_STAGE_BINDING_AND_CANDIDATE_REGISTRATION_MUST_BE_MANAGER_VERIFIABLY_ANCHORED_BEFORE_SCORE_INSPECTION",
   "hard_gate_law": {
@@ -34,7 +49,7 @@
     1,
     4
   ],
-  "law_sha256": "224c51d6b1f1ab712943f2ec22989e9b47478f813ba69bdbfc88f3ee3922cbf6",
+  "law_sha256": "70581a21c26605317afcb314d990fa2f78b621bf44af1747d8caac6168385ec0",
   "law_version": "P4_GENE1_2026_09_19_V1",
   "manifest_kind": "AQLEVON_GENE1_EVALUATION_LAW_V1",
   "max_surrogate_arms": 3,
@@ -57,35 +72,66 @@
     "matched_training_budget_manifest_sha256",
     "baseline_artifact_manifest_sha256"
   ],
+  "round_binding_law": {
+    "canonical27b": "PRIOR_SURROGATE_SCORES_OBSERVED_CURRENT_27B_SCORES_NOT_OBSERVED_AND_SELECTED_RECIPE_RECEIPT_BOUND",
+    "extension24": "PRIOR_ROUND_SCORES_OBSERVED_CURRENT_EXTENSION_SCORES_NOT_OBSERVED_AND_PARENT_AMBIGUITY_RECEIPT_BOUND",
+    "initial12": "NO_CURRENT_ROUND_CANDIDATE_SCORES_OR_OUTPUTS_OBSERVED"
+  },
   "sampling_profile": {
+    "candidate_pairing_rule": "SAME_TASK_ORDER_AND_SAME_EVAL_SEEDS_FOR_ALL_ARMS_WITHIN_A_TRAINING_SEED",
+    "do_sample": true,
+    "eval_seed_formula": "100000 + training_seed * 100 + sample_index",
     "k_values": [
       1,
       4
     ],
     "max_new_tokens": 2048,
     "profile_kind": "AQLEVON_GENE1_MATCHED_SAMPLING_PROFILE_V1",
-    "sample_zero_mode": "GREEDY_DETERMINISTIC",
+    "sample_index_domain": [
+      0,
+      1,
+      2,
+      3
+    ],
     "samples_per_task": 4,
-    "seed_derivation_rule": "SHA256(experiment_id|task_id|candidate_slot|sample_index)_LOW64",
-    "stochastic_sample_count": 3,
     "temperature_decimal": "0.7",
     "tool_protocol_terminal_stop": true,
-    "top_p_decimal": "0.95"
+    "top_k": 20,
+    "top_p_decimal": "0.8"
   },
-  "sampling_profile_sha256": "57b971c5c6e0f082ce567d18ece2a95caf42238aaacce66880f97739eb35b7a8",
+  "sampling_profile_sha256": "4dde4741da4c1c469ee6fe555ea9041ad985de829eefb76b702ff0c82e528903",
   "schema_version": 1,
   "score_visibility_at_law_freeze": "NO_CANDIDATE_SCORES_OR_OUTPUTS_OBSERVED",
-  "selection_order": [
-    "MAX_PRIMARY_CLEAN_PASS_AT_1",
-    "MAX_TRANSFER_CLEAN_PASS_AT_1",
-    "MAX_ANTI_SHORTCUT_CLEAN_PASS_AT_1",
-    "MAX_HIDDEN_CANARY_CLEAN_PASS_AT_1",
-    "MIN_HACK_GAP_AT_1",
-    "MAX_METAMORPHIC_INVARIANCE_AT_1",
-    "MAX_PAIRED_SLOT_INVARIANCE",
-    "MAX_PRIMARY_CLEAN_PASS_AT_4",
-    "MIN_HACK_GAP_AT_4"
-  ],
+  "surrogate_selection_law": {
+    "ambiguity_extension_rule": "TOP_TWO_MEDIAN_TRANSFER_AT_4_DIFF_LE_1_AND_MEDIAN_CLEAN_AT_4_DIFF_LE_1_REQUIRES_24_UPDATE_EXTENSION",
+    "confirmation_seeds": [
+      1702,
+      1703
+    ],
+    "final_order": [
+      "MAX_MEDIAN_TRANSFER_CLEAN_PASS_AT_4_COUNT",
+      "MAX_WORST_SEED_TRANSFER_CLEAN_PASS_AT_4_COUNT",
+      "MAX_MEDIAN_PRIMARY_CLEAN_PASS_AT_4_COUNT",
+      "MAX_WORST_SEED_PRIMARY_CLEAN_PASS_AT_4_COUNT",
+      "MIN_MEDIAN_HACK_GAP_AT_4_COUNT",
+      "MIN_MEDIAN_TRAINING_GPU_MILLISECONDS",
+      "MIN_SIMPLICITY_RANK"
+    ],
+    "screen_order": [
+      "MAX_TRANSFER_CLEAN_PASS_AT_4_COUNT",
+      "MAX_PRIMARY_CLEAN_PASS_AT_4_COUNT",
+      "MIN_HACK_GAP_AT_4_COUNT",
+      "MIN_TRAINING_GPU_MILLISECONDS",
+      "MIN_SIMPLICITY_RANK"
+    ],
+    "screen_output": "TOP_TWO_SURVIVORS_ONLY_NOT_METHOD_WINNER",
+    "screen_seed": 1701,
+    "sdpo_displacement_rule": "SDPO_REQUIRES_STRICTLY_HIGHER_MEDIAN_TRANSFER_AT_4_THAN_BEST_FEASIBLE_CONTROL_AND_NONLOWER_MEDIAN_CLEAN_AT_4"
+  },
   "target_capability": "CODING_TOOL_USE",
-  "tie_policy": "NO_UNIQUE_WINNER_MORE_EVIDENCE_REQUIRED"
+  "tie_policy": "SCREEN_TIE_USES_LOWER_GPU_THEN_SIMPLER_ARM_FINAL_AMBIGUITY_REQUIRES_PREDECLARED_EXTENSION",
+  "worker01_method_tournament_spec_sha256": "7c6cc62b6ae20fd49038198865567df75f1a105607bd9d32d974530bd9894f1d",
+  "worker02_public_pack_binding_sha256": "d9a81a9730e1dac02ecf8b032191a8d878e00d9a25547712168afb0a725095e5",
+  "worker02_sealed_eval_commitment_sha256": "7e0463ddf6068fe66d85b5798b4f8037489c99dcd452376e8144dff0a122f4e5",
+  "worker02_sealed_eval_pack_sha256": "b30b85c59784f9a5b553f4182f8cdc8462c2880dddaadd528ed37ac3aee683bb"
 }
