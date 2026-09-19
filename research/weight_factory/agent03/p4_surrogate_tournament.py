@@ -25,6 +25,57 @@ W01_STACK = {
 TARGET_REGEX = r".*\.self_attn\.(q_proj|v_proj)$"
 MAX_MODEL_LEN = 4096
 GPU_MEMORY_UTILIZATION = "0.45"
+RUNTIME_MODEL_FRAGMENT = "qwen35-4b-daa9c16f3712"
+
+
+def bridge_processor_chat_template(processor: Any, name_or_path: Any) -> Any:
+    """Bridge Transformers 5.17 Qwen3.5 processor/template mismatch.
+
+    The exact pinned Qwen3.5 Base tokenizer carries the canonical chat template,
+    while AutoProcessor in the pinned runtime can expose a Qwen3VLProcessor with
+    an empty processor.chat_template.  For this exact staged model only, copy
+    the already-loaded tokenizer template onto the processor.  No prompt text,
+    model weights, dataset rows, or training hyperparameters are changed.
+    """
+    if processor is None or RUNTIME_MODEL_FRAGMENT not in str(name_or_path):
+        return processor
+    if getattr(processor, "chat_template", None):
+        return processor
+    tokenizer = getattr(processor, "tokenizer", None)
+    template = getattr(tokenizer, "chat_template", None)
+    if not isinstance(template, str) or not template:
+        raise c.ContractError("qwen35_processor_template_bridge_missing_tokenizer_template")
+    processor.chat_template = template
+    return processor
+
+
+def install_runtime_compat() -> None:
+    """Install exact-process compatibility shims before veRL imports main_ppo."""
+    import sys
+    import transformers
+
+    if not hasattr(transformers, "AutoModelForVision2Seq"):
+        transformers.AutoModelForVision2Seq = transformers.AutoModelForImageTextToText
+
+    import verl.utils as verl_utils
+    import verl.utils.tokenizer as verl_tokenizer
+
+    current = verl_tokenizer.hf_processor
+    if getattr(current, "_aqlevon_p4_runtime_compat", False):
+        return
+
+    def compat_hf_processor(name_or_path, **kwargs):
+        processor = current(name_or_path, **kwargs)
+        return bridge_processor_chat_template(processor, name_or_path)
+
+    compat_hf_processor._aqlevon_p4_runtime_compat = True
+    compat_hf_processor._aqlevon_original = current
+    verl_tokenizer.hf_processor = compat_hf_processor
+    verl_utils.hf_processor = compat_hf_processor
+
+    loaded_main = sys.modules.get("verl.trainer.main_ppo")
+    if loaded_main is not None:
+        loaded_main.hf_processor = compat_hf_processor
 
 
 def sha(path: Path) -> str:
