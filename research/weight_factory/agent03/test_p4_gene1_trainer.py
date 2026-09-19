@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -232,6 +235,7 @@ class RunnerTests(unittest.TestCase):
             f = Path(d) / "p.json"
             f.write_text(json.dumps(p))
             argv = tour.build_a1_argv(f, Path("/workspace"))
+            self.assertEqual(argv[:3], ["env", "USER=root", "bash"])
             joined = " ".join(argv)
             for token in (
                 "trainer.total_training_steps=12",
@@ -257,6 +261,18 @@ class RunnerTests(unittest.TestCase):
             self.assertIn("self_attn", joined)
             self.assertIn("linear_attn", joined)
             self.assertNotIn("qlora", joined.lower())
+
+
+    def test_driver_user_env_survives_clean_process_boundary(self):
+        env = dict(os.environ)
+        env.pop("USER", None)
+        cp = subprocess.run(
+            ["env", "USER=root", sys.executable, "-c", "import os; assert os.environ.get('USER') == 'root'"],
+            env=env,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(cp.returncode, 0, cp.stderr)
 
     def test_a1_command_excludes_linear_attention_from_trainable_scope(self):
         p = plan_fixture()

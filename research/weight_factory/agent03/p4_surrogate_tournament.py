@@ -296,6 +296,8 @@ def build_a1_argv(plan_path: Path, workspace: Path) -> list[str]:
         / "MUS-AI/research/weight_factory/agent03/p4_aqlevon_reward.py"
     )
     return [
+        "env",
+        "USER=root",
         "bash",
         str(repo / "training/verl_training.sh"),
         "AQLEVON-P4-A1-seed1701",
@@ -326,6 +328,8 @@ def build_a2_argv(plan_path: Path, workspace: Path) -> list[str]:
         / "MUS-AI/research/weight_factory/agent03/p4_aqlevon_reward.py"
     )
     return [
+        "env",
+        "USER=root",
         "bash",
         str(repo / "training/verl_training.sh"),
         "AQLEVON-P4-A2-seed1701",

@@ -27,7 +27,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install pinned parquet dependency
-        run: python -m pip install --disable-pip-version-check pyarrow==22.0.0
+        run: python -m pip install --disable-pip-version-check pyarrow==22.0.0 hydra-core==1.3.2
 
       - name: Extract exact W01/W02/W05 public inputs
         shell: bash
@@ -116,6 +116,24 @@ jobs:
           assert "actor_rollout_ref.rollout.tensor_model_parallel_size=1" in argv
           assert "max_model_len=4096" in argv
           print("P4_A1_COMMAND_LOCK_PASS", run["manifest_sha256"], lock["command_sha256"], lock["lock_sha256"])
+          PY
+
+      - name: Verify USER reaches fresh OmegaConf driver process
+        working-directory: research/weight_factory/agent03
+        shell: bash
+        run: |
+          set -euo pipefail
+          env -u USER env USER=root python - <<'PY'
+          from pathlib import Path
+          from omegaconf import OmegaConf
+          import p4_surrogate_tournament as t
+          argv=t.build_a1_argv(Path("p4_frozen_training_plan_v1.json"),Path("/workspace"))
+          assert argv[:3] == ["env","USER=root","bash"], argv[:3]
+          cfg=OmegaConf.create({"resolved_user":"${oc.env:USER}"})
+          OmegaConf.resolve(cfg)
+          assert cfg.resolved_user == "root", cfg.resolved_user
+          assert "++ray_kwargs.ray_init.runtime_env.env_vars.USER=root" in argv
+          print("P4_DRIVER_OMEGACONF_USER_PASS", cfg.resolved_user)
           PY
 
       - name: Public reward agrees with all 56 training oracles
