@@ -10,7 +10,7 @@ H=lambda x:hashlib.sha256(x.encode()).hexdigest()
 
 def plan_fixture():
     obj={"schema_version":1,"plan_kind":c.FROZEN_PLAN_KIND,"hash_profile":c.HASH_PROFILE,"task_id":c.TASK_ID,"g1_status":c.G1_STATUS,"sealed_eval_consumed":False,"plan_sha256":"","training_seeds":[1701,1702,1703],"screen_budget":{"max_optimizer_updates":12},"generation":{"temperature":"0.7","top_p":"0.8","top_k":20},"arms":[
-      {"arm_id":"P4_A0_SFT_LORA_CONTROL","training_mode":"supervised_next_token_cross_entropy","lr":"0.00001","weight_decay":"0.10","scheduler":"cosine","min_lr":"0.000001","warmup_fraction":"0.10"},
+      {"arm_id":"P4_A0_SFT_LORA_CONTROL","algorithm":"supervised next-token CE on Worker02-admitted reference targets only","lr":"0.00001","weight_decay":"0.10","schedule":"cosine","min_lr":"0.000001","warmup_fraction":"0.10"},
       {"arm_id":"P4_A1_RLVR_CONTROL","rollout_group_size":4,"ppo_mini_batch_size":8,"lr":"0.00001"},
       {"arm_id":"P4_A2_SDPO_RICH_FEEDBACK","rollout_group_size":4,"self_distillation_alpha":"0.5","distillation_topk":100}],
     }
@@ -34,7 +34,7 @@ class ContractTests(unittest.TestCase):
         with self.assertRaisesRegex(c.ContractError,"requires_exact_manager_authorization"): c.run_locked(x,paid=True,authorization=None,cwd=Path("."))
     def test_auth_binds_exact_command_profile_plan(self):
         x=c.build_command_lock(["true"],plan_sha256=H("p"),arm_id="P4_A1_RLVR_CONTROL",seed=1701)
-        a={"authorization_kind":c.AUTH_KIND,"status":"AUTHORIZED","task_id":c.TASK_ID,"training_plan_sha256":H("wrong"),"command_sha256":x["command_sha256"],"profile":c.PROFILE,"manager_authority_id":"m","provider":"p","max_budget_usd":"1","max_wall_seconds":7200,"authorized_at_utc":"2026-09-19T00:00:00Z"}; a=c.seal(a,"authorization_sha256")
+        a={"schema_version":1,"authorization_kind":c.AUTH_KIND,"hash_profile":c.HASH_PROFILE,"authorization_id":"mgr-p4-a1-1701","run_task_id":c.TASK_ID,"run_manifest_sha256":H("wrong"),"profile_id":c.PROFILE,"compute_origin":"paid_manager_authorized","max_billed_seconds":7200,"max_total_cost_usd":"1","max_hourly_rate_usd":"1","max_artifact_egress_bytes":104857600,"single_use":True}; a=c.seal(a,"authorization_sha256")
         self.assertIn("authorization_plan",c.validate_manager_authorization(a,lock=x))
 
 class RewardTests(unittest.TestCase):
@@ -54,7 +54,7 @@ class RunnerTests(unittest.TestCase):
         p=plan_fixture()
         with tempfile.TemporaryDirectory() as d:
             f=Path(d)/"p.json"; f.write_text(json.dumps(p)); argv=tour.build_a1_argv(f,Path("/workspace")); joined=" ".join(argv)
-            for tok in ("trainer.total_training_steps=12","data.train_batch_size=4","actor_rollout_ref.rollout.n=4","actor_rollout_ref.model.lora_rank=4","actor_rollout_ref.model.lora_alpha=4","temperature=0.7","top_p=0.8","top_k=20","baseline_grpo"): self.assertIn(tok,joined)
+            for tok in ("trainer.total_training_steps=12","data.train_batch_size=4","actor_rollout_ref.rollout.n=4","actor_rollout_ref.model.lora_rank=4","actor_rollout_ref.model.lora_alpha=4","temperature=0.7","top_p=0.8","top_k=20","baseline_grpo","trainer.n_gpus_per_node=1","actor_rollout_ref.rollout.tensor_model_parallel_size=1","max_model_len=4096","actor_rollout_ref.rollout.max_model_len=4096","train.parquet","test.parquet"): self.assertIn(tok,joined)
             self.assertIn("self_attn",joined); self.assertNotIn("qlora",joined.lower())
     def test_a2_command_enables_safe_feedback_contract(self):
         p=plan_fixture()
@@ -66,5 +66,26 @@ class RunnerTests(unittest.TestCase):
     def test_target_regex_excludes_linear_attention_by_construction(self):
         self.assertIn("self_attn",tour.TARGET_REGEX); self.assertNotIn("linear_attn",tour.TARGET_REGEX)
     def test_runtime_guard_pins_w01_versions(self): self.assertEqual(tour.W01_STACK,{"transformers":"5.17.0","peft":"0.21.0","accelerate":"1.15.0"})
+    def test_worker06_authorization_kind(self): self.assertEqual(c.AUTH_KIND,"AQLEVON_MANAGER_COMPUTE_AUTHORIZATION_V1")
+    def test_a1_single_gpu_has_no_tp2_or_four_gpu_default(self):
+        p=plan_fixture()
+        with tempfile.TemporaryDirectory() as d:
+            f=Path(d)/"p.json"; f.write_text(json.dumps(p)); joined=" ".join(tour.build_a1_argv(f,Path("/workspace")))
+            self.assertIn("trainer.n_gpus_per_node=1",joined)
+            self.assertIn("actor_rollout_ref.rollout.tensor_model_parallel_size=1",joined)
+            self.assertNotIn("trainer.n_gpus_per_node=4",joined)
+    def test_public_data_record_schema(self):
+        row={"row_kind":c.W02_ROW_KIND,"record_id":"r1","prompt":"Do x","answer":[{"op":"increment","key":"x","by":1}]}
+        task={"prompt":"Do x","verifier_mode":"hardened","training_eligible":True,"oracle_program":row["answer"],"visible_initial_state":{"x":0},"semantic_core_id":"core1","task_sha256":H("task")}
+        with tempfile.TemporaryDirectory() as d:
+            d=Path(d); shard=d/"shard.jsonl"; pack=d/"pack.json"
+            shard.write_text("\n".join(json.dumps({**row,"record_id":f"r{i}","prompt":f"Do x {i}"}) for i in range(56))+"\n")
+            tasks=[{**task,"prompt":f"Do x {i}","task_sha256":H(f"task{i}")} for i in range(56)]
+            pack.write_text(json.dumps({"tasks":tasks}))
+            recs=tour.build_training_records(shard,pack)
+            self.assertEqual(len(recs),56)
+            self.assertEqual(recs[0]["data_source"],"aqlevon_gene1")
+            self.assertEqual(recs[0]["prompt"][0]["role"],"user")
+            self.assertIn("ground_truth",recs[0]["reward_model"])
 
 if __name__=="__main__": unittest.main()
