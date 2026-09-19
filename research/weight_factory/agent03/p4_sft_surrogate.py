@@ -21,7 +21,7 @@ def _arm(plan:dict[str,Any])->dict[str,Any]:
     x=[a for a in plan["arms"] if a.get("arm_id")==ARM_ID]
     if len(x)!=1: raise RuntimeError("A0_missing")
     a=x[0]
-    if a.get("training_mode")!="supervised_next_token_cross_entropy" or a.get("lr")!="0.00001" or a.get("weight_decay")!="0.10" or a.get("scheduler")!="cosine" or a.get("min_lr")!="0.000001" or a.get("warmup_fraction")!="0.10": raise RuntimeError("A0_contract_mismatch")
+    if a.get("algorithm")!="supervised next-token CE on Worker02-admitted reference targets only" or a.get("lr")!="0.00001" or a.get("weight_decay")!="0.10" or a.get("schedule")!="cosine" or a.get("min_lr")!="0.000001" or a.get("warmup_fraction")!="0.10": raise RuntimeError("A0_contract_mismatch")
     return a
 
 def plan_summary(plan:dict[str,Any],seed:int)->dict[str,Any]:
