@@ -133,6 +133,16 @@ test('direct non-integral numbers are forbidden inside an authoritative self-has
   assert.ok(check.reasons.includes('noncanonical_float_representation'));
 });
 
+test('runtime receipt rejects integer-valued numeric fields encoded as strings',()=>{
+  const good=receipt();
+  const {receipt_sha256,...body}=good;
+  const badBody={...body,runtime_metrics:{...body.runtime_metrics,elapsed_ms:'1000'}};
+  const bad={...badBody,receipt_sha256:sha256Canonical(badBody)};
+  const check=verifyRuntimeAttemptReceipt(bad);
+  assert.equal(check.ok,false);
+  assert.ok(check.reasons.includes('runtime_metric_elapsed_ms'));
+});
+
 test('missing or unknown hash profile fails closed',()=>{
   const r=receipt();
   const missing={...r};delete missing.hash_profile;
