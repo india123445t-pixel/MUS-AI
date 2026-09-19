@@ -62,7 +62,7 @@ First run per W01 order:
 - seed: `1701`
 - profile: `p4-surrogate-1x24`
 - `command_sha256 = 3c898f3ff29619200b0792c9d19be9381e5b3bb2cd286a4ea86f121cb947e372`
-- `lock_sha256 = 3aeb611ebdf1eeb168820eba954305e8688b5beebad6463f01b3421ca4d588f6`
+- `lock_sha256 = ca990271f70a7b3d4536f3e29e1a31ce033e80ce8b7a95468832695f07378e9e`
 - automatic fallback: false
 - G1 rerun: false.
 
@@ -73,11 +73,11 @@ The exact plan and exact A1 command lock are checked into this branch.
 Local exact-source verification before publication:
 - `py_compile`: PASS
 - schema JSON parse: PASS
-- contract/unit suite: **20/20 PASS**
+- contract/unit suite: **21/21 PASS**
 - real W01/W02/W05 `freeze-plan`: PASS
 - 56-row train-visible data conversion: PASS
 - A1 command generation/lock: PASS
-- exact GitHub Actions gate: PASS — run `35427624417`, job `105856211855`; all contract/real-input/parquet/lock/56-oracle steps PASS
+- exact GitHub Actions gates: PASS — latest exact run `35428430784`, job `105858418379`; latest CPU gate run `35428430777`; all contract/real-input/parquet/lock/56-oracle steps PASS
 - no local/free GPU exists in this Worker environment (`nvidia-smi` unavailable).
 
 ## Physical truth
@@ -173,7 +173,7 @@ Exact command SHA:
 `3c898f3ff29619200b0792c9d19be9381e5b3bb2cd286a4ea86f121cb947e372`
 
 Exact command-lock SHA:
-`3aeb611ebdf1eeb168820eba954305e8688b5beebad6463f01b3421ca4d588f6`
+`ca990271f70a7b3d4536f3e29e1a31ce033e80ce8b7a95468832695f07378e9e`
 
 ## Exact-head CPU/public-evidence CI
 
@@ -186,7 +186,7 @@ GitHub Actions:
 
 Evidence:
 - Python syntax: PASS;
-- unit contract suite: **20/20 PASS**;
+- unit contract suite: **21/21 PASS**;
 - W01/W02/W05 frozen plan regenerated from exact commits: PASS;
 - regenerated plan byte-for-byte equals checked snapshot: PASS;
 - Worker02 56 training rows converted to pinned veRL Parquet schema: PASS;
@@ -197,6 +197,26 @@ Evidence:
 - public objective reward accepts all **56/56** Worker02 training-visible oracle solutions: PASS.
 
 Earlier CI failures are retained as evidence. They exposed fixture drift and stale frozen-plan provenance before the final green run; they were not hidden or reclassified as success.
+
+## Final exact authorization identity (current head)
+
+The final paid-run authorization boundary is now stable and CI-proven:
+
+- frozen training plan SHA: `3cd6e0bada2535a80f83f400f45f5d0fdc5ad8d938f42757785335959f331095`;
+- A1 run-manifest SHA: `5a3f9df84d89216f4e227c187a53997aceb2e8c8e4727c053a531f295e26d6b5`;
+- exact A1 command SHA: `3c898f3ff29619200b0792c9d19be9381e5b3bb2cd286a4ea86f121cb947e372`;
+- exact A1 command-lock SHA: `ca990271f70a7b3d4536f3e29e1a31ce033e80ce8b7a95468832695f07378e9e`;
+- compute profile: `p4-surrogate-1x24`;
+- arm/seed: `P4_A1_RLVR_CONTROL / 1701`;
+- G1 rerun: false;
+- automatic fallback: false.
+
+Latest exact CI run `35428430784` / job `105858418379` proves:
+- **21/21** unit/contract tests PASS;
+- frozen plan rebuild from exact W01/W02/W05 commits PASS;
+- 56-row Parquet conversion PASS;
+- A1 argv == run manifest command SHA == frozen command lock PASS;
+- public objective reward accepts all **56/56** Worker02 training-visible oracle solutions.
 
 ## Current physical execution boundary
 
@@ -216,7 +236,7 @@ The next legal step is the exact A1 screen run above on Worker06 profile `p4-sur
 
 Because no owned/donated/free compatible GPU is available in this Worker environment, any paid execution must first receive Manager authorization under Worker06's exact `AQLEVON_MANAGER_COMPUTE_AUTHORIZATION_V1`, bound to:
 - run task `P4-A03-GENE1-PHYSICAL-TRAINER`;
-- run manifest SHA `3cd6e0bada2535a80f83f400f45f5d0fdc5ad8d938f42757785335959f331095`;
+- run manifest SHA `5a3f9df84d89216f4e227c187a53997aceb2e8c8e4727c053a531f295e26d6b5`;
 - profile `p4-surrogate-1x24`;
 - explicit billing-time/rate/total-cost/egress ceilings.
 
