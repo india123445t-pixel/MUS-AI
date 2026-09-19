@@ -294,6 +294,25 @@ class RunnerTests(unittest.TestCase):
         self.assertIn("self_attn", tour.TARGET_REGEX)
         self.assertNotIn("linear_attn", tour.TARGET_REGEX)
 
+    def test_qwen35_processor_template_bridge_is_exact_and_scoped(self):
+        class Tok:
+            chat_template = "CANONICAL_TEMPLATE"
+
+        class Proc:
+            chat_template = None
+            tokenizer = Tok()
+
+        p = Proc()
+        out = tour.bridge_processor_chat_template(
+            p, "/workspace/models/qwen35-4b-daa9c16f3712"
+        )
+        self.assertIs(out, p)
+        self.assertEqual(p.chat_template, "CANONICAL_TEMPLATE")
+
+        other = Proc()
+        tour.bridge_processor_chat_template(other, "/workspace/models/other")
+        self.assertIsNone(other.chat_template)
+
     def test_runtime_guard_pins_w01_versions(self):
         self.assertEqual(
             tour.W01_STACK,
