@@ -19,8 +19,10 @@ def law_fixture():
     return p4.frozen_gene1_evaluation_law()
 
 
-def binding_fixture(law=None, stage="surrogate"):
+def binding_fixture(law=None, stage="surrogate", *, round_mode=None, parent_decision_receipt_sha256=None, matched_budget_sha256=None):
     law = law or law_fixture()
+    if stage == "canonical_27b" and parent_decision_receipt_sha256 is None:
+        parent_decision_receipt_sha256 = SHA("d")
     return p4.build_stage_binding(
         stage=stage,
         experiment_id=f"gene1-{stage}-001",
@@ -28,6 +30,7 @@ def binding_fixture(law=None, stage="surrogate"):
         w01_method_freeze_sha256=p4.W01_METHOD_TOURNAMENT_SPEC_SHA256,
         w02_gene1_pack_sha256=p4.W02_PUBLIC_PACK_BINDING_SHA256,
         sealed_eval_pack_manifest_sha256=p4.W02_SEALED_EVAL_PACK_SHA256,
+        sealed_eval_commitment_sha256=p4.W02_SEALED_EVAL_COMMITMENT_SHA256,
         hidden_canary_manifest_sha256=SHA("4"),
         anti_shortcut_manifest_sha256=SHA("5"),
         metamorphic_manifest_sha256=SHA("6"),
@@ -35,8 +38,10 @@ def binding_fixture(law=None, stage="surrogate"):
         task_factory_manifest_sha256=SHA("a"),
         reality_policy_sha256=SHA("b"),
         sampling_profile_sha256=law["sampling_profile_sha256"],
-        matched_training_budget_manifest_sha256=SHA("8"),
+        matched_training_budget_manifest_sha256=matched_budget_sha256 or SHA("8"),
         baseline_artifact_manifest_sha256=SHA("9"),
+        round_mode=round_mode,
+        parent_decision_receipt_sha256=parent_decision_receipt_sha256,
     )
 
 
