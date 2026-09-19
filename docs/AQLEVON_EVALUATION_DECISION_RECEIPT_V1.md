@@ -21,7 +21,7 @@ The receipt self-hash binds:
 - `experiment_manifest_sha256`;
 - preregistration anchor request + Manager-verifiable external anchor identity;
 - `evaluation_policy_sha256`;
-- exact `evaluation_code_sha256`;
+- exact `evaluation_code_sha256`, verified against the P1 gate file that is actually re-executed by the receipt builder;
 - frozen `harness_manifest_sha256`;
 - `provenance_receipt_sha256`;
 - `contamination_scan_receipt_sha256`;
@@ -70,6 +70,8 @@ No actual production/preregistered evaluation anchor is created by this P2 imple
 
 ## Fail-closed behavior
 
+Receipt construction freshly re-runs the P1 `evaluate_release()` gate and rejects any caller-supplied `gate_result` that differs byte-for-byte at the canonical object level. This prevents stale/fabricated downstream decisions from being wrapped in a valid receipt.
+
 Receipt construction rejects mismatches in:
 - candidate artifact identity shape/kind;
 - experiment manifest binding;
@@ -85,7 +87,9 @@ Receipt construction rejects mismatches in:
 - complete red-team class set/evidence;
 - required domain diagnostics;
 - efficiency evidence;
-- unsupported final status.
+- unsupported final status;
+- stale/fabricated gate result;
+- evaluation-code hash not matching the gate code actually executed.
 
 Receipt validation also rejects tampered self-digests and any forbidden prompt/answer/plaintext keys.
 
@@ -165,8 +169,8 @@ Use receipt identity only as correctness/promotion truth joined to runtime attem
 
 The final local suite runs P1 + P2 together:
 - P1 accepted repair regressions: **23/23 PASS**;
-- P2 receipt/anchor regressions: **27/27 PASS**;
-- combined: **50/50 PASS**;
+- P2 receipt/anchor regressions: **29/29 PASS**;
+- combined: **52/52 PASS**;
 - `py_compile`: PASS.
 
 P2 regressions include:
@@ -178,6 +182,8 @@ P2 regressions include:
 - report/experiment, harness, provenance and scan mismatches fail closed;
 - receipt tampering and policy/candidate binding mismatch fail closed;
 - no raw outcomes or protected prompt/answer keys are exported;
+- fake/stale gate-result laundering is rejected;
+- wrong evaluation-code identity is rejected;
 - CLI build + validation end-to-end passes.
 
 ## Truth boundary
