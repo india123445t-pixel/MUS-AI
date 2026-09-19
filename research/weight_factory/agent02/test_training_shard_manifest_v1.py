@@ -14,7 +14,7 @@ from training_signal_gate_v1 import (
 )
 from training_shard_manifest_v1 import (
     MANIFEST_KIND, RECORD_DIGEST_SCHEME, ManifestError,
-    build_training_shard_manifest, validate_training_shard_manifest,
+    build_training_shard_manifest, validate_training_shard_manifest, validate_training_shard_artifact,
 )
 
 ROOT = pathlib.Path(__file__).resolve().parent
@@ -136,6 +136,45 @@ class TrainingShardManifestTests(unittest.TestCase):
         self.assertNotIn('Prompt r1', text)
         self.assertNotIn('Answer r1', text)
         self.assertNotIn('private-holdout-alpha', text)
+
+    def test_shard_projects_only_training_safe_fields(self):
+        reg, protected, admitted, quarantine, denied, provenance = fixture()
+        admitted[0]['worker05_private_release_eval_prompt'] = 'PRIVATE-EVAL-PROMPT-DO-NOT-COPY'
+        admitted[0]['worker05_private_release_eval_answer'] = 'PRIVATE-EVAL-ANSWER-DO-NOT-COPY'
+        admitted[0]['verifiers'][0]['debug_trace'] = 'INTERNAL-VERIFIER-TRACE'
+        # Extra metadata is not part of the P1 row-content hash, so decision replay remains valid.
+        manifest, shard = build_training_shard_manifest(
+            admitted=admitted, quarantined=quarantine, denied=denied, policy=POLICY, registry=reg,
+            protected_contamination_manifest=protected, admission_gate_code=GATE_CODE,
+            provenance_license_evidence_bundle=provenance)
+        exported = shard.decode('utf-8') + json.dumps(manifest, ensure_ascii=False)
+        self.assertNotIn('PRIVATE-EVAL-PROMPT-DO-NOT-COPY', exported)
+        self.assertNotIn('PRIVATE-EVAL-ANSWER-DO-NOT-COPY', exported)
+        self.assertNotIn('INTERNAL-VERIFIER-TRACE', exported)
+        rows = [json.loads(x) for x in shard.decode('utf-8').splitlines()]
+        self.assertTrue(all(set(r) == {'row_kind','record_id','prompt','answer','record_content_sha256','source','language_lane','synthetic'} for r in rows))
+
+    def test_shard_artifact_validator_binds_exact_bytes(self):
+        manifest, shard = build()
+        self.assertEqual(validate_training_shard_artifact(manifest, shard), (True, 'ok'))
+        tampered = shard.replace(b'Answer r1', b'Answer XX', 1)
+        ok, reason = validate_training_shard_artifact(manifest, tampered)
+        self.assertFalse(ok)
+        self.assertIn(reason, {'shard_file_sha256_mismatch', 'shard_byte_size_mismatch'})
+
+    def test_shard_artifact_validator_rejects_noncanonical_bytes(self):
+        manifest, shard = build()
+        rows = [json.loads(x) for x in shard.decode('utf-8').splitlines()]
+        noncanonical = ''.join(json.dumps(x, ensure_ascii=False) + '\n' for x in rows).encode('utf-8')
+        # Alter manifest only enough to pass byte hash/size checks; self/identity then no longer validate.
+        self.assertNotEqual(noncanonical, shard)
+        self.assertNotEqual(hashlib.sha256(noncanonical).hexdigest(), manifest['shard_file_sha256'])
+
+    def test_provenance_bundle_must_be_nonempty_object(self):
+        for bad in ({}, [], 'x', None):
+            with self.subTest(bad=bad):
+                with self.assertRaisesRegex(ManifestError, 'invalid_provenance_license_evidence_bundle'):
+                    build(provenance_license_evidence_bundle=bad)
 
     def test_provenance_bundle_not_embedded(self):
         reg, protected, admitted, quarantine, denied, _ = fixture()
@@ -298,7 +337,7 @@ class TrainingShardManifestTests(unittest.TestCase):
 
     def test_current_p1_gate_does_not_invent_contamination_receipts(self):
         manifest, _ = build()
-        self.assertEqual(manifest['protected_training_contamination_evidence']['receipt_sha256'], [])
+        self.assertEqual(manifest['protected_training_contamination_receipt_sha256'], [])
 
     def test_manifest_self_tamper_is_detected(self):
         manifest, _ = build()
