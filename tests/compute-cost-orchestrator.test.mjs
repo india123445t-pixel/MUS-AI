@@ -16,7 +16,7 @@ import {
 } from '../lib/aqlevon/compute-cost-orchestrator.js';
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
-const RUN='a'.repeat(64),ATTEMPT='b'.repeat(64),EVAL='c'.repeat(64),ACCEPT='d'.repeat(64),CANDIDATE='e'.repeat(64);
+const RUN='a'.repeat(64),P41_RUN='7152cdea6ffd082f632a819e153122b401bd7394ed0273a327537ca961c7fe45',ATTEMPT='b'.repeat(64),EVAL='c'.repeat(64),ACCEPT='d'.repeat(64),CANDIDATE='e'.repeat(64);
 const inventory24=[{index:0,name:'Mock RTX 4090 24GB',memory_mib:24576}];
 
 function paidAuth(overrides={}){
@@ -63,6 +63,20 @@ test('manager authorization is self-hashed and bound to exact run task, manifest
   assert.match(auth.authorization_sha256,/^[0-9a-f]{64}$/);
   const tampered={...auth,max_billed_seconds:1801};
   assert.equal(verifyManagerComputeAuthorization(tampered).ok,false);
+});
+
+test('P4.1 exact A1 manifest 7152... binds to the existing surrogate profile without schema or code drift',()=>{
+  const auth=paidAuth({authorizationId:'p4-1-template-proof-only',runManifestSha256:P41_RUN});
+  const check=verifyManagerComputeAuthorization(auth);
+  assert.equal(check.ok,true,check.reasons.join(','));
+  const gate=validateP4ExecutionAuthorization({
+    authorized:'1',computeOrigin:'paid_manager_authorized',
+    runTaskId:'P4-A03-GENE1-PHYSICAL-TRAINER',runManifestSha256:P41_RUN,profileId:'p4-surrogate-1x24',
+    providerHourlyUsd:0.34,managerAuthorization:auth,expectedAuthorizationSha256:auth.authorization_sha256,
+  });
+  assert.equal(gate.ok,true,gate.reasons.join(','));
+  assert.equal(auth.run_manifest_sha256,P41_RUN);
+  assert.equal(auth.profile_id,'p4-surrogate-1x24');
 });
 
 test('paid execution requires explicit expected Manager SHA and exact run bindings',()=>{
@@ -224,7 +238,7 @@ test('paid dispatcher fails before GPU discovery when Manager authorization is a
   assert.ok(r.stderr.includes('manager_authorization'));
 });
 
-test('CPU-only fake GPU exercises exact paid Manager gate and emits canonical attempt receipt',async()=>{
+test('CPU-only fake GPU exercises exact paid gate, strips secret env, and blocks same-workspace replay',async()=>{
   const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'aqlevon-p4-paid-')),bin=path.join(tmp,'bin');
   fs.mkdirSync(bin);const telemetry=path.join(tmp,'telemetry.json'),receipts=path.join(tmp,'receipts'),authFile=path.join(tmp,'auth.json');
   const fake=path.join(bin,'nvidia-smi');
@@ -237,22 +251,62 @@ esac
 `);fs.chmodSync(fake,0o755);
   const auth=paidAuth({maxBilledSeconds:120,maxTotalCostUsd:1,maxHourlyRateUsd:1});
   fs.writeFileSync(authFile,JSON.stringify(auth));
-  const payload=`const fs=require('fs');fs.writeFileSync(process.argv[1],JSON.stringify({schema:'aqlevon-p3-payload-telemetry-v1',peak_vram_bytes:123456,tokens_processed:77,tokens_generated:7}))`;
-  const r=await runNode('scripts/p3-compute-dispatch.mjs',[
+  const sentinels=['RUNPOD_PROVIDER_SECRET_SENTINEL','HF_SECRET_SENTINEL','LOCAL_SECRET_SENTINEL'];
+  const payload=`const fs=require('fs');for(const k of ['RUNPOD_API_KEY','HF_TOKEN','AQLEVON_TEST_SECRET'])if(process.env[k])process.stdout.write(process.env[k]);fs.writeFileSync(process.argv[1],JSON.stringify({schema:'aqlevon-p3-payload-telemetry-v1',peak_vram_bytes:123456,tokens_processed:77,tokens_generated:7}))`;
+  const args=[
     '--profile','p4-surrogate-1x24','--run-task-id','P4-A03-GENE1-PHYSICAL-TRAINER',
     '--run-manifest-sha',RUN,'--manager-authorization',authFile,'--provider-hourly-usd','0.5',
     '--gpu-indices','0','--telemetry-json',telemetry,'--receipt-dir',receipts,'--sample-ms','25','--execute','--',
     process.execPath,'-e',payload,telemetry
-  ],{env:{
+  ];
+  const baseEnv={
     PATH:`${bin}:${process.env.PATH}`,AQLEVON_GPU_EXECUTION_AUTHORIZED:'1',AQLEVON_COMPUTE_ORIGIN:'paid_manager_authorized',
-    AQLEVON_MANAGER_COMPUTE_AUTHORIZATION_SHA256:auth.authorization_sha256,AQLEVON_BILLING_START_EPOCH_MS:String(Date.now()),
-  }});
+    AQLEVON_MANAGER_COMPUTE_AUTHORIZATION_SHA256:auth.authorization_sha256,
+    RUNPOD_API_KEY:sentinels[0],HF_TOKEN:sentinels[1],AQLEVON_TEST_SECRET:sentinels[2],
+  };
+  const r=await runNode('scripts/p3-compute-dispatch.mjs',args,{env:{...baseEnv,AQLEVON_BILLING_START_EPOCH_MS:String(Date.now())}});
   assert.equal(r.code,0,r.stderr);
+  for(const sentinel of sentinels)assert.equal((r.stdout+r.stderr).includes(sentinel),false);
   const files=fs.readdirSync(receipts).filter(x=>x.startsWith('compute-attempt-'));
   assert.equal(files.length,1);
   const attempt=JSON.parse(fs.readFileSync(path.join(receipts,files[0]),'utf8'));
   assert.equal(attempt.compute_origin,'paid_manager_authorized');
   assert.equal(attempt.telemetry.tokens_processed,77);
+  assert.equal(verifyComputeAttemptReceipt(attempt).ok,true);
+  const replay=await runNode('scripts/p3-compute-dispatch.mjs',args,{env:{...baseEnv,AQLEVON_BILLING_START_EPOCH_MS:String(Date.now())}});
+  assert.equal(replay.code,2);
+  assert.ok(replay.stderr.includes('manager_authorization_already_used'));
+});
+
+test('paid watchdog reserves shutdown margin and SIGKILLs a SIGTERM-resistant payload before authorization expiry',async()=>{
+  const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'aqlevon-p4-watchdog-')),bin=path.join(tmp,'bin');
+  fs.mkdirSync(bin);const telemetry=path.join(tmp,'telemetry.json'),receipts=path.join(tmp,'receipts'),authFile=path.join(tmp,'auth.json');
+  const fake=path.join(bin,'nvidia-smi');
+  fs.writeFileSync(fake,`#!/bin/sh
+case "$*" in
+  *memory.total*) echo '0, Mock RTX 4090 24GB, 24576' ;;
+  *memory.used*) echo '0, 1024' ;;
+  *) exit 1 ;;
+esac
+`);fs.chmodSync(fake,0o755);
+  const auth=paidAuth({authorizationId:'manager-p4-watchdog-proof',maxBilledSeconds:7,maxTotalCostUsd:1,maxHourlyRateUsd:1});
+  fs.writeFileSync(authFile,JSON.stringify(auth));
+  const payload=`const fs=require('fs');fs.writeFileSync(process.argv[1],JSON.stringify({schema:'aqlevon-p3-payload-telemetry-v1',peak_vram_bytes:123456,tokens_processed:1,tokens_generated:0}));process.on('SIGTERM',()=>{});setInterval(()=>{},1000)`;
+  const started=Date.now();
+  const r=await runNode('scripts/p3-compute-dispatch.mjs',[
+    '--profile','p4-surrogate-1x24','--run-task-id','P4-A03-GENE1-PHYSICAL-TRAINER','--run-manifest-sha',RUN,
+    '--manager-authorization',authFile,'--provider-hourly-usd','0.5','--gpu-indices','0','--telemetry-json',telemetry,
+    '--receipt-dir',receipts,'--sample-ms','25','--execute','--',process.execPath,'-e',payload,telemetry
+  ],{env:{PATH:`${bin}:${process.env.PATH}`,AQLEVON_GPU_EXECUTION_AUTHORIZED:'1',AQLEVON_COMPUTE_ORIGIN:'paid_manager_authorized',AQLEVON_MANAGER_COMPUTE_AUTHORIZATION_SHA256:auth.authorization_sha256,AQLEVON_BILLING_START_EPOCH_MS:String(Date.now())}});
+  const elapsed=Date.now()-started;
+  assert.notEqual(r.code,0);
+  assert.ok(elapsed<6500,`watchdog elapsed ${elapsed}ms exceeded protected window`);
+  const files=fs.readdirSync(receipts).filter(x=>x.startsWith('compute-attempt-'));
+  assert.equal(files.length,1);
+  const attempt=JSON.parse(fs.readFileSync(path.join(receipts,files[0]),'utf8'));
+  assert.equal(attempt.outcome.status,'failed');
+  assert.equal(attempt.outcome.failure_code,'manager_budget_timeout');
+  assert.ok(Number(attempt.telemetry.allocated_gpu_seconds)>0);
   assert.equal(verifyComputeAttemptReceipt(attempt).ok,true);
 });
 
