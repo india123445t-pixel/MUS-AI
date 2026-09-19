@@ -237,6 +237,7 @@ class RunnerTests(unittest.TestCase):
                 "trainer.total_training_steps=12",
                 "data.train_batch_size=4",
                 "actor_rollout_ref.rollout.n=4",
+                "actor_rollout_ref.actor.ppo_mini_batch_size=4",
                 "actor_rollout_ref.model.lora_rank=4",
                 "actor_rollout_ref.model.lora_alpha=4",
                 "temperature=0.7",
