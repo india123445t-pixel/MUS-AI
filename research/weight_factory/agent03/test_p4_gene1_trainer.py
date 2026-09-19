@@ -11,8 +11,8 @@ H=lambda x:hashlib.sha256(x.encode()).hexdigest()
 def plan_fixture():
     obj={"schema_version":1,"plan_kind":c.FROZEN_PLAN_KIND,"hash_profile":c.HASH_PROFILE,"task_id":c.TASK_ID,"g1_status":c.G1_STATUS,"sealed_eval_consumed":False,"plan_sha256":"","profile":c.PROFILE,"surrogate_model":{"repo":c.SURROGATE_MODEL,"revision":c.SURROGATE_REVISION,"precision":"bf16","quantization":"none"},"training_seeds":[1701,1702,1703],"screen_budget":{"max_optimizer_updates":12},"generation":{"temperature":"0.7","top_p":"0.8","top_k":20},"arms":[
       {"arm_id":"P4_A0_SFT_LORA_CONTROL","algorithm":"supervised next-token CE on Worker02-admitted reference targets only","lr":"0.00001","weight_decay":"0.10","schedule":"cosine","min_lr":"0.000001","warmup_fraction":"0.10"},
-      {"arm_id":"P4_A1_RLVR_CONTROL","rollout_group_size":4,"ppo_mini_batch_size":8,"lr":"0.00001"},
-      {"arm_id":"P4_A2_SDPO_RICH_FEEDBACK","rollout_group_size":4,"self_distillation_alpha":"0.5","distillation_topk":100}],
+      {"arm_id":"P4_A1_RLVR_CONTROL","rollout_group_size":4,"ppo_mini_batch_size":8,"lr":"0.00001","rollout_importance_sampling":"token"},
+      {"arm_id":"P4_A2_SDPO_RICH_FEEDBACK","rollout_group_size":4,"self_distillation_alpha":"0.5","distillation_topk":100,"include_environment_feedback":True,"environment_feedback_only_without_solution":True}],
     }
     return c.seal(obj,"plan_sha256")
 
