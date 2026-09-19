@@ -70,15 +70,25 @@ test('Worker-05 evaluation receipt identity verifies only matching successful ca
     final_status:'PROMOTION_ELIGIBLE',
   };
   const join={attempt_receipt_sha256:a.receipt_sha256,verification_receipt_sha256:E};
-  const summary=summarizeVerifiedEfficiency([a],{evaluationDecisionReceipts:[authority],verificationJoins:[join]});
+  const summary=summarizeVerifiedEfficiency([a],{evaluationDecisionReceipts:[authority],verificationJoins:[join],managerApprovedVerificationReceiptSha256:[E]});
   assert.equal(summary.verified_successes,1);
   assert.equal(summary.verification_sources.evaluation_decision,1);
   assert.equal(summary.gpu_seconds_per_verified_success,a.runtime_metrics.allocated_gpu_seconds);
 
   const wrongCandidate={...authority,candidate_artifact_manifest_sha256:'9'.repeat(64)};
   const rejected={...authority,final_status:'REJECTED'};
-  assert.equal(summarizeVerifiedEfficiency([a],{evaluationDecisionReceipts:[wrongCandidate],verificationJoins:[join]}).verified_successes,0);
-  assert.equal(summarizeVerifiedEfficiency([a],{evaluationDecisionReceipts:[rejected],verificationJoins:[join]}).verified_successes,0);
+  assert.equal(summarizeVerifiedEfficiency([a],{evaluationDecisionReceipts:[wrongCandidate],verificationJoins:[join],managerApprovedVerificationReceiptSha256:[E]}).verified_successes,0);
+  assert.equal(summarizeVerifiedEfficiency([a],{evaluationDecisionReceipts:[rejected],verificationJoins:[join],managerApprovedVerificationReceiptSha256:[E]}).verified_successes,0);
+});
+
+test('unapproved verification receipt identities cannot create verified success even when payload looks valid',()=>{
+  const a=receipt();
+  const authority={receipt_kind:EVALUATION_DECISION_RECEIPT_KIND,receipt_sha256:E,candidate_artifact_manifest_sha256:C,final_status:'PROMOTION_ELIGIBLE'};
+  const join={attempt_receipt_sha256:a.receipt_sha256,verification_receipt_sha256:E};
+  const summary=summarizeVerifiedEfficiency([a],{evaluationDecisionReceipts:[authority],verificationJoins:[join]});
+  assert.equal(summary.status,'VALID');
+  assert.equal(summary.verified_successes,0);
+  assert.equal(summary.gpu_seconds_per_verified_success,null);
 });
 
 test('Manager-approved objective verifier requires exact attempt binding and approval receipt identity',()=>{
@@ -90,14 +100,14 @@ test('Manager-approved objective verifier requires exact attempt binding and app
     verification_status:'VERIFIED_SUCCESS',
   };
   const join={attempt_receipt_sha256:a.receipt_sha256,verification_receipt_sha256:O};
-  const summary=summarizeVerifiedEfficiency([a],{objectiveVerifierApprovals:[authority],verificationJoins:[join]});
+  const summary=summarizeVerifiedEfficiency([a],{objectiveVerifierApprovals:[authority],verificationJoins:[join],managerApprovedVerificationReceiptSha256:[O]});
   assert.equal(summary.verified_successes,1);
   assert.equal(summary.verification_sources.objective_verifier,1);
 
   const noApproval={...authority,manager_approval_receipt_sha256:'not-a-hash'};
-  assert.equal(summarizeVerifiedEfficiency([a],{objectiveVerifierApprovals:[noApproval],verificationJoins:[join]}).verified_successes,0);
+  assert.equal(summarizeVerifiedEfficiency([a],{objectiveVerifierApprovals:[noApproval],verificationJoins:[join],managerApprovedVerificationReceiptSha256:[O]}).verified_successes,0);
   const wrongAttempt={...authority,attempt_receipt_sha256:'8'.repeat(64)};
-  assert.equal(summarizeVerifiedEfficiency([a],{objectiveVerifierApprovals:[wrongAttempt],verificationJoins:[join]}).verified_successes,0);
+  assert.equal(summarizeVerifiedEfficiency([a],{objectiveVerifierApprovals:[wrongAttempt],verificationJoins:[join],managerApprovedVerificationReceiptSha256:[O]}).verified_successes,0);
 });
 
 test('failed attempts always retain cost in numerator but can never be verified successes',()=>{
@@ -108,7 +118,7 @@ test('failed attempts always retain cost in numerator but can never be verified 
     {attempt_receipt_sha256:success.receipt_sha256,verification_receipt_sha256:E},
     {attempt_receipt_sha256:failed.receipt_sha256,verification_receipt_sha256:E},
   ];
-  const summary=summarizeVerifiedEfficiency([success,failed],{evaluationDecisionReceipts:[evalAuthority],verificationJoins:joins});
+  const summary=summarizeVerifiedEfficiency([success,failed],{evaluationDecisionReceipts:[evalAuthority],verificationJoins:joins,managerApprovedVerificationReceiptSha256:[E]});
   assert.equal(summary.verified_successes,1);
   assert.equal(summary.allocated_gpu_seconds_total,6);
   assert.equal(summary.gpu_seconds_per_verified_success,6);
