@@ -1,9 +1,10 @@
-name: P4 Compute Cost Orchestrator
+name: P4/P4.1 Compute Cost Orchestrator
 
 on:
   pull_request:
     branches:
       - agent/06-p3-compute-dispatch-v1
+      - agent/06-p4-compute-cost-orchestrator-v1
     paths:
       - 'lib/aqlevon/compute-dispatch.js'
       - 'lib/aqlevon/compute-cost-orchestrator.js'
