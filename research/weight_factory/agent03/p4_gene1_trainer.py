@@ -44,7 +44,7 @@ SDPO_COMMIT = "7c457fc1b1f636ae794eb0362ba37d4743b06fbc"
 PROFILE = "p4-surrogate-1x24"
 FROZEN_PLAN_KIND = "AQLEVON_P4_GENE1_FROZEN_TRAINING_PLAN_V1"
 COMMAND_LOCK_KIND = "AQLEVON_P4_GENE1_COMMAND_LOCK_V1"
-AUTH_KIND = "AQLEVON_MANAGER_PAID_RUN_AUTHORIZATION_V1"
+AUTH_KIND = "AQLEVON_MANAGER_COMPUTE_AUTHORIZATION_V1"
 _SHA = re.compile(r"^[0-9a-f]{64}$")
 ARMS = (
     "P4_A0_SFT_LORA_CONTROL",
@@ -215,16 +215,54 @@ def build_command_lock(argv:list[str],*,plan_sha256:str,arm_id:str,seed:int,prof
     return seal(obj,"lock_sha256")
 
 def validate_manager_authorization(auth:Any,*,lock:dict[str,Any])->list[str]:
+    """Validate Worker06 AQLEVON_MANAGER_COMPUTE_AUTHORIZATION_V1.
+
+    Worker06 binds paid authority to task + frozen run-manifest + compute
+    profile + economic ceilings. Worker03's command lock separately binds argv.
+    """
     e=[]
-    if not isinstance(auth,dict): return ["authorization_not_object"]
-    if auth.get("authorization_kind")!=AUTH_KIND or auth.get("status")!="AUTHORIZED": e.append("authorization_identity")
-    if auth.get("task_id")!=TASK_ID: e.append("authorization_task")
-    if auth.get("training_plan_sha256")!=lock.get("training_plan_sha256"): e.append("authorization_plan")
-    if auth.get("command_sha256")!=lock.get("command_sha256"): e.append("authorization_command")
-    if auth.get("profile")!=lock.get("profile"): e.append("authorization_profile")
-    if not verify_self_digest(auth,"authorization_sha256"): e.append("authorization_self_digest")
-    for f in ("manager_authority_id","provider","max_budget_usd","max_wall_seconds","authorized_at_utc"):
-        if f not in auth: e.append("authorization_missing_"+f)
+    if not isinstance(auth,dict):
+        return ["authorization_not_object"]
+    exact={
+        "schema_version","authorization_kind","hash_profile","authorization_id",
+        "run_task_id","run_manifest_sha256","profile_id","compute_origin",
+        "max_billed_seconds","max_total_cost_usd","max_hourly_rate_usd",
+        "max_artifact_egress_bytes","single_use","authorization_sha256",
+    }
+    if set(auth)!=exact:
+        e.append("authorization_schema")
+    if auth.get("schema_version")!=1:
+        e.append("authorization_schema_version")
+    if auth.get("authorization_kind")!=AUTH_KIND:
+        e.append("authorization_kind")
+    if auth.get("hash_profile")!=HASH_PROFILE:
+        e.append("authorization_hash_profile")
+    if not isinstance(auth.get("authorization_id"),str) or not auth["authorization_id"]:
+        e.append("authorization_id")
+    if auth.get("run_task_id")!=TASK_ID:
+        e.append("authorization_task")
+    if auth.get("run_manifest_sha256")!=lock.get("training_plan_sha256"):
+        e.append("authorization_plan")
+    if auth.get("profile_id")!=lock.get("profile"):
+        e.append("authorization_profile")
+    if auth.get("compute_origin")!="paid_manager_authorized":
+        e.append("authorization_compute_origin")
+    if type(auth.get("max_billed_seconds")) is not int or not (1<=auth["max_billed_seconds"]<=604800):
+        e.append("authorization_max_billed_seconds")
+    for fld in ("max_total_cost_usd","max_hourly_rate_usd"):
+        val=auth.get(fld)
+        try:
+            n=float(val)
+        except (TypeError,ValueError):
+            n=-1
+        if not isinstance(val,str) or not val or n<0:
+            e.append("authorization_"+fld)
+    if type(auth.get("max_artifact_egress_bytes")) is not int or auth["max_artifact_egress_bytes"]<0:
+        e.append("authorization_max_artifact_egress_bytes")
+    if auth.get("single_use") is not True:
+        e.append("authorization_single_use")
+    if not verify_self_digest(auth,"authorization_sha256"):
+        e.append("authorization_self_digest")
     return e
 
 def run_locked(lock:dict[str,Any],*,paid:bool,authorization:dict[str,Any]|None,cwd:Path)->int:
