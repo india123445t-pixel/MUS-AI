@@ -1,0 +1,129 @@
+name: P4 Agent03 Exact Contract
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/03-p4-gene1-physical-trainer
+    paths:
+      - 'research/weight_factory/agent03/p4_*'
+      - '.github/workflows/p4-agent03-exact.yml'
+
+jobs:
+  exact-contract:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install pinned parquet dependency
+        run: python -m pip install --disable-pip-version-check pyarrow==22.0.0
+
+      - name: Extract exact W01/W02/W05 public inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin abb94ef134e2e97036b6959dbc9db4278d3736b6 f01e0ba91bbfa43e0d659fba5c0d0c4f64a06cae
+          mkdir -p /tmp/p4inputs
+          git show f01e0ba91bbfa43e0d659fba5c0d0c4f64a06cae:research/evaluation/gene1_worker01_method_tournament_spec_v1.json > /tmp/p4inputs/w01.json
+          git show f01e0ba91bbfa43e0d659fba5c0d0c4f64a06cae:research/evaluation/gene1_worker02_public_pack_binding_v1.json > /tmp/p4inputs/w02_binding.json
+          git show f01e0ba91bbfa43e0d659fba5c0d0c4f64a06cae:research/evaluation/gene1_evaluation_law_v1.json > /tmp/p4inputs/w05_law.json
+          git show abb94ef134e2e97036b6959dbc9db4278d3736b6:research/weight_factory/agent02/gene1_training_shard_manifest_v1.json > /tmp/p4inputs/shard_manifest.json
+          git show abb94ef134e2e97036b6959dbc9db4278d3736b6:research/weight_factory/agent02/gene1_training_shard_v1.jsonl > /tmp/p4inputs/shard.jsonl
+          git show abb94ef134e2e97036b6959dbc9db4278d3736b6:research/weight_factory/agent02/gene1_training_visible_pack_v1.json > /tmp/p4inputs/pack.json
+          git show abb94ef134e2e97036b6959dbc9db4278d3736b6:research/weight_factory/agent02/gene1_split_commitment_v1.json > /tmp/p4inputs/split.json
+
+      - name: Python syntax + unit contract
+        working-directory: research/weight_factory/agent03
+        run: |
+          set -euo pipefail
+          python -m py_compile p4_gene1_trainer.py p4_sft_surrogate.py p4_aqlevon_reward.py p4_surrogate_tournament.py test_p4_gene1_trainer.py
+          python -m unittest -v test_p4_gene1_trainer.py
+
+      - name: Rebuild frozen plan from real cross-worker inputs
+        working-directory: research/weight_factory/agent03
+        shell: bash
+        run: |
+          set -euo pipefail
+          python p4_gene1_trainer.py freeze-plan \
+            --method-spec /tmp/p4inputs/w01.json \
+            --training-shard-manifest /tmp/p4inputs/shard_manifest.json \
+            --training-shard /tmp/p4inputs/shard.jsonl \
+            --training-pack /tmp/p4inputs/pack.json \
+            --split /tmp/p4inputs/split.json \
+            --w02-binding /tmp/p4inputs/w02_binding.json \
+            --w05-law /tmp/p4inputs/w05_law.json \
+            --output /tmp/p4inputs/generated_plan.json
+          cmp -s /tmp/p4inputs/generated_plan.json p4_frozen_training_plan_v1.json
+
+      - name: Prepare and inspect real parquet
+        working-directory: research/weight_factory/agent03
+        shell: bash
+        run: |
+          set -euo pipefail
+          python p4_surrogate_tournament.py prepare-data \
+            --training-shard /tmp/p4inputs/shard.jsonl \
+            --training-pack /tmp/p4inputs/pack.json \
+            --output-dir /tmp/p4data
+          python - <<'PY'
+          import json
+          import pyarrow.parquet as pq
+          from pathlib import Path
+          for name in ("train.parquet","test.parquet"):
+              table=pq.read_table(Path("/tmp/p4data")/name)
+              assert table.num_rows==56, (name,table.num_rows)
+              assert set(table.column_names)=={"data_source","prompt","ability","reward_model","extra_info"}
+          m=json.loads(Path("/tmp/p4data/data_prep_manifest.json").read_text())
+          assert m["row_count"]==56
+          assert m["sealed_eval_consumed"] is False
+          print("P4_PARQUET_PASS")
+          PY
+
+      - name: Rebuild A1 command lock from source
+        working-directory: research/weight_factory/agent03
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          import p4_gene1_trainer as c
+          import p4_surrogate_tournament as t
+          plan=Path("p4_frozen_training_plan_v1.json")
+          argv=t.build_a1_argv(plan,Path("/workspace"))
+          lock=c.build_command_lock(
+              argv,
+              plan_sha256=json.loads(plan.read_text())["plan_sha256"],
+              arm_id="P4_A1_RLVR_CONTROL",
+              seed=1701,
+          )
+          frozen=json.loads(Path("p4_a1_seed1701_command_lock_v1.json").read_text())
+          assert lock==frozen, (lock,frozen)
+          assert "trainer.n_gpus_per_node=1" in argv
+          assert "actor_rollout_ref.rollout.tensor_model_parallel_size=1" in argv
+          assert "max_model_len=4096" in argv
+          print("P4_A1_COMMAND_LOCK_PASS", lock["command_sha256"], lock["lock_sha256"])
+          PY
+
+      - name: Public reward agrees with all 56 training oracles
+        working-directory: research/weight_factory/agent03
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          import p4_aqlevon_reward as r
+          pack=json.loads(Path("/tmp/p4inputs/pack.json").read_text())
+          hard=[x for x in pack["tasks"] if x.get("training_eligible") is True and x.get("verifier_mode")=="hardened"]
+          assert len(hard)==56
+          for task in hard:
+              gt=json.dumps({"initial_state":task["visible_initial_state"],"oracle_program":task["oracle_program"]},sort_keys=True,separators=(",",":"))
+              sol=json.dumps(task["oracle_program"],sort_keys=True,separators=(",",":"))
+              out=r.compute_score(solution_str=sol,ground_truth=gt)
+              assert out["score"]==1.0, (task["task_id"],out)
+          print("P4_REWARD_ORACLE_56_PASS")
+          PY
