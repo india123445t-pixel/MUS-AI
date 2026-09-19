@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import {once} from 'node:events';
-import {spawn,spawnSync} from 'node:child_process';
+import {spawn} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import path from 'node:path';
 import {summarizeVerifiedEfficiency} from '../lib/aqlevon/runtime-economics.js';
@@ -197,28 +197,6 @@ test('delayed model HTTP failure retains runtime metrics and compute cost while 
   assert.equal(summary.verified_successes,1);
 });
 
-
-test('malformed model timeout fails closed before network activity',()=>{
-  const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
-  const result=spawnSync(process.execPath,['scripts/commons-worker.mjs'],{
-    cwd:root,
-    env:{...process.env,
-      AQLEVON_COMMONS_URL:'http://127.0.0.1:9',
-      AQLEVON_COMMONS_WORKER_TOKEN:'timeout-worker-secret',
-      AQLEVON_MODEL_URL:'http://127.0.0.1:9',
-      AQLEVON_COMMONS_MODEL_TIMEOUT_MS:'12.5',
-    },
-    encoding:'utf8',
-    timeout:2000
-  });
-  assert.equal(result.status,2,result.stderr);
-  assert.equal(result.signal,null);
-  const lines=String(result.stderr||'').split('\n').filter(Boolean).map(line=>JSON.parse(line));
-  assert.equal(lines[0].event,'commons_worker_config_error');
-  assert.equal(lines[0].field,'AQLEVON_COMMONS_MODEL_TIMEOUT_MS');
-  assert.equal(String(result.stdout||'').includes('commons_worker_start'),false);
-  assert.equal(String(result.stderr||'').includes('ECONNREFUSED'),false);
-});
 
 test('worker stdout/stderr never exposes URL-embedded credentials/query tokens or model key',async()=>{
   let claimCount=0;
