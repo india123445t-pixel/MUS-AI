@@ -1,27 +1,15 @@
 #!/usr/bin/env python3
-"""AQLEVON Worker 03 — G1 deterministic one-step parameter-delta probe.
+"""AQLEVON Worker 03 — G1 one-step parameter-delta harness.
 
-Purpose
--------
-Prove the *smallest defensible* physical AQLEVON parameter delta on the frozen
-Qwen3.8-27B research base. This is a smoke/provenance gate, not a capability
-claim and not a release-training recipe.
+Canonical policy:
+- BF16 LoRA is the preferred G1 lane.
+- QLoRA 4-bit is an explicitly acknowledged EXPERIMENTAL cost challenger until
+  a frozen quantization_regression_pass exists and Manager approves promotion.
 
-Safety properties
------------------
-* Base model + revision are hard-pinned; there is no CLI override.
-* QLoRA uses on-the-fly bitsandbytes NF4 from the canonical checkpoint rather
-  than an unpinned/pre-quantized mirror.
-* LoRA attaches only to q_proj + v_proj under text self-attention layers.
-* Vision, MTP, embeddings and lm_head must remain frozen.
-* Exactly one optimizer step is executed.
-* A non-zero adapter delta is mandatory.
-* Adapter is saved, SHA256-recorded, unloaded, reloaded, and state-hash checked.
-* OOM never changes model/revision/rank/targets automatically.
-
-The script intentionally avoids Trainer/SFT abstractions so G1 has fewer moving
-parts. Full R0-A training should use the manager-approved training framework only
-after this gate and Agent 05 evaluation wiring pass.
+This harness is a smoke/provenance gate, not a capability claim or release
+trainer. It hard-pins the base/revision, package profile, target layout, one
+optimizer step, non-zero delta proof, save/reload/hash evidence, and fail-closed
+preflights. No mode silently falls back to another mode.
 """
 from __future__ import annotations
 
@@ -39,19 +27,41 @@ import traceback
 from pathlib import Path
 from typing import Any
 
-# Determinism request must be visible before CUDA libraries initialize.
 os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
 
 MODEL_ID = "Qwen/Qwen3.8-27B"
 REVISION = "1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0"
+CANONICAL_PREFERRED_MODE = "bf16"
+EXPERIMENTAL_MODE = "qlora-experimental"
 SEED = 3407
 LORA_R = 4
 LORA_ALPHA = 8
 LEARNING_RATE = 1e-4
 TARGET_SUFFIXES = ("q_proj", "v_proj")
+LINEAR_ATTN_PROJECTION_SUFFIXES = (
+    "in_proj_qkv", "in_proj_z", "in_proj_b", "in_proj_a", "out_proj",
+)
+EXPECTED_TEXT_LAYERS = 64
 EXPECTED_FULL_ATTENTION_LAYERS = 16
+EXPECTED_LINEAR_ATTN_LAYERS = 48
 EXPECTED_TARGET_MODULES = 32
+EXPECTED_LINEAR_ATTN_PROJECTIONS = 240
 EXPECTED_TRAINABLE_PARAMS_R4 = 1_507_328
+
+# Exact first-run execution profile. These are pinned current releases as of
+# 2026-09-19; the profile itself is NOT claimed GPU-validated until G1 runs.
+PINNED_PACKAGE_VERSIONS = {
+    "transformers": "5.17.0",
+    "peft": "0.21.0",
+    "bitsandbytes": "0.50.2",
+    "accelerate": "1.15.0",
+}
+
+QLORA_SKIP_MODULES = tuple(
+    ["lm_head"]
+    + [f"model.language_model.layers.{i}.linear_attn" for i in range(EXPECTED_TEXT_LAYERS)]
+)
+
 FORBIDDEN_TRAINABLE_FRAGMENTS = (
     "visual",
     "vision",
@@ -75,14 +85,36 @@ HOLDOUT_TEXT = (
 )
 
 
+def _policy_state(mode: str) -> dict[str, Any]:
+    if mode == CANONICAL_PREFERRED_MODE:
+        return {
+            "canonical_preferred": True,
+            "experimental": False,
+            "quantization_regression_required_for_promotion": False,
+        }
+    if mode == EXPERIMENTAL_MODE:
+        return {
+            "canonical_preferred": False,
+            "experimental": True,
+            "quantization_regression_required_for_promotion": True,
+        }
+    raise ValueError(f"unsupported mode: {mode}")
+
+
 def plan(max_length: int, mode: str) -> dict[str, Any]:
+    state = _policy_state(mode)
     return {
         "task": "AQLEVON G1 physical parameter-delta smoke",
         "worker": "03",
         "model": MODEL_ID,
         "revision": REVISION,
         "mode": mode,
-        "quantization": "bnb NF4 + double quant + bf16 compute (on-the-fly)" if mode == "qlora" else "none; bf16 frozen base",
+        "policy_state": state,
+        "quantization": (
+            "none; BF16 frozen base (canonical preferred)"
+            if mode == CANONICAL_PREFERRED_MODE
+            else "EXPERIMENTAL: NF4 on-the-fly, linear_attn explicitly skipped and kept BF16"
+        ),
         "optimizer_steps": 1,
         "seed": SEED,
         "max_length": max_length,
@@ -91,8 +123,14 @@ def plan(max_length: int, mode: str) -> dict[str, Any]:
         "target_suffixes": list(TARGET_SUFFIXES),
         "expected_target_modules": EXPECTED_TARGET_MODULES,
         "expected_trainable_params": EXPECTED_TRAINABLE_PARAMS_R4,
+        "pinned_package_versions": dict(PINNED_PACKAGE_VERSIONS),
+        "deterministic_algorithms": "strict_fail_closed",
         "automatic_fallback": False,
-        "truth_boundary": "smoke/provenance proof only; not quality or release evidence",
+        "truth_boundary": (
+            "BF16: physical delta/reload/hash smoke only; frozen eval still required. "
+            "QLoRA: experimental challenger only; quantization_regression_pass plus Manager approval "
+            "required before it can replace canonical BF16 preference."
+        ),
     }
 
 
@@ -101,6 +139,36 @@ def _pkg_version(name: str) -> str | None:
         return importlib_metadata.version(name)
     except importlib_metadata.PackageNotFoundError:
         return None
+
+
+def _stack_errors(actual: dict[str, str | None], mode: str) -> list[str]:
+    required = ("transformers", "peft", "accelerate")
+    if mode == EXPERIMENTAL_MODE:
+        required = required + ("bitsandbytes",)
+    errors = []
+    for name in required:
+        expected = PINNED_PACKAGE_VERSIONS[name]
+        observed = actual.get(name)
+        if observed != expected:
+            errors.append(f"{name} must equal {expected}; observed {observed!r}")
+    return errors
+
+
+def _assert_stack_versions(mode: str) -> dict[str, str | None]:
+    actual = {name: _pkg_version(name) for name in PINNED_PACKAGE_VERSIONS}
+    errors = _stack_errors(actual, mode)
+    if errors:
+        raise RuntimeError("FAIL-CLOSED: incompatible first-run package profile: " + "; ".join(errors))
+    return actual
+
+
+def _validate_mode_authorization(mode: str, acknowledge_experimental_qlora: bool) -> None:
+    _policy_state(mode)
+    if mode == EXPERIMENTAL_MODE and not acknowledge_experimental_qlora:
+        raise RuntimeError(
+            "FAIL-CLOSED: QLoRA is experimental under canonical AQLEVON policy; "
+            "rerun only with --ack-experimental-qlora to collect challenger evidence."
+        )
 
 
 def _sha256_file(path: Path) -> str:
@@ -120,7 +188,6 @@ def _sha256_tree(path: Path) -> dict[str, str]:
 
 
 def _hash_adapter_state(state: dict[str, Any]) -> str:
-    """Stable hash over adapter tensor names/shapes/float32 values."""
     h = hashlib.sha256()
     for name in sorted(state):
         tensor = state[name].detach().cpu().contiguous().float()
@@ -148,10 +215,11 @@ def _set_seed(torch: Any) -> None:
         torch.backends.cudnn.allow_tf32 = False
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
-    torch.use_deterministic_algorithms(True, warn_only=True)
+    # Strict: any nondeterministic kernel is an execution failure, not a warning.
+    torch.use_deterministic_algorithms(True)
 
 
-def _environment(torch: Any) -> dict[str, Any]:
+def _environment(torch: Any, stack: dict[str, str | None]) -> dict[str, Any]:
     idx = torch.cuda.current_device()
     props = torch.cuda.get_device_properties(idx)
     return {
@@ -159,14 +227,12 @@ def _environment(torch: Any) -> dict[str, Any]:
         "platform": platform.platform(),
         "torch": torch.__version__,
         "torch_cuda": torch.version.cuda,
-        "transformers": _pkg_version("transformers"),
-        "peft": _pkg_version("peft"),
-        "bitsandbytes": _pkg_version("bitsandbytes"),
-        "accelerate": _pkg_version("accelerate"),
+        "package_profile": stack,
         "gpu_index": idx,
         "gpu_name": props.name,
         "gpu_total_vram_bytes": props.total_memory,
         "gpu_capability": list(torch.cuda.get_device_capability(idx)),
+        "deterministic_algorithms_enabled": torch.are_deterministic_algorithms_enabled(),
     }
 
 
@@ -214,14 +280,109 @@ def _discover_targets(model: Any) -> list[str]:
     return selected
 
 
+def _shape_tuple(weight: Any) -> tuple[int, ...]:
+    return tuple(int(v) for v in tuple(weight.shape))
+
+
+def _linear_attn_preflight(model: Any, mode: str) -> dict[str, Any]:
+    """Validate every Gated DeltaNet projection before optimizer creation.
+
+    In both canonical BF16 and the only permitted experimental QLoRA lane,
+    linear_attn projections must remain real BF16 2-D weights with no bnb
+    quant_state. If a skip failed and any projection is Linear4bit/packed or
+    carries quant_state, the run fails before forward/backward.
+    """
+    _policy_state(mode)
+    records: list[dict[str, Any]] = []
+    errors: list[str] = []
+    for name, module in model.named_modules():
+        if ".linear_attn." not in name:
+            continue
+        suffix = name.rsplit(".", 1)[-1]
+        if suffix not in LINEAR_ATTN_PROJECTION_SUFFIXES:
+            continue
+        weight = getattr(module, "weight", None)
+        if weight is None:
+            errors.append(f"{name}: missing weight")
+            continue
+        shape = _shape_tuple(weight)
+        dtype = str(getattr(weight, "dtype", None))
+        quant_state = getattr(weight, "quant_state", None)
+        cls = type(module).__name__
+        rec = {
+            "name": name,
+            "class": cls,
+            "dtype": dtype,
+            "shape": list(shape),
+            "has_quant_state": quant_state is not None,
+        }
+        records.append(rec)
+        if dtype not in ("torch.bfloat16", "bfloat16"):
+            errors.append(f"{name}: expected BF16 skip weight, observed dtype={dtype}")
+        if len(shape) != 2:
+            errors.append(f"{name}: expected 2-D weight, observed shape={shape}")
+        in_features = getattr(module, "in_features", None)
+        out_features = getattr(module, "out_features", None)
+        if in_features is not None and out_features is not None and len(shape) == 2:
+            expected_shape = (int(out_features), int(in_features))
+            if shape != expected_shape:
+                errors.append(f"{name}: expected shape={expected_shape}, observed shape={shape}")
+        if quant_state is not None:
+            errors.append(f"{name}: linear_attn must be BF16/unquantized but quant_state is present")
+        if "linear4bit" in cls.lower() or "linear8bit" in cls.lower():
+            errors.append(f"{name}: linear_attn unexpectedly converted to {cls}")
+
+    if len(records) != EXPECTED_LINEAR_ATTN_PROJECTIONS:
+        errors.append(
+            f"linear_attn projection count mismatch: expected {EXPECTED_LINEAR_ATTN_PROJECTIONS}, "
+            f"observed {len(records)}"
+        )
+    if errors:
+        raise RuntimeError("FAIL-CLOSED: Gated DeltaNet quantization preflight failed: " + "; ".join(errors[:20]))
+    return {
+        "status": "PASS",
+        "mode": mode,
+        "expected_projection_count": EXPECTED_LINEAR_ATTN_PROJECTIONS,
+        "observed_projection_count": len(records),
+        "required_dtype": "bfloat16",
+        "required_quant_state": "absent",
+        "records": records,
+    }
+
+
+def _qlora_target_preflight(model: Any, selected: list[str]) -> dict[str, Any]:
+    by_name = dict(model.named_modules())
+    errors: list[str] = []
+    records: list[dict[str, Any]] = []
+    for name in selected:
+        module = by_name.get(name)
+        if module is None:
+            errors.append(f"{name}: target module missing after quantized load")
+            continue
+        weight = getattr(module, "weight", None)
+        quant_state = getattr(weight, "quant_state", None) if weight is not None else None
+        cls = type(module).__name__
+        records.append({
+            "name": name,
+            "class": cls,
+            "has_quant_state": quant_state is not None,
+        })
+        if quant_state is None:
+            errors.append(f"{name}: experimental QLoRA target missing quant_state")
+    if errors:
+        raise RuntimeError("FAIL-CLOSED: QLoRA target quantization-state preflight failed: " + "; ".join(errors[:20]))
+    return {"status": "PASS", "observed_target_count": len(records), "records": records}
+
+
 def _load_base(mode: str, torch: Any, Qwen3_5ForConditionalGeneration: Any, BitsAndBytesConfig: Any) -> Any:
     quant = None
-    if mode == "qlora":
+    if mode == EXPERIMENTAL_MODE:
         quant = BitsAndBytesConfig(
             load_in_4bit=True,
             bnb_4bit_quant_type="nf4",
             bnb_4bit_use_double_quant=True,
             bnb_4bit_compute_dtype=torch.bfloat16,
+            llm_int8_skip_modules=list(QLORA_SKIP_MODULES),
         )
     return Qwen3_5ForConditionalGeneration.from_pretrained(
         MODEL_ID,
@@ -234,7 +395,15 @@ def _load_base(mode: str, torch: Any, Qwen3_5ForConditionalGeneration: Any, Bits
     )
 
 
-def run_probe(mode: str, max_length: int, output_dir: Path) -> dict[str, Any]:
+def run_probe(
+    mode: str,
+    max_length: int,
+    output_dir: Path,
+    acknowledge_experimental_qlora: bool = False,
+) -> dict[str, Any]:
+    _validate_mode_authorization(mode, acknowledge_experimental_qlora)
+    stack = _assert_stack_versions(mode)
+
     import torch
 
     if not torch.cuda.is_available():
@@ -242,8 +411,6 @@ def run_probe(mode: str, max_length: int, output_dir: Path) -> dict[str, Any]:
     if not torch.cuda.is_bf16_supported():
         raise RuntimeError("FAIL-CLOSED: BF16-capable CUDA GPU is required for this G1 recipe")
 
-    # Import GPU-training stack only after the hardware gate, so a CPU-only
-    # environment reports the real blocker instead of an incidental missing package.
     from peft import (
         LoraConfig,
         PeftModel,
@@ -267,9 +434,12 @@ def run_probe(mode: str, max_length: int, output_dir: Path) -> dict[str, Any]:
     load_seconds = time.perf_counter() - load_t0
     load_peak = torch.cuda.max_memory_allocated()
 
+    # Must pass before PEFT/optimizer/forward.
+    linear_attn_preflight = _linear_attn_preflight(model, mode)
+
     for p in model.parameters():
         p.requires_grad_(False)
-    if mode == "qlora":
+    if mode == EXPERIMENTAL_MODE:
         model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=True)
     elif hasattr(model, "gradient_checkpointing_enable"):
         model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
@@ -279,6 +449,10 @@ def run_probe(mode: str, max_length: int, output_dir: Path) -> dict[str, Any]:
         model.config.text_config.use_cache = False
 
     selected = _discover_targets(model)
+    qlora_target_preflight = None
+    if mode == EXPERIMENTAL_MODE:
+        qlora_target_preflight = _qlora_target_preflight(model, selected)
+
     lora_cfg = LoraConfig(
         r=LORA_R,
         lora_alpha=LORA_ALPHA,
@@ -363,6 +537,8 @@ def run_probe(mode: str, max_length: int, output_dir: Path) -> dict[str, Any]:
     torch.cuda.reset_peak_memory_stats()
     reload_t0 = time.perf_counter()
     reload_base = _load_base(mode, torch, Qwen3_5ForConditionalGeneration, BitsAndBytesConfig)
+    # Re-validate the base quantization topology after the second load as well.
+    reload_linear_attn_preflight = _linear_attn_preflight(reload_base, mode)
     reload_model = PeftModel.from_pretrained(reload_base, adapter_dir, is_trainable=False)
     reload_state = get_peft_model_state_dict(reload_model)
     reload_state_hash = _hash_adapter_state(reload_state)
@@ -375,13 +551,32 @@ def run_probe(mode: str, max_length: int, output_dir: Path) -> dict[str, Any]:
     reload_holdout = _encode(tokenizer, HOLDOUT_TEXT, max_length, reload_device)
     reload_holdout_loss = _micro_loss(reload_model, reload_holdout, torch)
 
+    canonical = mode == CANONICAL_PREFERRED_MODE
     report = {
-        "status": "PASS_G1_DELTA_SMOKE_PENDING_FROZEN_EVAL",
+        "status": (
+            "PASS_G1_BF16_DELTA_SMOKE_PENDING_FROZEN_EVAL"
+            if canonical
+            else "PASS_EXPERIMENTAL_QLORA_DELTA_SMOKE_NOT_CANONICAL_G1"
+        ),
+        "canonical_policy": {
+            "preferred": "bf16_lora",
+            "qlora_4bit": "experimental",
+            "qlora_promotion_requires": "quantization_regression_pass + Manager approval",
+        },
         "truth_boundary": (
-            "One-step physical adapter-delta/save/reload/hash proof only. "
-            "Agent 05 frozen target+regression evaluation is still required before any quality/promotion claim."
+            "One-step physical adapter-delta/save/reload/hash proof only. Frozen target+regression evaluation is required. "
+            + (
+                "This BF16 lane follows canonical preference."
+                if canonical
+                else "This QLoRA result is challenger evidence only and cannot replace BF16 policy without quantization regression."
+            )
         ),
         "plan": plan(max_length, mode),
+        "preflight": {
+            "linear_attn_before_training": linear_attn_preflight,
+            "qlora_targets": qlora_target_preflight,
+            "linear_attn_after_reload": reload_linear_attn_preflight,
+        },
         "selected_target_modules": selected,
         "trainable_parameter_names": trainable_names,
         "trainable_parameter_count": trainable_params,
@@ -417,7 +612,7 @@ def run_probe(mode: str, max_length: int, output_dir: Path) -> dict[str, Any]:
             "optimizer_step": step_peak,
             "reload": reload_peak,
         },
-        "environment": _environment(torch),
+        "environment": _environment(torch, stack),
     }
     _write_json(output_dir / "g1_delta_report.json", report)
     return report
@@ -425,7 +620,12 @@ def run_probe(mode: str, max_length: int, output_dir: Path) -> dict[str, Any]:
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--mode", choices=("qlora", "bf16"), default="qlora")
+    ap.add_argument(
+        "--mode",
+        choices=(CANONICAL_PREFERRED_MODE, EXPERIMENTAL_MODE),
+        default=CANONICAL_PREFERRED_MODE,
+    )
+    ap.add_argument("--ack-experimental-qlora", action="store_true")
     ap.add_argument("--max-length", type=int, default=128)
     ap.add_argument("--output-dir", default="aqlevon_g1_delta_output")
     ap.add_argument("--print-plan", action="store_true", help="Print immutable G1 plan without importing ML packages/GPU.")
@@ -439,7 +639,12 @@ def main() -> None:
 
     outdir = Path(args.output_dir)
     try:
-        report = run_probe(args.mode, args.max_length, outdir)
+        report = run_probe(
+            args.mode,
+            args.max_length,
+            outdir,
+            acknowledge_experimental_qlora=args.ack_experimental_qlora,
+        )
         print(json.dumps(report, ensure_ascii=False, indent=2))
     except Exception as exc:
         message = str(exc)
@@ -451,10 +656,10 @@ def main() -> None:
             "plan": plan(args.max_length, args.mode),
             "automatic_retry": False,
             "next_manual_action": (
-                "If OOM: first retry explicitly with --max-length 64; if still OOM, move the identical recipe to a larger GPU. "
-                "Never change model, revision, target profile, or quantization silently."
+                "If OOM: do not change precision mode automatically. Record the failure and use a larger authorized GPU "
+                "or a separately reviewed explicit experiment."
                 if oom
-                else "Inspect the failure; do not modify canonical model/revision to force a pass."
+                else "Inspect the failure; do not modify canonical model/revision/policy to force a pass."
             ),
             "traceback_tail": traceback.format_exc().splitlines()[-12:],
         }

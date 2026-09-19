@@ -1,148 +1,208 @@
-# AQLEVON Worker 03 — Efficient Training / G1 Parameter-Delta Report V1
+# AQLEVON Worker 03 — P1 Repair Wave / G1 Harness Repair V2
 
-**Task:** `P1-A03-EFFICIENT-TRAINING`  
+**Task:** `P1-R03-G1-HARNESS-REPAIR`  
 **Worker:** `03`  
 **Date:** 2026-09-19  
-**GitHub base before mutation:** `de2e576eec72581efb5f8e0910d2a8ea2e96b8c0`  
-**Branch:** `agent/03-g1-efficient-training`  
-**Status:** implementation-ready; GPU execution not performed in this worker environment because no CUDA device is attached and paid compute is not authorized.
+**Repository:** `india123445t-pixel/MUS-AI`  
+**Existing branch/PR:** `agent/03-g1-efficient-training` / PR #15  
+**Canonical base:** `Qwen/Qwen3.8-27B@1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0`  
+**Physical G1 status:** still NOT RUN — no owner-authorized compatible GPU exists in this worker environment.
 
-## Decision
+## Repair decision
 
-The cheapest defensible **G1 physical parameter-delta** recipe is a one-step **QLoRA NF4** smoke on the exact frozen base `Qwen/Qwen3.8-27B@1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0`, quantized **on the fly from that exact checkpoint**, with BF16 compute, gradient checkpointing, batch 1, sequence length 128, rank-4 LoRA attached only to text `self_attn.q_proj` + `self_attn.v_proj`, standard AdamW, one optimizer step, then save → SHA256 → unload → reload → adapter-state-hash equality.
+Manager review was correct: the original PR silently promoted QLoRA to the primary G1 lane even though canonical AQLEVON policy says:
 
-This is deliberately narrower than an R0-A capability recipe. It proves real trainable parameters changed reproducibly at minimum complexity; it does **not** prove coding gain.
+- preferred: `bf16_lora`
+- experimental: `qlora_4bit`
+- experimental promotion requires: `quantization_regression_pass`
 
-## Assumption challenged
+V2 therefore restores **BF16 LoRA as the CLI/default/canonical G1 lane**. QLoRA remains available only as an explicitly acknowledged experimental cost challenger and cannot produce canonical-G1-ready evidence without a frozen quantization regression plus Manager approval.
 
-### Prior assumption: “more LoRA targets is automatically better for G1”
+No canonical policy file was modified.
 
-PEFT's generic QLoRA guidance recommends `all-linear`. That is a reasonable capability-training default on ordinary text transformers, but it is unsafe as a G1 default for this model because Qwen3.8-27B is a multimodal `Qwen3_5ForConditionalGeneration` with a vision tower plus 48 Gated DeltaNet layers and 16 full-attention layers. AQLEVON's own topology lock explicitly forbids accidentally training vision/MTP/auxiliary paths.
+## Blocking correction 1 — canonical policy truth boundary
 
-Using the frozen config and current Transformers layer definitions:
-- 16 full-attention layers;
-- `q_proj`: `5120 -> 12288` (query + gate);
-- `v_proj`: `5120 -> 1024`;
-- rank-4 `q+v` LoRA = **1,507,328 trainable parameters**;
-- current 12-suffix language-trunk rank-8 probe profile = **58,363,904 trainable parameters**.
+### Before
+`--mode` defaulted to `qlora`, and the report recommended QLoRA as the first G1 route.
 
-Thus G1 can cut adapter trainables by ~38.7x while still proving a real optimizer-created delta. This reduction is for the **smoke gate only**; broader R0-A training should run an ablation among q/v, attention-only, standard 7-module QLoRA, and full language-trunk targets.
+### After
+- default mode: `bf16`
+- canonical report state: `PASS_G1_BF16_DELTA_SMOKE_PENDING_FROZEN_EVAL`
+- QLoRA mode: `qlora-experimental`
+- actual QLoRA execution additionally requires `--ack-experimental-qlora`
+- experimental success state: `PASS_EXPERIMENTAL_QLORA_DELTA_SMOKE_NOT_CANONICAL_G1`
+- QLoRA promotion remains blocked on `quantization_regression_pass + Manager approval`
 
-### Prior assumption: “the pre-quantized Unsloth mirror is automatically the safest cheapest path”
+The rank-4 q/v-only target profile remains a G1 *smoke-layout choice*, not a canonical statement about the optimal later R0-A capability-training target set.
 
-Unsloth's current Qwen3.8 guide states QLoRA works on 24GB and recommends its pre-quantized mirror. However, as of this report, Unsloth issue #10010 remains open and documents missing `quant_state` on Qwen3.8 Gated DeltaNet projections in that mirror, with a shape-mismatch failure. The reported workaround is to load the official checkpoint exactly and quantize on the fly. G1 therefore does **not** depend on the mirror until a zero-step check proves the issue is fixed.
+## Blocking correction 2 — Gated DeltaNet / linear_attn quantization preflight
 
-## Exact G1 recipe
+The original harness quantized the full hybrid model on-the-fly. That exceeded the evidence from Unsloth issue #10010.
 
-1. Hard-pin model and revision; no CLI override.
-2. Require CUDA + BF16 support.
-3. Load official checkpoint with bitsandbytes NF4, double quantization, BF16 compute.
-4. Freeze all base parameters.
-5. Enable gradient checkpointing; disable KV cache.
-6. Discover only `model.language_model.layers.*.self_attn.{q_proj,v_proj}`.
-7. Require exactly 32 target modules and exactly 1,507,328 rank-4 trainables.
-8. Reject any trainable path containing vision/visual/MTP/embedding/lm_head/linear-attention/MLP.
-9. Fixed seed 3407, fixed local synthetic smoke strings, padded length 128, batch 1.
-10. Record adapter state hash and micro losses before training.
-11. Execute exactly one AdamW step at LR `1e-4`, weight decay 0.
-12. Require finite loss, non-zero gradient, non-zero changed elements, non-zero L2 delta, and changed adapter-state hash.
-13. Save adapter with safetensors and SHA256 every artifact file.
-14. Delete model, clear CUDA cache, reload the exact base, reload adapter from disk.
-15. Require reloaded adapter-state hash to equal the saved post-step hash.
-16. Record load/step/reload time and peak allocated VRAM.
-17. Emit `PASS_G1_DELTA_SMOKE_PENDING_FROZEN_EVAL`, never a capability/release claim.
+The repaired experimental QLoRA lane now reproduces the **validated workaround boundary**:
+- use the exact official checkpoint, not the Unsloth pre-quantized mirror;
+- on-the-fly NF4 + double quantization;
+- explicitly skip `model.language_model.layers.{0..63}.linear_attn`;
+- keep skipped linear-attention projections BF16;
+- no automatic fallback to/from BF16.
 
-## VRAM / compute / cost envelope
+Before PEFT, optimizer creation, forward or backward, the harness enumerates the Gated DeltaNet projections:
+- expected DeltaNet layers: 48;
+- suffixes: `in_proj_qkv`, `in_proj_z`, `in_proj_b`, `in_proj_a`, `out_proj`;
+- expected total projection modules: **240**.
 
-### QLoRA G1 — primary cheapest lane
-- Official Unsloth guidance: Qwen3.8-27B QLoRA works with **24GB VRAM**.
-- Because AQLEVON avoids the currently suspect pre-quantized mirror, **24GB is a test target, not a promise** for the raw Transformers+PEFT probe. The actual peak must be recorded by the script.
-- A currently open Unsloth bug report measured ~22GB allocated at load and ~24.6GB peak for a workaround with batch 3 / seq 256 on an L40S while keeping linear-attention modules BF16. That makes a 24GB card marginal for that workaround and supports a 40/48GB safety lane when the 24GB raw probe OOMs.
-- Adapter optimizer memory is negligible relative to the base/activations at 1.51M trainables, so standard AdamW is chosen instead of adding an 8-bit optimizer dependency merely to save a few MiB.
+Every one must satisfy:
+1. dtype is BF16;
+2. weight is 2-D;
+3. when `in_features` / `out_features` exist, shape equals `(out_features, in_features)`;
+4. `quant_state` is absent;
+5. module class is not `Linear4bit` / `Linear8bit`.
 
-### BF16 LoRA confirmation lane
-- Raw Qwen3.8-27B BF16 weights are ~55–56GB-class before training overhead; for raw Transformers, use an **80GB-class single GPU** or a validated sharded setup.
-- Unsloth's optimized guide says LoRA needs **>36GB**, so a 48GB-class optimized lane is plausible, but must be measured rather than inferred from inference memory.
-- BF16 confirmation remains valuable because it removes quantization as a confounder, but it is not the cheapest first physical-delta proof.
+Any violation raises `FAIL-CLOSED` before training.
 
-### Cost
-- **Authorized paid cost: $0.** No paid GPU run was initiated.
-- Unsloth currently documents free Kaggle notebooks with 30 hours of 2×T4 quota, but the open pre-quantized-mirror bug means the free notebook path must pass the same zero-step topology/quantization checks before use.
-- Any rental cost must be computed only after a provider/rate is owner-authorized: `measured_gpu_seconds / 3600 * provider_hourly_rate`. Do not reserve hardware speculatively.
+For the experimental QLoRA q/v targets themselves, the opposite integrity rule applies: every selected quantized target must have a non-null `quant_state`; otherwise execution stops before LoRA attachment/training.
 
-## OOM fallback ladder — fail closed
+The full linear-attention preflight is also rerun after base reload, before adapter reload evidence is accepted.
 
-No automatic fallback is permitted.
+### Evidence boundary
+This does **not** prove the skip mechanism works in AQLEVON's environment yet. It proves the harness will reject a load where the skip is not actually honored. Physical proof still requires a GPU run.
 
-1. `qlora`, seq 128, rank 4, q/v only — primary.
-2. If OOM, explicitly retry **the same model/revision/mode/rank/targets** at seq 64 and record both failure reports.
-3. If still OOM, move the exact recipe to a 40/48GB-class GPU; do not silently change base or revision.
-4. If a single GPU is unavailable, validate FSDP-QLoRA on >=2 GPUs; ms-swift and Hugging Face provide FSDP-QLoRA patterns, but exact Qwen3.8 compatibility must pass zero-step and one-step tests first.
-5. BF16 confirmation is a separate lane, not a silent OOM fallback.
+## Blocking correction 3 — first-run compatibility profile pinned
 
-## Small surrogate strategy
+The old harness only recorded package versions after execution. V2 pins the first-run profile before model download:
 
-Use `Qwen/Qwen3.5-4B` only as a **framework/CI surrogate** because it uses the same `qwen3_5` hybrid architecture family and is much cheaper to load. It may test save/reload/hash plumbing and PEFT integration. It may **not** establish Qwen3.8-27B VRAM, quality, module counts, or G1 completion. G1 remains blocked until the exact 27B revision runs.
+- `transformers==5.17.0`
+- `peft==0.21.0`
+- `bitsandbytes==0.50.2`
+- `accelerate==1.15.0`
 
-## Packing / checkpointing / optimizer findings
+These were the current PyPI releases observed on 2026-09-19:
+- Transformers 5.17.0 — released 2026-09-09;
+- PEFT 0.21.0 — released 2026-09-15;
+- bitsandbytes 0.50.2 — released 2026-08-27;
+- Accelerate 1.15.0 — released 2026-09-09.
 
-- Gradient checkpointing: keep on; it attacks activation memory, which matters more than adapter optimizer state here.
-- Packing: not part of G1. The current Unsloth Qwen3.8 bug reproduction reports packing being ignored for the hybrid linear-attention model. Real R0-A throughput experiments should measure support rather than assume it.
-- 8-bit/paged AdamW: useful when optimizer state is large or memory spikes occur, but G1's rank-4 q/v adapter is only 1.51M parameters. Standard AdamW gives fewer moving parts and clearer delta evidence.
-- Sequence length: 128 for G1 proof only. Real R0-A coding training must use a separately measured context curriculum; no quality conclusion can be drawn from this micro length.
+The harness performs exact-match fail-closed validation:
+- BF16 requires exact Transformers + PEFT + Accelerate;
+- QLoRA additionally requires exact bitsandbytes.
 
-## RLVR / RPO / reward strategy
+**Truth boundary:** this is a pinned first-run profile, not a claim that those versions have already passed Qwen3.8-27B GPU training in AQLEVON. If the first authorized run shows incompatibility, the profile must be reviewed and changed explicitly rather than silently drifting packages.
 
-G1 should **not** begin with RL: rollout generation and reward/verifier plumbing add cost and confound the first physical-delta proof.
+The Unsloth issue's successful workaround used an older reported environment (`Unsloth 2026.8.22`, Transformers 5.5.0, PyTorch 2.11.0+cu130). That evidence justifies the skip-linear-attn design, not a claim that AQLEVON's newer pinned profile is already validated.
 
-After a verified SFT adapter exists:
-- R0-A coding: prefer verifier-grounded RLVR/VPR on executable repository tasks, with reward from tests/tool state rather than an LLM judge.
-- R0-E adaptive reasoning: Root-token Policy Optimization (ACL 2026) is a high-leverage research candidate; the paper reports adaptive-thinking training at about **2% of the training compute of prior adaptive-reasoning methods** by optimizing the root decision. AQLEVON's source registry correctly keeps it research-only until implementation/code-license audit.
-- Do not transfer RPO's paper result directly to Qwen3.8-27B; first run a small same-architecture surrogate, then a bounded 27B confirmatory experiment.
+## Blocking correction 4 — deterministic claim
 
-## Neighboring dependency checked
+The original code used:
 
-**Agent 05 / evaluation lane is mandatory.** The one-step script includes only fixed micro-loss diagnostics to detect gross reload/runtime corruption. They are explicitly not quality evidence. After the first GPU-created adapter exists, Agent 05 must run the frozen target + global regression harness under matched settings before the artifact can progress beyond diagnostic G1 evidence.
+`torch.use_deterministic_algorithms(True, warn_only=True)`
 
-## External evidence reviewed (accessed 2026-09-19)
+while describing the harness as deterministic.
 
-1. Qwen official Qwen3.8 README — finetuning frameworks include Unsloth, Swift, Llama-Factory: https://github.com/QwenLM/Qwen3.8/blob/main/README.md
-2. Frozen Qwen3.8-27B config at exact AQLEVON revision: https://huggingface.co/Qwen/Qwen3.8-27B/raw/1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0/config.json
-3. Unsloth Qwen3.8 fine-tuning guide — QLoRA 24GB, LoRA >36GB, free Kaggle notebooks, gradient-checkpointing/OOM guidance: https://unsloth.ai/docs/models/qwen3.8/train
-4. Unsloth issue #10010 (open at review) — Qwen3.8 pre-quantized mirror `quant_state` failure and on-the-fly workaround: https://github.com/unslothai/unsloth/issues/10010
-5. Hugging Face PEFT quantization guide — NF4 and QLoRA target guidance: https://huggingface.co/docs/peft/developer_guides/quantization
-6. Hugging Face PEFT LoRA API — default q/v LoRA and `all-linear` QLoRA behavior: https://huggingface.co/docs/peft/main/package_reference/lora
-7. QLoRA paper — NF4, double quantization and paged optimizers; 65B on 48GB result: https://arxiv.org/abs/2305.14314
-8. Transformers Qwen3.5 implementation — exact self-attention and Gated DeltaNet projection definitions: https://github.com/huggingface/transformers/blob/main/src/transformers/models/qwen3_5/modeling_qwen3_5.py
-9. bitsandbytes AdamW docs — 8-bit and paged optimizer behavior: https://huggingface.co/docs/bitsandbytes/reference/optim/adamw
-10. ms-swift FSDP-QLoRA example — multi-GPU fallback pattern (not Qwen3.8-specific): https://github.com/modelscope/ms-swift/blob/main/examples/train/multi-gpu/fsdp_qlora/train.sh
-11. RPO paper, ACL 2026 — Root-token Policy Optimization: https://aclanthology.org/2026.acl-long.816/
+V2 uses strict:
 
-## Provenance / license
+`torch.use_deterministic_algorithms(True)`
 
-- Base: Apache-2.0 as recorded by AQLEVON canonical source registry.
-- Probe code/report/manifest in this branch: newly authored for AQLEVON Worker 03.
-- Smoke data: two locally authored synthetic strings; no external dataset or protected benchmark instance.
-- No hosted OpenAI/Anthropic/Gemini outputs used for training.
-- No external recipe code copied into the implementation; external sources are cited as design evidence only.
+and keeps TF32 disabled plus deterministic cuDNN settings. If a used kernel cannot satisfy PyTorch deterministic mode, execution fails instead of silently warning and continuing.
 
-## Tests possible without GPU
+The manifest wording is deliberately precise: deterministic algorithms are **requested/enforced fail-closed by PyTorch**; no claim is made that unexecuted hardware has already reproduced identical artifact hashes.
 
-- Python compile of probe and contract test.
-- JSON parse of manifest.
-- `--print-plan` execution without ML dependencies or GPU.
-- Static contract unit tests for canonical identity, target scope, NF4 settings, save/reload/hash proof, and no paid-compute/quality claim.
+## Blocking correction 5 — regression tests
 
-## Not changed
+The repaired contract suite is **18/18 PASS**.
 
-- `main` not touched.
-- PR #12 not touched or merged.
-- no runtime/application files.
-- no canonical Frontier/Capability/Genome file replaced.
-- no model revision changed.
-- no paid GPU reservation.
-- no claim that G1 has run or AQLEVON weights now exist.
+It now proves:
+1. exact model/revision hard pin;
+2. BF16 is canonical/default;
+3. QLoRA is experimental and needs explicit acknowledgement;
+4. manifest preserves the canonical truth boundary;
+5. exact package pins are present;
+6. package mismatch fails closed;
+7. deterministic mode is strict (`warn_only=True` absent);
+8. all 64 linear-attention skip prefixes are explicitly configured;
+9. a valid 240-projection BF16 linear-attention topology passes;
+10. wrong `linear_attn` dtype fails closed;
+11. malformed/1-D `linear_attn` shape fails closed;
+12. unexpected `quant_state` on skipped `linear_attn` fails closed;
+13. unexpected 4-bit `linear_attn` class fails closed;
+14. missing one of the 240 projections fails closed;
+15. experimental QLoRA target without `quant_state` fails closed;
+16. delta/save/reload/hash evidence remains required;
+17. default `--print-plan` is BF16;
+18. QLoRA can be described for planning without authorizing execution.
+
+Additional checks:
+- `python -m py_compile`: PASS
+- manifest `python -m json.tool`: PASS
+- default `--print-plan`: PASS and parseable JSON
+
+No GPU/paid compute was used.
+
+## Why QLoRA remains useful but not canonical
+
+The cost hypothesis remains valuable: QLoRA may eventually reduce the VRAM needed for iterative specialist work. But the canonical project already established that Qwen3_5-family quantization may have unusual regression/safety behavior, and the hybrid DeltaNet bug shows why a cheap memory path must not be promoted before measured quality parity.
+
+Therefore the repaired ordering is:
+
+1. **Canonical G1:** BF16 LoRA, one step, non-zero delta, save/reload/hash.
+2. Frozen Worker 05 target + regression evaluation.
+3. **Experimental challenger:** QLoRA with linear-attn kept BF16 and all preflights green.
+4. Same evaluation conditions plus explicit `quantization_regression_pass`.
+5. Only Manager may decide whether the cost challenger changes canonical policy.
+
+## OOM behavior
+
+No mode switches precision automatically.
+
+If canonical BF16 OOMs:
+- record OOM and stop;
+- use a larger authorized GPU or a separately manager-reviewed distributed BF16 plan;
+- do not silently fall back to QLoRA.
+
+If experimental QLoRA OOMs:
+- record OOM and stop;
+- do not silently alter skip policy, model, revision, rank, or precision lane.
+
+This is intentionally stricter than the original seq-length fallback because Manager's repair assignment prioritizes policy/quantization truth over squeezing a pass from unknown hardware.
+
+## External evidence reviewed for repair
+
+1. AQLEVON canonical `merge_safety_policy_v2/v3`: BF16 LoRA preferred; QLoRA experimental pending quantization regression.
+2. AQLEVON Frontier Weight Strategy V3: G1 explicitly says BF16 LoRA preferred.
+3. Unsloth issue #10010, opened 2026-08-30 and still open at review: successful workaround uses official checkpoint on-the-fly and explicitly skips `linear_attn`, keeping it BF16. The report shows a proper BF16 2-D tensor after the workaround and a successful training step.
+4. Hugging Face `BitsAndBytesConfig` current docs: 4-bit is enabled by replacing Linear layers with bitsandbytes modules; the API includes `llm_int8_skip_modules`. The Qwen3.8 issue supplies the architecture-specific empirical evidence that this skip field is honored for its on-the-fly workaround.
+5. Current PyPI releases as of 2026-09-19: Transformers 5.17.0, PEFT 0.21.0, bitsandbytes 0.50.2, Accelerate 1.15.0.
+
+## Files repaired in the same PR
+
+- `research/weight_factory/agent03/aqlevon_g1_delta_probe.py`
+- `research/weight_factory/agent03/g1_run_manifest.template.json`
+- `research/weight_factory/agent03/test_agent03_g1_contract.py`
+- `research/weight_factory/agent03/AQLEVON_AGENT03_EFFICIENT_TRAINING_REPORT_V1.md`
+
+No new branch or replacement PR was created.
+
+## Remaining risks / unresolved physical evidence
+
+- No CUDA execution has occurred.
+- Exact pinned package profile has not yet been GPU-validated.
+- BF16 VRAM peak is not measured by AQLEVON yet.
+- QLoRA skip-module behavior is guarded but not yet physically observed by AQLEVON.
+- No non-zero 27B adapter delta exists yet.
+- No Worker 05 frozen evaluation exists for this future artifact.
+- No `quantization_regression_pass` exists.
+- Therefore no model-quality, quantization-parity, promotion, or new-checkpoint claim is allowed.
+
+## Deliberately not changed
+
+- `main`;
+- PR #12 or another worker branch;
+- canonical Frontier/Genome/merge-safety policies;
+- base model/revision;
+- product/runtime code;
+- training datasets;
+- paid GPU state;
+- model capability claims.
 
 ## Manager decision requested
 
-**Recommended:** approve this as the G1 execution harness and run it first on an owner-authorized compatible GPU. Treat 24GB QLoRA as the cheapest test target, with 40/48GB as the conservative fallback if the canonical on-the-fly path OOMs. Require Agent 05 frozen evaluation after the delta artifact exists. Keep BF16 LoRA as a separate confirmation lane rather than paying for it before the cheapest smoke proves the pipeline.
+Re-review PR #15 as a **policy-aligned G1 harness** only. If accepted, the next irreversible action remains owner/Manager authorization of compatible GPU compute for canonical BF16 G1. QLoRA should remain a later matched-evaluation cost challenger until it earns `quantization_regression_pass`.

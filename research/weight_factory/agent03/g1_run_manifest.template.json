@@ -1,6 +1,6 @@
 {
-  "schema_version": 1,
-  "task_id": "P1-A03-EFFICIENT-TRAINING",
+  "schema_version": 2,
+  "task_id": "P1-R03-G1-HARNESS-REPAIR",
   "worker_id": "03",
   "recorded_date": "2026-09-19",
   "github_base_sha": "de2e576eec72581efb5f8e0910d2a8ea2e96b8c0",
@@ -9,12 +9,34 @@
   "base_revision": "1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0",
   "base_license": "Apache-2.0",
   "stage": "G1_ONE_STEP_PHYSICAL_DELTA_SMOKE",
-  "quality_claim_allowed": false,
-  "promotion_allowed": false,
-  "preferred_cheapest_recipe": {
-    "method": "QLoRA",
-    "base_quantization": "bitsandbytes NF4 on-the-fly from exact canonical revision",
-    "double_quantization": true,
+  "canonical_policy": {
+    "preferred_training": "bf16_lora",
+    "default_cli_mode": "bf16",
+    "qlora_4bit": "experimental_challenger",
+    "experimental_requires_for_promotion": [
+      "quantization_regression_pass",
+      "manager_approval"
+    ],
+    "source": "AQLEVON merge_safety_policy_v2/v3 + Manager review PR #15"
+  },
+  "compatibility_profile": {
+    "status": "PINNED_FIRST_RUN_PROFILE_NOT_YET_GPU_VALIDATED",
+    "transformers": "5.17.0",
+    "peft": "0.21.0",
+    "bitsandbytes": "0.50.2",
+    "accelerate": "1.15.0",
+    "policy": "exact-match fail-closed; bitsandbytes is required only for qlora-experimental"
+  },
+  "determinism": {
+    "torch_use_deterministic_algorithms": true,
+    "warn_only": false,
+    "tf32": false,
+    "cublas_workspace_config": ":4096:8",
+    "claim": "strict deterministic algorithms requested/enforced by PyTorch; unsupported nondeterministic kernels fail instead of warning"
+  },
+  "canonical_bf16_recipe": {
+    "method": "BF16 LoRA",
+    "base_quantization": "none",
     "compute_dtype": "bfloat16",
     "lora_rank": 4,
     "lora_alpha": 8,
@@ -32,16 +54,54 @@
     "seed": 3407,
     "auto_fallback": false
   },
+  "experimental_qlora_challenger": {
+    "method": "QLoRA NF4",
+    "activation": "explicit --mode qlora-experimental plus --ack-experimental-qlora",
+    "base_quantization": "bitsandbytes NF4 on-the-fly from exact canonical revision",
+    "double_quantization": true,
+    "compute_dtype": "bfloat16",
+    "linear_attn_policy": "explicitly skipped from 4-bit and required to remain BF16",
+    "skip_module_prefixes": "lm_head + model.language_model.layers.{0..63}.linear_attn",
+    "expected_linear_attn_layers": 48,
+    "expected_linear_attn_projections": 240,
+    "linear_attn_projection_suffixes": [
+      "in_proj_qkv",
+      "in_proj_z",
+      "in_proj_b",
+      "in_proj_a",
+      "out_proj"
+    ],
+    "preflight": [
+      "every linear_attn projection must be BF16",
+      "every linear_attn projection weight must be 2-D",
+      "shape must match module out_features x in_features when exposed",
+      "quant_state must be absent for every skipped linear_attn projection",
+      "Linear4bit/Linear8bit linear_attn classes are rejected",
+      "each selected q_proj/v_proj QLoRA target must have quant_state"
+    ],
+    "promotion_allowed": false,
+    "promotion_requires": [
+      "quantization_regression_pass",
+      "manager_approval"
+    ],
+    "auto_fallback": false
+  },
+  "quality_claim_allowed": false,
+  "promotion_allowed": false,
   "required_proofs": [
     "exact canonical base revision loaded",
+    "pinned compatibility profile accepted",
+    "strict deterministic algorithms enabled",
+    "linear_attn dtype/shape/quantization-state preflight passes before optimizer",
     "exact target module count and trainable parameter count",
-    "vision/MTP/embeddings/lm_head remain frozen",
+    "vision/MTP/embeddings/lm_head/linear_attn remain untrainable",
     "finite loss and non-zero gradient",
     "non-zero post-step adapter delta",
     "pre-state and post-state hashes differ",
     "adapter saved as safetensors",
     "all saved files SHA256-recorded",
     "base unloaded and adapter reloaded",
+    "linear_attn preflight passes again after reload",
     "reloaded adapter state hash equals saved post-step state hash",
     "peak VRAM and timing recorded"
   ],
@@ -56,5 +116,5 @@
     "long_training_authorized": false,
     "gpu_execution_completed_in_worker_environment": false
   },
-  "promotion_dependency": "Agent 05 frozen target+regression evaluation remains mandatory after a real GPU delta artifact exists."
+  "promotion_dependency": "Worker 05 frozen target/regression evaluation is mandatory; QLoRA additionally requires quantization_regression_pass before policy promotion."
 }
