@@ -603,9 +603,17 @@ def _load(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def _write_json(path: Path | None, value: Any) -> None:
+    if path is None:
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     sub = ap.add_subparsers(dest="cmd", required=True)
+
     v = sub.add_parser("validate-a1-ingest")
     v.add_argument("--law", type=Path, required=True)
     v.add_argument("--stage-binding", type=Path, required=True)
@@ -617,21 +625,68 @@ def main() -> int:
     v.add_argument("--compute-receipt-sha256", required=True)
     v.add_argument("--training-budget-manifest-sha256", required=True)
     v.add_argument("--output", type=Path)
+
+    r = sub.add_parser("build-a1-registration")
+    r.add_argument("--law", type=Path, required=True)
+    r.add_argument("--stage-binding", type=Path, required=True)
+    r.add_argument("--ingest", type=Path, required=True)
+    r.add_argument("--output", type=Path, required=True)
+
+    h = sub.add_parser("check-hidden-eval-readiness")
+    h.add_argument("--law", type=Path, required=True)
+    h.add_argument("--stage-binding", type=Path, required=True)
+    h.add_argument("--ingest", type=Path, required=True)
+    h.add_argument("--registration", type=Path, required=True)
+    h.add_argument("--freeze-verification", type=Path, required=True)
+    h.add_argument("--output", type=Path)
+
+    c = sub.add_parser("classify-score-card")
+    c.add_argument("--law", type=Path, required=True)
+    c.add_argument("--stage-binding", type=Path, required=True)
+    c.add_argument("--score-card", type=Path, required=True)
+
     args = ap.parse_args()
     try:
-        ingest = build_a1_ingest_receipt(
-            law=_load(args.law), stage_binding=_load(args.stage_binding), run_manifest=_load(args.run_manifest),
-            command_lock=_load(args.command_lock), candidate=_load(args.candidate_manifest),
-            training_receipt_bytes=args.training_receipt.read_bytes(), recipe_spec_sha256=args.recipe_spec_sha256,
-            compute_receipt_sha256=args.compute_receipt_sha256,
-            training_budget_manifest_sha256=args.training_budget_manifest_sha256,
-        )
-        if args.output:
-            args.output.write_text(json.dumps(ingest, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-        print(json.dumps({"state": ingest["state"], "ingest_receipt_sha256": ingest["ingest_receipt_sha256"]}, sort_keys=True))
-        return 0
+        if args.cmd == "validate-a1-ingest":
+            ingest = build_a1_ingest_receipt(
+                law=_load(args.law), stage_binding=_load(args.stage_binding), run_manifest=_load(args.run_manifest),
+                command_lock=_load(args.command_lock), candidate=_load(args.candidate_manifest),
+                training_receipt_bytes=args.training_receipt.read_bytes(), recipe_spec_sha256=args.recipe_spec_sha256,
+                compute_receipt_sha256=args.compute_receipt_sha256,
+                training_budget_manifest_sha256=args.training_budget_manifest_sha256,
+            )
+            _write_json(args.output, ingest)
+            print(json.dumps({"state": ingest["state"], "ingest_receipt_sha256": ingest["ingest_receipt_sha256"]}, sort_keys=True))
+            return 0
+
+        if args.cmd == "build-a1-registration":
+            registration = build_a1_single_candidate_registration(
+                law=_load(args.law), stage_binding=_load(args.stage_binding), ingest=_load(args.ingest)
+            )
+            _write_json(args.output, registration)
+            print(json.dumps({"state": STATE_READY_TO_REGISTER, "registration_sha256": registration["registration_sha256"]}, sort_keys=True))
+            return 0
+
+        if args.cmd == "check-hidden-eval-readiness":
+            readiness = hidden_eval_readiness(
+                law=_load(args.law), stage_binding=_load(args.stage_binding), registration=_load(args.registration),
+                freeze_verification=_load(args.freeze_verification), ingest=_load(args.ingest),
+            )
+            _write_json(args.output, readiness)
+            print(json.dumps(readiness, sort_keys=True))
+            return 0 if readiness.get("state") == STATE_READY_FOR_HIDDEN_EVAL else 2
+
+        if args.cmd == "classify-score-card":
+            state = classify_existing_p4_score_card(
+                _load(args.score_card), law=_load(args.law), stage_binding=_load(args.stage_binding)
+            )
+            print(json.dumps({"state": state}, sort_keys=True))
+            return 0 if state in {STATE_REJECTED_ARM, STATE_EVIDENCE_READY} else 2
+
+        raise HotPathError("unknown_command")
     except Exception as exc:
-        print(json.dumps({"state": STATE_INVALID_CANDIDATE, "error": f"{type(exc).__name__}: {exc}"}, sort_keys=True))
+        fail_state = STATE_INVALID_EVALUATION if args.cmd in {"check-hidden-eval-readiness", "classify-score-card"} else STATE_INVALID_CANDIDATE
+        print(json.dumps({"state": fail_state, "error": f"{type(exc).__name__}: {exc}"}, sort_keys=True))
         return 2
 
 
