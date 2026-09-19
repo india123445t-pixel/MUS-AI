@@ -1,0 +1,254 @@
+{
+  "arms": [
+    {
+      "algorithm": "supervised next-token CE on Worker02-admitted reference targets only",
+      "arm_id": "P4_A0_SFT_LORA_CONTROL",
+      "kill_if": [
+        "sft target export absent or provenance invalid",
+        "protected/sealed target leakage",
+        "nonzero-delta/save-reload/artifact identity failure",
+        "Worker05 reality hard fail"
+      ],
+      "lr": "0.00001",
+      "min_lr": "0.000001",
+      "optimizer": "AdamW",
+      "role": "simple_control",
+      "rollout_reward": "none",
+      "schedule": "cosine",
+      "synthetic_targets": false,
+      "teacher": "none",
+      "warmup_fraction": "0.10",
+      "weight_decay": "0.10"
+    },
+    {
+      "algorithm": "GRPO/RLVR-style objective-verifier group update",
+      "algorithm_reference": "lasgroup/SDPO@7c457fc1b1f636ae794eb0362ba37d4743b06fbc run_local_grpo baseline semantics",
+      "arm_id": "P4_A1_RLVR_CONTROL",
+      "kill_if": [
+        "cannot complete 12 valid updates within baseline hardware/run envelope",
+        "proxy improves while Worker05 clean truth does not",
+        "verifier/reward integrity failure",
+        "nonzero-delta/save-reload/artifact identity failure"
+      ],
+      "lr": "0.00001",
+      "lr_warmup_steps": 10,
+      "ppo_mini_batch_size": 8,
+      "reward_authority": "Worker02 objective verifier outcome only; vulnerable/raw reward logged but not optimized",
+      "rich_feedback_to_policy": false,
+      "role": "reinforcement_control_and_compute_calibrator",
+      "rollout_group_size": 4,
+      "rollout_importance_sampling": "token",
+      "teacher": "none"
+    },
+    {
+      "algorithm": "SDPO rich-feedback self-distillation on the same objective environment",
+      "algorithm_reference": "lasgroup/SDPO@7c457fc1b1f636ae794eb0362ba37d4743b06fbc run_local_sdpo semantics",
+      "arm_id": "P4_A2_SDPO_RICH_FEEDBACK",
+      "distillation_topk": 100,
+      "dont_reprompt_on_self_success": true,
+      "environment_feedback_only_without_solution": true,
+      "feedback_forbidden": [
+        "hidden expected output",
+        "sealed test body",
+        "canary plaintext",
+        "protected benchmark solution",
+        "credential/secret",
+        "user-specific filesystem secret",
+        "LLM-judge critique as correctness authority"
+      ],
+      "include_environment_feedback": true,
+      "kill_if": [
+        "rich-feedback preflight fails",
+        "feedback determinism/sanitization fails",
+        "proxy improves while Worker05 clean truth does not",
+        "nonzero-delta/save-reload/artifact identity failure"
+      ],
+      "lr": "0.00001",
+      "lr_warmup_steps": 10,
+      "ppo_mini_batch_size": 8,
+      "rich_feedback_preflight": "On the frozen base, evaluate 4 fixed rollout seeds per training-visible task; require >=10 failed trajectories and rich deterministic sanitized feedback on >=20% of failed trajectories.",
+      "role": "primary_challenger",
+      "rollout_group_size": 4,
+      "rollout_importance_sampling": "token",
+      "self_distillation_alpha": "0.5",
+      "teacher": "current policy conditioned on sanitized environment feedback; no external model"
+    }
+  ],
+  "authority_boundary": {
+    "manager_owns_gene_acceptance": true,
+    "no_capability_gain_claim": true,
+    "worker01_can_select_method_recipe": false,
+    "worker05_owns_evaluation_evidence": true
+  },
+  "common_adapter": {
+    "alpha": 4,
+    "bias": "none",
+    "dropout": "0",
+    "enumerate_exact_modules_before_optimizer": true,
+    "forbidden_scope": [
+      "model.visual",
+      "vision",
+      "embeddings",
+      "lm_head",
+      "mtp",
+      "norms",
+      "biases",
+      "gated-deltanet recurrent/state modules",
+      "non-language modules"
+    ],
+    "r": 4,
+    "target_scope": "model.language_model full-attention q_proj + v_proj only",
+    "type": "lora"
+  },
+  "common_stack": {
+    "accelerate": {
+      "commit": "6afc1e5ee217051fde702b23de2813344dc0fd33",
+      "version": "1.15.0"
+    },
+    "peft": {
+      "commit": "9dc6fa2d2093853dec3889b790d4f251efe7fcac",
+      "version": "0.21.0"
+    },
+    "sdpo_reference": {
+      "commit": "7c457fc1b1f636ae794eb0362ba37d4743b06fbc",
+      "license": "Apache-2.0",
+      "license_git_blob": "d645695673349e3947e8e5ae42332d0ac3164cd7",
+      "repo": "lasgroup/SDPO",
+      "run_local_grpo_git_blob": "db1d6c17a7f601c0533c6a681659ca340bd149f9",
+      "run_local_sdpo_git_blob": "1481c88e82303312211ee5d0cddd703837f41733"
+    },
+    "transformers": {
+      "commit": "856157a2f3e9594954310df18fdccc31ffddebe9",
+      "version": "5.17.0"
+    }
+  },
+  "confirmation_budget": {
+    "extension_rule": "If final three-seed Worker05 evidence for the top two is selection-ambiguous under the frozen count rule, resume all three seeds of those two arms only to 24 total updates; cumulative training GPU-second ceiling C24=2*C12; no config changes.",
+    "gpu_second_ceiling_per_seed": "C12",
+    "max_optimizer_updates": 12,
+    "seeds": [
+      1702,
+      1703
+    ],
+    "selection_ambiguous_count_rule": "top-two median TransferPass@4 correct-task counts differ by <=1 AND median CleanPass@4 correct-task counts differ by <=1, or Worker05 evidence is INVALID for comparison rather than a candidate-specific failure",
+    "survivors": 2
+  },
+  "eval_seed_formula": "100000 + training_seed * 100 + sample_index; sample_index in [0,1,2,3]",
+  "execution_order": [
+    "P4_A1_RLVR_CONTROL seed1701 to establish C12",
+    "P4_A0_SFT_LORA_CONTROL seed1701",
+    "P4_A2_SDPO_RICH_FEEDBACK seed1701 if preflight passes",
+    "Worker05 evaluates all frozen screen artifacts",
+    "top two survivors run seeds1702 and1703",
+    "optional predeclared 24-update extension only if ambiguity rule fires"
+  ],
+  "generation": {
+    "decode_sweep_allowed": false,
+    "do_sample": true,
+    "max_prompt_tokens": 2048,
+    "max_response_tokens": 2048,
+    "temperature": "0.7",
+    "top_k": 20,
+    "top_p": "0.8"
+  },
+  "kill_list_round_p4": [
+    "OPSA",
+    "Sequential OPD->RLVR",
+    "verifier-triggered TRD",
+    "pure OPD",
+    "joint OPD+RLVR",
+    "RG-OPD",
+    "OPDVR",
+    "AntiSD",
+    "RetireOPD",
+    "Direct-OPD",
+    "OCSD/ICSD/AgentOPSD/TASPO/AHEAD/SEED/OPID",
+    "adaptive curriculum/DARS/DATPO/rollout reuse",
+    "self-generated curricula",
+    "QLoRA/4-bit",
+    "rsLoRA/LoRA-FA",
+    "kernel/framework races",
+    "async/disaggregated rollout",
+    "merge/routing/integration",
+    "Arabic/Darija/long-context/multimodal/open-web domains"
+  ],
+  "required_worker02_inputs": {
+    "rich_feedback_schema_sha256": "REQUIRED_FOR_SDPO_ARM",
+    "sealed_eval_manifest_sha256": "HASH_ONLY_TO_TRAINER_NO_PLAINTEXT",
+    "sft_target_export_sha256": "REQUIRED_FOR_SFT_ARM",
+    "task_factory_manifest_sha256": "REQUIRED_RUNTIME_BINDING",
+    "training_shard_manifest_sha256": "REQUIRED_RUNTIME_BINDING",
+    "training_visible_split_manifest_sha256": "REQUIRED_RUNTIME_BINDING"
+  },
+  "schema_version": "1",
+  "screen_budget": {
+    "evaluation_gpu_seconds": "accounted separately and equalized by Worker05",
+    "examples_or_prompts_per_update": 4,
+    "gpu_second_reference": "C12 = measured Worker06-attributed training GPU-seconds for RLVR_CONTROL completing 12 valid updates on exact hardware stratum",
+    "max_optimizer_updates": 12,
+    "other_arm_gpu_second_ceiling": "C12",
+    "rl_rollouts_per_prompt": 4,
+    "rl_student_response_token_ceiling": 393216,
+    "rl_student_rollout_ceiling": 192,
+    "seed": 1701,
+    "sft_example_exposure_ceiling": 48
+  },
+  "selection_law": {
+    "final_order": [
+      "higher median TransferPass@4 correct-task count across 3 seeds",
+      "higher worst-seed TransferPass@4 count",
+      "higher median CleanPass@4 count",
+      "higher worst-seed CleanPass@4 count",
+      "lower median HackGap@4 count",
+      "lower median training GPU-seconds",
+      "simpler control if exact tie"
+    ],
+    "hard_gate_first": true,
+    "screen_order": [
+      "higher TransferPass@4 correct-task count",
+      "higher CleanPass@4 correct-task count",
+      "lower HackGap@4 count",
+      "lower training GPU-seconds",
+      "simpler arm id tie-break"
+    ],
+    "sdpo_displaces_best_control_only_if": "median TransferPass@4 count is strictly higher than best feasible control AND median CleanPass@4 count is not lower AND every Worker05 hard reality gate passes",
+    "worker01_winner_claim_allowed": false
+  },
+  "single_run_default": {
+    "arm_id": "P4_A2_SDPO_RICH_FEEDBACK",
+    "conditions": [
+      "Worker02/05 reward-environment reality preflight passes",
+      "rich-feedback preflight passes"
+    ],
+    "fallback": "P4_A1_RLVR_CONTROL",
+    "note": "single-run priority only; not a method winner claim"
+  },
+  "spec_kind": "AQLEVON_P4_METHOD_TOURNAMENT_SPEC_V1",
+  "stage_switch_law": {
+    "cross_method_switching_during_a_seed": "FORBIDDEN",
+    "rlvr": "RLVR for entire seed",
+    "screen_to_confirmation": "only Worker05 evidence can determine which two frozen arms advance; hyperparameters remain unchanged",
+    "sdpo": "SDPO for entire seed after preflight; if preflight fails arm is NOT_RUN, not converted to RLVR",
+    "sft": "SFT for entire seed"
+  },
+  "status": "FROZEN_PENDING_WORKER02_PACK_AND_WORKER05_EVAL",
+  "student_model": {
+    "license": "Apache-2.0",
+    "precision": "bf16",
+    "quantization": "none",
+    "repo": "Qwen/Qwen3.5-4B-Base",
+    "revision": "daa9c16f371249f9ad1c75a9ed6f956c08ea08f5"
+  },
+  "task_id": "P4-A01-METHOD-TOURNAMENT-DIRECTOR",
+  "training_seeds": [
+    1701,
+    1702,
+    1703
+  ],
+  "truth_boundary": [
+    "No arm is a capability gain until Worker05 emits valid evidence and Manager accepts it.",
+    "No 27B run is authorized by this spec.",
+    "G1 is complete and must not be rerun.",
+    "No production mutation or main merge."
+  ]
+}
