@@ -44,6 +44,7 @@ def candidate_manifest(seed="1"):
     payload = {
         "schema_version": 1,
         "manifest_kind": p2.CANDIDATE_MANIFEST_KIND,
+        "hash_profile": p2.HASH_PROFILE,
         "manifest_id": f"candidate-{seed}",
         "artifact_type": "adapter",
         "artifact_stage": "promotion_candidate",
@@ -61,7 +62,7 @@ def candidate_manifest(seed="1"):
         "parent_candidate_artifact_manifest_sha256": [],
         "environment_toolchain_manifest_sha256": hashlib.sha256(("env" + seed).encode()).hexdigest(),
     }
-    payload["manifest_sha256"] = p2.canonical_sha256(payload)
+    payload["manifest_sha256"] = p2.canonical_p2_sha256(payload)
     return payload
 
 
@@ -223,6 +224,7 @@ class P2EvaluationDecisionReceiptTests(unittest.TestCase):
         # Worker 03 owns internal manifest validation. Worker 05 consumes only its
         # canonical kind + SHA identity and must not duplicate artifact-stage truth.
         cand["artifact_stage"] = "release_candidate"
+        cand["manifest_sha256"] = p2.canonical_p2_sha256({k: v for k, v in cand.items() if k != "manifest_sha256"})
         self.assertEqual(p2.validate_candidate_artifact_manifest(cand), [])
         cand["manifest_sha256"] = "not-a-sha"
         self.assertTrue(p2.validate_candidate_artifact_manifest(cand))
@@ -240,34 +242,34 @@ class P2EvaluationDecisionReceiptTests(unittest.TestCase):
     def test_self_hash_without_external_manager_evidence_is_not_verified(self):
         exp = experiment_manifest(); cand = candidate_manifest(); req, ver = anchor_pair(exp, cand)
         ver["external_evidence_sha256"] = None
-        ver["verification_record_sha256"] = p2.canonical_sha256({k: v for k, v in ver.items() if k != "verification_record_sha256"})
+        ver["verification_record_sha256"] = p2.canonical_p2_sha256({k: v for k, v in ver.items() if k != "verification_record_sha256"})
         invalid = p2.validate_anchor_verification(ver, req)
         self.assertTrue(any("external_evidence_sha256" in x for x in invalid))
 
     def test_missing_manager_attestation_is_invalid(self):
         exp = experiment_manifest(); cand = candidate_manifest(); req, ver = anchor_pair(exp, cand)
         ver["manager_attestation_sha256"] = ""
-        ver["verification_record_sha256"] = p2.canonical_sha256({k: v for k, v in ver.items() if k != "verification_record_sha256"})
+        ver["verification_record_sha256"] = p2.canonical_p2_sha256({k: v for k, v in ver.items() if k != "verification_record_sha256"})
         invalid = p2.validate_anchor_verification(ver, req)
         self.assertTrue(any("manager_attestation_sha256" in x for x in invalid))
 
     def test_anchor_wrong_experiment_binding_is_invalid(self):
         exp = experiment_manifest(); cand = candidate_manifest(); req, ver = anchor_pair(exp, cand)
         ver["experiment_manifest_sha256"] = SHA_F
-        ver["verification_record_sha256"] = p2.canonical_sha256({k: v for k, v in ver.items() if k != "verification_record_sha256"})
+        ver["verification_record_sha256"] = p2.canonical_p2_sha256({k: v for k, v in ver.items() if k != "verification_record_sha256"})
         self.assertTrue(any("experiment_manifest_sha256" in x for x in p2.validate_anchor_verification(ver, req)))
 
     def test_anchor_timestamp_order_is_fail_closed(self):
         exp = experiment_manifest(); cand = candidate_manifest(); req, ver = anchor_pair(exp, cand)
         ver["verified_at_utc"] = "2026-09-18T23:59:00Z"
-        ver["verification_record_sha256"] = p2.canonical_sha256({k: v for k, v in ver.items() if k != "verification_record_sha256"})
+        ver["verification_record_sha256"] = p2.canonical_p2_sha256({k: v for k, v in ver.items() if k != "verification_record_sha256"})
         invalid = p2.validate_anchor_verification(ver, req)
         self.assertTrue(any("precedes" in x for x in invalid))
 
     def test_anchor_timestamp_must_be_utc_rfc3339(self):
         exp = experiment_manifest(); cand = candidate_manifest(); req, ver = anchor_pair(exp, cand)
         ver["anchored_at_utc"] = "2026-09-19 00:40:00"
-        ver["verification_record_sha256"] = p2.canonical_sha256({k: v for k, v in ver.items() if k != "verification_record_sha256"})
+        ver["verification_record_sha256"] = p2.canonical_p2_sha256({k: v for k, v in ver.items() if k != "verification_record_sha256"})
         invalid = p2.validate_anchor_verification(ver, req)
         self.assertTrue(any("RFC3339" in x for x in invalid))
 
@@ -279,7 +281,7 @@ class P2EvaluationDecisionReceiptTests(unittest.TestCase):
     def test_anchor_kind_mismatch_is_invalid(self):
         exp = experiment_manifest(); cand = candidate_manifest(); req, ver = anchor_pair(exp, cand)
         ver["anchor_kind"] = "immutable_object"
-        ver["verification_record_sha256"] = p2.canonical_sha256({k: v for k, v in ver.items() if k != "verification_record_sha256"})
+        ver["verification_record_sha256"] = p2.canonical_p2_sha256({k: v for k, v in ver.items() if k != "verification_record_sha256"})
         self.assertTrue(any("kind does not match request" in x for x in p2.validate_anchor_verification(ver, req)))
 
     def test_receipt_self_digest_tamper_is_invalid(self):
@@ -391,14 +393,14 @@ class P2EvaluationDecisionReceiptTests(unittest.TestCase):
     def test_forbidden_plaintext_key_in_receipt_is_invalid(self):
         *_, receipt = full_fixture()
         receipt["prompt"] = "private"
-        receipt["receipt_sha256"] = p2.canonical_sha256({k: v for k, v in receipt.items() if k != "receipt_sha256"})
+        receipt["receipt_sha256"] = p2.canonical_p2_sha256({k: v for k, v in receipt.items() if k != "receipt_sha256"})
         invalid = p2.validate_evaluation_decision_receipt(receipt)
         self.assertTrue(any("plaintext key forbidden" in x for x in invalid))
 
     def test_invalid_final_status_is_invalid(self):
         *_, receipt = full_fixture()
         receipt["final_status"] = "RELEASED"
-        receipt["receipt_sha256"] = p2.canonical_sha256({k: v for k, v in receipt.items() if k != "receipt_sha256"})
+        receipt["receipt_sha256"] = p2.canonical_p2_sha256({k: v for k, v in receipt.items() if k != "receipt_sha256"})
         invalid = p2.validate_evaluation_decision_receipt(receipt)
         self.assertTrue(any("final_status invalid" in x for x in invalid))
 
@@ -413,7 +415,7 @@ class P2EvaluationDecisionReceiptTests(unittest.TestCase):
         metric = receipt["efficiency_metric_summary"]["p95_latency_ms"]
         self.assertEqual(metric["baseline"], 1000)
         self.assertEqual(metric["candidate"], 1050)
-        self.assertAlmostEqual(metric["ratio"], 1.05)
+        self.assertEqual(metric["ratio"], "1.05")
 
     def test_promotion_eligible_is_not_release_declaration(self):
         *_, receipt = full_fixture()
@@ -471,6 +473,125 @@ class P2EvaluationDecisionReceiptTests(unittest.TestCase):
             p2.build_anchor_request(
                 experiment_manifest_sha256=exp["manifest_sha256"], evaluation_policy_sha256=p2.canonical_sha256(POLICY),
                 candidate_artifact_manifest_sha256=cand["manifest_sha256"], requested_anchor_kind="self_hash")
+
+    def test_p21_canonical_vector_matches_worker06_profile(self):
+        value = {"2": "two", "10": "ten", "text": "e\u0301\r\nline", "tiny": "0.0000001"}
+        expected = '{"10":"ten","2":"two","text":"é\\nline","tiny":"0.0000001"}'
+        self.assertEqual(p2.canonical_p2_json_bytes(value).decode("utf-8"), expected)
+        self.assertEqual(p2.canonical_p2_sha256(value), "1b1580a59f4ae1efdf8ed0fc7a86ffbcf1ee32d9f6d3294840afecd8a55f8b19")
+
+    def test_p21_nfkc_and_line_endings_have_one_hash_identity(self):
+        a = {"hash_profile": p2.HASH_PROFILE, "text": "e\u0301\r\nline"}
+        b = {"hash_profile": p2.HASH_PROFILE, "text": "é\nline"}
+        self.assertEqual(p2.canonical_p2_sha256(a), p2.canonical_p2_sha256(b))
+
+    def test_p21_non_ascii_authoritative_key_is_rejected(self):
+        with self.assertRaisesRegex(TypeError, "non_ascii"):
+            p2.canonical_p2_sha256({"hash_profile": p2.HASH_PROFILE, "é": "x"})
+
+    def test_p21_direct_float_in_authoritative_payload_is_rejected(self):
+        with self.assertRaisesRegex(TypeError, "direct_non_integral_numeric"):
+            p2.canonical_p2_sha256({"hash_profile": p2.HASH_PROFILE, "ratio": 1.05})
+
+    def test_p21_decimal_producer_representation_matches_profile(self):
+        self.assertEqual(p2.canonical_decimal_string(1e-7), "0.0000001")
+        self.assertEqual(p2.canonical_decimal_string(12.3400), "12.34")
+        self.assertEqual(p2.canonical_decimal_string(-0.0), "0")
+        normalized = p2._canonical_profile_value({"a": 1.05, "b": 1000.0, "c": -0.0})
+        self.assertEqual(normalized, {"a": "1.05", "b": 1000, "c": 0})
+
+    def test_anchor_records_carry_p21_hash_profile(self):
+        exp = experiment_manifest(); cand = candidate_manifest(); req, ver = anchor_pair(exp, cand)
+        self.assertEqual(req["hash_profile"], p2.HASH_PROFILE)
+        self.assertEqual(ver["hash_profile"], p2.HASH_PROFILE)
+        self.assertTrue(p2.verify_p2_self_digest(req, "request_sha256"))
+        self.assertTrue(p2.verify_p2_self_digest(ver, "verification_record_sha256"))
+
+    def test_anchor_missing_or_unknown_hash_profile_fails_closed(self):
+        exp = experiment_manifest(); cand = candidate_manifest(); req, ver = anchor_pair(exp, cand)
+        bad_req = copy.deepcopy(req); bad_req.pop("hash_profile")
+        self.assertTrue(any("hash_profile" in x for x in p2.validate_anchor_request(bad_req)))
+        bad_ver = copy.deepcopy(ver); bad_ver["hash_profile"] = "UNKNOWN"
+        bad_ver["verification_record_sha256"] = SHA_F
+        self.assertTrue(any("hash_profile" in x for x in p2.validate_anchor_verification(bad_ver, req)))
+
+    def test_candidate_manifest_missing_or_unknown_hash_profile_fails_closed(self):
+        cand = candidate_manifest()
+        no_profile = copy.deepcopy(cand); no_profile.pop("hash_profile")
+        self.assertTrue(any("hash_profile" in x for x in p2.validate_candidate_artifact_manifest(no_profile)))
+        unknown = copy.deepcopy(cand); unknown["hash_profile"] = "UNKNOWN"
+        unknown["manifest_sha256"] = SHA_F
+        self.assertTrue(any("hash_profile" in x for x in p2.validate_candidate_artifact_manifest(unknown)))
+
+    def test_receipt_carries_p21_profile_and_cross_lane_self_digest(self):
+        *_, receipt = full_fixture()
+        self.assertEqual(receipt["hash_profile"], p2.HASH_PROFILE)
+        self.assertTrue(p2.verify_p2_self_digest(receipt, "receipt_sha256"))
+
+    def test_receipt_missing_hash_profile_fails_closed(self):
+        *_, receipt = full_fixture()
+        receipt.pop("hash_profile")
+        invalid = p2.validate_evaluation_decision_receipt(receipt)
+        self.assertTrue(any("hash_profile" in x for x in invalid))
+        self.assertTrue(any("self-digest" in x for x in invalid))
+
+    def test_self_digest_excludes_only_exact_digest_field(self):
+        body = {"hash_profile": p2.HASH_PROFILE, "receipt_kind": "X", "receipt_sha256_shadow": SHA_A}
+        d1 = p2.canonical_p2_sha256(body)
+        with_digest = dict(body, receipt_sha256=d1)
+        self.assertEqual(p2._p2_self_digest(with_digest, "receipt_sha256"), d1)
+        changed = dict(with_digest, receipt_sha256_shadow=SHA_B)
+        self.assertNotEqual(p2._p2_self_digest(changed, "receipt_sha256"), d1)
+
+    def test_efficiency_scope_is_explicit_and_distinct_from_runtime_population(self):
+        *_, receipt = full_fixture()
+        scope = receipt["efficiency_scope"]
+        self.assertEqual(scope["hash_profile"], p2.HASH_PROFILE)
+        self.assertEqual(scope["efficiency_scope_kind"], p2.EVALUATION_EFFICIENCY_SCOPE_KIND)
+        self.assertEqual(scope["population_scope"]["population_kind"], p2.EVALUATION_EFFICIENCY_POPULATION_KIND)
+        self.assertNotEqual(scope["efficiency_scope_kind"], "AQLEVON_RUNTIME_OPERATIONAL_EFFICIENCY_SCOPE_V1")
+        self.assertNotEqual(scope["population_scope"]["population_kind"], "AQLEVON_RUNTIME_ATTEMPT_POPULATION_V1")
+        self.assertEqual(scope["metric_evidence_kind"], "AQLEVON_EVALUATION_REPORT_AGGREGATE_EFFICIENCY_V1")
+        self.assertIs(scope["runtime_evidence_consumed"], False)
+        self.assertIsNone(scope["runtime_attempt_set_sha256"])
+        pop = scope["population_scope"]
+        body = {k: v for k, v in pop.items() if k != "population_root_sha256"}
+        self.assertEqual(pop["population_root_sha256"], p2.canonical_p2_sha256(body))
+
+    def test_efficiency_summary_contains_no_direct_float(self):
+        *_, receipt = full_fixture()
+        def has_float(value):
+            if isinstance(value, float): return True
+            if isinstance(value, dict): return any(has_float(v) for v in value.values())
+            if isinstance(value, list): return any(has_float(v) for v in value)
+            return False
+        self.assertFalse(has_float(receipt))
+        self.assertEqual(receipt["efficiency_metric_summary"]["cost_per_verified_success"]["candidate"], "1.05")
+
+    def test_candidate_level_receipt_is_not_runtime_attempt_authority(self):
+        *_, receipt = full_fixture()
+        boundary = receipt["runtime_attempt_authority"]
+        self.assertEqual(boundary["authority_kind"], p2.RUNTIME_ATTEMPT_AUTHORITY_KIND)
+        self.assertIs(boundary["authoritative_for_arbitrary_runtime_attempts"], False)
+        self.assertIsNone(boundary["attempt_set_root_sha256"])
+        self.assertIn("PER_ATTEMPT_OBJECTIVE_VERIFIER", boundary["attempt_level_truth_requirement"])
+
+    def test_runtime_attempt_authority_cannot_be_laundered_true(self):
+        *_, receipt = full_fixture()
+        receipt["runtime_attempt_authority"]["authoritative_for_arbitrary_runtime_attempts"] = True
+        body = {k: v for k, v in receipt.items() if k != "receipt_sha256"}
+        receipt["receipt_sha256"] = p2.canonical_p2_sha256(body)
+        invalid = p2.validate_evaluation_decision_receipt(receipt)
+        self.assertTrue(any("cannot authorize arbitrary runtime attempts" in x for x in invalid))
+
+    def test_efficiency_population_tamper_fails_validation_even_if_receipt_rehashed(self):
+        *_, receipt = full_fixture()
+        receipt["efficiency_scope"]["population_scope"]["required_domain_item_counts"]["coding_repository"] += 1
+        body = {k: v for k, v in receipt.items() if k != "receipt_sha256"}
+        receipt["receipt_sha256"] = p2.canonical_p2_sha256(body)
+        invalid = p2.validate_evaluation_decision_receipt(receipt)
+        self.assertTrue(any("population root mismatch" in x for x in invalid))
+
 
 
 if __name__ == "__main__":
