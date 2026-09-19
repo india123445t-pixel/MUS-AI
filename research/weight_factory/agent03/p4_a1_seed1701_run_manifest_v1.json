@@ -32,8 +32,7 @@
   "worker03_sources": {
     "trainer_git_blob_sha1": "14b5573f682c0b50860a570f1328b3b0eca21032",
     "tournament_git_blob_sha1": "585acf1d1142629ec75a9a31b9437f346861012f",
-    "reward_git_blob_sha1": "c9db3e315299cce59c5d4cece7de86302c10c614",
-    "command_lock_git_blob_sha1": "033956659d4bc52b4133c77c3e919f172de353c6"
+    "reward_git_blob_sha1": "c9db3e315299cce59c5d4cece7de86302c10c614"
   },
   "budget": {
     "optimizer_updates": 12,
@@ -54,5 +53,5 @@
   "automatic_fallback": false,
   "paid_compute_requires_manager_authorization": true,
   "capability_gain_claim": false,
-  "manifest_sha256": "39b03bd9f7fff7ab67096b6393e2683604079c372b7edf180b34a79e9a47d78a"
+  "manifest_sha256": "5a3f9df84d89216f4e227c187a53997aceb2e8c8e4727c053a531f295e26d6b5"
 }
