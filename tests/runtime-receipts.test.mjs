@@ -21,7 +21,7 @@ function receipt({attempt='attempt-1',task='task-1',candidate=CANDIDATE,status='
   });
 }
 function evalReceipt({id='eval-1',candidate=CANDIDATE,status='PROMOTION_ELIGIBLE'}={}){
-  return {receipt_kind:'AQLEVON_EVALUATION_DECISION_RECEIPT_V1',receipt_sha256:sha256Text(id),candidate_artifact_manifest_sha256:candidate,final_status:status};
+  return {schema_version:1,receipt_kind:'AQLEVON_EVALUATION_DECISION_RECEIPT_V1',receipt_sha256:sha256Text(id),candidate_artifact_manifest_sha256:candidate,final_status:status};
 }
 function objectiveReceipt({id='obj-1',attemptReceipt,candidate=CANDIDATE,verdict='PASS'}={}){
   return {receipt_sha256:sha256Text(id),attempt_receipt_sha256:attemptReceipt.receipt_sha256,candidate_artifact_manifest_sha256:candidate,verdict};
@@ -45,6 +45,24 @@ test('partial or malformed runtime receipt identity config fails closed determin
     assert.equal(result.configured,false);
     assert.equal(result.reason,'candidate_and_harness_sha256_required');
   }
+});
+
+test('runtime receipt identity config is fail-closed for partial or malformed bindings',()=>{
+  assert.deepEqual(runtimeReceiptIdentityConfig({}),{
+    requested:false,configured:false,candidate_artifact_manifest_sha256:'',harness_manifest_sha256:''
+  });
+  for(const value of [
+    {candidateArtifactManifestSha256:CANDIDATE},
+    {harnessManifestSha256:HARNESS},
+    {candidateArtifactManifestSha256:'bad',harnessManifestSha256:HARNESS},
+    {candidateArtifactManifestSha256:CANDIDATE,harnessManifestSha256:'bad'},
+  ]){
+    const cfg=runtimeReceiptIdentityConfig(value);
+    assert.equal(cfg.requested,true);
+    assert.equal(cfg.configured,false);
+  }
+  const configured=runtimeReceiptIdentityConfig({candidateArtifactManifestSha256:CANDIDATE,harnessManifestSha256:HARNESS});
+  assert.equal(configured.configured,true);
 });
 
 test('runtime attempt receipt is self-hashed and exports only hashed request/result identity',()=>{
