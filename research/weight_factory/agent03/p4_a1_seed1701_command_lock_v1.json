@@ -4,7 +4,6 @@
   "hash_profile": "AQLEVON_CANONICAL_JSON_SHA256_V1",
   "task_id": "P4-A03-GENE1-PHYSICAL-TRAINER",
   "training_plan_sha256": "2ad7de02027e7b4eb1546486c1f02999b361585a38fc8316c17efbea9e1993c2",
-  "run_manifest_sha256": "317c27c9ff6cbd8045db7a49560ad854deb23adff658b9f899323ff7fcea6685",
   "arm_id": "P4_A1_RLVR_CONTROL",
   "seed": 1701,
   "profile": "p4-surrogate-1x24",
@@ -58,5 +57,5 @@
   "command_sha256": "3c898f3ff29619200b0792c9d19be9381e5b3bb2cd286a4ea86f121cb947e372",
   "automatic_fallback": false,
   "g1_rerun": false,
-  "lock_sha256": "25345887290dacc2931488a6c4072092fcb7b5249116578a813f5f3bbdc98054"
+  "lock_sha256": "bf029c3d7b01ff02733e14f95faad1b3a5420fb21c50bfe3eb43acacfeeb50e3"
 }
