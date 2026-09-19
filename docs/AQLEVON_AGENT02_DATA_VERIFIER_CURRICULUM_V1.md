@@ -185,3 +185,47 @@ Seeded seven-record gate ablation:
 - DENY: 3 (uncleared license, protected-manifest overlap, explicit protected-eval hit).
 
 Recommended next physical experiment before large ingestion: 1k-record admission ablation in coding/tools/math/research/Darija, comparing source-level-only vs instance-level gate vs instance-level+failure-neighbor generation. Measure false verifier acceptance under injected defects, protected-overlap rejection, duplicate reduction, difficulty distribution, and post-training verified gain per GPU-second on a small surrogate.
+
+
+## 15. P1 Repair Wave — Manager blockers closed
+
+Task: `P1-R02-DATA-GATE-REPAIR`.
+
+### Trusted registry identity and source-kind separation
+The row no longer self-authorizes training eligibility. `gate` now requires an explicit `--source-registry` input. The registry must be default-deny, structurally valid, and is hashed canonically. Every row carries that registry SHA-256 and must match an existing registry entry by `source.id`; its claimed `kind` and `admission` must match the trusted entry.
+
+Recipe/code/model-recipe kinds are explicitly non-trainable. `recipe_allow` is forbidden from the trainable admission allowlist and is denied even if attached to a dataset-shaped entry. This preserves the distinction between permission to study/reuse a recipe and permission to ingest training rows.
+
+### Canonical per-record content binding
+A separate `record_content_sha256` now binds `record_id + prompt + answer/response` under a versioned domain (`AQLEVON_TRAINING_ROW_CONTENT_V1`). Unicode is NFKC-normalized and newlines are normalized; case and semantically relevant whitespace are preserved. Any later prompt/answer mutation produces `DENY: record_content_sha256_mismatch`.
+
+This hash is intentionally separate from `source.content_sha256`, which remains source/artifact provenance evidence rather than proof that a particular training row is unchanged.
+
+### Manifest and schema hardening
+Protected-manifest validation now requires:
+- positive integer `ngram_size`;
+- non-negative integer `record_count`;
+- structurally valid SHA-256 hex digests for manifest and all hash entries;
+- no duplicate hash entries;
+- recomputed manifest digest match;
+- policy/manifest N-gram-size agreement.
+
+Policy, registry, record-count, contamination-count, semantic-score, and baseline-count type errors fail closed. A malformed policy/config file at CLI level causes every parseable input row to be written to DENY and returns non-zero status; no ADMIT output is possible.
+
+### Learnability truth boundary
+The 5%-85% band remains a configurable `research_heuristic`, not a release threshold, canonical fact, or model-quality claim.
+
+### Repair regression evidence
+The repaired suite contains 38 tests. Manager-blocker regressions include:
+- recipe_allow/code_recipe rejection;
+- recipe kind rejection even with admission=`allow`;
+- trusted registry ID/kind/admission/digest binding;
+- prompt and answer tamper detection;
+- malformed/zero/string N-gram manifest rejection;
+- invalid protected hash rejection;
+- policy type failure → controlled DENY;
+- malformed policy JSON through CLI → denied row + non-zero exit.
+
+Local repair result: **38/38 PASS**; Python compile PASS; policy JSON parse PASS.
+
+No model training, parameter change, new checkpoint, or capability improvement is claimed by this repair.
