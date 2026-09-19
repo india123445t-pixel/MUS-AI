@@ -37,7 +37,7 @@ if(!o.attemptReceipt||!o.out)die('attempt_receipt_and_out_required');
 for(const [k,v] of Object.entries({
   billing_start_epoch_ms:o.billingStartEpochMs,process_end_epoch_ms:o.processEndEpochMs,
   provider_hourly_usd:o.providerHourlyUsd,billing_granularity_seconds:o.billingGranularitySeconds,
-  artifact_egress_bytes:o.artifactEgressBytes,egress_usd_per_gib:o.egressUsdPerGiB,examples_processed:o.examplesProcessed,
+  artifact_egress_bytes:o.artifactEgressBytes,egress_usd_per_gib:o.egressUsdPerGiB,
 }))if(v===null)die(`invalid_or_missing_${k}`);
 const attempt=readJson(o.attemptReceipt);if(!attempt)die('attempt_receipt_json');
 const check=verifyComputeAttemptReceipt(attempt);if(!check.ok)die(`attempt_receipt_invalid:${check.reasons.join(',')}`);
