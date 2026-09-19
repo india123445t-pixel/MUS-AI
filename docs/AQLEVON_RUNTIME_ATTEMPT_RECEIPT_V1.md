@@ -6,7 +6,7 @@ Status: P2 implementation contract consumer/producer. Manager review required.
 Runtime owns transport outcome, timing/token accounting, configured cost/energy estimates, and immutable attempt identity. Runtime does **not** own correctness.
 
 A runtime attempt can contribute to `verified_successes` only through an explicit immutable join to either:
-1. an `AQLEVON_EVALUATION_DECISION_RECEIPT_V1` supplied by the Worker-05/Manager evaluation authority, with `PROMOTION_ELIGIBLE` status and the same Candidate Artifact Manifest identity; or
+1. an `AQLEVON_EVALUATION_DECISION_RECEIPT_V1` supplied by the Worker-05/Manager evaluation authority (identified upstream by `receipt_kind` + `receipt_sha256`), with `PROMOTION_ELIGIBLE` status and the same Candidate Artifact Manifest identity; or
 2. a Manager-approved per-attempt objective-verifier receipt identity, bound to the exact Runtime Attempt Receipt and to a Manager approval receipt identity.
 
 A local/caller `verified: true` field is never authoritative.
