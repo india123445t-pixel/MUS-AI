@@ -268,3 +268,48 @@ Latest dedicated current-head GitHub Actions evidence:
   - all links PASS.
 
 No free/owned/donated compatible GPU is visible to Worker 03. Therefore the task is now blocked only on Manager authorization for one paid A1 seed1701 calibrator run. No paid compute will be launched before that explicit authorization.
+
+
+## RunPod execution attempt — browser tooling blocker before pod creation
+
+Manager authorized exactly one paid physical A1 run on RunPod with:
+- executable source commit: `b15418929039be0b80752ecc9df58a53dce10332`;
+- arm/seed: `P4_A1_RLVR_CONTROL / 1701`;
+- profile: `p4-surrogate-1x24`;
+- run manifest: `5a3f9df84d89216f4e227c187a53997aceb2e8c8e4727c053a531f295e26d6b5`;
+- command: `3c898f3ff29619200b0792c9d19be9381e5b3bb2cd286a4ea86f121cb947e372`;
+- command lock: `ca990271f70a7b3d4536f3e29e1a31ce033e80ce8b7a95468832695f07378e9e`;
+- authorization ID: `P4-A1-RUNPOD-4090-20260919-01`;
+- exactly one RTX 4090 24GB;
+- max billed time 5400s;
+- max GPU rate USD 0.80/hour;
+- max total spend USD 1.25;
+- max artifact egress 5 GiB;
+- single use; no fallback; no G1 rerun; no A0/A2/27B.
+
+Worker03 recorded the corresponding Worker06-compatible authorization artifact on its branch in commit
+`456bc18f8d94058a74c573914859347784438196`.
+Its authorization SHA256 is
+`2a3f22a3fc11c564d5baf37cb81747540c72f632f787c4a5bb8007e63b5bef5b`.
+Both P4 exact-contract and CPU gates passed on that authorization-record commit.
+
+Important source boundary:
+the authorized *physical executable source* remains exactly
+`b15418929039be0b80752ecc9df58a53dce10332`.
+The later authorization-record commit is metadata only and MUST NOT silently replace the authorized executable source in the physical run.
+
+The RunPod browser workflow did not start. The available authenticated web-automation transport rejected the run before opening RunPod because its own automation wallet balance was `-$0.344` and required a minimum USD 10 top-up.
+
+Therefore:
+- RunPod console reached: NO;
+- exact RTX 4090 availability checked: NO;
+- price checked: NO;
+- Pod created: NO;
+- RunPod billing started: NO;
+- GPU seconds consumed: 0;
+- A1 training started: NO;
+- A1 candidate artifact: NONE;
+- RunPod spend: USD 0;
+- capability gain claim: NO.
+
+This is an external browser-tooling funding blocker, not a RunPod availability/price failure and not a model/training failure. Do not classify it as a physical A1 attempt.
