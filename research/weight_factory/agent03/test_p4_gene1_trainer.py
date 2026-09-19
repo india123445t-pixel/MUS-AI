@@ -41,10 +41,10 @@ def plan_fixture():
         "arms": [
             {
                 "arm_id": "P4_A0_SFT_LORA_CONTROL",
-                "training_mode": "supervised_next_token_cross_entropy",
+                "algorithm": "supervised next-token CE on Worker02-admitted reference targets only",
                 "lr": "0.00001",
                 "weight_decay": "0.10",
-                "scheduler": "cosine",
+                "schedule": "cosine",
                 "min_lr": "0.000001",
                 "warmup_fraction": "0.10",
             },
@@ -119,6 +119,7 @@ class ContractTests(unittest.TestCase):
         x = c.build_command_lock(
             ["python", "x.py"],
             plan_sha256=H("p"),
+            run_manifest_sha256=RUN_MANIFEST_SHA,
             arm_id="P4_A1_RLVR_CONTROL",
             seed=1701,
         )
