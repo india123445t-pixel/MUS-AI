@@ -10,6 +10,18 @@ import {
 } from '../lib/aqlevon/compute-dispatch.js';
 import {validateP4ExecutionAuthorization} from '../lib/aqlevon/compute-cost-orchestrator.js';
 
+const PAID_WATCHDOG_TERMINATION_MARGIN_MS=5000;
+const PAID_WATCHDOG_KILL_GRACE_MS=1000;
+const SENSITIVE_ENV_NAME_RE=/(?:api_?key|token|secret|password|credential|private_?key)/i;
+
+function payloadEnvironment(baseEnv,gpuIndices){
+  const env={...baseEnv,CUDA_VISIBLE_DEVICES:gpuIndices.join(',')};
+  for(const key of Object.keys(env)){
+    if(SENSITIVE_ENV_NAME_RE.test(key))delete env[key];
+  }
+  return env;
+}
+
 function die(message,code=2){console.error(JSON.stringify({event:'p3_dispatch_error',error:message}));process.exit(code)}
 function intArg(value,{min=0,max=Number.MAX_SAFE_INTEGER}={}){if(!/^\d+$/.test(String(value??'')))return null;const n=Number(value);return Number.isSafeInteger(n)&&n>=min&&n<=max?n:null}
 function parseArgs(argv){
@@ -59,16 +71,24 @@ function memorySample(indices){
 function readTelemetry(file){if(!file)return null;try{return JSON.parse(fs.readFileSync(file,'utf8'))}catch{return null}}
 function readJson(file){if(!file)return null;try{return JSON.parse(fs.readFileSync(file,'utf8'))}catch{return null}}
 function failureCode(code,signal,telemetryOk,timedOut=false){if(timedOut)return 'manager_budget_timeout';if(code===0&&!signal&&!telemetryOk)return 'telemetry_incomplete';if(signal)return 'payload_signal';if(code!==0)return 'payload_exit_nonzero';return null}
-function terminateTree(child){
+function terminateTree(child,signal='SIGTERM'){
   if(!child?.pid)return;
-  try{if(process.platform!=='win32')process.kill(-child.pid,'SIGTERM');else child.kill('SIGTERM')}catch{try{child.kill('SIGTERM')}catch{}}
+  try{if(process.platform!=='win32')process.kill(-child.pid,signal);else child.kill(signal)}catch{try{child.kill(signal)}catch{}}
 }
 async function runChild(argv,env,maxRuntimeMs=null){
   return await new Promise(resolve=>{
     const child=spawn(argv[0],argv.slice(1),{stdio:'inherit',env,shell:false,detached:process.platform!=='win32'});
-    let timedOut=false,timer=null,settled=false;
-    const done=(value)=>{if(settled)return;settled=true;if(timer)clearTimeout(timer);resolve({...value,timedOut})};
-    if(Number.isSafeInteger(maxRuntimeMs)&&maxRuntimeMs>0){timer=setTimeout(()=>{timedOut=true;terminateTree(child)},maxRuntimeMs);timer.unref()}
+    let timedOut=false,timer=null,killTimer=null,settled=false;
+    const done=(value)=>{if(settled)return;settled=true;if(timer)clearTimeout(timer);if(killTimer)clearTimeout(killTimer);resolve({...value,timedOut})};
+    if(Number.isSafeInteger(maxRuntimeMs)&&maxRuntimeMs>0){
+      timer=setTimeout(()=>{
+        timedOut=true;
+        terminateTree(child,'SIGTERM');
+        killTimer=setTimeout(()=>terminateTree(child,'SIGKILL'),PAID_WATCHDOG_KILL_GRACE_MS);
+        killTimer.unref();
+      },maxRuntimeMs);
+      timer.unref();
+    }
     child.once('error',err=>done({code:null,signal:null,spawnError:err}));
     child.once('exit',(code,signal)=>done({code,signal,spawnError:null}));
   });
@@ -105,7 +125,8 @@ if(computeOrigin==='paid_manager_authorized'){
   if(!Number.isSafeInteger(billingStart)||billingStart<=0)die('execution_blocked:billing_start_epoch_ms_required');
   const remainingMs=auth.max_billed_seconds*1000-(Date.now()-billingStart);
   if(!Number.isFinite(remainingMs)||remainingMs<=0)die('execution_blocked:manager_billed_time_budget_exhausted');
-  maxRuntimeMs=Math.max(1,Math.floor(remainingMs));
+  if(remainingMs<=PAID_WATCHDOG_TERMINATION_MARGIN_MS)die('execution_blocked:manager_billed_time_budget_insufficient_shutdown_margin');
+  maxRuntimeMs=Math.max(1,Math.floor(remainingMs-PAID_WATCHDOG_TERMINATION_MARGIN_MS));
 }else{
   auth=validateExecutionAuthorization({authorized:process.env.AQLEVON_GPU_EXECUTION_AUTHORIZED,computeOrigin});
   if(!auth.ok)die(`execution_blocked:${auth.reasons.join(',')}`);
@@ -117,7 +138,7 @@ if(auth.manager_authorization_sha256){
   const useMarker=path.join(opts.receiptDir,`manager-authorization-${auth.manager_authorization_sha256}.used`);
   try{fs.writeFileSync(useMarker,new Date().toISOString()+'\n',{flag:'wx',mode:0o600})}catch{die('execution_blocked:manager_authorization_already_used')}
 }
-const childEnv={...process.env,CUDA_VISIBLE_DEVICES:gpuIndices.join(',')};
+const childEnv=payloadEnvironment(process.env,gpuIndices);
 let finalCode=1;
 for(let retryIndex=0;retryIndex<=opts.maxRetries;retryIndex++){
   if(opts.telemetryJson){try{fs.rmSync(opts.telemetryJson,{force:true})}catch{}}
