@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "authorization_kind": "AQLEVON_MANAGER_COMPUTE_AUTHORIZATION_V1",
+  "hash_profile": "AQLEVON_CANONICAL_JSON_SHA256_V1",
+  "authorization_id": "P4-A1-RUNPOD-4090-20260919-07-SDPO-TF5-PATCH",
+  "run_task_id": "P4-A03-GENE1-PHYSICAL-TRAINER",
+  "run_manifest_sha256": "c869200039d9595a18c5fc9636184e043951986d0c31d90d4546490b26ceb281",
+  "profile_id": "p4-surrogate-1x24",
+  "compute_origin": "paid_manager_authorized",
+  "max_billed_seconds": 1800,
+  "max_total_cost_usd": "0.40",
+  "max_hourly_rate_usd": "0.80",
+  "max_artifact_egress_bytes": 5368709120,
+  "single_use": true,
+  "authorization_sha256": "1b720076a0213c9938d06736fa5dacaef15a0b53d7c35a9f5d754c33a1e00bbe"
+}
