@@ -5,11 +5,11 @@ Status: P2 implementation contract consumer/producer. Manager review required.
 ## Authority boundary
 Runtime owns transport outcome, timing/token accounting, configured cost/energy estimates, and immutable attempt identity. Runtime does **not** own correctness.
 
-A runtime attempt can contribute to `verified_successes` only through an explicit immutable join to either:
+A runtime attempt can contribute to `verified_successes` only through an explicit immutable join whose verification receipt SHA-256 is also present in the Manager-approved verification-receipt allowlist, to either:
 1. an `AQLEVON_EVALUATION_DECISION_RECEIPT_V1` supplied by the Worker-05/Manager evaluation authority (identified upstream by `receipt_kind` + `receipt_sha256`), with `PROMOTION_ELIGIBLE` status and the same Candidate Artifact Manifest identity; or
 2. a Manager-approved per-attempt objective-verifier receipt identity, bound to the exact Runtime Attempt Receipt and to a Manager approval receipt identity.
 
-A local/caller `verified: true` field is never authoritative.
+A local/caller `verified: true` field is never authoritative. Supplying a syntactically valid evaluation/verifier receipt object is also insufficient unless its exact receipt SHA-256 has been approved by Manager.
 
 ## Runtime Attempt Receipt fields
 `AQLEVON_RUNTIME_ATTEMPT_RECEIPT_V1` contains:
@@ -40,7 +40,7 @@ With both valid identities, success and failure results include `runtime_attempt
 `summarizeVerifiedEfficiency()` now accepts Runtime Attempt Receipts. It:
 - validates every attempt receipt and fails the authoritative summary closed if any receipt is invalid;
 - sums GPU-seconds/energy/cost across **all** valid attempts, including failed/unverified attempts;
-- counts a successful attempt in the denominator only after a valid receipt-identity join to accepted evaluation/objective-verifier truth;
+- counts a successful attempt in the denominator only after a valid receipt-identity join to accepted evaluation/objective-verifier truth **and** Manager approval of that verification receipt SHA-256;
 - never treats transport success as correctness;
 - never treats a caller boolean as correctness.
 
