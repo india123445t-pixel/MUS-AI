@@ -83,38 +83,96 @@
     "bias": "none",
     "dropout": "0",
     "enumerate_exact_modules_before_optimizer": true,
-    "forbidden_scope": ["model.visual","vision","embeddings","lm_head","mtp","norms","biases","gated-deltanet recurrent/state modules","non-language modules"],
+    "forbidden_scope": [
+      "model.visual",
+      "vision",
+      "embeddings",
+      "lm_head",
+      "mtp",
+      "norms",
+      "biases",
+      "gated-deltanet recurrent/state modules",
+      "non-language modules"
+    ],
     "r": 4,
     "target_scope": "model.language_model full-attention q_proj + v_proj only",
     "type": "lora"
   },
   "common_stack": {
-    "accelerate": {"commit": "6afc1e5ee217051fde702b23de2813344dc0fd33","version": "1.15.0"},
-    "peft": {"commit": "9dc6fa2d2093853dec3889b790d4f251efe7fcac","version": "0.21.0"},
-    "sdpo_reference": {"commit": "7c457fc1b1f636ae794eb0362ba37d4743b06fbc","license": "Apache-2.0","license_git_blob": "d645695673349e3947e8e5ae42332d0ac3164cd7","repo": "lasgroup/SDPO","run_local_grpo_git_blob": "db1d6c17a7f601c0533c6a681659ca340bd149f9","run_local_sdpo_git_blob": "1481c88e82303312211ee5d0cddd703837f41733"},
-    "transformers": {"commit": "856157a2f3e9594954310df18fdccc31ffddebe9","version": "5.17.0"}
+    "accelerate": {
+      "commit": "6afc1e5ee217051fde702b23de2813344dc0fd33",
+      "version": "1.15.0"
+    },
+    "peft": {
+      "commit": "9dc6fa2d2093853dec3889b790d4f251efe7fcac",
+      "version": "0.21.0"
+    },
+    "sdpo_reference": {
+      "commit": "7c457fc1b1f636ae794eb0362ba37d4743b06fbc",
+      "license": "Apache-2.0",
+      "license_git_blob": "d645695673349e3947e8e5ae42332d0ac3164cd7",
+      "repo": "lasgroup/SDPO",
+      "run_local_grpo_git_blob": "db1d6c17a7f601c0533c6a681659ca340bd149f9",
+      "run_local_sdpo_git_blob": "1481c88e82303312211ee5d0cddd703837f41733"
+    },
+    "transformers": {
+      "commit": "856157a2f3e9594954310df18fdccc31ffddebe9",
+      "version": "5.17.0"
+    }
   },
-  "execution_order": ["P4_A1_RLVR_CONTROL","P4_A0_SFT_LORA_CONTROL","P4_A2_SDPO_RICH_FEEDBACK"],
+  "execution_order": [
+    "P4_A1_RLVR_CONTROL",
+    "P4_A0_SFT_LORA_CONTROL",
+    "P4_A2_SDPO_RICH_FEEDBACK"
+  ],
   "g1_source_commit": "4a7a5fa2c2c4ba5f291564251c290e2c416ce6ec",
   "g1_status": "ALREADY_PASSED_DO_NOT_RERUN",
-  "generation": {"decode_sweep_allowed": false,"do_sample": true,"max_prompt_tokens": 2048,"max_response_tokens": 2048,"temperature": "0.7","top_k": 20,"top_p": "0.8"},
+  "generation": {
+    "decode_sweep_allowed": false,
+    "do_sample": true,
+    "max_prompt_tokens": 2048,
+    "max_response_tokens": 2048,
+    "temperature": "0.7",
+    "top_k": 20,
+    "top_p": "0.8"
+  },
   "hash_profile": "AQLEVON_CANONICAL_JSON_SHA256_V1",
   "plan_kind": "AQLEVON_P4_GENE1_FROZEN_TRAINING_PLAN_V1",
-  "plan_sha256": "2ad7de02027e7b4eb1546486c1f02999b361585a38fc8316c17efbea9e1993c2",
+  "plan_sha256": "3cd6e0bada2535a80f83f400f45f5d0fdc5ad8d938f42757785335959f331095",
   "profile": "p4-surrogate-1x24",
   "schema_version": 1,
-  "screen_budget": {"evaluation_gpu_seconds": "accounted separately and equalized by Worker05","examples_or_prompts_per_update": 4,"gpu_second_reference": "C12 = measured Worker06-attributed training GPU-seconds for RLVR_CONTROL completing 12 valid updates on exact hardware stratum","max_optimizer_updates": 12,"other_arm_gpu_second_ceiling": "C12","rl_rollouts_per_prompt": 4,"rl_student_response_token_ceiling": 393216,"rl_student_rollout_ceiling": 192,"seed": 1701,"sft_example_exposure_ceiling": 48},
+  "screen_budget": {
+    "evaluation_gpu_seconds": "accounted separately and equalized by Worker05",
+    "examples_or_prompts_per_update": 4,
+    "gpu_second_reference": "C12 = measured Worker06-attributed training GPU-seconds for RLVR_CONTROL completing 12 valid updates on exact hardware stratum",
+    "max_optimizer_updates": 12,
+    "other_arm_gpu_second_ceiling": "C12",
+    "rl_rollouts_per_prompt": 4,
+    "rl_student_response_token_ceiling": 393216,
+    "rl_student_rollout_ceiling": 192,
+    "seed": 1701,
+    "sft_example_exposure_ceiling": 48
+  },
   "sealed_eval_consumed": false,
-  "surrogate_model": {"precision": "bf16","quantization": "none","repo": "Qwen/Qwen3.5-4B-Base","revision": "daa9c16f371249f9ad1c75a9ed6f956c08ea08f5"},
+  "surrogate_model": {
+    "precision": "bf16",
+    "quantization": "none",
+    "repo": "Qwen/Qwen3.5-4B-Base",
+    "revision": "daa9c16f371249f9ad1c75a9ed6f956c08ea08f5"
+  },
   "task_id": "P4-A03-GENE1-PHYSICAL-TRAINER",
-  "training_seeds": [1701,1702,1703],
+  "training_seeds": [
+    1701,
+    1702,
+    1703
+  ],
   "w01_method_spec_canonical_sha256": "7c6cc62b6ae20fd49038198865567df75f1a105607bd9d32d974530bd9894f1d",
   "w01_method_spec_file_sha256": "4f51eed6107dac85046a432f99edee54f01d3b8100c443eeedd0cb6c56394668",
   "w02_public_binding_sha256": "d9a81a9730e1dac02ecf8b032191a8d878e00d9a25547712168afb0a725095e5",
   "w02_sealed_eval_commitment_sha256": "7e0463ddf6068fe66d85b5798b4f8037489c99dcd452376e8144dff0a122f4e5",
   "w02_sealed_eval_pack_sha256": "b30b85c59784f9a5b553f4182f8cdc8462c2880dddaadd528ed37ac3aee683bb",
   "w02_split_sha256": "3cd1c0d32cad8cc7edf55c9392292828d54d2b4bd16ad50d0e70e26ba3dd9202",
-  "w02_training_manifest_file_sha256": "8e8015b15837e4e18c3aabf649fa80cb0d88b7714ce6c95a307c319abec2eec1",
+  "w02_training_manifest_file_sha256": "43ea89e461c6f3033f549f5018eab2be26fb3f7e07736f0dcf918539969e3e90",
   "w02_training_manifest_sha256": "f7499362fdd7e6fd4bc91682a5f1c03767c98685c045ad50a712711c6c4ad55f",
   "w02_training_shard_sha256": "59480e9ff48b36a0efb77a36d3e35d9f656ef4dee0ce18489d3017c92b2a0d49",
   "w02_training_visible_pack_sha256": "35c7ebe6d5e82f42d7553fa28391f6d82c8800d6eced582d06881c8eb17d9d6b",
