@@ -131,6 +131,7 @@ class ContractTests(unittest.TestCase):
         x = c.build_command_lock(
             ["true"],
             plan_sha256=H("p"),
+            run_manifest_sha256=RUN_MANIFEST_SHA,
             arm_id="P4_A1_RLVR_CONTROL",
             seed=1701,
         )
@@ -149,6 +150,7 @@ class ContractTests(unittest.TestCase):
         x = c.build_command_lock(
             ["true"],
             plan_sha256=H("p"),
+            run_manifest_sha256=RUN_MANIFEST_SHA,
             arm_id="P4_A1_RLVR_CONTROL",
             seed=1701,
         )
