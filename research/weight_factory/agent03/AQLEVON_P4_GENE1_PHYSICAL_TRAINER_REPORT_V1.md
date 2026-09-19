@@ -55,14 +55,14 @@ Worker 06:
 ## Frozen run preparation
 
 Frozen plan:
-- `plan_sha256 = 2ad7de02027e7b4eb1546486c1f02999b361585a38fc8316c17efbea9e1993c2`
+- `plan_sha256 = 3cd6e0bada2535a80f83f400f45f5d0fdc5ad8d938f42757785335959f331095`
 
 First run per W01 order:
 - arm: `P4_A1_RLVR_CONTROL`
 - seed: `1701`
 - profile: `p4-surrogate-1x24`
-- `command_sha256 = 267ad42d23f4fd0dafb86dd669414de37becbb22aa4dc24cf1c144767e7eec95`
-- `lock_sha256 = e37e5f4be9002c152aa4daead72c84a8ee6d6645b71520b2075aa0465d28e0d0`
+- `command_sha256 = 3c898f3ff29619200b0792c9d19be9381e5b3bb2cd286a4ea86f121cb947e372`
+- `lock_sha256 = 3aeb611ebdf1eeb168820eba954305e8688b5beebad6463f01b3421ca4d588f6`
 - automatic fallback: false
 - G1 rerun: false.
 
@@ -73,10 +73,11 @@ The exact plan and exact A1 command lock are checked into this branch.
 Local exact-source verification before publication:
 - `py_compile`: PASS
 - schema JSON parse: PASS
-- contract/unit suite: **17/17 PASS**
+- contract/unit suite: **20/20 PASS**
 - real W01/W02/W05 `freeze-plan`: PASS
 - 56-row train-visible data conversion: PASS
 - A1 command generation/lock: PASS
+- exact GitHub Actions gate: PASS — run `35427624417`, job `105856211855`; all contract/real-input/parquet/lock/56-oracle steps PASS
 - no local/free GPU exists in this Worker environment (`nvidia-smi` unavailable).
 
 ## Physical truth
