@@ -93,6 +93,8 @@ def package(label: str = "gene1", **candidate_kwargs) -> tuple[dict, dict]:
         target_capability={"capability_id": "coding_tool_use", "capability_version": 1, "scope": "Gene #1"},
         manager_acceptance_record_sha256=h("manager-accept:" + label),
         compute_receipts=[compute_receipt(c, label + ":1")],
+        training_shard_manifest_sha256=c["training_shard_manifest_sha256"],
+        training_run_receipt_sha256=c["training_run_receipt_sha256"],
         candidate_validator=ok,
         evaluation_validator=ok,
     )
@@ -111,27 +113,27 @@ class PackageSealTests(unittest.TestCase):
     def test_worker05_rejection_cannot_be_packaged(self):
         c = candidate()
         with self.assertRaisesRegex(ValueError, "PROMOTION_ELIGIBLE"):
-            g.seal_gene_package(candidate_manifest=c, evaluation_receipt=evaluation(c, status="REJECTED"), target_capability={"capability_id":"coding_tool_use","capability_version":1}, manager_acceptance_record_sha256=h("mgr"), compute_receipts=[compute_receipt(c)], candidate_validator=ok, evaluation_validator=ok)
+            g.seal_gene_package(candidate_manifest=c, evaluation_receipt=evaluation(c, status="REJECTED"), target_capability={"capability_id":"coding_tool_use","capability_version":1}, manager_acceptance_record_sha256=h("mgr"), compute_receipts=[compute_receipt(c)], training_shard_manifest_sha256=c["training_shard_manifest_sha256"], training_run_receipt_sha256=c["training_run_receipt_sha256"], candidate_validator=ok, evaluation_validator=ok)
 
     def test_manager_acceptance_record_is_required(self):
         c = candidate()
         with self.assertRaisesRegex(ValueError, "Manager acceptance"):
-            g.seal_gene_package(candidate_manifest=c, evaluation_receipt=evaluation(c), target_capability={"capability_id":"coding_tool_use","capability_version":1}, manager_acceptance_record_sha256="not-a-sha", compute_receipts=[compute_receipt(c)], candidate_validator=ok, evaluation_validator=ok)
+            g.seal_gene_package(candidate_manifest=c, evaluation_receipt=evaluation(c), target_capability={"capability_id":"coding_tool_use","capability_version":1}, manager_acceptance_record_sha256="not-a-sha", compute_receipts=[compute_receipt(c)], training_shard_manifest_sha256=c["training_shard_manifest_sha256"], training_run_receipt_sha256=c["training_run_receipt_sha256"], candidate_validator=ok, evaluation_validator=ok)
 
     def test_compute_receipt_must_bind_same_candidate(self):
         c = candidate(); other = candidate("other")
         with self.assertRaisesRegex(ValueError, "candidate binding mismatch"):
-            g.seal_gene_package(candidate_manifest=c, evaluation_receipt=evaluation(c), target_capability={"capability_id":"coding_tool_use","capability_version":1}, manager_acceptance_record_sha256=h("mgr"), compute_receipts=[compute_receipt(other)], candidate_validator=ok, evaluation_validator=ok)
+            g.seal_gene_package(candidate_manifest=c, evaluation_receipt=evaluation(c), target_capability={"capability_id":"coding_tool_use","capability_version":1}, manager_acceptance_record_sha256=h("mgr"), compute_receipts=[compute_receipt(other)], training_shard_manifest_sha256=c["training_shard_manifest_sha256"], training_run_receipt_sha256=c["training_run_receipt_sha256"], candidate_validator=ok, evaluation_validator=ok)
 
     def test_compute_receipt_tamper_is_rejected(self):
         c = candidate(); r = compute_receipt(c); r["runtime_metrics"]["gpu_count"] = 2
         with self.assertRaisesRegex(ValueError, "self-digest mismatch"):
-            g.seal_gene_package(candidate_manifest=c, evaluation_receipt=evaluation(c), target_capability={"capability_id":"coding_tool_use","capability_version":1}, manager_acceptance_record_sha256=h("mgr"), compute_receipts=[r], candidate_validator=ok, evaluation_validator=ok)
+            g.seal_gene_package(candidate_manifest=c, evaluation_receipt=evaluation(c), target_capability={"capability_id":"coding_tool_use","capability_version":1}, manager_acceptance_record_sha256=h("mgr"), compute_receipts=[r], training_shard_manifest_sha256=c["training_shard_manifest_sha256"], training_run_receipt_sha256=c["training_run_receipt_sha256"], candidate_validator=ok, evaluation_validator=ok)
 
     def test_training_receipts_are_required(self):
         c = candidate(); c["training_run_receipt_sha256"] = None
         with self.assertRaisesRegex(ValueError, "training shard"):
-            g.seal_gene_package(candidate_manifest=c, evaluation_receipt=evaluation(c), target_capability={"capability_id":"coding_tool_use","capability_version":1}, manager_acceptance_record_sha256=h("mgr"), compute_receipts=[compute_receipt(c)], candidate_validator=ok, evaluation_validator=ok)
+            g.seal_gene_package(candidate_manifest=c, evaluation_receipt=evaluation(c), target_capability={"capability_id":"coding_tool_use","capability_version":1}, manager_acceptance_record_sha256=h("mgr"), compute_receipts=[compute_receipt(c)], training_shard_manifest_sha256=c["training_shard_manifest_sha256"], training_run_receipt_sha256=c["training_run_receipt_sha256"], candidate_validator=ok, evaluation_validator=ok)
 
     def test_package_tamper_is_detected(self):
         p, _ = package(); p["target_capability"]["scope"] = "tampered"
@@ -141,11 +143,11 @@ class PackageSealTests(unittest.TestCase):
     def test_quantization_not_tested_cannot_claim_hashes(self):
         c = candidate()
         with self.assertRaisesRegex(ValueError, "NOT_TESTED"):
-            g.seal_gene_package(candidate_manifest=c, evaluation_receipt=evaluation(c), target_capability={"capability_id":"coding_tool_use","capability_version":1}, manager_acceptance_record_sha256=h("mgr"), compute_receipts=[compute_receipt(c)], quantization_compatibility={"status":"NOT_TESTED","quantized_candidate_manifest_sha256":h("q"),"evaluation_decision_receipt_sha256":None}, candidate_validator=ok, evaluation_validator=ok)
+            g.seal_gene_package(candidate_manifest=c, evaluation_receipt=evaluation(c), target_capability={"capability_id":"coding_tool_use","capability_version":1}, manager_acceptance_record_sha256=h("mgr"), compute_receipts=[compute_receipt(c)], training_shard_manifest_sha256=c["training_shard_manifest_sha256"], training_run_receipt_sha256=c["training_run_receipt_sha256"], quantization_compatibility={"status":"NOT_TESTED","quantized_candidate_manifest_sha256":h("q"),"evaluation_decision_receipt_sha256":None}, candidate_validator=ok, evaluation_validator=ok)
 
     def test_quantization_pass_requires_bound_evidence(self):
         c = candidate()
-        p = g.seal_gene_package(candidate_manifest=c, evaluation_receipt=evaluation(c), target_capability={"capability_id":"coding_tool_use","capability_version":1}, manager_acceptance_record_sha256=h("mgr"), compute_receipts=[compute_receipt(c)], quantization_compatibility={"status":"PASS","quantized_candidate_manifest_sha256":h("q-candidate"),"evaluation_decision_receipt_sha256":h("q-eval")}, candidate_validator=ok, evaluation_validator=ok)
+        p = g.seal_gene_package(candidate_manifest=c, evaluation_receipt=evaluation(c), target_capability={"capability_id":"coding_tool_use","capability_version":1}, manager_acceptance_record_sha256=h("mgr"), compute_receipts=[compute_receipt(c)], training_shard_manifest_sha256=c["training_shard_manifest_sha256"], training_run_receipt_sha256=c["training_run_receipt_sha256"], quantization_compatibility={"status":"PASS","quantized_candidate_manifest_sha256":h("q-candidate"),"evaluation_decision_receipt_sha256":h("q-eval")}, candidate_validator=ok, evaluation_validator=ok)
         self.assertEqual(p["compatibility"]["quantization"]["status"], "PASS")
 
 
@@ -251,7 +253,7 @@ class P21InteropTests(unittest.TestCase):
         c = seal_candidate("p4-package-interop", artifact_stage="promotion_candidate")
         e = seal_eval(c, "p4-package-interop")
         r = compute_receipt(c, "p4-interop-attempt")
-        p = g.seal_gene_package(candidate_manifest=c, evaluation_receipt=e, target_capability={"capability_id":"coding_tool_use","capability_version":1}, manager_acceptance_record_sha256=h("manager-accept-interop"), compute_receipts=[r])
+        p = g.seal_gene_package(candidate_manifest=c, evaluation_receipt=e, target_capability={"capability_id":"coding_tool_use","capability_version":1}, manager_acceptance_record_sha256=h("manager-accept-interop"), compute_receipts=[r], training_shard_manifest_sha256=c["training_shard_manifest_sha256"], training_run_receipt_sha256=c["training_run_receipt_sha256"])
         self.assertEqual(g.validate_gene_package(p), [])
 
 
