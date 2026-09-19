@@ -31,9 +31,10 @@
   "worker06_reference_commit": "7204c7ae84eb6d246603fda960cffe02c2b6279e",
   "worker03_sources": {
     "trainer_git_blob_sha1": "14b5573f682c0b50860a570f1328b3b0eca21032",
-    "tournament_git_blob_sha1": "22171338b418ae8a3200bb87212b086caaffffc5",
+    "tournament_git_blob_sha1": "f3879aef87bbb2481ec5a9f606887985bcadc349",
     "reward_git_blob_sha1": "c9db3e315299cce59c5d4cece7de86302c10c614",
-    "runtime_compat_sitecustomize_git_blob_sha1": "ef9c92fb0923ad444f33d33a24ef557cd2af0fcf"
+    "runtime_compat_sitecustomize_git_blob_sha1": "ef9c92fb0923ad444f33d33a24ef557cd2af0fcf",
+    "sdpo_tf5_patch_git_blob_sha1": "81d4c2e2df463293c16a3a3d5ff84f0ecb991fd2"
   },
   "runtime_compatibility": {
     "qwen_vl_utils_version": "0.0.14",
@@ -41,7 +42,14 @@
     "canonical_chat_template_sha256": "a4aee8afcf2e0711942cf848899be66016f8d14a889ff9ede07bca099c28f715",
     "pre_gpu_dataset_train_rows": 56,
     "pre_gpu_dataset_val_rows": 56,
-    "ray_worker_env_propagation": true
+    "ray_worker_env_propagation": true,
+    "python_startup_pth_sha256": "4119c98997a9b56ea1d97cfbd9dd5100b5f515566217b01b86cf4732d14f3498",
+    "sdpo_tf5_compat_patch": {
+      "base_commit": "7c457fc1b1f636ae794eb0362ba37d4743b06fbc",
+      "patched_model_py_sha256": "135f61865fcbe057d29da90bf07968b04dd778e2e96a31d3ad640a8650155f8d",
+      "patched_fsdp_workers_py_sha256": "e0ec49a1b891daed8f180a35f5d1d7e5147a3a8289c3787fc7688892e0e55fed",
+      "ray_preflight_pass": true
+    }
   },
   "budget": {
     "optimizer_updates": 12,
@@ -62,5 +70,5 @@
   "automatic_fallback": false,
   "paid_compute_requires_manager_authorization": true,
   "capability_gain_claim": false,
-  "manifest_sha256": "6f57167f26780d750ae0ea17e73fd2d9e625f1d22260a3f416a998297df2029c"
+  "manifest_sha256": "c869200039d9595a18c5fc9636184e043951986d0c31d90d4546490b26ceb281"
 }
