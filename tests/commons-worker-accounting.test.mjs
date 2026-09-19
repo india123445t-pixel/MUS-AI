@@ -9,8 +9,16 @@ import {summarizeVerifiedEfficiency} from '../lib/aqlevon/runtime-economics.js';
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 async function listen(server){server.listen(0,'127.0.0.1');await once(server,'listening');return server.address().port}
+function cleanWorkerEnv(overrides={}){
+  const env={...process.env};
+  const exact=new Set(['AQLEVON_COMPUTE_DEVICE','AQLEVON_GPU_COUNT','AQLEVON_GPU_POWER_WATTS','AQLEVON_GPU_HOURLY_USD']);
+  for(const key of Object.keys(env)){
+    if(key.startsWith('AQLEVON_COMMONS_')||key.startsWith('AQLEVON_MODEL_')||key.startsWith('LOCAL_MODEL_')||exact.has(key))delete env[key];
+  }
+  return {...env,...overrides};
+}
 async function runWorker(env,{timeoutMs=5000}={}){
-  const child=spawn(process.execPath,['scripts/commons-worker.mjs'],{cwd:root,env:{...process.env,...env},stdio:['ignore','pipe','pipe']});
+  const child=spawn(process.execPath,['scripts/commons-worker.mjs'],{cwd:root,env:cleanWorkerEnv(env),stdio:['ignore','pipe','pipe']});
   let stdout='',stderr='';child.stdout.on('data',c=>stdout+=c);child.stderr.on('data',c=>stderr+=c);
   const timer=setTimeout(()=>child.kill('SIGKILL'),timeoutMs);
   const [code,signal]=await once(child,'exit');clearTimeout(timer);
@@ -133,45 +141,6 @@ test('delayed model HTTP failure retains runtime metrics and compute cost while 
   assert.equal(summary.verified_successes,1);
 });
 
-test('decimal Commons concurrency is integer-normalized identically in advertised capability and slot count',async()=>{
-  let claims=0;
-  let maxAdvertised=null;
-  let child=null;
-  const server=http.createServer(async(req,res)=>{
-    let body={};let text='';for await(const chunk of req)text+=chunk;if(text)body=JSON.parse(text);
-    res.setHeader('content-type','application/json');
-    if(body.op==='claim'){
-      claims++;
-      maxAdvertised=body.capabilities?.max_concurrency;
-      res.end(JSON.stringify({ok:true,job:null}));
-      if(claims>=2)setTimeout(()=>child?.kill('SIGTERM'),10);
-      return;
-    }
-    res.end(JSON.stringify({ok:true}));
-  });
-  const port=await listen(server);
-  child=spawn(process.execPath,['scripts/commons-worker.mjs'],{
-    cwd:root,
-    env:{...process.env,
-      AQLEVON_COMMONS_URL:`http://127.0.0.1:${port}`,
-      AQLEVON_COMMONS_WORKER_TOKEN:'concurrency-secret',
-      AQLEVON_MODEL_URL:'http://127.0.0.1:9',
-      AQLEVON_COMMONS_CONCURRENCY:'2.9',
-      AQLEVON_COMMONS_POLL_MS:'500',
-    },
-    stdio:['ignore','pipe','pipe']
-  });
-  let stdout='',stderr='';child.stdout.on('data',c=>stdout+=c);child.stderr.on('data',c=>stderr+=c);
-  const timer=setTimeout(()=>child.kill('SIGKILL'),3000);
-  const [code,signal]=await once(child,'exit');clearTimeout(timer);
-  server.close();await once(server,'close');
-  assert.ok(code===0||signal==='SIGTERM',stderr);
-  const start=jsonLines(stdout).find(x=>x.event==='commons_worker_start');
-  assert.equal(start.concurrency,2);
-  assert.equal(maxAdvertised,2);
-  assert.ok(claims>=2);
-});
-
 test('worker startup log sanitizes URL userinfo/query/path secrets and model key',async()=>{
   let claimCount=0;
   const server=http.createServer(async(req,res)=>{
@@ -218,6 +187,7 @@ test('commons worker can opt into bounded parallel claims so upstream engines ca
   let completes=0;
   let inFlight=0;
   let maxInFlight=0;
+  let maxAdvertised=null;
   let child=null;
   const server=http.createServer(async(req,res)=>{
     let raw='';for await(const chunk of req)raw+=chunk;
@@ -225,6 +195,7 @@ test('commons worker can opt into bounded parallel claims so upstream engines ca
     if(req.url==='/commons'){
       res.setHeader('content-type','application/json');
       if(body.op==='claim'){
+        maxAdvertised=body.capabilities?.max_concurrency;
         const index=nextJob++;
         const job=index<2?{id:`job-${index+1}`,model_request:{messages:[{role:'user',content:`ping-${index+1}`}],model:'AQLEVON-27B'}}:null;
         res.end(JSON.stringify({ok:true,job}));
@@ -250,13 +221,13 @@ test('commons worker can opt into bounded parallel claims so upstream engines ca
   const port=await listen(server);
   child=spawn(process.execPath,['scripts/commons-worker.mjs'],{
     cwd:root,
-    env:{...process.env,
+    env:cleanWorkerEnv({
       AQLEVON_COMMONS_URL:`http://127.0.0.1:${port}/commons`,
       AQLEVON_COMMONS_WORKER_TOKEN:'parallel-worker-secret',
       AQLEVON_MODEL_URL:`http://127.0.0.1:${port}`,
-      AQLEVON_COMMONS_CONCURRENCY:'2',
+      AQLEVON_COMMONS_CONCURRENCY:'2.9',
       AQLEVON_COMMONS_POLL_MS:'500',
-    },
+    }),
     stdio:['ignore','pipe','pipe']
   });
   let stdout='',stderr='';child.stdout.on('data',c=>stdout+=c);child.stderr.on('data',c=>stderr+=c);
@@ -266,6 +237,7 @@ test('commons worker can opt into bounded parallel claims so upstream engines ca
   assert.ok(code===0||signal==='SIGTERM',stderr);
   assert.equal(completes,2);
   assert.equal(maxInFlight,2,'two claimed jobs should overlap at the model endpoint');
+  assert.equal(maxAdvertised,2,'decimal concurrency must advertise the same integer slot count');
   assert.equal((stdout+stderr).includes('parallel-worker-secret'),false);
   const start=jsonLines(stdout).find(x=>x.event==='commons_worker_start');
   assert.equal(start.concurrency,2);
