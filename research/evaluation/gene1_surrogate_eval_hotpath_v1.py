@@ -529,4 +529,111 @@ def validate_a1_freeze_verification(verification: Any, *, law: dict[str, Any], s
     if not isinstance(verification.get("manager_authority_id"), str) or not verification["manager_authority_id"]:
         errors.append("a1_freeze_verification_manager")
     try:
-        anchored = _parse_utc(verification.get("anc
+        anchored = _parse_utc(verification.get("anchored_at_utc"), "anchored_at_utc")
+        unsealed = _parse_utc(verification.get("scores_unsealed_at_utc"), "scores_unsealed_at_utc")
+        if not anchored < unsealed:
+            errors.append("a1_freeze_verification_chronology")
+    except HotPathError as exc:
+        errors.append(str(exc))
+    if verification.get("chronology_statement") != "MANAGER_VERIFIED_A1_REGISTRATION_EXISTED_IN_IMMUTABLE_SYSTEM_BEFORE_A1_SCORE_INSPECTION":
+        errors.append("a1_freeze_verification_statement")
+    return sorted(set(errors))
+
+
+def registration_entry_from_ingest(ingest: dict[str, Any], *, training_gpu_milliseconds: int) -> dict[str, Any]:
+    if not isinstance(ingest, dict) or ingest.get("receipt_kind") != HOTPATH_KIND or not verify_p2_self_digest(ingest, "ingest_receipt_sha256"):
+        raise HotPathError("invalid_ingest_receipt")
+    if ingest.get("state") != STATE_READY_TO_REGISTER:
+        raise HotPathError("ingest_not_ready_to_register")
+    if type(training_gpu_milliseconds) is not int or training_gpu_milliseconds < 0:
+        raise HotPathError("invalid_training_gpu_milliseconds")
+    return {
+        "candidate_slot": ingest["candidate_slot"],
+        "arm_id": ingest["arm_id"],
+        "training_seed": ingest["training_seed"],
+        "training_gpu_milliseconds": training_gpu_milliseconds,
+        "recipe_spec_sha256": ingest["recipe_spec_sha256"],
+        "candidate_artifact_manifest_sha256": ingest["candidate_artifact_manifest_sha256"],
+        "training_run_receipt_sha256": ingest["training_run_receipt_sha256"],
+        "compute_receipt_sha256": ingest["compute_receipt_sha256"],
+        "training_budget_manifest_sha256": ingest["training_budget_manifest_sha256"],
+    }
+
+
+def hidden_eval_readiness(
+    *, law: dict[str, Any], stage_binding: dict[str, Any], registration: dict[str, Any],
+    freeze_verification: dict[str, Any], ingest: dict[str, Any],
+) -> dict[str, Any]:
+    invalid: list[str] = []
+    invalid.extend(p4.validate_evaluation_law(law))
+    invalid.extend(validate_surrogate_stage_binding(stage_binding, law=law))
+    invalid.extend(validate_a1_single_candidate_registration(registration, law=law, stage_binding=stage_binding, ingest=ingest))
+    invalid.extend(validate_a1_freeze_verification(freeze_verification, law=law, stage_binding=stage_binding, registration=registration, ingest=ingest))
+    if invalid:
+        return {"state": STATE_INVALID_EVALUATION, "reasons": sorted(set(invalid))}
+    return {
+        "state": STATE_READY_FOR_HIDDEN_EVAL,
+        "reasons": [],
+        "law_sha256": law["law_sha256"],
+        "stage_binding_sha256": stage_binding["stage_binding_sha256"],
+        "a1_registration_sha256": registration["registration_sha256"],
+        "freeze_verification_sha256": freeze_verification["verification_record_sha256"],
+        "candidate_artifact_manifest_sha256": ingest["candidate_artifact_manifest_sha256"],
+        "harness_manifest_sha256": stage_binding["harness_manifest_sha256"],
+        "sampling_profile_sha256": law["sampling_profile_sha256"],
+        "selection_authority": "NONE_SINGLE_CANDIDATE_REALITY_EVIDENCE_ONLY",
+        "authority": "READINESS_ONLY_EXISTING_P4_REALITY_THRESHOLDS_UNCHANGED",
+    }
+
+def classify_existing_p4_score_card(score_card: Any, *, law: dict[str, Any], stage_binding: dict[str, Any]) -> str:
+    errors = p4.validate_score_card(score_card, law=law, stage_binding=stage_binding)
+    if errors:
+        return STATE_INVALID_EVALUATION
+    status = score_card.get("reality_status")
+    if status in {"INVALID"}:
+        return STATE_INVALID_EVALUATION
+    if status in {"REJECTED"}:
+        return STATE_REJECTED_ARM
+    if status == "REALITY_PASS":
+        return STATE_EVIDENCE_READY
+    return STATE_INVALID_EVALUATION
+
+
+def _load(path: Path) -> Any:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser()
+    sub = ap.add_subparsers(dest="cmd", required=True)
+    v = sub.add_parser("validate-a1-ingest")
+    v.add_argument("--law", type=Path, required=True)
+    v.add_argument("--stage-binding", type=Path, required=True)
+    v.add_argument("--run-manifest", type=Path, required=True)
+    v.add_argument("--command-lock", type=Path, required=True)
+    v.add_argument("--candidate-manifest", type=Path, required=True)
+    v.add_argument("--training-receipt", type=Path, required=True)
+    v.add_argument("--recipe-spec-sha256", required=True)
+    v.add_argument("--compute-receipt-sha256", required=True)
+    v.add_argument("--training-budget-manifest-sha256", required=True)
+    v.add_argument("--output", type=Path)
+    args = ap.parse_args()
+    try:
+        ingest = build_a1_ingest_receipt(
+            law=_load(args.law), stage_binding=_load(args.stage_binding), run_manifest=_load(args.run_manifest),
+            command_lock=_load(args.command_lock), candidate=_load(args.candidate_manifest),
+            training_receipt_bytes=args.training_receipt.read_bytes(), recipe_spec_sha256=args.recipe_spec_sha256,
+            compute_receipt_sha256=args.compute_receipt_sha256,
+            training_budget_manifest_sha256=args.training_budget_manifest_sha256,
+        )
+        if args.output:
+            args.output.write_text(json.dumps(ingest, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        print(json.dumps({"state": ingest["state"], "ingest_receipt_sha256": ingest["ingest_receipt_sha256"]}, sort_keys=True))
+        return 0
+    except Exception as exc:
+        print(json.dumps({"state": STATE_INVALID_CANDIDATE, "error": f"{type(exc).__name__}: {exc}"}, sort_keys=True))
+        return 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
