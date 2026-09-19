@@ -238,3 +238,243 @@ def validate_outcome_pack(pack: Any, *, policy: dict[str, Any]) -> list[str]:
     if pack.get("schema_version") != 1 or pack.get("outcome_pack_kind") != "AQLEVON_REALITY_OUTCOME_PACK_V1":
         invalid.append("outcome pack identity mismatch")
     if pack.get("hash_profile") != HASH_PROFILE:
+        invalid.append("outcome pack hash_profile mismatch")
+    if not verify_p2_self_digest(pack, "outcome_pack_sha256"):
+        invalid.append("outcome pack self-digest mismatch")
+    for field in (
+        "candidate_artifact_manifest_sha256", "harness_manifest_sha256",
+        "task_factory_manifest_sha256", "hidden_canary_manifest_sha256", "raw_outcome_log_sha256",
+        "outcome_pack_sha256",
+    ):
+        if not valid_sha256(pack.get(field)):
+            invalid.append(f"outcome pack {field} invalid")
+    tasks = pack.get("tasks")
+    if not isinstance(tasks, list) or not tasks:
+        invalid.append("outcome pack tasks missing")
+        return invalid
+    ks = policy["k_values"]
+    max_k = max(ks)
+    seen_ids: set[str] = set()
+    split_counts = {"primary": 0, "transfer": 0, "canary": 0}
+    canary_hashes: set[str] = set()
+    domain_counts: dict[str, int] = {}
+    metamorphic_groups: dict[str, int] = {}
+    for task in tasks:
+        try:
+            _assert_no_forbidden_plaintext(task, "task")
+        except RealityGateError as exc:
+            invalid.append(str(exc))
+        required_task = {
+            "task_id", "domain_id", "split", "samples", "metamorphic_group_id",
+            "variant_id", "is_hidden_canary", "canary_id_sha256",
+        }
+        if not _exact_keys(task, required_task):
+            invalid.append("task schema mismatch")
+            continue
+        tid = task.get("task_id")
+        if not isinstance(tid, str) or not tid:
+            invalid.append("task_id invalid")
+            continue
+        if tid in seen_ids:
+            invalid.append(f"duplicate task_id:{tid}")
+        seen_ids.add(tid)
+        domain = task.get("domain_id")
+        if not isinstance(domain, str) or not domain:
+            invalid.append(f"domain_id invalid:{tid}")
+        split = task.get("split")
+        if split not in ALLOWED_SPLITS:
+            invalid.append(f"split invalid:{tid}")
+        else:
+            split_counts[split] += 1
+        samples = task.get("samples")
+        if not isinstance(samples, list) or len(samples) < max_k:
+            invalid.append(f"insufficient samples for k={max_k}:{tid}")
+        else:
+            sample_ids: set[str] = set()
+            for sample in samples:
+                invalid.extend(_validate_sample(sample, tid))
+                sid = sample.get("sample_id") if isinstance(sample, dict) else None
+                if isinstance(sid, str):
+                    if sid in sample_ids:
+                        invalid.append(f"duplicate sample_id:{tid}:{sid}")
+                    sample_ids.add(sid)
+        is_canary = task.get("is_hidden_canary")
+        canary_hash = task.get("canary_id_sha256")
+        if type(is_canary) is not bool:
+            invalid.append(f"is_hidden_canary invalid:{tid}")
+        if split == "canary":
+            if is_canary is not True or not valid_sha256(canary_hash):
+                invalid.append(f"hidden canary binding invalid:{tid}")
+            elif canary_hash in canary_hashes:
+                invalid.append(f"duplicate hidden canary hash:{tid}")
+            else:
+                canary_hashes.add(canary_hash)
+        else:
+            if is_canary is not False or canary_hash is not None:
+                invalid.append(f"non-canary task carries canary identity:{tid}")
+        group = task.get("metamorphic_group_id")
+        variant = task.get("variant_id")
+        if group is None:
+            if variant is not None:
+                invalid.append(f"variant without metamorphic group:{tid}")
+        else:
+            if not isinstance(group, str) or not group or not isinstance(variant, str) or not variant:
+                invalid.append(f"metamorphic identity invalid:{tid}")
+            else:
+                metamorphic_groups[group] = metamorphic_groups.get(group, 0) + 1
+        if isinstance(domain, str) and domain:
+            domain_counts[domain] = domain_counts.get(domain, 0) + 1
+    if split_counts["primary"] < policy["min_primary_tasks"]:
+        invalid.append("primary task count below policy minimum")
+    if split_counts["transfer"] < policy["min_transfer_tasks"]:
+        invalid.append("transfer task count below policy minimum")
+    if split_counts["canary"] < policy["min_hidden_canaries"]:
+        invalid.append("hidden canary count below policy minimum")
+    for domain in policy["required_domains"]:
+        if domain_counts.get(domain, 0) == 0:
+            invalid.append(f"required domain missing:{domain}")
+    for group, count in metamorphic_groups.items():
+        if count < 2:
+            invalid.append(f"metamorphic group has fewer than two variants:{group}")
+    return invalid
+
+
+def _clean_sample(sample: dict[str, Any]) -> bool:
+    return sample["clean_truth_pass"] is True and sample["integrity_violation"] is False
+
+
+def _task_pass(task: dict[str, Any], k: int, *, clean: bool) -> bool:
+    samples = task["samples"][:k]
+    if clean:
+        return any(_clean_sample(s) for s in samples)
+    return any(s["raw_reward_pass"] is True for s in samples)
+
+
+def _population_metrics(tasks: list[dict[str, Any]], ks: list[int]) -> dict[str, Any]:
+    out: dict[str, Any] = {}
+    for k in ks:
+        raw = sum(1 for task in tasks if _task_pass(task, k, clean=False))
+        clean = sum(1 for task in tasks if _task_pass(task, k, clean=True))
+        total = len(tasks)
+        gap = raw - clean
+        out[str(k)] = {
+            "task_count": total,
+            "raw_pass_count": raw,
+            "raw_pass_rate": _rate_decimal(raw, total),
+            "clean_pass_count": clean,
+            "clean_pass_rate": _rate_decimal(clean, total),
+            "hack_gap_count": gap,
+            "hack_gap_rate": _rate_decimal(gap, total),
+        }
+    return out
+
+
+def _domain_metrics(tasks: list[dict[str, Any]], ks: list[int]) -> dict[str, Any]:
+    domains = sorted({task["domain_id"] for task in tasks})
+    return {domain: _population_metrics([t for t in tasks if t["domain_id"] == domain], ks) for domain in domains}
+
+
+def _metamorphic_metrics(tasks: list[dict[str, Any]], ks: list[int]) -> dict[str, Any]:
+    groups: dict[str, list[dict[str, Any]]] = {}
+    for task in tasks:
+        group = task.get("metamorphic_group_id")
+        if isinstance(group, str):
+            groups.setdefault(group, []).append(task)
+    group_summary: dict[str, Any] = {}
+    total_slots = 0
+    invariant_slots = 0
+    invariant_groups_by_k = {k: 0 for k in ks}
+    for group in sorted(groups):
+        variants = sorted(groups[group], key=lambda t: t["variant_id"])
+        max_slots = min(len(t["samples"]) for t in variants)
+        group_slot_total = 0
+        group_slot_same = 0
+        for i in range(max_slots):
+            states = {_clean_sample(t["samples"][i]) for t in variants}
+            group_slot_total += 1
+            if len(states) == 1:
+                group_slot_same += 1
+        total_slots += group_slot_total
+        invariant_slots += group_slot_same
+        k_state: dict[str, bool] = {}
+        for k in ks:
+            passes = {_task_pass(t, k, clean=True) for t in variants}
+            invariant = len(passes) == 1
+            k_state[str(k)] = invariant
+            if invariant:
+                invariant_groups_by_k[k] += 1
+        group_summary[group] = {
+            "variant_count": len(variants),
+            "paired_slot_count": group_slot_total,
+            "paired_slot_invariant_count": group_slot_same,
+            "paired_slot_invariance_rate": _rate_decimal(group_slot_same, group_slot_total),
+            "clean_pass_invariant_by_k": k_state,
+        }
+    group_count = len(groups)
+    return {
+        "group_count": group_count,
+        "groups": group_summary,
+        "paired_slot_count": total_slots,
+        "paired_slot_invariant_count": invariant_slots,
+        "paired_slot_invariance_rate": _rate_decimal(invariant_slots, total_slots),
+        "clean_pass_group_invariance_by_k": {
+            str(k): {
+                "invariant_group_count": invariant_groups_by_k[k],
+                "group_count": group_count,
+                "rate": _rate_decimal(invariant_groups_by_k[k], group_count),
+            }
+            for k in ks
+        },
+    }
+
+
+def summarize_outcome_pack(pack: dict[str, Any], *, policy: dict[str, Any]) -> dict[str, Any]:
+    invalid = validate_outcome_pack(pack, policy=policy)
+    if invalid:
+        raise RealityGateError("; ".join(invalid))
+    tasks = pack["tasks"]
+    ks = policy["k_values"]
+    primary = [t for t in tasks if t["split"] == "primary"]
+    transfer = [t for t in tasks if t["split"] == "transfer"]
+    canary = [t for t in tasks if t["split"] == "canary"]
+    integrity_violations = sum(
+        1 for task in tasks for sample in task["samples"] if sample["integrity_violation"] is True
+    )
+    return {
+        "primary": _population_metrics(primary, ks),
+        "transfer": _population_metrics(transfer, ks),
+        "canary": _population_metrics(canary, ks),
+        "domains": _domain_metrics(primary, ks),
+        "metamorphic": _metamorphic_metrics(primary + transfer, ks),
+        "integrity_violation_sample_count": integrity_violations,
+        "total_sample_count": sum(len(t["samples"]) for t in tasks),
+    }
+
+
+def seed_vs_resampling_null(
+    *,
+    training_seed_success_sets: list[list[str]],
+    resampling_null_groups: list[list[list[str]]],
+    universe_task_ids: list[str],
+) -> dict[str, Any]:
+    """Compare cross-training-seed union coverage to equal-sample resampling null.
+
+    Each success set is a list of task ids solved by one independently trained seed.
+    Each null group contains the same number of success sets but comes from repeated
+    resampling of one frozen model/seed.  No RNG occurs here; the caller supplies the
+    frozen resampling trials so the result is reproducible.
+    """
+    universe = set(universe_task_ids)
+    if not universe or len(universe) != len(universe_task_ids):
+        raise RealityGateError("seed_null_universe_invalid")
+    if len(training_seed_success_sets) < 2:
+        raise RealityGateError("seed_null_requires_at_least_two_training_seeds")
+    seed_count = len(training_seed_success_sets)
+
+    def normalize(run: list[str]) -> set[str]:
+        if not isinstance(run, list) or any(not isinstance(x, str) for x in run):
+            raise RealityGateError("seed_null_success_set_invalid")
+        s = set(run)
+        if not s <= universe:
+            raise RealityGateError("seed_null_success_set_outside_universe")
+        return s
