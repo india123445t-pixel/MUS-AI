@@ -220,6 +220,17 @@ def _batch_iter(examples, batch_size: int) -> Iterator[list]:
             yield examples[i:i + batch_size]
 
 
+def _configure_decoder_only_generation_tokenizer(tokenizer):
+    if tokenizer.pad_token_id is None:
+        if tokenizer.eos_token_id is None:
+            raise B07Error("tokenizer has neither pad_token_id nor eos_token_id")
+        tokenizer.pad_token = tokenizer.eos_token
+    tokenizer.padding_side = "left"
+    if getattr(tokenizer, "padding_side", None) != "left":
+        raise B07Error("decoder-only batched generation requires left padding")
+    return tokenizer
+
+
 def _collate(torch, tokenizer, batch, device: str):
     pad = tokenizer.pad_token_id
     if pad is None:
@@ -245,6 +256,7 @@ def train_family_hf(
     artifact_dir: os.PathLike[str] | str,
     family_id: str,
     device: str = "cuda:0",
+    execution_context: Mapping[str, object] | None = None,
 ) -> dict:
     deps = _runtime_imports()
     torch = deps["torch"]
@@ -360,8 +372,9 @@ def train_family_hf(
             "peft": str(deps["peft"].__version__),
             "safetensors": str(deps["safetensors"].__version__),
         },
+        "compute_authorization": dict(execution_context or {}),
         "gpu_execution_authorized_by_this_code": False,
-        "note": "This receipt describes an actual invocation only. Authorization must be external/Manager-provided before GPU use.",
+        "note": "This receipt describes an actual invocation only. Compute authorization is external/Manager-provided and is recorded, not granted, by this code.",
     }
     receipt["receipt_sha256"] = sha256_json(receipt)
     write_json(adapter_dir / "b07_train_receipt.json", receipt)
@@ -373,7 +386,13 @@ def train_family_hf(
     return receipt
 
 
-def train_family_dry_run(config: Mapping[str, object], artifact_dir: os.PathLike[str] | str, family_id: str, device: str = "cuda:0") -> dict:
+def train_family_dry_run(
+    config: Mapping[str, object],
+    artifact_dir: os.PathLike[str] | str,
+    family_id: str,
+    device: str = "cuda:0",
+    execution_context: Mapping[str, object] | None = None,
+) -> dict:
     family = next((f for f in config["families"] if f["id"] == family_id), None)  # type: ignore[index]
     if family is None:
         raise B07Error(f"unknown family: {family_id}")
@@ -386,6 +405,7 @@ def train_family_dry_run(config: Mapping[str, object], artifact_dir: os.PathLike
         "adapter_written": False,
         "base_model": config["base_model"],
         "lora": config["lora"],
+        "compute_authorization": dict(execution_context or {}),
     }
 
 
@@ -454,6 +474,8 @@ def _parse_generated_integer(text: str) -> int | None:
 
 
 def evaluate_rows(model, tokenizer, rows: Sequence[Mapping[str, object]], device: str, batch_size: int = 8, max_new_tokens: int = 12) -> dict:
+    if getattr(tokenizer, "padding_side", None) != "left":
+        raise B07Error("decoder-only batched generation requires tokenizer.padding_side='left'")
     deps = _runtime_imports()
     torch = deps["torch"]
     model.eval()
@@ -502,6 +524,7 @@ def evaluate_b07(
     training_features: np.ndarray,
     holdout_features: Mapping[str, np.ndarray],
     device: str = "cuda:0",
+    execution_context: Mapping[str, object] | None = None,
 ) -> dict:
     deps = _runtime_imports()
     torch = deps["torch"]
@@ -512,8 +535,7 @@ def evaluate_b07(
     tokenizer = AutoTokenizer.from_pretrained(
         str(base["repo_id"]), revision=str(base["revision"]), trust_remote_code=bool(base["trust_remote_code"])
     )
-    if tokenizer.pad_token_id is None:
-        tokenizer.pad_token = tokenizer.eos_token
+    _configure_decoder_only_generation_tokenizer(tokenizer)
     model = AutoModelForCausalLM.from_pretrained(
         str(base["repo_id"]),
         revision=str(base["revision"]),
@@ -612,6 +634,7 @@ def evaluate_b07(
         "base_model": base,
         "dtype": dtype_name,
         "device": device,
+        "compute_authorization": dict(execution_context or {}),
         "holdout_families": result_families,
     }
     result["results_sha256"] = sha256_json(result)

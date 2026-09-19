@@ -31,11 +31,33 @@ def _load_config(path: str) -> dict:
     return config
 
 
-def _require_gpu_authorization(device: str, runner: str, authorized: bool) -> None:
-    if runner == "hf_peft" and device.startswith("cuda") and not authorized:
+GPU_COMPUTE_ORIGINS = {"free_or_donated", "paid_manager_authorized"}
+EXECUTION_TASK_ID = "B07-03-CAPABILITY-COMPILER-LIVE-FALSIFICATION"
+
+
+def _execution_context(args) -> dict:
+    return {
+        "schema_version": "aqlevon.b07e0.compute_authorization.v1",
+        "execution_task_id": EXECUTION_TASK_ID,
+        "compute_origin": getattr(args, "compute_origin", None),
+        "manager_authorization_ref": getattr(args, "manager_authorization_ref", None),
+    }
+
+
+def _require_gpu_authorization(
+    device: str,
+    runner: str,
+    compute_origin: str | None,
+    manager_authorization_ref: str | None,
+) -> None:
+    if runner != "hf_peft" or not device.startswith("cuda"):
+        return
+    if compute_origin not in GPU_COMPUTE_ORIGINS:
         raise B07Error(
-            "GPU execution is fail-closed. Re-run only after explicit Manager authorization with --manager-authorized-free-gpu."
+            "GPU execution is fail-closed. Supply --compute-origin free_or_donated or paid_manager_authorized."
         )
+    if not manager_authorization_ref or not manager_authorization_ref.strip():
+        raise B07Error("GPU execution requires a non-empty --manager-authorization-ref.")
 
 
 def _select_family_ids(config: Mapping[str, object], family_set: str, explicit: Sequence[str] | None) -> list[str]:
@@ -66,7 +88,13 @@ def cmd_prepare(args) -> None:
 
 def cmd_train(args) -> None:
     config = _load_config(args.config)
-    _require_gpu_authorization(args.device, args.runner, args.manager_authorized_free_gpu)
+    _require_gpu_authorization(
+        args.device,
+        args.runner,
+        args.compute_origin,
+        args.manager_authorization_ref,
+    )
+    execution_context = _execution_context(args)
     manifest_path = Path(args.artifact_dir) / "dataset_manifest.json"
     if not manifest_path.exists():
         raise B07Error("dataset_manifest.json missing; run prepare first")
@@ -76,7 +104,13 @@ def cmd_train(args) -> None:
     ids = _select_family_ids(config, args.family_set, args.family)
     receipts = []
     for family_id in ids:
-        receipt = runner(config, args.artifact_dir, family_id, args.device)
+        receipt = runner(
+            config,
+            args.artifact_dir,
+            family_id,
+            args.device,
+            execution_context=execution_context,
+        )
         receipts.append(receipt)
         print(json.dumps({"family_id": family_id, "runner": args.runner, "status": "DONE"}, sort_keys=True))
     write_json(Path(args.artifact_dir) / f"train_{args.runner}_{args.family_set}_summary.json", {
@@ -85,7 +119,7 @@ def cmd_train(args) -> None:
         "device": args.device,
         "families": ids,
         "receipts": receipts,
-        "gpu_authorization_flag": bool(args.manager_authorized_free_gpu),
+        "compute_authorization": execution_context,
     })
 
 
@@ -140,10 +174,13 @@ def _load_frozen_compiler(config: Mapping[str, object], artifact_dir: str) -> Co
 
 def cmd_evaluate(args) -> None:
     config = _load_config(args.config)
-    if args.device.startswith("cuda") and not args.manager_authorized_free_gpu:
-        raise B07Error(
-            "GPU evaluation is fail-closed. Re-run only after explicit Manager authorization with --manager-authorized-free-gpu."
-        )
+    _require_gpu_authorization(
+        args.device,
+        "hf_peft",
+        args.compute_origin,
+        args.manager_authorization_ref,
+    )
+    execution_context = _execution_context(args)
     compiler = _load_frozen_compiler(config, args.artifact_dir)
     bundles = _load_training_bundles(config, args.artifact_dir)
     if [b.adapter_sha256 for b in bundles] != compiler.training_adapter_sha256:
@@ -164,6 +201,7 @@ def cmd_evaluate(args) -> None:
         training_features,
         holdout_features,
         device=args.device,
+        execution_context=execution_context,
     )
     write_json(Path(args.artifact_dir) / "behavioral_results.json", result)
     print(json.dumps({
@@ -230,9 +268,13 @@ def _common(parser: argparse.ArgumentParser) -> None:
 def _runtime_common(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--device", default="cuda:0")
     parser.add_argument(
-        "--manager-authorized-free-gpu",
-        action="store_true",
-        help="Safety gate: pass only after Manager/owner authorizes an available free/donated GPU.",
+        "--compute-origin",
+        choices=sorted(GPU_COMPUTE_ORIGINS),
+        help="Required for CUDA: free_or_donated or paid_manager_authorized.",
+    )
+    parser.add_argument(
+        "--manager-authorization-ref",
+        help="Required for CUDA: stable reference to the exact Manager/owner authorization for this run.",
     )
 
 

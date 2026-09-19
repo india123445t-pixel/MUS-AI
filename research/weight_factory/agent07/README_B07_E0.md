@@ -84,19 +84,22 @@ python -m research.weight_factory.agent07.cli train --artifact-dir artifacts/b07
 
 `dry_run` never produces fake adapters and cannot be used by `run-all`; it only validates orchestration.
 
-## Real run when a Manager-authorized free/donated GPU exists
+## Real run when Manager-authorized GPU compute exists
 
 Install a CUDA-compatible PyTorch build for the host first, then install the experiment requirements. Torch is intentionally not pinned in `requirements-b07e0.txt` because the correct wheel is CUDA/driver specific.
+
+Every CUDA run must declare both its compute origin and the stable reference for the exact Manager authorization. Paid compute is represented explicitly as `paid_manager_authorized`; free/donated compute uses `free_or_donated`.
 
 ```bash
 python -m pip install -r research/weight_factory/agent07/requirements-b07e0.txt
 python -m research.weight_factory.agent07.cli run-all \
   --artifact-dir artifacts/b07_e0 \
   --device cuda:0 \
-  --manager-authorized-free-gpu
+  --compute-origin paid_manager_authorized \
+  --manager-authorization-ref P4-B07-03-A40-20260919
 ```
 
-The authorization flag is a deliberate fail-closed guard. Do not pass it merely to bypass the check. This task itself did not execute GPU training.
+These fields are deliberate fail-closed guards and are written into training/evaluation receipts. They record external authorization; the code does not grant spending authority.
 
 The real run performs:
 

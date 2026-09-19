@@ -10,6 +10,7 @@ from pathlib import Path
 import numpy as np
 
 from research.weight_factory.agent07 import cli as cli_module
+from research.weight_factory.agent07 import hf_runtime as hf_runtime_module
 
 from research.weight_factory.agent07.core import (
     B07Error,
@@ -251,6 +252,52 @@ class CompilerTests(unittest.TestCase):
             geometry.mixture_norm(controls["random_same_norm"]),
             places=8,
         )
+
+
+class RuntimeSafetyRegressionTests(unittest.TestCase):
+    def test_generation_tokenizer_is_forced_to_left_padding(self):
+        class FakeTokenizer:
+            pad_token_id = None
+            eos_token_id = 7
+            eos_token = "<eos>"
+            padding_side = "right"
+
+            @property
+            def pad_token(self):
+                return getattr(self, "_pad_token", None)
+
+            @pad_token.setter
+            def pad_token(self, value):
+                self._pad_token = value
+                if value == self.eos_token:
+                    self.pad_token_id = self.eos_token_id
+
+        tokenizer = FakeTokenizer()
+        out = hf_runtime_module._configure_decoder_only_generation_tokenizer(tokenizer)
+        self.assertIs(out, tokenizer)
+        self.assertEqual("left", tokenizer.padding_side)
+        self.assertEqual(tokenizer.eos_token_id, tokenizer.pad_token_id)
+
+    def test_evaluate_rows_rejects_decoder_only_right_padding(self):
+        tokenizer = SimpleNamespace(padding_side="right")
+        with self.assertRaises(B07Error):
+            hf_runtime_module.evaluate_rows(None, tokenizer, [], "cpu")
+
+    def test_paid_gpu_authorization_requires_explicit_origin_and_reference(self):
+        cli_module._require_gpu_authorization(
+            "cuda:0", "hf_peft", "paid_manager_authorized", "P4-B07-03-A40-20260919"
+        )
+        with self.assertRaises(B07Error):
+            cli_module._require_gpu_authorization("cuda:0", "hf_peft", None, None)
+        with self.assertRaises(B07Error):
+            cli_module._require_gpu_authorization(
+                "cuda:0", "hf_peft", "paid_manager_authorized", ""
+            )
+
+    def test_legacy_free_gpu_flag_is_not_accepted(self):
+        parser = cli_module.build_parser()
+        with self.assertRaises(SystemExit):
+            parser.parse_args(["run-all", "--manager-authorized-free-gpu"])
 
 
 class RunAllIsolationTests(unittest.TestCase):
