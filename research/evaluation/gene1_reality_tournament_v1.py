@@ -42,6 +42,7 @@ P3_REALITY_PASS = "REALITY_PASS"
 TARGET_CAPABILITY = "CODING_TOOL_USE"
 
 ALLOWED_STAGES = {"surrogate", "canonical_27b"}
+ALLOWED_ROUND_MODES = {"initial12", "extension24", "canonical27b"}
 ALLOWED_ANCHOR_KINDS = {"git_commit", "immutable_object", "append_only_ledger"}
 ALLOWED_DECISION_STATUS = {
     "INVALID",
@@ -290,6 +291,11 @@ def frozen_gene1_evaluation_law() -> dict[str, Any]:
             "screen_output": "TOP_TWO_SURVIVORS_ONLY_NOT_METHOD_WINNER",
         },
         "tie_policy": "SCREEN_TIE_USES_LOWER_GPU_THEN_SIMPLER_ARM_FINAL_AMBIGUITY_REQUIRES_PREDECLARED_EXTENSION",
+        "round_binding_law": {
+            "initial12": "NO_CURRENT_ROUND_CANDIDATE_SCORES_OR_OUTPUTS_OBSERVED",
+            "extension24": "PRIOR_ROUND_SCORES_OBSERVED_CURRENT_EXTENSION_SCORES_NOT_OBSERVED_AND_PARENT_AMBIGUITY_RECEIPT_BOUND",
+            "canonical27b": "PRIOR_SURROGATE_SCORES_OBSERVED_CURRENT_27B_SCORES_NOT_OBSERVED_AND_SELECTED_RECIPE_RECEIPT_BOUND",
+        },
         "required_stage_bindings": [
             "w01_method_freeze_sha256",
             "w02_gene1_pack_sha256",
@@ -328,7 +334,7 @@ def validate_evaluation_law(law: Any) -> list[str]:
         "worker02_public_pack_binding_sha256", "worker02_sealed_eval_pack_sha256",
         "worker02_sealed_eval_commitment_sha256", "min_surrogate_arms", "max_surrogate_arms", "k_values",
         "sampling_profile", "sampling_profile_sha256", "evaluation_population_law", "hard_gate_law", "surrogate_selection_law",
-        "tie_policy", "required_stage_bindings", "p3_reality_evidence_kind",
+        "tie_policy", "round_binding_law", "required_stage_bindings", "p3_reality_evidence_kind",
         "p3_reality_gate_code_sha256", "p2_evaluation_decision_receipt_kind",
         "p2_receipt_required_for_27b_manager_review", "freeze_chronology_requirement",
         "score_visibility_at_law_freeze", "authority", "law_sha256",
@@ -399,25 +405,49 @@ def validate_evaluation_law(law: Any) -> list[str]:
 
 def build_stage_binding(
     *, stage: str, experiment_id: str, law_sha256: str, w01_method_freeze_sha256: str,
-    w02_gene1_pack_sha256: str, sealed_eval_pack_manifest_sha256: str,
+    w02_gene1_pack_sha256: str, sealed_eval_pack_manifest_sha256: str, sealed_eval_commitment_sha256: str,
     hidden_canary_manifest_sha256: str, anti_shortcut_manifest_sha256: str,
     metamorphic_manifest_sha256: str, harness_manifest_sha256: str, task_factory_manifest_sha256: str,
     reality_policy_sha256: str, sampling_profile_sha256: str, matched_training_budget_manifest_sha256: str, baseline_artifact_manifest_sha256: str,
+    round_mode: str | None = None, parent_decision_receipt_sha256: str | None = None,
 ) -> dict[str, Any]:
     if stage not in ALLOWED_STAGES:
         raise Gene1TournamentError("unsupported_stage")
     if not isinstance(experiment_id, str) or not experiment_id:
         raise Gene1TournamentError("experiment_id_invalid")
+    if round_mode is None:
+        round_mode = "initial12" if stage == "surrogate" else "canonical27b"
+    if round_mode not in ALLOWED_ROUND_MODES:
+        raise Gene1TournamentError("unsupported_round_mode")
+    if stage == "surrogate" and round_mode not in {"initial12", "extension24"}:
+        raise Gene1TournamentError("surrogate_round_mode_invalid")
+    if stage == "canonical_27b" and round_mode != "canonical27b":
+        raise Gene1TournamentError("canonical_round_mode_invalid")
+    if round_mode == "initial12":
+        if parent_decision_receipt_sha256 is not None:
+            raise Gene1TournamentError("initial12_parent_decision_must_be_null")
+        visibility = "NO_CURRENT_ROUND_CANDIDATE_SCORES_OR_OUTPUTS_OBSERVED"
+    elif round_mode == "extension24":
+        if not valid_sha256(parent_decision_receipt_sha256):
+            raise Gene1TournamentError("extension24_parent_ambiguity_receipt_required")
+        visibility = "PRIOR_ROUND_SCORES_OBSERVED_CURRENT_EXTENSION_SCORES_NOT_OBSERVED"
+    else:
+        if not valid_sha256(parent_decision_receipt_sha256):
+            raise Gene1TournamentError("canonical27b_parent_recipe_receipt_required")
+        visibility = "PRIOR_SURROGATE_SCORES_OBSERVED_CURRENT_27B_SCORES_NOT_OBSERVED"
     body = {
         "schema_version": 1,
         "binding_kind": STAGE_BINDING_KIND,
         "hash_profile": HASH_PROFILE,
         "stage": stage,
+        "round_mode": round_mode,
+        "parent_decision_receipt_sha256": parent_decision_receipt_sha256,
         "experiment_id": experiment_id,
         "law_sha256": law_sha256,
         "w01_method_freeze_sha256": w01_method_freeze_sha256,
         "w02_gene1_pack_sha256": w02_gene1_pack_sha256,
         "sealed_eval_pack_manifest_sha256": sealed_eval_pack_manifest_sha256,
+        "sealed_eval_commitment_sha256": sealed_eval_commitment_sha256,
         "hidden_canary_manifest_sha256": hidden_canary_manifest_sha256,
         "anti_shortcut_manifest_sha256": anti_shortcut_manifest_sha256,
         "metamorphic_manifest_sha256": metamorphic_manifest_sha256,
@@ -427,7 +457,7 @@ def build_stage_binding(
         "sampling_profile_sha256": sampling_profile_sha256,
         "matched_training_budget_manifest_sha256": matched_training_budget_manifest_sha256,
         "baseline_artifact_manifest_sha256": baseline_artifact_manifest_sha256,
-        "score_visibility_at_binding": "NO_CANDIDATE_SCORES_OR_OUTPUTS_OBSERVED",
+        "score_visibility_at_binding": visibility,
         "chronology_requirement": "BINDING_AND_REGISTRATION_MUST_BE_EXTERNALLY_ANCHORED_BEFORE_SCORE_INSPECTION",
     }
     return _finalize(body, "stage_binding_sha256")
@@ -436,8 +466,8 @@ def build_stage_binding(
 def validate_stage_binding(binding: Any, *, law: dict[str, Any]) -> list[str]:
     invalid = [f"law invalid:{x}" for x in validate_evaluation_law(law)]
     required = {
-        "schema_version", "binding_kind", "hash_profile", "stage", "experiment_id", "law_sha256",
-        "w01_method_freeze_sha256", "w02_gene1_pack_sha256", "sealed_eval_pack_manifest_sha256",
+        "schema_version", "binding_kind", "hash_profile", "stage", "round_mode", "parent_decision_receipt_sha256", "experiment_id", "law_sha256",
+        "w01_method_freeze_sha256", "w02_gene1_pack_sha256", "sealed_eval_pack_manifest_sha256", "sealed_eval_commitment_sha256",
         "hidden_canary_manifest_sha256", "anti_shortcut_manifest_sha256", "metamorphic_manifest_sha256",
         "harness_manifest_sha256", "task_factory_manifest_sha256", "reality_policy_sha256", "sampling_profile_sha256", "matched_training_budget_manifest_sha256",
         "baseline_artifact_manifest_sha256", "score_visibility_at_binding", "chronology_requirement",
@@ -451,6 +481,18 @@ def validate_stage_binding(binding: Any, *, law: dict[str, Any]) -> list[str]:
         invalid.append("stage binding self-digest/profile mismatch")
     if binding.get("stage") not in ALLOWED_STAGES:
         invalid.append("stage binding stage invalid")
+    round_mode = binding.get("round_mode")
+    if round_mode not in ALLOWED_ROUND_MODES:
+        invalid.append("stage binding round mode invalid")
+    if binding.get("stage") == "surrogate" and round_mode not in {"initial12", "extension24"}:
+        invalid.append("stage binding surrogate round mismatch")
+    if binding.get("stage") == "canonical_27b" and round_mode != "canonical27b":
+        invalid.append("stage binding canonical round mismatch")
+    parent = binding.get("parent_decision_receipt_sha256")
+    if round_mode == "initial12" and parent is not None:
+        invalid.append("stage binding initial12 parent must be null")
+    if round_mode in {"extension24", "canonical27b"} and not valid_sha256(parent):
+        invalid.append("stage binding parent decision receipt missing")
     if binding.get("law_sha256") != law.get("law_sha256"):
         invalid.append("stage binding law mismatch")
     if binding.get("sampling_profile_sha256") != law.get("sampling_profile_sha256"):
@@ -461,15 +503,22 @@ def validate_stage_binding(binding: Any, *, law: dict[str, Any]) -> list[str]:
         invalid.append("stage binding Worker-02 pack mismatch")
     if binding.get("sealed_eval_pack_manifest_sha256") != law.get("worker02_sealed_eval_pack_sha256"):
         invalid.append("stage binding sealed evaluation pack mismatch")
+    if binding.get("sealed_eval_commitment_sha256") != law.get("worker02_sealed_eval_commitment_sha256"):
+        invalid.append("stage binding sealed evaluation commitment mismatch")
     _require_hashes(binding, [
         "law_sha256", "w01_method_freeze_sha256", "w02_gene1_pack_sha256",
-        "sealed_eval_pack_manifest_sha256", "hidden_canary_manifest_sha256",
+        "sealed_eval_pack_manifest_sha256", "sealed_eval_commitment_sha256", "hidden_canary_manifest_sha256",
         "anti_shortcut_manifest_sha256", "metamorphic_manifest_sha256", "harness_manifest_sha256",
         "task_factory_manifest_sha256", "reality_policy_sha256", "sampling_profile_sha256",
         "matched_training_budget_manifest_sha256", "baseline_artifact_manifest_sha256",
         "stage_binding_sha256",
     ], invalid, "stage binding")
-    if binding.get("score_visibility_at_binding") != "NO_CANDIDATE_SCORES_OR_OUTPUTS_OBSERVED":
+    expected_visibility = {
+        "initial12": "NO_CURRENT_ROUND_CANDIDATE_SCORES_OR_OUTPUTS_OBSERVED",
+        "extension24": "PRIOR_ROUND_SCORES_OBSERVED_CURRENT_EXTENSION_SCORES_NOT_OBSERVED",
+        "canonical27b": "PRIOR_SURROGATE_SCORES_OBSERVED_CURRENT_27B_SCORES_NOT_OBSERVED",
+    }.get(round_mode)
+    if binding.get("score_visibility_at_binding") != expected_visibility:
         invalid.append("stage binding score-visibility boundary mismatch")
     try:
         _assert_no_keys(binding, FORBIDDEN_PRE_SCORE_KEYS | FORBIDDEN_PLAINTEXT_KEYS, path="stage_binding")
@@ -1255,7 +1304,7 @@ def _final_surrogate_key(summary: dict[str, int]) -> tuple[int, ...]:
     )
 
 
-def build_surrogate_recipe_decision(*, law: dict[str, Any], round_bundles: list[dict[str, Any]]) -> dict[str, Any]:
+def build_surrogate_recipe_decision(*, law: dict[str, Any], round_bundles: list[dict[str, Any]], parent_surrogate_recipe_decision: dict[str, Any] | None = None) -> dict[str, Any]:
     """Aggregate the frozen 3-seed surrogate tournament into recipe evidence.
 
     Every seed round is independently rebuilt through build_tournament_decision(),
@@ -1272,6 +1321,8 @@ def build_surrogate_recipe_decision(*, law: dict[str, Any], round_bundles: list[
     cards_by_seed: dict[int, dict[str, dict[str, Any]]] = {}
     registrations_by_seed: dict[int, dict[str, Any]] = {}
     stage_binding_sha: str | None = None
+    round_mode: str | None = None
+    parent_receipt_sha: str | None = None
 
     for bundle in round_bundles:
         if not isinstance(bundle, dict):
@@ -1307,10 +1358,21 @@ def build_surrogate_recipe_decision(*, law: dict[str, Any], round_bundles: list[
         except (Gene1TournamentError, TypeError, ValueError) as exc:
             invalid.append(f"surrogate round build failed:{seed}:{exc}")
             continue
-        if decision.get("decision_status") != "SURROGATE_SCREEN_RANKING_READY":
-            invalid.append(f"surrogate seed round not ranking-ready:{seed}:{decision.get('decision_status')}")
+        round_status = decision.get("decision_status")
+        if seed == law["surrogate_selection_law"]["screen_seed"]:
+            if round_status != "SURROGATE_SCREEN_RANKING_READY":
+                invalid.append(f"surrogate screen seed not ranking-ready:{seed}:{round_status}")
+        elif round_status not in {"SURROGATE_SCREEN_RANKING_READY", "REJECTED"}:
+            invalid.append(f"surrogate confirmation seed evidence invalid:{seed}:{round_status}")
         if bundle["stage_binding"].get("stage") != "surrogate":
             invalid.append(f"surrogate seed round stage mismatch:{seed}")
+        current_mode = bundle["stage_binding"].get("round_mode")
+        current_parent = bundle["stage_binding"].get("parent_decision_receipt_sha256")
+        if round_mode is None:
+            round_mode = current_mode
+            parent_receipt_sha = current_parent
+        elif current_mode != round_mode or current_parent != parent_receipt_sha:
+            invalid.append("surrogate rounds must share one frozen round mode/parent receipt")
         current_binding = bundle["stage_binding"].get("stage_binding_sha256")
         if stage_binding_sha is None:
             stage_binding_sha = current_binding
@@ -1322,6 +1384,16 @@ def build_surrogate_recipe_decision(*, law: dict[str, Any], round_bundles: list[
 
     if sorted(per_seed_decisions) != sorted(expected_seeds):
         invalid.append("surrogate final decision seed set mismatch")
+    if round_mode not in {"initial12", "extension24"}:
+        invalid.append("surrogate final decision round mode invalid")
+    if round_mode == "extension24":
+        parent_errors = validate_surrogate_recipe_decision(parent_surrogate_recipe_decision, law=law) if isinstance(parent_surrogate_recipe_decision, dict) else ["parent surrogate ambiguity receipt missing"]
+        invalid.extend([f"extension parent:{x}" for x in parent_errors])
+        if isinstance(parent_surrogate_recipe_decision, dict):
+            if parent_surrogate_recipe_decision.get("decision_status") != "SURROGATE_MORE_EVIDENCE_REQUIRED" or parent_surrogate_recipe_decision.get("extension_required") is not True:
+                invalid.append("extension parent does not authorize C24 evidence")
+            if parent_surrogate_recipe_decision.get("surrogate_recipe_decision_sha256") != parent_receipt_sha:
+                invalid.append("extension parent receipt hash mismatch stage binding")
 
     screen_seed = law["surrogate_selection_law"]["screen_seed"]
     top_two: list[str] = []
@@ -1329,6 +1401,10 @@ def build_surrogate_recipe_decision(*, law: dict[str, Any], round_bundles: list[
         top_two = list(per_seed_decisions[screen_seed].get("top_two_survivor_slots", []))
         if len(top_two) != 2:
             invalid.append("screen round did not produce exactly two survivors")
+    if round_mode == "extension24" and isinstance(parent_surrogate_recipe_decision, dict):
+        parent_top_two = parent_surrogate_recipe_decision.get("screen_top_two_survivor_slots")
+        if top_two != parent_top_two:
+            invalid.append("extension C24 candidate set differs from parent ambiguity top two")
     for seed in law["surrogate_selection_law"]["confirmation_seeds"]:
         reg = registrations_by_seed.get(seed)
         slots = [e.get("candidate_slot") for e in reg.get("entries", [])] if isinstance(reg, dict) else []
@@ -1338,21 +1414,27 @@ def build_surrogate_recipe_decision(*, law: dict[str, Any], round_bundles: list[
     recipe_by_slot: dict[str, str] = {}
     aggregate_by_slot: dict[str, dict[str, int]] = {}
     artifact_by_slot_by_seed: dict[str, dict[str, str]] = {}
+    arm_failures: dict[str, list[str]] = {}
     if not invalid and top_two:
         for slot in top_two:
             seed_cards: list[dict[str, Any]] = []
             recipes: set[str] = set()
             artifact_by_slot_by_seed[slot] = {}
+            failures: list[str] = []
             for seed in expected_seeds:
                 card = cards_by_seed.get(seed, {}).get(slot)
                 if not isinstance(card, dict):
-                    invalid.append(f"missing final surrogate card:{slot}:{seed}")
+                    failures.append(f"missing_card_seed_{seed}")
                     continue
                 seed_cards.append(card)
                 recipes.add(card.get("recipe_spec_sha256"))
                 artifact_by_slot_by_seed[slot][str(seed)] = card.get("candidate_artifact_manifest_sha256")
+                if slot not in per_seed_decisions[seed].get("ranked_survivor_slots", []):
+                    failures.append(f"hard_gate_failed_seed_{seed}")
             if len(recipes) != 1 or any(not valid_sha256(x) for x in recipes):
-                invalid.append(f"recipe identity changed across seeds:{slot}")
+                failures.append("recipe_identity_changed_across_seeds")
+            if failures:
+                arm_failures[slot] = failures
                 continue
             recipe_by_slot[slot] = next(iter(recipes))
             if len(seed_cards) == 3:
@@ -1361,25 +1443,35 @@ def build_surrogate_recipe_decision(*, law: dict[str, Any], round_bundles: list[
     selected_slot: str | None = None
     status = "INVALID" if invalid else "REJECTED"
     reasons = list(invalid)
+    for slot in sorted(arm_failures):
+        reasons.extend([f"{slot}:{failure}" for failure in arm_failures[slot]])
     extension_required = False
-    if not invalid and len(aggregate_by_slot) == 2:
-        ordered = sorted(top_two, key=lambda slot: _final_surrogate_key(aggregate_by_slot[slot]), reverse=True)
-        first, second = ordered[0], ordered[1]
-        a, b = aggregate_by_slot[first], aggregate_by_slot[second]
-        ambiguous = (
-            abs(a["median_transfer_clean_pass_at_4_count"] - b["median_transfer_clean_pass_at_4_count"]) <= 1
-            and abs(a["median_primary_clean_pass_at_4_count"] - b["median_primary_clean_pass_at_4_count"]) <= 1
-        )
-        if ambiguous:
-            status = "SURROGATE_MORE_EVIDENCE_REQUIRED"
-            extension_required = True
-            reasons.append("frozen ambiguity rule requires predeclared 24-update extension")
+    if not invalid and aggregate_by_slot:
+        ordered = sorted(aggregate_by_slot, key=lambda slot: _final_surrogate_key(aggregate_by_slot[slot]), reverse=True)
+        if len(ordered) >= 2:
+            first, second = ordered[0], ordered[1]
+            a, b = aggregate_by_slot[first], aggregate_by_slot[second]
+            ambiguous = (
+                abs(a["median_transfer_clean_pass_at_4_count"] - b["median_transfer_clean_pass_at_4_count"]) <= 1
+                and abs(a["median_primary_clean_pass_at_4_count"] - b["median_primary_clean_pass_at_4_count"]) <= 1
+            )
+            if ambiguous and round_mode == "initial12":
+                status = "SURROGATE_MORE_EVIDENCE_REQUIRED"
+                extension_required = True
+                reasons.append("frozen ambiguity rule requires predeclared 24-update extension")
+            else:
+                selected_slot = first
+                if ambiguous and round_mode == "extension24":
+                    reasons.append("C24 extension remained close; frozen final ordering including simplicity tie-break resolved selection")
         else:
-            selected_slot = first
+            selected_slot = ordered[0]
+            reasons.append("only one top-two arm survived all frozen three-seed hard gates")
+
+        if selected_slot is not None:
             # W01 frozen law: SDPO only displaces the best feasible control if
             # transfer is strictly better and median CleanPass@4 is non-lower.
             if selected_slot == "challenger_b":
-                control_slots = [s for s in top_two if s in {"control", "challenger_a"}]
+                control_slots = [s for s in aggregate_by_slot if s in {"control", "challenger_a"}]
                 if control_slots:
                     best_control = max(control_slots, key=lambda slot: _final_surrogate_key(aggregate_by_slot[slot]))
                     sdpo = aggregate_by_slot[selected_slot]
@@ -1392,6 +1484,8 @@ def build_surrogate_recipe_decision(*, law: dict[str, Any], round_bundles: list[
                         reasons.append("SDPO displacement guard retained best feasible control")
             status = "SURROGATE_RECIPE_SELECTED"
             reasons.append("recipe selected only from frozen three-seed evidence")
+    elif not invalid:
+        reasons.append("no top-two arm survived all frozen three-seed hard gates")
 
     codes, digest = _reason_codes(reasons)
     receipt = {
@@ -1400,9 +1494,12 @@ def build_surrogate_recipe_decision(*, law: dict[str, Any], round_bundles: list[
         "hash_profile": HASH_PROFILE,
         "law_sha256": law.get("law_sha256"),
         "stage_binding_sha256": stage_binding_sha,
+        "round_mode": round_mode,
+        "parent_surrogate_recipe_decision_sha256": parent_receipt_sha,
         "seed_round_decision_sha256": {str(seed): per_seed_decisions[seed]["decision_receipt_sha256"] for seed in sorted(per_seed_decisions)},
         "screen_top_two_survivor_slots": top_two,
         "aggregate_by_slot": aggregate_by_slot,
+        "arm_failure_summary": {slot: sorted(failures) for slot, failures in sorted(arm_failures.items())},
         "candidate_artifact_manifest_sha256_by_slot_by_seed": artifact_by_slot_by_seed,
         "recipe_spec_sha256_by_slot": recipe_by_slot,
         "selected_candidate_slot": selected_slot,
@@ -1424,7 +1521,7 @@ def build_surrogate_recipe_decision(*, law: dict[str, Any], round_bundles: list[
     return _finalize(receipt, "surrogate_recipe_decision_sha256")
 
 
-def validate_surrogate_recipe_decision(receipt: Any, *, law: dict[str, Any], round_bundles: list[dict[str, Any]] | None = None) -> list[str]:
+def validate_surrogate_recipe_decision(receipt: Any, *, law: dict[str, Any], round_bundles: list[dict[str, Any]] | None = None, parent_surrogate_recipe_decision: dict[str, Any] | None = None) -> list[str]:
     invalid = [f"law invalid:{x}" for x in validate_evaluation_law(law)]
     if not isinstance(receipt, dict):
         return invalid + ["surrogate recipe decision must be object"]
@@ -1460,7 +1557,7 @@ def validate_surrogate_recipe_decision(receipt: Any, *, law: dict[str, Any], rou
         invalid.append(str(exc))
     if round_bundles is not None:
         try:
-            rebuilt = build_surrogate_recipe_decision(law=law, round_bundles=round_bundles)
+            rebuilt = build_surrogate_recipe_decision(law=law, round_bundles=round_bundles, parent_surrogate_recipe_decision=parent_surrogate_recipe_decision)
             if rebuilt != receipt:
                 invalid.append("surrogate recipe decision does not match semantic recomputation")
         except (Gene1TournamentError, TypeError, ValueError) as exc:
