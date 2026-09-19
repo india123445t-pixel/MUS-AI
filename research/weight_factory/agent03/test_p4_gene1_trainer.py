@@ -27,13 +27,18 @@ class ContractTests(unittest.TestCase):
     def test_profile_is_worker06_24gb_lane(self): self.assertEqual(c.PROFILE,"p4-surrogate-1x24")
     def test_g1_locked_passed_no_rerun(self): self.assertEqual(c.G1_STATUS,"ALREADY_PASSED_DO_NOT_RERUN")
     def test_command_lock_has_no_fallback_or_g1(self):
-        x=c.build_command_lock(["python","x.py"],plan_sha256=H("p"),arm_id="P4_A1_RLVR_CONTROL",seed=1701)
+        x=c.build_command_lock(["python","x.py"],plan_sha256=H("p"),run_manifest_sha256=H("run"),arm_id="P4_A1_RLVR_CONTROL",seed=1701)
         self.assertFalse(x["automatic_fallback"]); self.assertFalse(x["g1_rerun"]); self.assertTrue(c.verify_self_digest(x,"lock_sha256"))
     def test_paid_run_requires_auth(self):
-        x=c.build_command_lock(["true"],plan_sha256=H("p"),arm_id="P4_A1_RLVR_CONTROL",seed=1701)
+        x=c.build_command_lock(["true"],plan_sha256=H("p"),run_manifest_sha256=H("run"),arm_id="P4_A1_RLVR_CONTROL",seed=1701)
         with self.assertRaisesRegex(c.ContractError,"requires_exact_manager_authorization"): c.run_locked(x,paid=True,authorization=None,cwd=Path("."))
+    def test_command_lock_binds_exact_run_manifest(self):
+        x=c.build_command_lock(["true"],plan_sha256=H("p"),run_manifest_sha256=H("run"),arm_id="P4_A1_RLVR_CONTROL",seed=1701)
+        self.assertEqual(x["run_manifest_sha256"],H("run"))
+        self.assertTrue(c.verify_self_digest(x,"lock_sha256"))
+
     def test_auth_binds_exact_command_profile_plan(self):
-        x=c.build_command_lock(["true"],plan_sha256=H("p"),arm_id="P4_A1_RLVR_CONTROL",seed=1701)
+        x=c.build_command_lock(["true"],plan_sha256=H("p"),run_manifest_sha256=H("run"),arm_id="P4_A1_RLVR_CONTROL",seed=1701)
         a={"schema_version":1,"authorization_kind":c.AUTH_KIND,"hash_profile":c.HASH_PROFILE,"authorization_id":"mgr-p4-a1-1701","run_task_id":c.TASK_ID,"run_manifest_sha256":H("wrong"),"profile_id":c.PROFILE,"compute_origin":"paid_manager_authorized","max_billed_seconds":7200,"max_total_cost_usd":"1","max_hourly_rate_usd":"1","max_artifact_egress_bytes":104857600,"single_use":True}; a=c.seal(a,"authorization_sha256")
         self.assertIn("authorization_plan",c.validate_manager_authorization(a,lock=x))
 
