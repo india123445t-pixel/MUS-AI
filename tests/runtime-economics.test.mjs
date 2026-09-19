@@ -30,16 +30,16 @@ test('runtime accounting refuses to invent GPU energy or cost when hardware meta
   assert.equal(metrics.completion_tokens_per_second,2);
 });
 
-test('compute-per-verified-success charges failed attempts to the efficiency numerator',()=>{
+test('legacy verified booleans cannot drive authoritative verified-efficiency aggregation',()=>{
   const summary=summarizeVerifiedEfficiency([
     {verified:true,runtime_metrics:{allocated_gpu_seconds:4,estimated_energy_wh:0.4,estimated_gpu_cost_usd:0.004}},
     {verified:false,runtime_metrics:{allocated_gpu_seconds:2,estimated_energy_wh:0.2,estimated_gpu_cost_usd:0.002}},
   ]);
+  assert.equal(summary.status,'INVALID');
   assert.equal(summary.attempts,2);
-  assert.equal(summary.verified_successes,1);
-  assert.equal(summary.gpu_seconds_per_verified_success,6);
-  assert.equal(summary.estimated_energy_wh_per_verified_success,0.6);
-  assert.equal(summary.estimated_gpu_cost_usd_per_verified_success,0.006);
+  assert.equal(summary.verified_successes,0);
+  assert.equal(summary.gpu_seconds_per_verified_success,null);
+  assert.equal(summary.estimated_gpu_cost_usd_per_verified_success,null);
 });
 
 test('concurrency normalization is always an explicit bounded integer',()=>{
