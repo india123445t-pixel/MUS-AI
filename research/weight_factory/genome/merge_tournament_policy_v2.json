@@ -1,0 +1,76 @@
+{
+  "schema_version": 2,
+  "status": "executable_gate_design_until_real_promotion_eligible_genes_exist",
+  "selection_law": "hard_gates_then_behavioral_noninferiority_then_pareto_frontier_never_scalar_winner",
+  "required_hard_gates": [
+    "same_exact_base_revision",
+    "compatible_parameter_layout",
+    "license_pass",
+    "provenance_pass",
+    "contamination_pass",
+    "merge_roundtrip_pass",
+    "interference_atlas_pass",
+    "pairwise_behavior_eval_pass"
+  ],
+  "required_artifact_hashes": [
+    "interference_report_hash",
+    "evaluation_manifest_hash",
+    "merge_recipe_hash",
+    "merged_artifact_hash"
+  ],
+  "required_quality_metrics": [
+    "reasoning",
+    "coding",
+    "tools",
+    "research",
+    "arabic_darija",
+    "factuality",
+    "instruction_following"
+  ],
+  "metric_contract": {
+    "noninferiority_margin_source": "frozen_evaluation_manifest_owned_by_evaluation_lane",
+    "target_min_gain_source": "frozen_evaluation_manifest_owned_by_evaluation_lane",
+    "uncertainty_rule": "use predeclared confidence-aware margins where repeated evaluation is stochastic",
+    "missing_margin": "hard_reject"
+  },
+  "quantization": {
+    "required_for_release_promotion": true,
+    "comparison": "quantized_candidate_vs_same_full_precision_candidate",
+    "margin_source": "frozen_evaluation_manifest",
+    "any_metric_outside_margin": "hard_reject"
+  },
+  "method_stages": [
+    {"stage": 0, "methods": ["single_gene_route", "sequential_training_with_replay", "weighted_interpolation", "task_arithmetic"]},
+    {"stage": 1, "methods": ["peft_svd", "peft_ties", "peft_dare_ties", "peft_magnitude_prune"]},
+    {"stage": 2, "methods": ["della", "wudi", "cat_merging", "adaptive_projective_gradient"], "admission": "research_reproduction_required"},
+    {"stage": 3, "methods": ["expert_merging_plus_plus", "evogm"], "admission": "private_dev_search_only_until_reproduced"},
+    {"stage": 4, "methods": ["mergopt_trained_genes"], "admission": "training_challenger_research_only_until_license_and_reproduction_gate"},
+    {"stage": 5, "methods": ["routed_expert_bank", "dense_to_moe_upcycling"], "admission": "architecture_escalation_only"}
+  ],
+  "architecture_escalation": {
+    "dense_merge_exhaustion_requires": [
+      "at_least_two_distinct_merge_families_fail_behavioral_noninferiority",
+      "routed_expert_baseline_preserves_target_capabilities",
+      "cost_latency_vram_measured"
+    ],
+    "moe_research_requires": [
+      "at_least_three_promotion_eligible_genes",
+      "persistent_pairwise_or_triple_interference",
+      "router_or_upcycling_ablation",
+      "serving_economics_gate"
+    ],
+    "direct_cross_architecture_tensor_grafting": "forbidden"
+  },
+  "pareto_objectives": [
+    {"metric": "reasoning", "direction": "higher"},
+    {"metric": "coding", "direction": "higher"},
+    {"metric": "tools", "direction": "higher"},
+    {"metric": "research", "direction": "higher"},
+    {"metric": "arabic_darija", "direction": "higher"},
+    {"metric": "factuality", "direction": "higher"},
+    {"metric": "instruction_following", "direction": "higher"},
+    {"metric": "latency", "direction": "lower"},
+    {"metric": "vram", "direction": "lower"},
+    {"metric": "gpu_seconds", "direction": "lower"}
+  ]
+}
