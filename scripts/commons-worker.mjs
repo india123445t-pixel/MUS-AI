@@ -1,5 +1,7 @@
 #!/usr/bin/env node
+import {randomUUID} from 'node:crypto';
 import {buildRuntimeAccounting,normalizeBoundedInteger,parseStrictBoundedInteger,sanitizeEndpointForLog} from '../lib/aqlevon/runtime-economics.js';
+import {P2_HASH_PROFILE,buildRequestIdentity,buildRuntimeAttemptReceipt,hashRuntimeResult,validateRuntimeReceiptIdentityConfig} from '../lib/aqlevon/runtime-receipts.js';
 
 const COMMONS_URL=process.env.AQLEVON_COMMONS_URL||'https://qkoscgdegnqcypkjrefn.supabase.co/functions/v1/aqlevon-commons';
 const WORKER_TOKEN=process.env.AQLEVON_COMMONS_WORKER_TOKEN||'';
@@ -12,6 +14,14 @@ const CONFIGURED_CONCURRENCY=normalizeBoundedInteger(process.env.AQLEVON_COMMONS
 const CONCURRENCY=ONCE?1:CONFIGURED_CONCURRENCY;
 const MODEL_TIMEOUT_MS=parseStrictBoundedInteger(process.env.AQLEVON_COMMONS_MODEL_TIMEOUT_MS,{defaultValue:240000,min:100,max:900000});
 const MODEL_LOG_ORIGIN=sanitizeEndpointForLog(MODEL_URL);
+const RECEIPT_IDENTITY=validateRuntimeReceiptIdentityConfig({
+  candidateArtifactManifestSha256:process.env.AQLEVON_CANDIDATE_ARTIFACT_MANIFEST_SHA256,
+  harnessManifestSha256:process.env.AQLEVON_RUNTIME_HARNESS_MANIFEST_SHA256,
+});
+const CANDIDATE_MANIFEST_SHA=RECEIPT_IDENTITY.candidate_artifact_manifest_sha256;
+const HARNESS_MANIFEST_SHA=RECEIPT_IDENTITY.harness_manifest_sha256;
+const RECEIPT_CONFIG_REQUESTED=RECEIPT_IDENTITY.requested;
+const RECEIPTS_CONFIGURED=RECEIPT_IDENTITY.configured;
 
 if(!WORKER_TOKEN){
   console.error('AQLEVON_COMMONS_WORKER_TOKEN is required.');
@@ -19,6 +29,10 @@ if(!WORKER_TOKEN){
 }
 if(MODEL_TIMEOUT_MS===null){
   console.error(JSON.stringify({event:'commons_worker_config_error',field:'AQLEVON_COMMONS_MODEL_TIMEOUT_MS',reason:'must_be_integer_100_to_900000'}));
+  process.exit(2);
+}
+if(RECEIPT_CONFIG_REQUESTED&&!RECEIPTS_CONFIGURED){
+  console.error(JSON.stringify({event:'commons_worker_config_error',field:'runtime_receipt_identity',reason:RECEIPT_IDENTITY.reason}));
   process.exit(2);
 }
 
@@ -71,7 +85,26 @@ function redactKnownSecrets(value){
   }
   return out.slice(0,1000);
 }
-async function infer(job){
+function failureCode(err){
+  const message=String(err?.message||'');
+  if(/^model_http_\d{3}$/.test(message))return message;
+  if(message==='empty_model_response')return message;
+  if(err?.name==='TimeoutError'||err?.name==='AbortError'||/timeout/i.test(message))return 'model_timeout';
+  return 'model_request_failed';
+}
+function maybeAttemptReceipt({attemptId,taskId,requestPayload,transportStatus,failure_code=null,runtime_metrics,rawResult=null}){
+  if(!RECEIPTS_CONFIGURED)return null;
+  return buildRuntimeAttemptReceipt({
+    attemptId,
+    taskId,
+    candidateArtifactManifestSha256:CANDIDATE_MANIFEST_SHA,
+    requestIdentity:buildRequestIdentity({request:requestPayload,harnessManifestSha256:HARNESS_MANIFEST_SHA}),
+    transportOutcome:{status:transportStatus,failure_code},
+    runtimeMetrics:runtime_metrics,
+    rawResultSha256:rawResult===null?null:hashRuntimeResult(rawResult),
+  });
+}
+async function infer(job,{attemptId}){
   const req=job.model_request||{};
   const messages=Array.isArray(req.messages)&&req.messages.length?req.messages:[
     ...(Array.isArray(job.history)?job.history:[]),
@@ -79,31 +112,37 @@ async function infer(job){
   ];
   const headers={'Content-Type':'application/json'};
   if(MODEL_KEY)headers.Authorization=`Bearer ${MODEL_KEY}`;
+  const requestPayload={
+    model:req.model||MODEL_NAME,
+    messages,
+    temperature:Number.isFinite(Number(req.temperature))?Number(req.temperature):0.4,
+    stream:false
+  };
   const started=performance.now();
   let usage=null;
+  let rawResult=null;
   try{
     const r=await fetch(modelEndpoint(),{
-      method:'POST',
-      headers,
-      body:JSON.stringify({
-        model:req.model||MODEL_NAME,
-        messages,
-        temperature:Number.isFinite(Number(req.temperature))?Number(req.temperature):0.4,
-        stream:false
-      }),
-      signal:AbortSignal.timeout(MODEL_TIMEOUT_MS)
+      method:'POST',headers,body:JSON.stringify(requestPayload),signal:AbortSignal.timeout(MODEL_TIMEOUT_MS)
     });
     const data=await r.json().catch(()=>({}));
+    rawResult=data;
     usage=data?.usage||null;
     if(!r.ok)throw new Error(`model_http_${r.status}`);
     const text=String(data?.choices?.[0]?.message?.content||'').trim();
     if(!text)throw new Error('empty_model_response');
-    return {text,model:data?.model||MODEL_NAME,provider:'aqlevon-commons',citations:[],runtime_metrics:runtimeMetrics(started,usage)};
+    const runtime_metrics=runtimeMetrics(started,usage);
+    const runtime_attempt_receipt=maybeAttemptReceipt({
+      attemptId,taskId:String(job.id),requestPayload,transportStatus:'success',runtime_metrics,rawResult
+    });
+    return {text,model:data?.model||MODEL_NAME,provider:'aqlevon-commons',citations:[],runtime_metrics,runtime_attempt_receipt};
   }catch(err){
-    if(!err?.runtime_metrics){
-      try{Object.defineProperty(err,'runtime_metrics',{value:runtimeMetrics(started,usage),enumerable:false})}
-      catch{}
-    }
+    const runtime_metrics=err?.runtime_metrics||runtimeMetrics(started,usage);
+    const runtime_attempt_receipt=maybeAttemptReceipt({
+      attemptId,taskId:String(job.id),requestPayload,transportStatus:'failed',failure_code:failureCode(err),runtime_metrics,rawResult
+    });
+    if(!err?.runtime_metrics){try{Object.defineProperty(err,'runtime_metrics',{value:runtime_metrics,enumerable:false})}catch{}}
+    if(!err?.runtime_attempt_receipt){try{Object.defineProperty(err,'runtime_attempt_receipt',{value:runtime_attempt_receipt,enumerable:false})}catch{}}
     throw err;
   }
 }
@@ -118,21 +157,23 @@ async function processOne(slot){
     const claimed=await commons({
       op:'claim',
       worker_token:WORKER_TOKEN,
-      capabilities:{protocol:'openai-compatible',model:MODEL_NAME,engine:'local',max_concurrency:CONCURRENCY,runtime_metrics:'v1'}
+      capabilities:{protocol:'openai-compatible',model:MODEL_NAME,engine:'local',max_concurrency:CONCURRENCY,runtime_metrics:'v1',runtime_attempt_receipt:RECEIPTS_CONFIGURED?'v1':'unavailable',runtime_receipt_hash_profile:RECEIPTS_CONFIGURED?P2_HASH_PROFILE:'unavailable'}
     });
     job=claimed.job||null;
     if(job){
       const started=Date.now();
+      const attemptId=randomUUID();
       try{
-        const result=await infer(job);
+        const result=await infer(job,{attemptId});
         await commons({op:'complete',worker_token:WORKER_TOKEN,job_id:job.id,result,error:null});
-        console.log(JSON.stringify({event:'job_completed',job_id:job.id,slot,latency_ms:Date.now()-started,runtime_metrics:result.runtime_metrics}));
+        console.log(JSON.stringify({event:'job_completed',job_id:job.id,attempt_id:attemptId,slot,latency_ms:Date.now()-started,runtime_metrics:result.runtime_metrics,runtime_attempt_receipt_sha256:result.runtime_attempt_receipt?.receipt_sha256||null}));
       }catch(err){
         const error=redactKnownSecrets(err?.message||err);
         const runtime_metrics=err?.runtime_metrics||null;
-        const failedResult={ok:false,outcome:'failed',provider:'aqlevon-commons',model:MODEL_NAME,runtime_metrics};
+        const runtime_attempt_receipt=err?.runtime_attempt_receipt||null;
+        const failedResult={ok:false,outcome:'failed',provider:'aqlevon-commons',model:MODEL_NAME,runtime_metrics,runtime_attempt_receipt};
         await commons({op:'complete',worker_token:WORKER_TOKEN,job_id:job.id,result:failedResult,error}).catch(()=>{});
-        console.error(JSON.stringify({event:'job_failed',job_id:job.id,slot,error,runtime_metrics}));
+        console.error(JSON.stringify({event:'job_failed',job_id:job.id,attempt_id:attemptId,slot,error,runtime_metrics,runtime_attempt_receipt_sha256:runtime_attempt_receipt?.receipt_sha256||null}));
       }
     }
   }catch(err){
@@ -149,6 +190,6 @@ async function workerLoop(slot){
   }while(!stopping);
 }
 
-console.log(JSON.stringify({event:'commons_worker_start',model:MODEL_NAME,model_origin:MODEL_LOG_ORIGIN,concurrency:CONCURRENCY,model_timeout_ms:MODEL_TIMEOUT_MS}));
+console.log(JSON.stringify({event:'commons_worker_start',model:MODEL_NAME,model_origin:MODEL_LOG_ORIGIN,concurrency:CONCURRENCY,model_timeout_ms:MODEL_TIMEOUT_MS,runtime_attempt_receipt:RECEIPTS_CONFIGURED?'v1':'unavailable',runtime_receipt_hash_profile:RECEIPTS_CONFIGURED?P2_HASH_PROFILE:'unavailable'}));
 await Promise.all(Array.from({length:CONCURRENCY},(_,slot)=>workerLoop(slot)));
 console.log(JSON.stringify({event:'commons_worker_stop'}));
