@@ -57,28 +57,35 @@ def tensor_metrics(a: torch.Tensor, b: torch.Tensor, eps: float) -> dict:
     am = aa > eps; bm = ba > eps; both = am & bm; union = am | bm
     opposed = both & ((af * bf) < 0)
 
-    support_overlap = float(both.sum().item() / max(1, union.sum().item()))
-    sign_conflict = float(opposed.sum().item() / max(1, both.sum().item())) if both.any() else 0.0
+    support_intersection_count = int(both.sum().item())
+    support_union_count = int(union.sum().item())
+    sign_conflict_count = int(opposed.sum().item())
+    support_overlap = float(support_intersection_count / max(1, support_union_count))
+    sign_conflict = float(sign_conflict_count / max(1, support_intersection_count)) if support_intersection_count else 0.0
 
     shared_mass = torch.minimum(aa, ba)
     union_mass = torch.maximum(aa, ba)
-    shared_mass_sum = float(shared_mass[both].sum().item()) if both.any() else 0.0
-    union_mass_sum = float(union_mass[union].sum().item()) if union.any() else 0.0
+    shared_mass_sum = float(shared_mass[both].sum().item()) if support_intersection_count else 0.0
+    union_mass_sum = float(union_mass[union].sum().item()) if support_union_count else 0.0
+    opposed_shared_mass_sum = float(shared_mass[opposed].sum().item()) if sign_conflict_count else 0.0
     overlap_mass = shared_mass_sum / max(1e-30, union_mass_sum)
-    conflict_mass = (
-        float(shared_mass[opposed].sum().item()) / max(1e-30, shared_mass_sum)
-        if shared_mass_sum > 0 else 0.0
-    )
+    conflict_mass = opposed_shared_mass_sum / max(1e-30, shared_mass_sum) if shared_mass_sum > 0 else 0.0
 
     na = float(torch.linalg.vector_norm(af)); nb = float(torch.linalg.vector_norm(bf))
     c = cosine(af, bf)
     directional_risk = max(0.0, -c) * support_overlap
-    magnitude_conflict_risk = overlap_mass * conflict_mass
+    magnitude_conflict_risk = opposed_shared_mass_sum / max(1e-30, union_mass_sum)
     return {
         "numel": af.numel(),
         "cosine": c,
+        "support_intersection_count": support_intersection_count,
+        "support_union_count": support_union_count,
+        "sign_conflict_count": sign_conflict_count,
         "support_overlap": support_overlap,
         "sign_conflict": sign_conflict,
+        "shared_mass_sum": shared_mass_sum,
+        "union_mass_sum": union_mass_sum,
+        "opposed_shared_mass_sum": opposed_shared_mass_sum,
         "overlap_mass": overlap_mass,
         "conflict_mass": conflict_mass,
         "left_norm": na,
@@ -97,6 +104,13 @@ def group_name(key: str) -> str:
     return '.'.join(parts[:-1]) if len(parts) > 1 else key
 
 
+def _mass_ratios(shared_mass_sum: float, union_mass_sum: float, opposed_shared_mass_sum: float) -> tuple[float, float, float]:
+    overlap_mass = shared_mass_sum / max(1e-30, union_mass_sum)
+    conflict_mass = opposed_shared_mass_sum / max(1e-30, shared_mass_sum) if shared_mass_sum > 0 else 0.0
+    magnitude_conflict_risk = opposed_shared_mass_sum / max(1e-30, union_mass_sum)
+    return overlap_mass, conflict_mass, magnitude_conflict_risk
+
+
 def analyze(left: Path, right: Path, eps: float) -> dict:
     rows = []; missing = []
     with safe_open(str(left), framework="pt", device="cpu") as lf, safe_open(str(right), framework="pt", device="cpu") as rf:
@@ -110,35 +124,60 @@ def analyze(left: Path, right: Path, eps: float) -> dict:
 
     total = sum(r["numel"] for r in rows) or 1
     weighted = lambda field: sum(r[field] * r["numel"] for r in rows) / total
+    total_shared_mass = sum(r["shared_mass_sum"] for r in rows)
+    total_union_mass = sum(r["union_mass_sum"] for r in rows)
+    total_opposed_shared_mass = sum(r["opposed_shared_mass_sum"] for r in rows)
+    global_overlap_mass, global_conflict_mass, global_magnitude_risk = _mass_ratios(
+        total_shared_mass, total_union_mass, total_opposed_shared_mass
+    )
+
     groups = {}
     for r in rows:
         g = groups.setdefault(r["group"], {
-            "numel": 0, "cosine_num": 0.0, "overlap_num": 0.0,
-            "sign_num": 0.0, "risk_num": 0.0, "overlap_mass_num": 0.0,
-            "conflict_mass_num": 0.0, "magnitude_risk_num": 0.0,
+            "numel": 0,
+            "cosine_num": 0.0,
+            "support_intersection_count": 0,
+            "support_union_count": 0,
+            "sign_conflict_count": 0,
+            "shared_mass_sum": 0.0,
+            "union_mass_sum": 0.0,
+            "opposed_shared_mass_sum": 0.0,
         })
         n = r["numel"]; g["numel"] += n
         g["cosine_num"] += r["cosine"] * n
-        g["overlap_num"] += r["support_overlap"] * n
-        g["sign_num"] += r["sign_conflict"] * n
-        g["risk_num"] += r["directional_risk"] * n
-        g["overlap_mass_num"] += r["overlap_mass"] * n
-        g["conflict_mass_num"] += r["conflict_mass"] * n
-        g["magnitude_risk_num"] += r["magnitude_conflict_risk"] * n
+        g["support_intersection_count"] += r["support_intersection_count"]
+        g["support_union_count"] += r["support_union_count"]
+        g["sign_conflict_count"] += r["sign_conflict_count"]
+        g["shared_mass_sum"] += r["shared_mass_sum"]
+        g["union_mass_sum"] += r["union_mass_sum"]
+        g["opposed_shared_mass_sum"] += r["opposed_shared_mass_sum"]
 
     group_rows = []
     for name, g in groups.items():
         n = max(1, g["numel"])
+        support_overlap = g["support_intersection_count"] / max(1, g["support_union_count"])
+        sign_conflict = g["sign_conflict_count"] / max(1, g["support_intersection_count"]) if g["support_intersection_count"] else 0.0
+        overlap_mass, conflict_mass, magnitude_conflict_risk = _mass_ratios(
+            g["shared_mass_sum"], g["union_mass_sum"], g["opposed_shared_mass_sum"]
+        )
+        group_cosine = g["cosine_num"] / n
+        directional_risk = max(0.0, -group_cosine) * support_overlap
         group_rows.append({
             "group": name,
             "numel": g["numel"],
-            "cosine": g["cosine_num"] / n,
-            "support_overlap": g["overlap_num"] / n,
-            "sign_conflict": g["sign_num"] / n,
-            "overlap_mass": g["overlap_mass_num"] / n,
-            "conflict_mass": g["conflict_mass_num"] / n,
-            "directional_risk": g["risk_num"] / n,
-            "magnitude_conflict_risk": g["magnitude_risk_num"] / n,
+            "cosine": group_cosine,
+            "support_intersection_count": g["support_intersection_count"],
+            "support_union_count": g["support_union_count"],
+            "sign_conflict_count": g["sign_conflict_count"],
+            "support_overlap": support_overlap,
+            "sign_conflict": sign_conflict,
+            "shared_mass_sum": g["shared_mass_sum"],
+            "union_mass_sum": g["union_mass_sum"],
+            "opposed_shared_mass_sum": g["opposed_shared_mass_sum"],
+            "overlap_mass": overlap_mass,
+            "conflict_mass": conflict_mass,
+            "directional_risk": directional_risk,
+            "magnitude_conflict_risk": magnitude_conflict_risk,
         })
     group_rows.sort(key=lambda x: max(x["directional_risk"], x["magnitude_conflict_risk"]), reverse=True)
     group_risks = [max(g["directional_risk"], g["magnitude_conflict_risk"]) for g in group_rows]
@@ -155,10 +194,13 @@ def analyze(left: Path, right: Path, eps: float) -> dict:
             "weighted_cosine": weighted("cosine"),
             "weighted_support_overlap": weighted("support_overlap"),
             "weighted_sign_conflict": weighted("sign_conflict"),
-            "weighted_overlap_mass": weighted("overlap_mass"),
-            "weighted_conflict_mass": weighted("conflict_mass"),
+            "shared_mass_sum": total_shared_mass,
+            "union_mass_sum": total_union_mass,
+            "opposed_shared_mass_sum": total_opposed_shared_mass,
+            "weighted_overlap_mass": global_overlap_mass,
+            "weighted_conflict_mass": global_conflict_mass,
             "weighted_directional_risk": weighted("directional_risk"),
-            "weighted_magnitude_conflict_risk": weighted("magnitude_conflict_risk"),
+            "weighted_magnitude_conflict_risk": global_magnitude_risk,
             "p95_group_risk": _percentile(group_risks, 0.95),
             "max_group_risk": max(group_risks, default=0.0),
         },

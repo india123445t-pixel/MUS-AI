@@ -7,7 +7,10 @@ runners and recorded in the candidate manifest.
 """
 from __future__ import annotations
 import json
+import re
 from pathlib import Path
+
+_SHA256_RE = re.compile(r"^[0-9a-fA-F]{64}$")
 
 
 def load_json(path: str | Path):
@@ -15,8 +18,16 @@ def load_json(path: str | Path):
         return json.load(f)
 
 
-def _valid_hash(value) -> bool:
-    return isinstance(value, str) and len(value.strip()) >= 16
+def _valid_sha256(value) -> bool:
+    return isinstance(value, str) and _SHA256_RE.fullmatch(value.strip()) is not None
+
+
+def _normalized_sha256(value: str) -> str:
+    return value.strip().lower()
+
+
+def _is_nonnegative_int(value) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool) and value >= 0
 
 
 def default_policy_path() -> Path:
@@ -26,6 +37,53 @@ def default_policy_path() -> Path:
         if path.exists():
             return path
     raise FileNotFoundError("no merge safety policy found")
+
+
+def _validate_parameter_layout(candidate: dict, policy: dict, errors: list[str]) -> None:
+    architecture = policy.get("architecture_compatibility", {})
+    if not architecture.get("direct_tensor_merge_requires_compatible_parameter_layout"):
+        return
+
+    layout = candidate.get("parameter_layout")
+    if not isinstance(layout, dict):
+        errors.append("merge promotion missing parameter_layout proof")
+        return
+    if layout.get("compatible") is not True:
+        errors.append("merge promotion requires parameter_layout.compatible=true")
+    if layout.get("algorithm") != "sha256":
+        errors.append("merge promotion requires parameter_layout.algorithm=sha256")
+
+    base_hash = layout.get("base_layout_sha256")
+    candidate_hash = layout.get("candidate_layout_sha256")
+    if not _valid_sha256(base_hash):
+        errors.append("merge promotion missing/invalid parameter_layout.base_layout_sha256")
+    if not _valid_sha256(candidate_hash):
+        errors.append("merge promotion missing/invalid parameter_layout.candidate_layout_sha256")
+    if _valid_sha256(base_hash) and _valid_sha256(candidate_hash):
+        if _normalized_sha256(base_hash) != _normalized_sha256(candidate_hash):
+            errors.append("parameter layout fingerprint mismatch")
+
+
+def _validate_hard_rejection_counts(candidate: dict, policy: dict, errors: list[str]) -> None:
+    thresholds = policy.get("hard_rejection_thresholds", {})
+    if not thresholds:
+        return
+    counts = candidate.get("hard_rejection_counts")
+    if not isinstance(counts, dict):
+        errors.append("merge promotion missing hard_rejection_counts")
+        return
+
+    for threshold_key, maximum in thresholds.items():
+        if not threshold_key.endswith("_max") or not _is_nonnegative_int(maximum):
+            errors.append(f"invalid policy hard rejection threshold: {threshold_key}")
+            continue
+        count_key = threshold_key[:-4]
+        value = counts.get(count_key)
+        if not _is_nonnegative_int(value):
+            errors.append(f"merge promotion missing/invalid hard_rejection_counts.{count_key}")
+            continue
+        if value > maximum:
+            errors.append(f"hard rejection threshold exceeded: {count_key}={value} > {maximum}")
 
 
 def validate_candidate(candidate: dict, policy: dict) -> list[str]:
@@ -77,8 +135,8 @@ def validate_candidate(candidate: dict, policy: dict) -> list[str]:
     for key in policy["required_integrity_evidence"]:
         val = evidence.get(key)
         if key.endswith("hash"):
-            if not _valid_hash(val):
-                errors.append(f"missing evidence.{key}")
+            if not _valid_sha256(val):
+                errors.append(f"missing/invalid SHA-256 evidence.{key}")
         elif val is not True:
             errors.append(f"missing evidence.{key}")
 
@@ -92,13 +150,17 @@ def validate_candidate(candidate: dict, policy: dict) -> list[str]:
             errors.append("merge promotion requires promotion_requested")
         if not backend:
             errors.append("merge promotion requires merge.backend")
+
+        _validate_parameter_layout(candidate, policy, errors)
+        _validate_hard_rejection_counts(candidate, policy, errors)
+
         for key in policy.get("required_merge_promotion_evidence", []):
             if evidence.get(key) is not True:
                 errors.append(f"merge promotion missing evidence.{key}")
         artifacts = candidate.get("artifacts", {})
         for key in policy.get("required_merge_artifacts", []):
-            if not _valid_hash(artifacts.get(key)):
-                errors.append(f"merge promotion missing artifacts.{key}")
+            if not _valid_sha256(artifacts.get(key)):
+                errors.append(f"merge promotion missing/invalid SHA-256 artifacts.{key}")
 
         rep = candidate.get("interference_input_representation")
         expected_rep = policy.get("interference_policy", {}).get("input_representation")
