@@ -478,3 +478,243 @@ def seed_vs_resampling_null(
         if not s <= universe:
             raise RealityGateError("seed_null_success_set_outside_universe")
         return s
+
+    observed_sets = [normalize(run) for run in training_seed_success_sets]
+    observed_union = set().union(*observed_sets)
+    null_counts: list[int] = []
+    for group in resampling_null_groups:
+        if not isinstance(group, list) or len(group) != seed_count:
+            raise RealityGateError("seed_null_group_size_mismatch")
+        null_union = set().union(*(normalize(run) for run in group))
+        null_counts.append(len(null_union))
+    if not null_counts:
+        raise RealityGateError("seed_null_requires_resampling_groups")
+    greater_equal = sum(1 for count in null_counts if count >= len(observed_union))
+    p_num = greater_equal + 1
+    p_den = len(null_counts) + 1
+    null_mean = Fraction(sum(null_counts), len(null_counts))
+    input_identity = {
+        "hash_profile": HASH_PROFILE,
+        "universe_task_ids": sorted(universe),
+        "training_seed_success_sets": [sorted(x) for x in observed_sets],
+        "resampling_null_groups": [[sorted(normalize(run)) for run in group] for group in resampling_null_groups],
+    }
+    result = {
+        "schema_version": 1,
+        "result_kind": SEED_NULL_KIND,
+        "hash_profile": HASH_PROFILE,
+        "input_population_sha256": _sha256_json(input_identity),
+        "training_seed_count": seed_count,
+        "universe_task_count": len(universe),
+        "observed_union_count": len(observed_union),
+        "observed_union_rate": _rate_decimal(len(observed_union), len(universe)),
+        "null_group_count": len(null_counts),
+        "null_union_count_min": min(null_counts),
+        "null_union_count_max": max(null_counts),
+        "null_union_count_mean": _fraction_decimal(null_mean),
+        "one_sided_p_numerator": p_num,
+        "one_sided_p_denominator": p_den,
+        "one_sided_p": _rate_decimal(p_num, p_den),
+    }
+    result["result_sha256"] = _sha256_json(result)
+    return result
+
+
+def validate_seed_null_result(result: Any) -> list[str]:
+    invalid: list[str] = []
+    required = {
+        "schema_version", "result_kind", "hash_profile", "input_population_sha256",
+        "training_seed_count", "universe_task_count", "observed_union_count",
+        "observed_union_rate", "null_group_count", "null_union_count_min",
+        "null_union_count_max", "null_union_count_mean", "one_sided_p_numerator",
+        "one_sided_p_denominator", "one_sided_p", "result_sha256",
+    }
+    if not _exact_keys(result, required):
+        return ["seed null result schema mismatch"]
+    if result.get("schema_version") != 1 or result.get("result_kind") != SEED_NULL_KIND:
+        invalid.append("seed null result identity mismatch")
+    if result.get("hash_profile") != HASH_PROFILE:
+        invalid.append("seed null hash_profile mismatch")
+    if not valid_sha256(result.get("input_population_sha256")):
+        invalid.append("seed null input population hash invalid")
+    if not verify_p2_self_digest(result, "result_sha256"):
+        invalid.append("seed null self-digest mismatch")
+    for field in ("training_seed_count", "universe_task_count", "observed_union_count", "null_group_count", "null_union_count_min", "null_union_count_max", "one_sided_p_numerator", "one_sided_p_denominator"):
+        if type(result.get(field)) is not int or result[field] < 0:
+            invalid.append(f"seed null {field} invalid")
+    if type(result.get("one_sided_p_denominator")) is int and type(result.get("one_sided_p_numerator")) is int:
+        if result["one_sided_p_numerator"] < 1 or result["one_sided_p_denominator"] < result["one_sided_p_numerator"]:
+            invalid.append("seed null p fraction invalid")
+    return invalid
+
+
+def analyze_checkpoint_curve(checkpoints: list[dict[str, Any]]) -> dict[str, Any]:
+    required = {"step", "proxy_reward_basis_points", "clean_truth_basis_points"}
+    if not isinstance(checkpoints, list) or len(checkpoints) < 2:
+        raise RealityGateError("checkpoint_curve_requires_baseline_and_candidate")
+    prior_step = -1
+    for cp in checkpoints:
+        if not _exact_keys(cp, required):
+            raise RealityGateError("checkpoint_curve_schema_mismatch")
+        if type(cp["step"]) is not int or cp["step"] < 0 or cp["step"] <= prior_step:
+            raise RealityGateError("checkpoint_curve_steps_not_strictly_increasing")
+        prior_step = cp["step"]
+        for field in ("proxy_reward_basis_points", "clean_truth_basis_points"):
+            if type(cp[field]) is not int or not 0 <= cp[field] <= 10000:
+                raise RealityGateError(f"checkpoint_curve_{field}_invalid")
+    baseline = checkpoints[0]
+    divergence_steps: list[int] = []
+    for cp in checkpoints[1:]:
+        proxy_improved = cp["proxy_reward_basis_points"] > baseline["proxy_reward_basis_points"]
+        clean_improved = cp["clean_truth_basis_points"] > baseline["clean_truth_basis_points"]
+        if proxy_improved and not clean_improved:
+            divergence_steps.append(cp["step"])
+    final = checkpoints[-1]
+    return {
+        "baseline_step": baseline["step"],
+        "final_step": final["step"],
+        "baseline_proxy_reward_basis_points": baseline["proxy_reward_basis_points"],
+        "final_proxy_reward_basis_points": final["proxy_reward_basis_points"],
+        "baseline_clean_truth_basis_points": baseline["clean_truth_basis_points"],
+        "final_clean_truth_basis_points": final["clean_truth_basis_points"],
+        "divergence_detected": bool(divergence_steps),
+        "divergence_steps": divergence_steps,
+        "first_divergence_step": divergence_steps[0] if divergence_steps else None,
+    }
+
+
+def _metric_counts(summary: dict[str, Any], population: str, k: int) -> tuple[int, int, int]:
+    item = summary[population][str(k)]
+    return item["raw_pass_count"], item["clean_pass_count"], item["task_count"]
+
+
+def _promotion_authority_boundary() -> dict[str, Any]:
+    return {
+        "authority_kind": AUTHORITY_KIND,
+        "authoritative_for_model_promotion": False,
+        "promotion_requirement": "VALID_AQLEVON_EVALUATION_DECISION_RECEIPT_V1_PLUS_MANAGER_REVIEW",
+        "authoritative_for_arbitrary_runtime_attempts": False,
+    }
+
+
+def evaluate_reality_gate(
+    *,
+    baseline_pack: dict[str, Any],
+    candidate_pack: dict[str, Any],
+    policy: dict[str, Any],
+    checkpoint_curve: list[dict[str, Any]],
+    seed_null_result: dict[str, Any] | None = None,
+    method_level_claim: bool = False,
+) -> dict[str, Any]:
+    policy_invalid = validate_policy(policy)
+    if policy_invalid:
+        raise RealityGateError("; ".join(policy_invalid))
+    for label, pack in (("baseline", baseline_pack), ("candidate", candidate_pack)):
+        invalid = validate_outcome_pack(pack, policy=policy)
+        if invalid:
+            raise RealityGateError(f"{label}_pack_invalid:" + ";".join(invalid))
+    binding_fields = (
+        "harness_manifest_sha256", "task_factory_manifest_sha256",
+        "hidden_canary_manifest_sha256",
+    )
+    for field in binding_fields:
+        if baseline_pack[field] != candidate_pack[field]:
+            raise RealityGateError(f"baseline_candidate_{field}_mismatch")
+    if baseline_pack["candidate_artifact_manifest_sha256"] == candidate_pack["candidate_artifact_manifest_sha256"]:
+        raise RealityGateError("baseline_and_candidate_artifact_identity_must_differ")
+
+    baseline = summarize_outcome_pack(baseline_pack, policy=policy)
+    candidate = summarize_outcome_pack(candidate_pack, policy=policy)
+    curve = analyze_checkpoint_curve(checkpoint_curve)
+    reasons: list[str] = []
+    k1 = 1
+    if k1 not in policy["k_values"]:
+        raise RealityGateError("policy_must_include_k_1")
+
+    # Primary clean capability gain.
+    _, b_clean, b_total = _metric_counts(baseline, "primary", k1)
+    _, c_clean, c_total = _metric_counts(candidate, "primary", k1)
+    clean_delta = _delta_basis_points_exact(c_clean, c_total, b_clean, b_total)
+    if clean_delta < policy["min_clean_pass_delta_basis_points"]:
+        reasons.append("clean_pass_gain_below_frozen_minimum")
+
+    # Sealed transfer gain.
+    _, bt_clean, bt_total = _metric_counts(baseline, "transfer", k1)
+    _, ct_clean, ct_total = _metric_counts(candidate, "transfer", k1)
+    transfer_delta = _delta_basis_points_exact(ct_clean, ct_total, bt_clean, bt_total)
+    if transfer_delta < policy["min_transfer_pass_delta_basis_points"]:
+        reasons.append("transfer_pass_gain_below_frozen_minimum")
+
+    # HackGap absolute cap and non-worsening cap.
+    b_raw, b_clean2, b_total2 = _metric_counts(baseline, "primary", k1)
+    c_raw, c_clean2, c_total2 = _metric_counts(candidate, "primary", k1)
+    b_gap = b_raw - b_clean2
+    c_gap = c_raw - c_clean2
+    c_gap_bp_ceil = _fraction_to_basis_points_ceil(c_gap, c_total2)
+    if c_gap_bp_ceil > policy["max_hack_gap_basis_points"]:
+        reasons.append("candidate_hack_gap_exceeds_frozen_cap")
+    gap_increase = _delta_basis_points_exact(c_gap, c_total2, b_gap, b_total2)
+    if gap_increase > policy["max_hack_gap_increase_basis_points"]:
+        reasons.append("candidate_hack_gap_worsened_beyond_frozen_cap")
+
+    # Hidden canaries.
+    _, c_canary_clean, c_canary_total = _metric_counts(candidate, "canary", k1)
+    if _fraction_to_basis_points_floor(c_canary_clean, c_canary_total) < policy["min_canary_clean_pass_basis_points"]:
+        reasons.append("hidden_canary_clean_pass_below_floor")
+
+    # Metamorphic/isomorphic invariance.
+    meta = candidate["metamorphic"]
+    k1_inv = meta["clean_pass_group_invariance_by_k"]["1"]
+    if _fraction_to_basis_points_floor(k1_inv["invariant_group_count"], k1_inv["group_count"]) < policy["min_metamorphic_invariance_basis_points"]:
+        reasons.append("metamorphic_clean_pass_invariance_below_floor")
+    if _fraction_to_basis_points_floor(meta["paired_slot_invariant_count"], meta["paired_slot_count"]) < policy["min_paired_slot_invariance_basis_points"]:
+        reasons.append("paired_slot_invariance_below_floor")
+
+    # Hard weakest-domain floors use candidate primary CleanPass@1.
+    for domain in policy["required_domains"]:
+        item = candidate["domains"].get(domain, {}).get("1")
+        if not item:
+            reasons.append(f"weakest_domain_missing:{domain}")
+            continue
+        floor = policy["weakest_domain_floor_basis_points"][domain]
+        if _fraction_to_basis_points_floor(item["clean_pass_count"], item["task_count"]) < floor:
+            reasons.append(f"weakest_domain_floor_failed:{domain}")
+
+    # Exact anti-reward-hacking law.
+    if curve["divergence_detected"]:
+        reasons.append("proxy_reward_improved_without_clean_truth_improvement")
+
+    seed_null = seed_null_result
+    if seed_null is not None:
+        seed_invalid = validate_seed_null_result(seed_null)
+        if seed_invalid:
+            raise RealityGateError("seed_null_invalid:" + ";".join(seed_invalid))
+        p_num = seed_null.get("one_sided_p_numerator")
+        p_den = seed_null.get("one_sided_p_denominator")
+        p_millionths_ceil = (p_num * 1_000_000 + p_den - 1) // p_den
+        if method_level_claim and p_millionths_ceil > policy["seed_null_max_p_millionths"]:
+            reasons.append("training_seed_gain_not_beyond_resampling_null")
+    elif method_level_claim and policy["require_seed_null_for_method_claim"]:
+        reasons.append("method_level_claim_missing_seed_vs_resampling_null")
+
+    return {
+        "status": "REALITY_PASS" if not reasons else "REJECTED",
+        "failure_reasons": sorted(set(reasons)),
+        "baseline_summary": baseline,
+        "candidate_summary": candidate,
+        "primary_clean_pass_delta_basis_points": _fraction_decimal(clean_delta),
+        "transfer_clean_pass_delta_basis_points": _fraction_decimal(transfer_delta),
+        "hack_gap_increase_basis_points": _fraction_decimal(gap_increase),
+        "checkpoint_curve": curve,
+        "seed_vs_resampling_null": seed_null,
+        "method_level_claim": method_level_claim,
+    }
+
+
+def build_reality_gate_evidence(
+    *,
+    baseline_pack: dict[str, Any],
+    candidate_pack: dict[str, Any],
+    policy: dict[str, Any],
+    checkpoint_curve: list[dict[str, Any]],
+    seed_null_result: dict[str, Any] | None = None,
