@@ -80,8 +80,21 @@ def run(plan_path:Path,manifest_path:Path,shard_path:Path,seed:int,outdir:Path)-
     torch.cuda.reset_peak_memory_stats(); t0=time.perf_counter()
     for step in range(total):
         if cursor+4>len(order): rng.shuffle(order); cursor=0
-        idx=order[cursor:cursor+4]; cursor+=4; texts=[_text(rows[i]) for i in idx]
-        enc=tok(texts,return_tensors="pt",padding=True,truncation=True,max_length=2048); enc={k:v.to(device) for k,v in enc.items()}; labels=enc["input_ids"].clone(); labels[enc["attention_mask"]==0]=-100
+        idx=order[cursor:cursor+4]; cursor+=4
+        selected=[rows[i] for i in idx]
+        texts=[_text(row) for row in selected]
+        enc=tok(texts,return_tensors="pt",padding=True,truncation=True,max_length=2048)
+        labels=enc["input_ids"].clone()
+        labels[enc["attention_mask"]==0]=-100
+        for bi,row in enumerate(selected):
+            prefix=row["prompt"].rstrip()+"\\n\\nAnswer:\\n"
+            prefix_ids=tok(prefix,add_special_tokens=True,truncation=True,max_length=2048)["input_ids"]
+            cutoff=min(len(prefix_ids),labels.shape[1])
+            labels[bi,:cutoff]=-100
+            if int((labels[bi]!=-100).sum())<=0:
+                raise RuntimeError("target_truncated_or_empty")
+        enc={k:v.to(device) for k,v in enc.items()}
+        labels=labels.to(device)
         model.train(); opt.zero_grad(set_to_none=True); o=model(**enc,labels=labels,use_cache=False)
         if o.loss is None or not torch.isfinite(o.loss): raise RuntimeError("nonfinite_loss")
         o.loss.backward(); g2=sum(float(p.grad.detach().float().pow(2).sum().cpu()) for p in model.parameters() if p.requires_grad and p.grad is not None)
