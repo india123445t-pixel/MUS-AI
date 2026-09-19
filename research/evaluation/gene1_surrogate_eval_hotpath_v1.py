@@ -169,4 +169,131 @@ def validate_a1_run_manifest(run_manifest: Any) -> list[str]:
         "worker02_training_shard_sha256": p4.W02_TRAINING_SHARD_FILE_SHA256,
         "worker02_training_visible_pack_sha256": p4.W02_TRAINING_VISIBLE_PACK_SHA256,
         "worker02_split_sha256": p4.W02_SPLIT_COMMITMENT_SHA256,
-        "worker02_sealed_eval_commitment_sha256": p4.W02_SEALED_EVAL_COMMITMENT_SHA256
+        "worker02_sealed_eval_commitment_sha256": p4.W02_SEALED_EVAL_COMMITMENT_SHA256,
+        "worker05_evaluation_law_sha256": p4.frozen_gene1_evaluation_law()["law_sha256"],
+        "worker05_sampling_profile_sha256": p4.frozen_gene1_evaluation_law()["sampling_profile_sha256"],
+        "worker06_compute_profile": A1_PROFILE,
+        "sealed_eval_consumed": False,
+        "g1_rerun": False,
+        "automatic_fallback": False,
+        "paid_compute_requires_manager_authorization": True,
+        "capability_gain_claim": False,
+    }
+    for key, wanted in expected.items():
+        if run_manifest.get(key) != wanted:
+            errors.append(f"run_manifest_binding:{key}")
+    model = run_manifest.get("student_model") or {}
+    if model != {"repo": SURROGATE_REPO, "revision": SURROGATE_REVISION, "precision": "bf16", "quantization": "none"}:
+        errors.append("run_manifest_student_model")
+    budget = run_manifest.get("budget") or {}
+    if budget.get("optimizer_updates") != 12 or budget.get("prompts_per_update") != 4 or budget.get("rollouts_per_prompt") != 4:
+        errors.append("run_manifest_budget")
+    data_prep = run_manifest.get("data_preparation") or {}
+    if data_prep.get("sealed_eval_consumed") is not False:
+        errors.append("run_manifest_data_prep_sealed_eval")
+    errors.extend(_scan_forbidden_training_material(run_manifest, "run_manifest"))
+    errors.extend(_scan_pre_score_leakage(run_manifest, "run_manifest"))
+    return sorted(set(errors))
+
+
+def validate_a1_command_lock(command_lock: Any, *, run_manifest: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    if not isinstance(command_lock, dict):
+        return ["command_lock_not_object"]
+    if command_lock.get("record_kind") != W03_COMMAND_LOCK_KIND:
+        errors.append("command_lock_kind")
+    if command_lock.get("hash_profile") != HASH_PROFILE or not verify_p2_self_digest(command_lock, "lock_sha256"):
+        errors.append("command_lock_self_digest")
+    if command_lock.get("lock_sha256") != A1_COMMAND_LOCK_SHA256:
+        errors.append("command_lock_identity")
+    expected = {
+        "task_id": W03_TASK_ID,
+        "training_plan_sha256": A1_PLAN_SHA256,
+        "run_manifest_sha256": A1_RUN_MANIFEST_SHA256,
+        "arm_id": A1_ARM_ID,
+        "seed": A1_SEED,
+        "profile": A1_PROFILE,
+        "model_scope": "surrogate",
+        "command_sha256": A1_COMMAND_SHA256,
+        "automatic_fallback": False,
+        "g1_rerun": False,
+    }
+    for key, wanted in expected.items():
+        if command_lock.get(key) != wanted:
+            errors.append(f"command_lock_binding:{key}")
+    if run_manifest.get("command_sha256") != command_lock.get("command_sha256"):
+        errors.append("command_lock_run_manifest_command_mismatch")
+    argv = command_lock.get("argv")
+    if not isinstance(argv, list) or not argv or not all(isinstance(x, str) and x for x in argv):
+        errors.append("command_lock_argv")
+    elif canonical_p2_sha256(argv) != A1_COMMAND_SHA256:
+        errors.append("command_lock_argv_command_sha")
+    errors.extend(_scan_forbidden_training_material(command_lock, "command_lock"))
+    errors.extend(_scan_pre_score_leakage(command_lock, "command_lock"))
+    return sorted(set(errors))
+
+
+def _candidate_manifest_id(candidate: dict[str, Any]) -> str:
+    semantic = {k: v for k, v in candidate.items() if k not in {"manifest_id", "manifest_sha256"}}
+    return "aqlevon-candidate-artifact-v1:sha256:" + canonical_p2_sha256({
+        "scheme": "AQLEVON_CANDIDATE_ARTIFACT_IDENTITY_V1",
+        "manifest": semantic,
+    })
+
+
+def validate_a1_candidate_manifest(candidate: Any) -> list[str]:
+    errors = list(validate_candidate_artifact_manifest(candidate))
+    if not isinstance(candidate, dict):
+        return sorted(set(errors + ["candidate_manifest_not_object"]))
+    expected_keys = {
+        "schema_version", "manifest_kind", "manifest_id", "hash_profile", "artifact_type", "artifact_stage",
+        "base", "tokenizer_sha256", "config_sha256", "training_shard_manifest_sha256",
+        "training_run_receipt_sha256", "merge_recipe_sha256", "parameter_layout_sha256", "topology_class",
+        "artifact_files", "artifact_file_tree_sha256", "adapter_state_sha256", "checkpoint_state_sha256",
+        "parent_candidate_artifact_manifest_sha256", "environment_toolchain_manifest_sha256", "manifest_sha256",
+    }
+    if set(candidate) != expected_keys:
+        errors.append("candidate_manifest_schema")
+    if candidate.get("artifact_type") != "adapter":
+        errors.append("candidate_artifact_type")
+    if candidate.get("artifact_stage") not in ALLOWED_ARTIFACT_STAGES:
+        errors.append("candidate_artifact_stage")
+    base = candidate.get("base") or {}
+    if base.get("repo") != SURROGATE_REPO or base.get("revision") != SURROGATE_REVISION:
+        errors.append("candidate_base_identity")
+    if candidate.get("training_shard_manifest_sha256") != W02_TRAINING_MANIFEST_SHA256:
+        errors.append("candidate_training_shard_binding")
+    if not valid_sha256(candidate.get("training_run_receipt_sha256")):
+        errors.append("candidate_training_receipt_identity")
+    if candidate.get("merge_recipe_sha256") is not None or candidate.get("checkpoint_state_sha256") is not None:
+        errors.append("candidate_adapter_semantics")
+    if not valid_sha256(candidate.get("adapter_state_sha256")):
+        errors.append("candidate_adapter_state_identity")
+    for field in ("tokenizer_sha256", "config_sha256", "parameter_layout_sha256", "environment_toolchain_manifest_sha256", "artifact_file_tree_sha256"):
+        if not valid_sha256(candidate.get(field)):
+            errors.append(f"candidate_hash:{field}")
+    files = candidate.get("artifact_files")
+    if not isinstance(files, list) or not files:
+        errors.append("candidate_artifact_files")
+    else:
+        paths: list[str] = []
+        for item in files:
+            if not isinstance(item, dict) or set(item) != {"path", "size", "sha256"}:
+                errors.append("candidate_artifact_file_entry")
+                continue
+            path = item.get("path")
+            if not isinstance(path, str) or not path or path.startswith("/") or "\\" in path or ".." in path.split("/"):
+                errors.append("candidate_artifact_file_path")
+            else:
+                paths.append(path)
+            if type(item.get("size")) is not int or item.get("size", -1) < 0 or not valid_sha256(item.get("sha256")):
+                errors.append("candidate_artifact_file_identity")
+        if paths != sorted(paths) or len(paths) != len(set(paths)):
+            errors.append("candidate_artifact_file_order")
+        if _canonical_legacy_sha(files) != candidate.get("artifact_file_tree_sha256"):
+            errors.append("candidate_artifact_file_tree")
+    if candidate.get("manifest_id") != _candidate_manifest_id(candidate):
+        errors.append("candidate_manifest_id")
+    errors.extend(_scan_forbidden_training_material(candidate, "candidate_manifest"))
+    errors.extend(_scan_pre_score_leakage(candidate, "candidate_manifest"))
+    re
