@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "AQLEVON_INTEGRATION_TOURNAMENT_RESULT_V1",
+  "title": "AQLEVON P3 Integration Tournament Result V1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema_version", "result_kind", "hash_profile", "truth_boundary", "method_id",
+    "source_candidate_manifest_sha256", "domain_retention", "weakest_domain", "interference",
+    "serving", "quantization_survival", "cost", "result_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "result_kind": {"const": "AQLEVON_INTEGRATION_TOURNAMENT_RESULT_V1"},
+    "hash_profile": {"const": "AQLEVON_CANONICAL_JSON_SHA256_V1"},
+    "truth_boundary": {"enum": ["DRY_RUN_ONLY_NO_REAL_GENE_INTEGRATION_OR_CAPABILITY_CLAIM", "REAL_EXECUTION_REQUIRES_MANAGER_AUTHORIZED_EVIDENCE"]},
+    "method_id": {"enum": ["ties", "dare", "della", "ctm", "hard_top1_router", "oracle_route_ceiling", "mopd"]},
+    "source_candidate_manifest_sha256": {"type": "array", "minItems": 2, "uniqueItems": true, "items": {"type": "string", "pattern": "^[0-9a-f]{64}$"}},
+    "domain_retention": {"type": "object", "minProperties": 1},
+    "weakest_domain": {"type": "object", "required": ["name", "retention_ppm"]},
+    "interference": {"type": "object", "required": ["report_sha256", "catastrophic_regression_count"]},
+    "serving": {"type": "object", "required": ["ttft_p50_micros", "ttft_p95_micros", "token_p50_micros", "token_p95_micros", "peak_vram_bytes"]},
+    "quantization_survival": {"type": "object", "required": ["status", "evaluation_report_sha256"]},
+    "cost": {"type": "object", "required": ["teacher_gpu_millis", "student_gpu_millis", "merge_gpu_millis", "total_gpu_millis", "cpu_millis", "wall_millis", "teacher_tokens", "student_tokens", "rollout_tokens", "peak_train_vram_bytes", "peak_serving_vram_bytes"]},
+    "result_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}
