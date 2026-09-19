@@ -50,63 +50,39 @@ def bridge_processor_chat_template(processor: Any, name_or_path: Any) -> Any:
 
 
 def install_runtime_compat() -> None:
-    """Install exact-process compatibility shims for driver and Ray workers."""
+    """Install exact-process compatibility shims without mutating Ray config.
+
+    The pinned SDPO source is patched separately for Transformers 5.17 removed
+    symbols. This function only bridges the exact Qwen3.5 processor chat
+    template in the current Python process. It intentionally does not place
+    callables into veRL's Ray runtime_env because OmegaConf only accepts
+    primitive/container values there.
+    """
     import sys
     import transformers
 
-    def apply_local_runtime_compat() -> None:
-        import transformers as _transformers
+    if not hasattr(transformers, "AutoModelForVision2Seq"):
+        transformers.AutoModelForVision2Seq = transformers.AutoModelForImageTextToText
 
-        if not hasattr(_transformers, "AutoModelForVision2Seq"):
-            _transformers.AutoModelForVision2Seq = _transformers.AutoModelForImageTextToText
+    import verl.utils as verl_utils
+    import verl.utils.tokenizer as verl_tokenizer
 
-        import verl.utils as _verl_utils
-        import verl.utils.tokenizer as _verl_tokenizer
-
-        current = _verl_tokenizer.hf_processor
-        if getattr(current, "_aqlevon_p4_runtime_compat", False):
-            return
-
-        def compat_hf_processor(name_or_path, **kwargs):
-            processor = current(name_or_path, **kwargs)
-            if processor is None or RUNTIME_MODEL_FRAGMENT not in str(name_or_path):
-                return processor
-            if getattr(processor, "chat_template", None):
-                return processor
-            tokenizer = getattr(processor, "tokenizer", None)
-            template = getattr(tokenizer, "chat_template", None)
-            if not isinstance(template, str) or not template:
-                raise RuntimeError(
-                    "qwen35_processor_template_bridge_missing_tokenizer_template"
-                )
-            processor.chat_template = template
-            return processor
-
-        compat_hf_processor._aqlevon_p4_runtime_compat = True
-        compat_hf_processor._aqlevon_original = current
-        _verl_tokenizer.hf_processor = compat_hf_processor
-        _verl_utils.hf_processor = compat_hf_processor
-
-        loaded_main = sys.modules.get("verl.trainer.main_ppo")
-        if loaded_main is not None:
-            loaded_main.hf_processor = compat_hf_processor
-
-    apply_local_runtime_compat()
-
-    import verl.trainer.constants_ppo as _constants_ppo
-
-    current_get_env = _constants_ppo.get_ppo_ray_runtime_env
-    if getattr(current_get_env, "_aqlevon_p4_runtime_compat", False):
+    current = verl_tokenizer.hf_processor
+    if getattr(current, "_aqlevon_p4_runtime_compat", False):
         return
 
-    def get_ppo_ray_runtime_env_with_compat():
-        runtime_env = current_get_env()
-        runtime_env["worker_process_setup_hook"] = apply_local_runtime_compat
-        return runtime_env
+    def compat_hf_processor(name_or_path, **kwargs):
+        processor = current(name_or_path, **kwargs)
+        return bridge_processor_chat_template(processor, name_or_path)
 
-    get_ppo_ray_runtime_env_with_compat._aqlevon_p4_runtime_compat = True
-    get_ppo_ray_runtime_env_with_compat._aqlevon_original = current_get_env
-    _constants_ppo.get_ppo_ray_runtime_env = get_ppo_ray_runtime_env_with_compat
+    compat_hf_processor._aqlevon_p4_runtime_compat = True
+    compat_hf_processor._aqlevon_original = current
+    verl_tokenizer.hf_processor = compat_hf_processor
+    verl_utils.hf_processor = compat_hf_processor
+
+    loaded_main = sys.modules.get("verl.trainer.main_ppo")
+    if loaded_main is not None:
+        loaded_main.hf_processor = compat_hf_processor
 
 
 def sha(path: Path) -> str:
