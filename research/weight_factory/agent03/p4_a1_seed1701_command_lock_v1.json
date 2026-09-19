@@ -4,7 +4,7 @@
   "hash_profile": "AQLEVON_CANONICAL_JSON_SHA256_V1",
   "task_id": "P4-A03-GENE1-PHYSICAL-TRAINER",
   "training_plan_sha256": "3cd6e0bada2535a80f83f400f45f5d0fdc5ad8d938f42757785335959f331095",
-  "run_manifest_sha256": "5a3f9df84d89216f4e227c187a53997aceb2e8c8e4727c053a531f295e26d6b5",
+  "run_manifest_sha256": "3717c01c4a291eb94931923c1332a94a64cbf9fa7290527c08f592a0f5aa9867",
   "arm_id": "P4_A1_RLVR_CONTROL",
   "seed": 1701,
   "profile": "p4-surrogate-1x24",
@@ -27,8 +27,8 @@
     "actor_rollout_ref.model.trust_remote_code=False",
     "actor_rollout_ref.model.lora_rank=4",
     "actor_rollout_ref.model.lora_alpha=4",
-    "actor_rollout_ref.model.target_modules=.*\\.self_attn\\.(q_proj|v_proj)$",
-    "actor_rollout_ref.model.exclude_modules=.*(visual|vision|lm_head|embed|mtp|norm|linear_attn).*",
+    "actor_rollout_ref.model.target_modules='.*\\.self_attn\\.(q_proj|v_proj)$'",
+    "actor_rollout_ref.model.exclude_modules='.*(visual|vision|lm_head|embed|mtp|norm|linear_attn).*'",
     "actor_rollout_ref.actor.optim.lr=1e-5",
     "actor_rollout_ref.actor.optim.lr_warmup_steps=10",
     "actor_rollout_ref.actor.ppo_mini_batch_size=8",
@@ -55,8 +55,8 @@
     "trainer.default_local_dir=/workspace/aqlevon_p4/runs/P4_A1_RLVR_CONTROL_seed1701/checkpoints",
     "trainer.max_actor_ckpt_to_keep=1"
   ],
-  "command_sha256": "3c898f3ff29619200b0792c9d19be9381e5b3bb2cd286a4ea86f121cb947e372",
+  "command_sha256": "d3521f721ea1c34045792fd14275242cfbdeb37cf11f36a81f727c17bd6bd050",
   "automatic_fallback": false,
   "g1_rerun": false,
-  "lock_sha256": "ca990271f70a7b3d4536f3e29e1a31ce033e80ce8b7a95468832695f07378e9e"
+  "lock_sha256": "a9120ffa2796c74a58a2437c56bd6de3a76752444a7649ed0919af9fe69f53f1"
 }
