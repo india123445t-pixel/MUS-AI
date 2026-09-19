@@ -252,6 +252,7 @@ def _base_rl_args(
         "algorithm.rollout_correction.rollout_is=token",
         f"custom_reward_function.path={reward_path}",
         "custom_reward_function.name=compute_score",
+        "++ray_kwargs.ray_init.runtime_env.worker_process_setup_hook=p4_ray_worker_setup.install",
         "++ray_kwargs.ray_init.runtime_env.env_vars.PYTHONPATH='/workspace/MUS-AI/research/weight_factory/agent03/runtime_compat:/workspace/MUS-AI/research/weight_factory/agent03'",
         "++ray_kwargs.ray_init.runtime_env.env_vars.USER=root",
         "++ray_kwargs.ray_init.runtime_env.env_vars.EXPERIMENT=AQLEVON-P4-A1-seed1701",
