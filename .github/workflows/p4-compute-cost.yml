@@ -1,0 +1,41 @@
+name: P4 Compute Cost Orchestrator
+
+on:
+  pull_request:
+    branches:
+      - agent/06-p3-compute-dispatch-v1
+    paths:
+      - 'lib/aqlevon/compute-dispatch.js'
+      - 'lib/aqlevon/compute-cost-orchestrator.js'
+      - 'scripts/p3-compute-dispatch.mjs'
+      - 'scripts/p4-cost-finalize.mjs'
+      - 'scripts/p4-candidate-cost-summary.mjs'
+      - 'tests/compute-dispatch.test.mjs'
+      - 'tests/compute-cost-orchestrator.test.mjs'
+      - 'package.json'
+      - '.github/workflows/p4-compute-cost.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compute-cost-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+      - name: Use Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax checks
+        run: |
+          node --check lib/aqlevon/compute-dispatch.js
+          node --check lib/aqlevon/compute-cost-orchestrator.js
+          node --check scripts/p3-compute-dispatch.mjs
+          node --check scripts/p4-cost-finalize.mjs
+          node --check scripts/p4-candidate-cost-summary.mjs
+      - name: P3 + P4 compute tests
+        run: node --test tests/compute-dispatch.test.mjs tests/compute-cost-orchestrator.test.mjs
