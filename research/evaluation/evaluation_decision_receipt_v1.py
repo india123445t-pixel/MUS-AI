@@ -16,7 +16,10 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import re
+import unicodedata
+from decimal import Decimal, InvalidOperation
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -29,6 +32,10 @@ RECEIPT_KIND = "AQLEVON_EVALUATION_DECISION_RECEIPT_V1"
 ANCHOR_REQUEST_KIND = "AQLEVON_PREREGISTRATION_ANCHOR_REQUEST_V1"
 ANCHOR_VERIFICATION_KIND = "AQLEVON_PREREGISTRATION_ANCHOR_VERIFICATION_V1"
 CANDIDATE_MANIFEST_KIND = "AQLEVON_CANDIDATE_ARTIFACT_MANIFEST_V1"
+HASH_PROFILE = "AQLEVON_CANONICAL_JSON_SHA256_V1"
+EVALUATION_EFFICIENCY_SCOPE_KIND = "AQLEVON_EVALUATION_HARNESS_EFFICIENCY_SCOPE_V1"
+EVALUATION_EFFICIENCY_POPULATION_KIND = "AQLEVON_FROZEN_EVALUATION_ITEM_POPULATION_V1"
+RUNTIME_ATTEMPT_AUTHORITY_KIND = "AQLEVON_CANDIDATE_LEVEL_EVAL_NOT_ATTEMPT_AUTHORITY_V1"
 ALLOWED_FINAL_STATUS = {"INVALID", "REJECTED", "PROMOTION_ELIGIBLE"}
 ALLOWED_ANCHOR_KINDS = {"git_commit", "immutable_object", "append_only_ledger"}
 FORBIDDEN_PLAINTEXT_KEYS = {
@@ -38,11 +45,115 @@ FORBIDDEN_PLAINTEXT_KEYS = {
 
 
 def canonical_json_bytes(value: Any) -> bytes:
+    """Legacy/P1 canonical JSON helper retained for inherited policy/evidence hashes."""
     return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
 
 
 def canonical_sha256(value: Any) -> str:
+    """Legacy/P1 hash helper. P2.1 self-digests MUST use canonical_p2_sha256()."""
     return hashlib.sha256(canonical_json_bytes(value)).hexdigest()
+
+
+def _normalize_p2_string(value: str) -> str:
+    return unicodedata.normalize("NFKC", value).replace("\r\n", "\n").replace("\r", "\n")
+
+
+def canonical_decimal_string(value: int | float | Decimal | str) -> str:
+    """Return Manager-profile decimal text: no exponent, +, redundant zeros, or -0."""
+    if isinstance(value, bool):
+        raise TypeError("boolean_is_not_numeric")
+    if isinstance(value, float):
+        if not math.isfinite(value):
+            raise TypeError("non_finite_number")
+        if value == 0:
+            return "0"
+        raw = str(value)
+    elif isinstance(value, (int, Decimal)):
+        raw = str(value)
+    elif isinstance(value, str):
+        raw = value.strip()
+    else:
+        raise TypeError("unsupported_numeric_type")
+    if raw.startswith("+"):
+        raw = raw[1:]
+    try:
+        number = Decimal(raw)
+    except InvalidOperation as exc:
+        raise TypeError("invalid_decimal") from exc
+    if not number.is_finite():
+        raise TypeError("non_finite_number")
+    if number == 0:
+        return "0"
+    text = format(number, "f")
+    sign = ""
+    if text.startswith("-"):
+        sign, text = "-", text[1:]
+    integer, dot, fraction = text.partition(".")
+    integer = integer.lstrip("0") or "0"
+    fraction = fraction.rstrip("0")
+    return f"{sign}{integer}{('.' + fraction) if fraction else ''}"
+
+
+def _canonical_profile_value(value: Any) -> Any:
+    """Normalize producer data before it becomes an authoritative P2.1 hash payload."""
+    if value is None or type(value) is bool:
+        return value
+    if type(value) is int:
+        return value
+    if isinstance(value, float):
+        if not math.isfinite(value):
+            raise TypeError("non_finite_number")
+        if value.is_integer():
+            return int(value)
+        return canonical_decimal_string(value)
+    if isinstance(value, Decimal):
+        if not value.is_finite():
+            raise TypeError("non_finite_number")
+        if value == value.to_integral_value():
+            return int(value)
+        return canonical_decimal_string(value)
+    if isinstance(value, str):
+        return _normalize_p2_string(value)
+    if isinstance(value, list):
+        return [_canonical_profile_value(item) for item in value]
+    if isinstance(value, dict):
+        out: dict[str, Any] = {}
+        for key in sorted(value, key=lambda item: item.encode("ascii") if isinstance(item, str) else b""):
+            if not isinstance(key, str) or not key or any(ord(ch) >= 128 for ch in key):
+                raise TypeError("non_ascii_or_invalid_object_key")
+            out[key] = _canonical_profile_value(value[key])
+        return out
+    raise TypeError(f"unsupported_json_value:{type(value).__name__}")
+
+
+def _assert_authoritative_p2_payload(value: Any) -> None:
+    """Reject direct floats and invalid keys in already-materialized authoritative payloads."""
+    if value is None or type(value) in (bool, int, str):
+        return
+    if isinstance(value, float) or isinstance(value, Decimal):
+        raise TypeError("direct_non_integral_numeric_forbidden")
+    if isinstance(value, list):
+        for item in value:
+            _assert_authoritative_p2_payload(item)
+        return
+    if isinstance(value, dict):
+        for key, child in value.items():
+            if not isinstance(key, str) or not key or any(ord(ch) >= 128 for ch in key):
+                raise TypeError("non_ascii_or_invalid_object_key")
+            _assert_authoritative_p2_payload(child)
+        return
+    raise TypeError(f"unsupported_json_value:{type(value).__name__}")
+
+
+def canonical_p2_json_bytes(value: Any) -> bytes:
+    """Manager-frozen AQLEVON_CANONICAL_JSON_SHA256_V1 serialization."""
+    _assert_authoritative_p2_payload(value)
+    normalized = _canonical_profile_value(value)
+    return json.dumps(normalized, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")
+
+
+def canonical_p2_sha256(value: Any) -> str:
+    return hashlib.sha256(canonical_p2_json_bytes(value)).hexdigest()
 
 
 def valid_sha256(value: Any) -> bool:
@@ -53,8 +164,40 @@ def actual_evaluation_code_sha256() -> str:
     return hashlib.sha256(Path(__file__).with_name("eval_truth_gate.py").read_bytes()).hexdigest()
 
 
-def _self_digest(value: dict[str, Any], field: str) -> str:
-    return canonical_sha256({k: v for k, v in value.items() if k != field})
+def _p2_self_digest(value: dict[str, Any], field: str) -> str:
+    if not isinstance(value, dict):
+        raise TypeError("self_digest_payload_not_object")
+    body = {key: child for key, child in value.items() if key != field}
+    return canonical_p2_sha256(body)
+
+
+def verify_p2_self_digest(value: Any, field: str) -> bool:
+    if not isinstance(value, dict) or value.get("hash_profile") != HASH_PROFILE:
+        return False
+    digest = value.get(field)
+    if not valid_sha256(digest):
+        return False
+    try:
+        return _p2_self_digest(value, field) == digest
+    except (TypeError, ValueError):
+        return False
+
+
+_CANONICAL_DECIMAL_RE = re.compile(r"^-?(?:0|[1-9]\d*)\.\d*[1-9]$")
+
+
+def _is_canonical_numeric_repr(value: Any, *, allow_none: bool = False) -> bool:
+    if value is None:
+        return allow_none
+    if type(value) is int:
+        return True
+    if isinstance(value, str) and _CANONICAL_DECIMAL_RE.fullmatch(value):
+        try:
+            parsed = Decimal(value)
+        except InvalidOperation:
+            return False
+        return parsed.is_finite() and parsed != parsed.to_integral_value() and canonical_decimal_string(value) == value
+    return False
 
 
 
@@ -90,19 +233,23 @@ def _assert_no_forbidden_plaintext(value: Any, path: str = "receipt") -> None:
 
 
 def validate_candidate_artifact_manifest(manifest: Any) -> list[str]:
-    """Validate only the cross-lane identity owned by the Manager contract.
+    """Validate shared P2.1 identity/integrity, not Worker-03 artifact semantics.
 
-    Worker 03 owns the Candidate Artifact Manifest producer/validator and its
-    canonical self-digest algorithm. Worker 05 must not retype or duplicate that
-    truth. At this boundary we consume only the canonical kind + SHA-256 identity.
+    Worker 03 remains authority for artifact type/stage/layout/tree semantics. P2.1
+    now freezes the shared self-hash profile, so Worker 05 may verify the manifest
+    kind/profile/self-digest without retyping those semantic rules.
     """
     invalid: list[str] = []
     if not isinstance(manifest, dict):
         return ["candidate artifact manifest must be an object"]
     if manifest.get("manifest_kind") != CANDIDATE_MANIFEST_KIND:
         invalid.append("candidate artifact manifest kind mismatch")
+    if manifest.get("hash_profile") != HASH_PROFILE:
+        invalid.append("candidate artifact manifest hash_profile mismatch")
     if not valid_sha256(manifest.get("manifest_sha256")):
         invalid.append("candidate artifact manifest SHA-256 identity invalid")
+    elif not verify_p2_self_digest(manifest, "manifest_sha256"):
+        invalid.append("candidate artifact manifest self-digest mismatch")
     return invalid
 
 
@@ -122,16 +269,17 @@ def build_anchor_request(
             raise ValueError(f"invalid {label}")
     if requested_anchor_kind not in ALLOWED_ANCHOR_KINDS:
         raise ValueError("unsupported preregistration anchor kind")
-    request = {
+    request = _canonical_profile_value({
         "schema_version": 1,
         "request_kind": ANCHOR_REQUEST_KIND,
+        "hash_profile": HASH_PROFILE,
         "experiment_manifest_sha256": experiment_manifest_sha256,
         "evaluation_policy_sha256": evaluation_policy_sha256,
         "candidate_artifact_manifest_sha256": candidate_artifact_manifest_sha256,
         "requested_anchor_kind": requested_anchor_kind,
         "chronology_requirement": "ANCHOR_MUST_EXIST_IN_MANAGER_VERIFIABLE_IMMUTABLE_SYSTEM_BEFORE_CANDIDATE_OUTPUT_INSPECTION",
-    }
-    request["request_sha256"] = canonical_sha256(request)
+    })
+    request["request_sha256"] = canonical_p2_sha256(request)
     return request
 
 
@@ -142,9 +290,33 @@ def finalize_anchor_verification(payload: dict[str, Any]) -> dict[str, Any]:
     evident.  The Manager must independently resolve immutable_reference and verify
     external_evidence_sha256 + manager_attestation_sha256.
     """
+    if payload.get("hash_profile") not in (None, HASH_PROFILE):
+        raise ValueError("unknown preregistration anchor hash_profile")
     record = dict(payload)
-    record["verification_record_sha256"] = canonical_sha256(record)
+    record["hash_profile"] = HASH_PROFILE
+    record = _canonical_profile_value(record)
+    record["verification_record_sha256"] = canonical_p2_sha256(record)
     return record
+
+
+def validate_anchor_request(anchor_request: Any) -> list[str]:
+    invalid: list[str] = []
+    if not isinstance(anchor_request, dict):
+        return ["preregistration anchor request must be an object"]
+    if anchor_request.get("schema_version") != 1 or anchor_request.get("request_kind") != ANCHOR_REQUEST_KIND:
+        invalid.append("preregistration anchor request identity/schema mismatch")
+    if anchor_request.get("hash_profile") != HASH_PROFILE:
+        invalid.append("preregistration anchor request hash_profile mismatch")
+    for field in ("experiment_manifest_sha256", "evaluation_policy_sha256", "candidate_artifact_manifest_sha256"):
+        if not valid_sha256(anchor_request.get(field)):
+            invalid.append(f"preregistration anchor request missing/invalid {field}")
+    if anchor_request.get("requested_anchor_kind") not in ALLOWED_ANCHOR_KINDS:
+        invalid.append("preregistration anchor request kind unsupported")
+    if anchor_request.get("chronology_requirement") != "ANCHOR_MUST_EXIST_IN_MANAGER_VERIFIABLE_IMMUTABLE_SYSTEM_BEFORE_CANDIDATE_OUTPUT_INSPECTION":
+        invalid.append("preregistration anchor chronology requirement mismatch")
+    if not verify_p2_self_digest(anchor_request, "request_sha256"):
+        invalid.append("preregistration anchor request self-digest mismatch")
+    return invalid
 
 
 def validate_anchor_verification(
@@ -152,10 +324,13 @@ def validate_anchor_verification(
     anchor_request: dict[str, Any],
 ) -> list[str]:
     invalid: list[str] = []
+    invalid.extend(validate_anchor_request(anchor_request))
     if not isinstance(verification, dict):
-        return ["preregistration anchor verification must be an object"]
+        return invalid + ["preregistration anchor verification must be an object"]
     if verification.get("schema_version") != 1 or verification.get("verification_kind") != ANCHOR_VERIFICATION_KIND:
         invalid.append("preregistration anchor verification identity/schema mismatch")
+    if verification.get("hash_profile") != HASH_PROFILE:
+        invalid.append("preregistration anchor verification hash_profile mismatch")
     if verification.get("verification_status") != "VERIFIED":
         invalid.append("preregistration anchor is not Manager-verified")
     if verification.get("anchor_kind") not in ALLOWED_ANCHOR_KINDS:
@@ -183,8 +358,7 @@ def validate_anchor_verification(
             invalid.append("preregistration anchor verified_at_utc precedes anchored_at_utc")
     except ValueError as exc:
         invalid.append(str(exc))
-    digest = verification.get("verification_record_sha256")
-    if not valid_sha256(digest) or _self_digest(verification, "verification_record_sha256") != digest:
+    if not verify_p2_self_digest(verification, "verification_record_sha256"):
         invalid.append("preregistration anchor verification self-digest mismatch")
     return invalid
 
@@ -209,6 +383,16 @@ def red_team_evidence_root(report: dict[str, Any], required_classes: list[str] |
     })
 
 
+def _canonical_metric_number(value: Any, label: str, *, allow_none: bool = False) -> Any:
+    if value is None and allow_none:
+        return None
+    if type(value) is bool or not isinstance(value, (int, float)):
+        raise ValueError(f"numeric metric invalid: {label}")
+    if isinstance(value, float) and not math.isfinite(value):
+        raise ValueError(f"numeric metric non-finite: {label}")
+    return _canonical_profile_value(value)
+
+
 def _domain_summary(gate_result: dict[str, Any], experiment_manifest: dict[str, Any]) -> dict[str, Any]:
     diagnostics = ((gate_result.get("diagnostics") or {}).get("domains") or {})
     manifest_domains = experiment_manifest.get("domains") or {}
@@ -227,22 +411,58 @@ def _domain_summary(gate_result: dict[str, Any], experiment_manifest: dict[str, 
             raise ValueError(f"missing domain diagnostics: {domain_id}")
         if stat.get("role") != cfg.get("role"):
             raise ValueError(f"domain role mismatch: {domain_id}")
+        item: dict[str, Any] = {}
         for field in required_numeric:
-            if not isinstance(stat.get(field), (int, float)):
-                raise ValueError(f"domain metric missing: {domain_id}.{field}")
-        item = {field: stat[field] for field in required_numeric}
+            item[field] = _canonical_metric_number(stat.get(field), f"{domain_id}.{field}")
         item["role"] = stat["role"]
         threshold = stat.get("target_effect_threshold_pp")
         if item["role"] == "target":
-            if not isinstance(threshold, (int, float)) or not isinstance(stat.get("holm_significant"), bool):
+            if type(stat.get("holm_significant")) is not bool:
                 raise ValueError(f"target significance diagnostics missing: {domain_id}")
-            item["target_effect_threshold_pp"] = threshold
+            item["target_effect_threshold_pp"] = _canonical_metric_number(threshold, f"{domain_id}.target_effect_threshold_pp")
             item["holm_significant"] = stat["holm_significant"]
         else:
             item["target_effect_threshold_pp"] = None
             item["holm_significant"] = None
         summary[domain_id] = item
-    return summary
+    return _canonical_profile_value(summary)
+
+
+def _evaluation_efficiency_scope(
+    *,
+    experiment_manifest: dict[str, Any],
+    base_run: dict[str, Any],
+    candidate_run: dict[str, Any],
+    domain_summary: dict[str, Any],
+) -> dict[str, Any]:
+    item_counts: dict[str, int] = {}
+    for domain_id, item in sorted(domain_summary.items()):
+        count = item.get("n")
+        if type(count) is not int or count < 0:
+            raise ValueError(f"evaluation efficiency population count invalid: {domain_id}")
+        item_counts[domain_id] = count
+    root_body = _canonical_profile_value({
+        "hash_profile": HASH_PROFILE,
+        "population_kind": EVALUATION_EFFICIENCY_POPULATION_KIND,
+        "experiment_manifest_sha256": experiment_manifest["manifest_sha256"],
+        "harness_manifest_sha256": experiment_manifest["harness_manifest_sha256"],
+        "base_raw_outputs_sha256": base_run["raw_outputs_sha256"],
+        "base_run_trace_sha256": base_run["run_trace_sha256"],
+        "candidate_raw_outputs_sha256": candidate_run["raw_outputs_sha256"],
+        "candidate_run_trace_sha256": candidate_run["run_trace_sha256"],
+        "required_domain_item_counts": item_counts,
+    })
+    population_scope = dict(root_body)
+    population_scope["population_root_sha256"] = canonical_p2_sha256(root_body)
+    return {
+        "hash_profile": HASH_PROFILE,
+        "efficiency_scope_kind": EVALUATION_EFFICIENCY_SCOPE_KIND,
+        "population_scope": population_scope,
+        "metric_evidence_kind": "AQLEVON_EVALUATION_REPORT_AGGREGATE_EFFICIENCY_V1",
+        "runtime_evidence_consumed": False,
+        "runtime_attempt_set_sha256": None,
+        "evidence_population_boundary": "FROZEN_EVALUATION_HARNESS_ONLY_NOT_OPERATIONAL_RUNTIME_ATTEMPTS",
+    }
 
 
 def _efficiency_summary(report: dict[str, Any], gate_result: dict[str, Any]) -> dict[str, Any]:
@@ -255,23 +475,22 @@ def _efficiency_summary(report: dict[str, Any], gate_result: dict[str, Any]) -> 
         diag = diagnostics.get(metric)
         if not isinstance(pair, dict) or not isinstance(diag, dict):
             raise ValueError(f"efficiency evidence missing: {metric}")
-        baseline = pair.get("baseline")
-        candidate = pair.get("candidate")
-        if not isinstance(baseline, (int, float)) or not isinstance(candidate, (int, float)):
-            raise ValueError(f"efficiency values invalid: {metric}")
-        ratio = diag.get("ratio")
-        limit = diag.get("limit")
-        if ratio is not None and not isinstance(ratio, (int, float)):
-            raise ValueError(f"efficiency ratio invalid: {metric}")
-        if not isinstance(limit, (int, float)):
-            raise ValueError(f"efficiency limit invalid: {metric}")
         summary[metric] = {
-            "baseline": baseline,
-            "candidate": candidate,
-            "ratio": ratio,
-            "limit": limit,
+            "baseline": _canonical_metric_number(pair.get("baseline"), f"efficiency.{metric}.baseline"),
+            "candidate": _canonical_metric_number(pair.get("candidate"), f"efficiency.{metric}.candidate"),
+            "ratio": _canonical_metric_number(diag.get("ratio"), f"efficiency.{metric}.ratio", allow_none=True),
+            "limit": _canonical_metric_number(diag.get("limit"), f"efficiency.{metric}.limit"),
         }
-    return summary
+    return _canonical_profile_value(summary)
+
+
+def _runtime_attempt_authority_boundary() -> dict[str, Any]:
+    return {
+        "authority_kind": RUNTIME_ATTEMPT_AUTHORITY_KIND,
+        "authoritative_for_arbitrary_runtime_attempts": False,
+        "attempt_set_root_sha256": None,
+        "attempt_level_truth_requirement": "MANAGER_APPROVED_PER_ATTEMPT_OBJECTIVE_VERIFIER_OR_FUTURE_APPROVED_ATTEMPT_SET_EXTENSION",
+    }
 
 
 def build_evaluation_decision_receipt(
@@ -356,10 +575,17 @@ def build_evaluation_decision_receipt(
     failure_codes, failure_digest = _reason_codes("FAILURE", gate_result.get("failures"))
     domain_summary = _domain_summary(gate_result, experiment_manifest)
     efficiency_summary = _efficiency_summary(report, gate_result)
+    efficiency_scope = _evaluation_efficiency_scope(
+        experiment_manifest=experiment_manifest,
+        base_run=base_run,
+        candidate_run=candidate_run,
+        domain_summary=domain_summary,
+    )
 
     receipt = {
         "schema_version": 1,
         "receipt_kind": RECEIPT_KIND,
+        "hash_profile": HASH_PROFILE,
         "candidate_artifact_manifest_sha256": candidate_manifest_sha,
         "experiment_manifest_sha256": experiment_sha,
         "preregistration_anchor": {
@@ -387,7 +613,9 @@ def build_evaluation_decision_receipt(
             "run_trace_sha256": candidate_run["run_trace_sha256"],
         },
         "domain_metric_summary": domain_summary,
+        "efficiency_scope": efficiency_scope,
         "efficiency_metric_summary": efficiency_summary,
+        "runtime_attempt_authority": _runtime_attempt_authority_boundary(),
         "final_status": final_status,
         "invalid_reason_codes": invalid_codes,
         "invalid_reason_set_sha256": invalid_digest,
@@ -395,8 +623,9 @@ def build_evaluation_decision_receipt(
         "failure_reason_set_sha256": failure_digest,
         "truth_boundary": "PROMOTION_ELIGIBLE_REQUIRES_MANAGER_REVIEW_AND_INDEPENDENT_RERUN",
     }
+    receipt = _canonical_profile_value(receipt)
     _assert_no_forbidden_plaintext(receipt)
-    receipt["receipt_sha256"] = canonical_sha256(receipt)
+    receipt["receipt_sha256"] = canonical_p2_sha256(receipt)
     return receipt
 
 
@@ -414,8 +643,9 @@ def validate_evaluation_decision_receipt(
         return ["evaluation decision receipt must be an object"]
     if receipt.get("schema_version") != 1 or receipt.get("receipt_kind") != RECEIPT_KIND:
         invalid.append("evaluation decision receipt identity/schema mismatch")
-    digest = receipt.get("receipt_sha256")
-    if not valid_sha256(digest) or _self_digest(receipt, "receipt_sha256") != digest:
+    if receipt.get("hash_profile") != HASH_PROFILE:
+        invalid.append("evaluation decision receipt hash_profile mismatch")
+    if not verify_p2_self_digest(receipt, "receipt_sha256"):
         invalid.append("evaluation decision receipt self-digest mismatch")
     if receipt.get("final_status") not in ALLOWED_FINAL_STATUS:
         invalid.append("evaluation decision receipt final_status invalid")
@@ -439,10 +669,74 @@ def validate_evaluation_decision_receipt(
         for field in ("raw_outputs_sha256", "run_trace_sha256"):
             if not valid_sha256(run.get(field)):
                 invalid.append(f"evaluation decision receipt {run_name}.{field} invalid")
-    if not isinstance(receipt.get("domain_metric_summary"), dict) or not receipt["domain_metric_summary"]:
+    domain_summary = receipt.get("domain_metric_summary")
+    if not isinstance(domain_summary, dict) or not domain_summary:
         invalid.append("evaluation decision receipt domain metric summary missing")
-    if not isinstance(receipt.get("efficiency_metric_summary"), dict) or not receipt["efficiency_metric_summary"]:
+    else:
+        for domain_id, item in domain_summary.items():
+            if not isinstance(item, dict):
+                invalid.append(f"evaluation decision receipt domain metric invalid: {domain_id}")
+                continue
+            for field in ("n", "baseline_rate", "candidate_rate", "delta_pp", "improvements", "regressions",
+                          "discordant_pairs", "p_improvement_one_sided", "delta_ci95_low_pp", "delta_ci95_high_pp",
+                          "baseline_noise_sd_pp", "allowed_regression_pp"):
+                if not _is_canonical_numeric_repr(item.get(field)):
+                    invalid.append(f"evaluation decision receipt noncanonical domain numeric: {domain_id}.{field}")
+            threshold = item.get("target_effect_threshold_pp")
+            if threshold is not None and not _is_canonical_numeric_repr(threshold):
+                invalid.append(f"evaluation decision receipt noncanonical target threshold: {domain_id}")
+    efficiency = receipt.get("efficiency_metric_summary")
+    if not isinstance(efficiency, dict) or not efficiency:
         invalid.append("evaluation decision receipt efficiency summary missing")
+    else:
+        for metric, item in efficiency.items():
+            if not isinstance(item, dict):
+                invalid.append(f"evaluation decision receipt efficiency metric invalid: {metric}")
+                continue
+            for field in ("baseline", "candidate", "limit"):
+                if not _is_canonical_numeric_repr(item.get(field)):
+                    invalid.append(f"evaluation decision receipt noncanonical efficiency numeric: {metric}.{field}")
+            if item.get("ratio") is not None and not _is_canonical_numeric_repr(item.get("ratio")):
+                invalid.append(f"evaluation decision receipt noncanonical efficiency ratio: {metric}")
+    scope = receipt.get("efficiency_scope")
+    if not isinstance(scope, dict):
+        invalid.append("evaluation decision receipt efficiency scope missing")
+    else:
+        if scope.get("hash_profile") != HASH_PROFILE:
+            invalid.append("evaluation decision receipt efficiency scope hash_profile mismatch")
+        if scope.get("efficiency_scope_kind") != EVALUATION_EFFICIENCY_SCOPE_KIND:
+            invalid.append("evaluation decision receipt efficiency scope kind mismatch")
+        if scope.get("metric_evidence_kind") != "AQLEVON_EVALUATION_REPORT_AGGREGATE_EFFICIENCY_V1":
+            invalid.append("evaluation decision receipt efficiency metric evidence kind mismatch")
+        if scope.get("runtime_evidence_consumed") is not False or scope.get("runtime_attempt_set_sha256") is not None:
+            invalid.append("evaluation decision receipt runtime efficiency evidence boundary mismatch")
+        if scope.get("evidence_population_boundary") != "FROZEN_EVALUATION_HARNESS_ONLY_NOT_OPERATIONAL_RUNTIME_ATTEMPTS":
+            invalid.append("evaluation decision receipt efficiency population boundary mismatch")
+        pop = scope.get("population_scope")
+        if not isinstance(pop, dict):
+            invalid.append("evaluation decision receipt population scope missing")
+        else:
+            if pop.get("hash_profile") != HASH_PROFILE or pop.get("population_kind") != EVALUATION_EFFICIENCY_POPULATION_KIND:
+                invalid.append("evaluation decision receipt population identity mismatch")
+            root = pop.get("population_root_sha256")
+            body = {k: v for k, v in pop.items() if k != "population_root_sha256"}
+            try:
+                if not valid_sha256(root) or canonical_p2_sha256(body) != root:
+                    invalid.append("evaluation decision receipt population root mismatch")
+            except (TypeError, ValueError):
+                invalid.append("evaluation decision receipt population root invalid")
+    runtime_authority = receipt.get("runtime_attempt_authority")
+    if not isinstance(runtime_authority, dict):
+        invalid.append("evaluation decision receipt runtime attempt authority boundary missing")
+    else:
+        if runtime_authority.get("authority_kind") != RUNTIME_ATTEMPT_AUTHORITY_KIND:
+            invalid.append("evaluation decision receipt runtime attempt authority kind mismatch")
+        if runtime_authority.get("authoritative_for_arbitrary_runtime_attempts") is not False:
+            invalid.append("evaluation decision receipt cannot authorize arbitrary runtime attempts")
+        if runtime_authority.get("attempt_set_root_sha256") is not None:
+            invalid.append("evaluation decision receipt unexpected runtime attempt-set binding")
+        if runtime_authority.get("attempt_level_truth_requirement") != "MANAGER_APPROVED_PER_ATTEMPT_OBJECTIVE_VERIFIER_OR_FUTURE_APPROVED_ATTEMPT_SET_EXTENSION":
+            invalid.append("evaluation decision receipt runtime attempt truth requirement mismatch")
     try:
         _assert_no_forbidden_plaintext(receipt)
     except ValueError as exc:
