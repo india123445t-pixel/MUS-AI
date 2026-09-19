@@ -1,5 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import {once} from 'node:events';
+import {spawn} from 'node:child_process';
+import {fileURLToPath} from 'node:url';
 import {
   buildComputeAttemptReceipt,COMPUTE_PROFILES,validateExecutionAuthorization,verifyComputeAttemptReceipt,
 } from '../lib/aqlevon/compute-dispatch.js';
@@ -9,6 +15,7 @@ import {
   verifyComputeCostReceipt,verifyManagerComputeAuthorization,verifyVerifiedCandidateCostSummary,
 } from '../lib/aqlevon/compute-cost-orchestrator.js';
 
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const RUN='a'.repeat(64),ATTEMPT='b'.repeat(64),EVAL='c'.repeat(64),ACCEPT='d'.repeat(64),CANDIDATE='e'.repeat(64);
 const inventory24=[{index:0,name:'Mock RTX 4090 24GB',memory_mib:24576}];
 
@@ -198,4 +205,78 @@ test('actual provider costs propagate to candidate summary only when complete fo
   assert.equal(s.cost_basis,'provider_actual');
   assert.equal(s.actual_total_cost_usd,'0.03');
   assert.equal(verifyVerifiedCandidateCostSummary(s).ok,true);
+});
+
+
+async function runNode(script,args,{env={}}={}){
+  const child=spawn(process.execPath,[script,...args],{cwd:root,env:{...process.env,...env},stdio:['ignore','pipe','pipe']});
+  let stdout='',stderr='';child.stdout.on('data',x=>stdout+=x);child.stderr.on('data',x=>stderr+=x);
+  const [code,signal]=await once(child,'exit');return {code,signal,stdout,stderr};
+}
+
+test('paid dispatcher fails before GPU discovery when Manager authorization is absent',async()=>{
+  const r=await runNode('scripts/p3-compute-dispatch.mjs',[
+    '--profile','p4-surrogate-1x24','--run-task-id','P4-A03-GENE1-PHYSICAL-TRAINER',
+    '--run-manifest-sha',RUN,'--provider-hourly-usd','0.5','--gpu-indices','0','--execute','--',
+    process.execPath,'-e','process.exit(0)'
+  ],{env:{AQLEVON_GPU_EXECUTION_AUTHORIZED:'1',AQLEVON_COMPUTE_ORIGIN:'paid_manager_authorized',AQLEVON_BILLING_START_EPOCH_MS:String(Date.now())}});
+  assert.equal(r.code,2);
+  assert.ok(r.stderr.includes('manager_authorization'));
+});
+
+test('CPU-only fake GPU exercises exact paid Manager gate and emits canonical attempt receipt',async()=>{
+  const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'aqlevon-p4-paid-')),bin=path.join(tmp,'bin');
+  fs.mkdirSync(bin);const telemetry=path.join(tmp,'telemetry.json'),receipts=path.join(tmp,'receipts'),authFile=path.join(tmp,'auth.json');
+  const fake=path.join(bin,'nvidia-smi');
+  fs.writeFileSync(fake,`#!/bin/sh
+case "$*" in
+  *memory.total*) echo '0, Mock RTX 4090 24GB, 24576' ;;
+  *memory.used*) echo '0, 1024' ;;
+  *) exit 1 ;;
+esac
+`);fs.chmodSync(fake,0o755);
+  const auth=paidAuth({maxBilledSeconds:120,maxTotalCostUsd:1,maxHourlyRateUsd:1});
+  fs.writeFileSync(authFile,JSON.stringify(auth));
+  const payload=`const fs=require('fs');fs.writeFileSync(process.argv[1],JSON.stringify({schema:'aqlevon-p3-payload-telemetry-v1',peak_vram_bytes:123456,tokens_processed:77,tokens_generated:7}))`;
+  const r=await runNode('scripts/p3-compute-dispatch.mjs',[
+    '--profile','p4-surrogate-1x24','--run-task-id','P4-A03-GENE1-PHYSICAL-TRAINER',
+    '--run-manifest-sha',RUN,'--manager-authorization',authFile,'--provider-hourly-usd','0.5',
+    '--gpu-indices','0','--telemetry-json',telemetry,'--receipt-dir',receipts,'--sample-ms','25','--execute','--',
+    process.execPath,'-e',payload,telemetry
+  ],{env:{
+    PATH:`${bin}:${process.env.PATH}`,AQLEVON_GPU_EXECUTION_AUTHORIZED:'1',AQLEVON_COMPUTE_ORIGIN:'paid_manager_authorized',
+    AQLEVON_MANAGER_COMPUTE_AUTHORIZATION_SHA256:auth.authorization_sha256,AQLEVON_BILLING_START_EPOCH_MS:String(Date.now()),
+  }});
+  assert.equal(r.code,0,r.stderr);
+  const files=fs.readdirSync(receipts).filter(x=>x.startsWith('compute-attempt-'));
+  assert.equal(files.length,1);
+  const attempt=JSON.parse(fs.readFileSync(path.join(receipts,files[0]),'utf8'));
+  assert.equal(attempt.compute_origin,'paid_manager_authorized');
+  assert.equal(attempt.telemetry.tokens_processed,77);
+  assert.equal(verifyComputeAttemptReceipt(attempt).ok,true);
+});
+
+test('cost finalizer converts a paid attempt into provider-actual cost evidence without rerunning compute',async()=>{
+  const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'aqlevon-p4-finalize-')),attemptFile=path.join(tmp,'attempt.json'),authFile=path.join(tmp,'auth.json'),out=path.join(tmp,'cost.json');
+  const auth=paidAuth({maxBilledSeconds:120,maxTotalCostUsd:1,maxHourlyRateUsd:1});
+  fs.writeFileSync(authFile,JSON.stringify(auth));
+  const attempt=buildComputeAttemptReceipt({
+    attemptId:'paid-finalize',profileId:'p4-surrogate-1x24',runManifestSha256:RUN,payloadArgv:['python','train.py'],
+    computeOrigin:'paid_manager_authorized',hardware:{inventory:inventory24,gpu_indices:[0]},elapsedMs:60_000,
+    payloadTelemetry:{schema:'aqlevon-p3-payload-telemetry-v1',peak_vram_bytes:999,tokens_processed:10,tokens_generated:1},
+    deviceMemorySamplePeakMib:[1000],sampleIntervalMs:250,status:'success',exitCode:0,
+  });
+  fs.writeFileSync(attemptFile,JSON.stringify(attempt));
+  const r=await runNode('scripts/p4-cost-finalize.mjs',[
+    '--attempt-receipt',attemptFile,'--manager-authorization',authFile,
+    '--billing-start-epoch-ms','1000000','--process-end-epoch-ms','1060000','--provider-hourly-usd','0.5',
+    '--billing-granularity-seconds','1','--artifact-egress-bytes','1000','--egress-usd-per-gib','0',
+    '--examples-processed','2','--actual-billed-wall-seconds','60','--actual-compute-cost-usd','0.01',
+    '--actual-egress-cost-usd','0','--out',out
+  ]);
+  assert.equal(r.code,0,r.stderr);
+  const cost=JSON.parse(fs.readFileSync(out,'utf8'));
+  assert.equal(verifyComputeCostReceipt(cost).ok,true);
+  assert.equal(cost.billing.actual_total_cost_usd,'0.01');
+  assert.equal(cost.work.examples_processed,2);
 });
