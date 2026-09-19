@@ -1,4 +1,5 @@
 import hashlib
+import json
 import unittest
 
 import p2_merge_receipt_gate as gate
@@ -20,7 +21,7 @@ def seal_candidate(
     merge_recipe_sha256=None,
 ):
     parameter_layout_sha256 = parameter_layout_sha256 or h("layout")
-    parents = [] if parents is None else list(parents)
+    parents = [] if parents is None else sorted(parents)
     manifest = {
         "schema_version": 1,
         "manifest_kind": gate.CANDIDATE_MANIFEST_KIND,
@@ -127,6 +128,21 @@ def policy():
     }
 
 
+def policy_binding(value=None):
+    value = policy() if value is None else value
+    raw = (json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n").encode("utf-8")
+    return value, raw, gate.merge_policy_sha256_from_bytes(raw)
+
+
+def policy_args(value=None):
+    value, raw, sha = policy_binding(value)
+    return {
+        "merge_policy": value,
+        "merge_policy_bytes": raw,
+        "merge_policy_sha256": sha,
+    }
+
+
 def source_fixture():
     left = seal_candidate("left")
     right = seal_candidate("right")
@@ -165,12 +181,53 @@ class PreMergeAdmissionTests(unittest.TestCase):
         out = gate.pre_merge_source_admission(
             source_manifests=manifests,
             source_evaluation_receipts=receipts,
-            merge_policy=policy(),
-            merge_policy_sha256=h("merge-policy-file"),
+            **policy_args(),
         )
         self.assertEqual(out["decision"], "ADMIT_FOR_MERGE_CONSTRUCTION")
         self.assertEqual(gate.validate_source_admission_receipt(out), [])
         self.assertFalse(out["legacy_p1_booleans_authoritative"])
+
+    def test_policy_stale_foreign_hash_fails_closed(self):
+        manifests, receipts = source_fixture()
+        merge_policy, raw, _ = policy_binding()
+        with self.assertRaisesRegex(ValueError, "does not match exact merge policy bytes"):
+            gate.pre_merge_source_admission(
+                source_manifests=manifests,
+                source_evaluation_receipts=receipts,
+                merge_policy=merge_policy,
+                merge_policy_bytes=raw,
+                merge_policy_sha256=h("foreign-policy-bytes"),
+            )
+
+    def test_tampered_policy_object_with_stale_exact_bytes_fails_closed(self):
+        manifests, receipts = source_fixture()
+        merge_policy, raw, sha = policy_binding()
+        tampered = json.loads(json.dumps(merge_policy))
+        tampered["base"]["revision"] = "tampered-revision"
+        with self.assertRaisesRegex(ValueError, "object does not match exact merge policy bytes"):
+            gate.pre_merge_source_admission(
+                source_manifests=manifests,
+                source_evaluation_receipts=receipts,
+                merge_policy=tampered,
+                merge_policy_bytes=raw,
+                merge_policy_sha256=sha,
+            )
+
+    def test_reversed_source_input_has_identical_canonical_admission_identity(self):
+        manifests, receipts = source_fixture()
+        forward = gate.pre_merge_source_admission(
+            source_manifests=manifests,
+            source_evaluation_receipts=receipts,
+            **policy_args(),
+        )
+        reversed_input = gate.pre_merge_source_admission(
+            source_manifests=list(reversed(manifests)),
+            source_evaluation_receipts=receipts,
+            **policy_args(),
+        )
+        self.assertEqual(reversed_input, forward)
+        ids = [x["candidate_artifact_manifest_sha256"] for x in forward["source_bindings"]]
+        self.assertEqual(ids, sorted(ids))
 
     def test_legacy_p1_booleans_cannot_replace_evaluation_receipts(self):
         manifests, _ = source_fixture()
@@ -178,8 +235,7 @@ class PreMergeAdmissionTests(unittest.TestCase):
             gate.pre_merge_source_admission(
                 source_manifests=manifests,
                 source_evaluation_receipts=[],
-                merge_policy=policy(),
-                merge_policy_sha256=h("merge-policy-file"),
+                **policy_args(),
                 legacy_p1_evidence={
                     "target_gain": True,
                     "global_regression_pass": True,
@@ -200,8 +256,7 @@ class PreMergeAdmissionTests(unittest.TestCase):
             gate.pre_merge_source_admission(
                 source_manifests=manifests,
                 source_evaluation_receipts=receipts,
-                merge_policy=policy(),
-                merge_policy_sha256=h("merge-policy-file"),
+                **policy_args(),
             )
 
     def test_rejected_source_evaluation_is_rejected(self):
@@ -211,8 +266,7 @@ class PreMergeAdmissionTests(unittest.TestCase):
             gate.pre_merge_source_admission(
                 source_manifests=manifests,
                 source_evaluation_receipts=receipts,
-                merge_policy=policy(),
-                merge_policy_sha256=h("merge-policy-file"),
+                **policy_args(),
             )
 
     def test_evaluation_receipt_candidate_binding_mismatch_fails(self):
@@ -223,8 +277,7 @@ class PreMergeAdmissionTests(unittest.TestCase):
             gate.pre_merge_source_admission(
                 source_manifests=manifests,
                 source_evaluation_receipts=receipts,
-                merge_policy=policy(),
-                merge_policy_sha256=h("merge-policy-file"),
+                **policy_args(),
             )
 
     def test_layout_mismatch_fails_closed(self):
@@ -235,8 +288,7 @@ class PreMergeAdmissionTests(unittest.TestCase):
             gate.pre_merge_source_admission(
                 source_manifests=manifests,
                 source_evaluation_receipts=receipts,
-                merge_policy=policy(),
-                merge_policy_sha256=h("merge-policy-file"),
+                **policy_args(),
             )
 
     def test_wrong_hash_profile_fails_closed(self):
@@ -247,8 +299,7 @@ class PreMergeAdmissionTests(unittest.TestCase):
             gate.pre_merge_source_admission(
                 source_manifests=manifests,
                 source_evaluation_receipts=receipts,
-                merge_policy=policy(),
-                merge_policy_sha256=h("merge-policy-file"),
+                **policy_args(),
             )
 
     def test_bad_candidate_manifest_id_fails_closed_even_when_resealed(self):
@@ -260,8 +311,7 @@ class PreMergeAdmissionTests(unittest.TestCase):
             gate.pre_merge_source_admission(
                 source_manifests=manifests,
                 source_evaluation_receipts=receipts,
-                merge_policy=policy(),
-                merge_policy_sha256=h("merge-policy-file"),
+                **policy_args(),
             )
 
     def test_evaluation_unknown_hash_profile_fails_closed_even_when_resealed(self):
@@ -272,8 +322,7 @@ class PreMergeAdmissionTests(unittest.TestCase):
             gate.pre_merge_source_admission(
                 source_manifests=manifests,
                 source_evaluation_receipts=receipts,
-                merge_policy=policy(),
-                merge_policy_sha256=h("merge-policy-file"),
+                **policy_args(),
             )
 
     def test_tampered_source_manifest_self_digest_fails_closed(self):
@@ -283,23 +332,22 @@ class PreMergeAdmissionTests(unittest.TestCase):
             gate.pre_merge_source_admission(
                 source_manifests=manifests,
                 source_evaluation_receipts=receipts,
-                merge_policy=policy(),
-                merge_policy_sha256=h("merge-policy-file"),
+                **policy_args(),
             )
 
 
 class PostEvaluationPromotionTests(unittest.TestCase):
     def setUp(self):
         self.manifests, self.receipts = source_fixture()
-        self.policy = policy()
-        self.policy_sha = h("merge-policy-file")
+        self.policy, self.policy_bytes, self.policy_sha = policy_binding()
         self.admission = gate.pre_merge_source_admission(
             source_manifests=self.manifests,
             source_evaluation_receipts=self.receipts,
             merge_policy=self.policy,
             merge_policy_sha256=self.policy_sha,
+            merge_policy_bytes=self.policy_bytes,
         )
-        parents = [m["manifest_sha256"] for m in self.manifests]
+        parents = sorted(m["manifest_sha256"] for m in self.manifests)
         self.merged = seal_candidate(
             "merged",
             artifact_type="merge",
@@ -318,6 +366,7 @@ class PostEvaluationPromotionTests(unittest.TestCase):
             merged_evaluation_receipt=self.merged_eval,
             merge_policy=self.policy,
             merge_policy_sha256=self.policy_sha,
+            merge_policy_bytes=self.policy_bytes,
             interference_report_sha256=h("interference"),
             merge_roundtrip_receipt_sha256=h("roundtrip"),
         )
@@ -330,6 +379,15 @@ class PostEvaluationPromotionTests(unittest.TestCase):
         self.assertEqual(out["release_authority"], "MANAGER_ONLY")
         self.assertFalse(out["legacy_p1_booleans_authoritative"])
         self.assertEqual(gate.validate_promotion_receipt(out), [])
+
+    def test_reversed_inputs_promote_with_worker03_sorted_parent_list(self):
+        out = self.promote(
+            source_manifests=list(reversed(self.manifests)),
+            source_evaluation_receipts=list(reversed(self.receipts)),
+        )
+        self.assertEqual(out["decision"], "MERGE_PROMOTION_ELIGIBLE_FOR_MANAGER_REVIEW")
+        admitted_ids = [x["candidate_artifact_manifest_sha256"] for x in self.admission["source_bindings"]]
+        self.assertEqual(self.merged["parent_candidate_artifact_manifest_sha256"], sorted(admitted_ids))
 
     def test_merged_receipt_is_required_post_construction(self):
         with self.assertRaisesRegex(ValueError, "merged candidate/evaluation invalid"):

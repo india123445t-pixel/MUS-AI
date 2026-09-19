@@ -31,6 +31,8 @@ Worker-04 regression tests reproduce both accepted interoperability vectors:
 
 `pre_merge_source_admission()` requires at least two source Candidate Artifact Manifests and exactly one Evaluation Decision Receipt per source.
 
+Before source admission, the caller must provide the exact UTF-8 JSON bytes used for the merge policy plus `merge_policy_sha256`. Worker 04 recomputes SHA-256 over those exact bytes, parses them, requires the parsed policy object to equal the `merge_policy` object being enforced, and requires the supplied digest to equal the recomputed digest. A syntactically valid stale/foreign 64-hex digest is not authority.
+
 For every source it requires:
 - shared Candidate Artifact Manifest V1 identity/profile/self-digest integrity;
 - non-`probe_only` stage (stage remains workflow metadata, except this restrictive boundary);
@@ -41,6 +43,8 @@ For every source it requires:
 - shared Evaluation Decision Receipt V1 identity/profile/self-digest integrity;
 - exact receipt binding to the source `candidate_artifact_manifest_sha256`;
 - `final_status = PROMOTION_ELIGIBLE`.
+
+Source manifests and Evaluation Decision Receipts are paired by `candidate_artifact_manifest_sha256`, not by caller list position. Worker 04 then sorts the paired bindings lexicographically by candidate-manifest SHA before sealing admission. Therefore reversing the same logical source set does not change the authoritative admission receipt.
 
 Output is a new self-hashed:
 
@@ -60,7 +64,7 @@ The API accepts optional legacy diagnostics only so callers can carry old metada
 - the exact Worker-04 source-admission receipt;
 - the original source manifests/receipts and recomputes admission to prevent receipt substitution;
 - merged Candidate Artifact Manifest with `artifact_type=merge`;
-- exact parent-manifest list matching the admitted source order;
+- exact parent-manifest list matching the canonical lexicographically sorted admitted source identities, matching the accepted Worker-03 Candidate Artifact Manifest parent law;
 - exact lineage/layout/topology continuity;
 - non-null `merge_recipe_sha256`;
 - valid merged Evaluation Decision Receipt bound to the merged manifest and `PROMOTION_ELIGIBLE`;
@@ -93,7 +97,7 @@ This is still not Manager release approval.
 
 ## Authority boundaries
 
-Worker 04 validates shared cross-lane identity/integrity fields and the merge-specific compatibility facts it owns. It does **not** duplicate Worker-03 artifact-production semantics or Worker-05 metric thresholds/statistics.
+Worker 04 validates shared cross-lane identity/integrity fields and the merge-specific compatibility facts it owns. For parent identity ordering it follows the accepted Worker-03 contract exactly: parent manifest hashes must be lexicographically sorted. It does **not** duplicate Worker-03 artifact-production semantics beyond that frozen interoperability rule or Worker-05 metric thresholds/statistics.
 
 `artifact_stage` never proves quality. `PROMOTION_ELIGIBLE` is consumed from Worker 05 and remains subject to Manager review/independent rerun.
 

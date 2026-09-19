@@ -97,6 +97,7 @@ def validate_candidate(m:Any)->list[str]:
         if m.get(f) is not None and not is_sha(m.get(f)): e.append(f"candidate manifest.{f} invalid")
     parents=m.get("parent_candidate_artifact_manifest_sha256")
     if not isinstance(parents,list) or any(not is_sha(x) for x in parents) or len(set(parents))!=len(parents): e.append("candidate manifest parent identities invalid")
+    elif parents!=sorted(parents): e.append("candidate manifest parent identities must be lexicographically sorted")
     files=m.get("artifact_files")
     if not isinstance(files,list) or not files: e.append("candidate manifest artifact_files missing")
     else:
@@ -134,34 +135,72 @@ def validate_eval(r:Any)->list[str]:
     if r.get("truth_boundary")!="PROMOTION_ELIGIBLE_REQUIRES_MANAGER_REVIEW_AND_INDEPENDENT_RERUN": e.append("evaluation receipt truth_boundary mismatch")
     return e
 
-def _policy_errors(p:Any,sha:str)->list[str]:
+def _policy_errors(p:Any,sha:str,policy_bytes:bytes|bytearray|None)->list[str]:
     e=[]
     if not isinstance(p,dict): return ["merge policy must be an object"]
     if not is_sha(sha): e.append("merge_policy_sha256 invalid")
+    if not isinstance(policy_bytes,(bytes,bytearray)) or not policy_bytes:
+        e.append("exact merge policy bytes are required")
+    else:
+        raw=bytes(policy_bytes)
+        actual_sha=hashlib.sha256(raw).hexdigest()
+        try:
+            decoded=raw.decode("utf-8")
+            parsed=json.loads(decoded)
+        except (UnicodeDecodeError,json.JSONDecodeError):
+            parsed=None
+            e.append("exact merge policy bytes must be valid UTF-8 JSON")
+        if parsed is not None and parsed!=p:
+            e.append("merge policy object does not match exact merge policy bytes")
+        if is_sha(sha) and sha!=actual_sha:
+            e.append("merge_policy_sha256 does not match exact merge policy bytes")
     b=p.get("base")
     if not isinstance(b,dict) or not isinstance(b.get("repo"),str) or not isinstance(b.get("revision"),str): e.append("merge policy base invalid")
     return e
 
+def merge_policy_sha256_from_bytes(policy_bytes:bytes|bytearray)->str:
+    if not isinstance(policy_bytes,(bytes,bytearray)) or not policy_bytes:
+        raise ValueError("exact merge policy bytes are required")
+    return hashlib.sha256(bytes(policy_bytes)).hexdigest()
+
 def _lineage(m:dict)->dict:
     return {"base_repo":m["base"]["repo"],"base_revision":m["base"]["revision"],"base_manifest_sha256":m["base"]["base_manifest_sha256"],"parameter_layout_sha256":m["parameter_layout_sha256"],"topology_class":m["topology_class"]}
 
-def pre_merge_source_admission(*,source_manifests:list[dict],source_evaluation_receipts:list[dict],merge_policy:dict,merge_policy_sha256:str,legacy_p1_evidence:dict|None=None)->dict:
-    e=_policy_errors(merge_policy,merge_policy_sha256)
+def pre_merge_source_admission(*,source_manifests:list[dict],source_evaluation_receipts:list[dict],merge_policy:dict,merge_policy_sha256:str,merge_policy_bytes:bytes|bytearray|None=None,legacy_p1_evidence:dict|None=None)->dict:
+    e=_policy_errors(merge_policy,merge_policy_sha256,merge_policy_bytes)
     if not isinstance(source_manifests,list) or len(source_manifests)<2: e.append("pre-merge admission requires at least two source candidate manifests")
     if not isinstance(source_evaluation_receipts,list) or len(source_evaluation_receipts)!=len(source_manifests): e.append("pre-merge admission requires one evaluation receipt per source candidate")
     if e: raise ValueError("; ".join(e))
+
+    manifest_by_sha={}
+    for i,m in enumerate(source_manifests):
+        local=validate_candidate(m)
+        if local: raise ValueError(f"source manifest[{i}] invalid: "+"; ".join(local))
+        manifest_sha=m["manifest_sha256"]
+        if manifest_sha in manifest_by_sha: raise ValueError("duplicate source candidate manifest identity")
+        manifest_by_sha[manifest_sha]=m
+
+    eval_by_candidate_sha={}
+    for i,r in enumerate(source_evaluation_receipts):
+        local=validate_eval(r)
+        if local: raise ValueError(f"source evaluation[{i}] invalid: "+"; ".join(local))
+        candidate_sha=r["candidate_artifact_manifest_sha256"]
+        if candidate_sha in eval_by_candidate_sha: raise ValueError("source evaluation candidate binding mismatch: duplicate binding")
+        if candidate_sha not in manifest_by_sha: raise ValueError(f"source evaluation[{i}] candidate binding does not identify an admitted source manifest")
+        eval_by_candidate_sha[candidate_sha]=r
+    if set(eval_by_candidate_sha)!=set(manifest_by_sha):
+        raise ValueError("pre-merge admission requires one evaluation receipt bound to every source candidate")
+
     pb=merge_policy["base"]; lineage=None; bindings=[]
-    for i,(m,r) in enumerate(zip(source_manifests,source_evaluation_receipts)):
-        local=validate_candidate(m)+validate_eval(r)
-        if local: raise ValueError(f"source[{i}] invalid: "+"; ".join(local))
-        if m["artifact_stage"]=="probe_only": raise ValueError(f"source[{i}] probe_only is not merge-admissible")
-        if m["base"]["repo"]!=pb["repo"] or m["base"]["revision"]!=pb["revision"]: raise ValueError(f"source[{i}] base lineage does not match merge policy")
-        if r["candidate_artifact_manifest_sha256"]!=m["manifest_sha256"]: raise ValueError(f"source[{i}] evaluation receipt candidate binding mismatch")
-        if r["final_status"]!="PROMOTION_ELIGIBLE": raise ValueError(f"source[{i}] evaluation status is not PROMOTION_ELIGIBLE")
+    for manifest_sha in sorted(manifest_by_sha):
+        m=manifest_by_sha[manifest_sha]; r=eval_by_candidate_sha[manifest_sha]
+        if m["artifact_stage"]=="probe_only": raise ValueError(f"source[{manifest_sha}] probe_only is not merge-admissible")
+        if m["base"]["repo"]!=pb["repo"] or m["base"]["revision"]!=pb["revision"]: raise ValueError(f"source[{manifest_sha}] base lineage does not match merge policy")
+        if r["final_status"]!="PROMOTION_ELIGIBLE": raise ValueError(f"source[{manifest_sha}] evaluation status is not PROMOTION_ELIGIBLE")
         cur=_lineage(m)
         if lineage is None: lineage=cur
-        elif cur!=lineage: raise ValueError(f"source[{i}] lineage/layout/topology mismatch")
-        bindings.append({"candidate_artifact_manifest_sha256":m["manifest_sha256"],"evaluation_decision_receipt_sha256":r["receipt_sha256"]})
+        elif cur!=lineage: raise ValueError(f"source[{manifest_sha}] lineage/layout/topology mismatch")
+        bindings.append({"candidate_artifact_manifest_sha256":manifest_sha,"evaluation_decision_receipt_sha256":r["receipt_sha256"]})
     out={"schema_version":1,"receipt_kind":ADMISSION_KIND,"hash_profile":HASH_PROFILE,"merge_policy_sha256":merge_policy_sha256,"source_bindings":bindings,"compatible_lineage":lineage,"decision":"ADMIT_FOR_MERGE_CONSTRUCTION","legacy_p1_booleans_authoritative":False,"truth_boundary":"PRE_MERGE_CONSTRUCTION_ONLY_NOT_PROMOTION_AUTHORITY"}
     out["receipt_sha256"]=canonical_sha(out); return out
 
@@ -175,6 +214,10 @@ def validate_admission(r:Any)->list[str]:
     b=r.get("source_bindings")
     if not isinstance(b,list) or len(b)<2: e.append("source admission receipt source_bindings invalid")
     elif any(not isinstance(x,dict) or not is_sha(x.get("candidate_artifact_manifest_sha256")) or not is_sha(x.get("evaluation_decision_receipt_sha256")) for x in b): e.append("source admission receipt binding invalid")
+    else:
+        ids=[x["candidate_artifact_manifest_sha256"] for x in b]
+        if len(set(ids))!=len(ids): e.append("source admission receipt duplicate candidate binding")
+        if ids!=sorted(ids): e.append("source admission receipt source_bindings must be lexicographically sorted by candidate manifest SHA")
     l=r.get("compatible_lineage")
     if not isinstance(l,dict) or any(not isinstance(l.get(f),str) or not l.get(f) for f in ("base_repo","base_revision","topology_class")) or any(not is_sha(l.get(f)) for f in ("base_manifest_sha256","parameter_layout_sha256")): e.append("source admission receipt compatible_lineage invalid")
     if r.get("decision")!="ADMIT_FOR_MERGE_CONSTRUCTION": e.append("source admission receipt decision invalid")
@@ -182,10 +225,10 @@ def validate_admission(r:Any)->list[str]:
     if r.get("truth_boundary")!="PRE_MERGE_CONSTRUCTION_ONLY_NOT_PROMOTION_AUTHORITY": e.append("source admission receipt truth_boundary mismatch")
     return e
 
-def post_evaluation_merge_promotion(*,source_admission_receipt:dict,source_manifests:list[dict],source_evaluation_receipts:list[dict],merged_candidate_manifest:dict,merged_evaluation_receipt:dict,merge_policy:dict,merge_policy_sha256:str,interference_report_sha256:str,merge_roundtrip_receipt_sha256:str,request_quantized_release:bool=False,quantized_candidate_manifest:dict|None=None,quantized_evaluation_receipt:dict|None=None,legacy_p1_evidence:dict|None=None)->dict:
+def post_evaluation_merge_promotion(*,source_admission_receipt:dict,source_manifests:list[dict],source_evaluation_receipts:list[dict],merged_candidate_manifest:dict,merged_evaluation_receipt:dict,merge_policy:dict,merge_policy_sha256:str,merge_policy_bytes:bytes|bytearray|None=None,interference_report_sha256:str,merge_roundtrip_receipt_sha256:str,request_quantized_release:bool=False,quantized_candidate_manifest:dict|None=None,quantized_evaluation_receipt:dict|None=None,legacy_p1_evidence:dict|None=None)->dict:
     e=validate_admission(source_admission_receipt)
     if e: raise ValueError("invalid source admission receipt: "+"; ".join(e))
-    expected=pre_merge_source_admission(source_manifests=source_manifests,source_evaluation_receipts=source_evaluation_receipts,merge_policy=merge_policy,merge_policy_sha256=merge_policy_sha256,legacy_p1_evidence=legacy_p1_evidence)
+    expected=pre_merge_source_admission(source_manifests=source_manifests,source_evaluation_receipts=source_evaluation_receipts,merge_policy=merge_policy,merge_policy_sha256=merge_policy_sha256,merge_policy_bytes=merge_policy_bytes,legacy_p1_evidence=legacy_p1_evidence)
     if expected!=source_admission_receipt: raise ValueError("source admission receipt does not match current source manifests/receipts")
     local=validate_candidate(merged_candidate_manifest)+validate_eval(merged_evaluation_receipt)
     if local: raise ValueError("merged candidate/evaluation invalid: "+"; ".join(local))
@@ -195,7 +238,7 @@ def post_evaluation_merge_promotion(*,source_admission_receipt:dict,source_manif
     if merged_evaluation_receipt["final_status"]!="PROMOTION_ELIGIBLE": raise ValueError("merged candidate evaluation status is not PROMOTION_ELIGIBLE")
     if merged_candidate_manifest.get("merge_recipe_sha256") is None: raise ValueError("merged candidate merge_recipe_sha256 is required")
     ids=[x["candidate_artifact_manifest_sha256"] for x in source_admission_receipt["source_bindings"]]
-    if merged_candidate_manifest["parent_candidate_artifact_manifest_sha256"]!=ids: raise ValueError("merged candidate parent manifest list must exactly match admitted source order")
+    if merged_candidate_manifest["parent_candidate_artifact_manifest_sha256"]!=ids: raise ValueError("merged candidate parent manifest list must exactly match Worker-03 canonical sorted admitted source order")
     if _lineage(merged_candidate_manifest)!=source_admission_receipt["compatible_lineage"]: raise ValueError("merged candidate lineage/layout/topology differs from admitted sources")
     if not is_sha(interference_report_sha256): raise ValueError("interference_report_sha256 invalid")
     if not is_sha(merge_roundtrip_receipt_sha256): raise ValueError("merge_roundtrip_receipt_sha256 invalid")
