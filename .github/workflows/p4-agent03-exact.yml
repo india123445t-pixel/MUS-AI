@@ -5,6 +5,9 @@ on:
   push:
     branches:
       - agent/03-p4-gene1-physical-trainer
+  pull_request:
+    branches:
+      - agent/03-p3-g1-ready
     paths:
       - 'research/weight_factory/agent03/p4_*'
       - '.github/workflows/p4-agent03-exact.yml'
