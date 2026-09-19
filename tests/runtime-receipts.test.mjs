@@ -47,24 +47,6 @@ test('partial or malformed runtime receipt identity config fails closed determin
   }
 });
 
-test('runtime receipt identity config is fail-closed for partial or malformed bindings',()=>{
-  assert.deepEqual(runtimeReceiptIdentityConfig({}),{
-    requested:false,configured:false,candidate_artifact_manifest_sha256:'',harness_manifest_sha256:''
-  });
-  for(const value of [
-    {candidateArtifactManifestSha256:CANDIDATE},
-    {harnessManifestSha256:HARNESS},
-    {candidateArtifactManifestSha256:'bad',harnessManifestSha256:HARNESS},
-    {candidateArtifactManifestSha256:CANDIDATE,harnessManifestSha256:'bad'},
-  ]){
-    const cfg=runtimeReceiptIdentityConfig(value);
-    assert.equal(cfg.requested,true);
-    assert.equal(cfg.configured,false);
-  }
-  const configured=runtimeReceiptIdentityConfig({candidateArtifactManifestSha256:CANDIDATE,harnessManifestSha256:HARNESS});
-  assert.equal(configured.configured,true);
-});
-
 test('runtime attempt receipt is self-hashed and exports only hashed request/result identity',()=>{
   const r=receipt();
   const check=verifyRuntimeAttemptReceipt(r);
