@@ -98,19 +98,24 @@ jobs:
           import p4_gene1_trainer as c
           import p4_surrogate_tournament as t
           plan=Path("p4_frozen_training_plan_v1.json")
+          run=json.loads(Path("p4_a1_seed1701_run_manifest_v1.json").read_text())
+          assert c.verify_self_digest(run,"manifest_sha256")
           argv=t.build_a1_argv(plan,Path("/workspace"))
+          assert c.canonical_sha256(argv)==run["command_sha256"]
           lock=c.build_command_lock(
               argv,
               plan_sha256=json.loads(plan.read_text())["plan_sha256"],
+              run_manifest_sha256=run["manifest_sha256"],
               arm_id="P4_A1_RLVR_CONTROL",
               seed=1701,
           )
           frozen=json.loads(Path("p4_a1_seed1701_command_lock_v1.json").read_text())
           assert lock==frozen, (lock,frozen)
+          assert lock["run_manifest_sha256"]==run["manifest_sha256"]
           assert "trainer.n_gpus_per_node=1" in argv
           assert "actor_rollout_ref.rollout.tensor_model_parallel_size=1" in argv
           assert "max_model_len=4096" in argv
-          print("P4_A1_COMMAND_LOCK_PASS", lock["command_sha256"], lock["lock_sha256"])
+          print("P4_A1_COMMAND_LOCK_PASS", run["manifest_sha256"], lock["command_sha256"], lock["lock_sha256"])
           PY
 
       - name: Public reward agrees with all 56 training oracles
