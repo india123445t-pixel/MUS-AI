@@ -273,3 +273,34 @@ test('runtime population identity changes when the exact attempt set changes',()
   assert.equal(s2.status,'VALID');
   assert.notEqual(s1.population_scope.attempt_set_sha256,s2.population_scope.attempt_set_sha256);
 });
+
+test('integer-valued authoritative runtime metrics must remain JSON integers, not numeric strings',()=>{
+  const r=receipt();
+  const body={...r,runtime_metrics:{...r.runtime_metrics,prompt_tokens:'10'}};
+  delete body.receipt_sha256;
+  const malformed={...body,receipt_sha256:sha256Canonical(body)};
+  assert.equal(verifyP2SelfDigest(malformed),true);
+  const check=verifyRuntimeAttemptReceipt(malformed);
+  assert.equal(check.ok,false);
+  assert.ok(check.reasons.includes('runtime_metric_prompt_tokens'));
+});
+
+test('cross-lane SHA identities must use canonical lowercase hex lexemes',()=>{
+  const a=receipt();
+  const upperEvaluation=evalReceipt({candidate:CANDIDATE.toUpperCase()});
+  const evalSummary=summarizeVerifiedEfficiency([a],{approvedEvaluationReceipts:[upperEvaluation]});
+  assert.equal(evalSummary.status,'INVALID');
+  assert.ok(evalSummary.invalid_reason_codes.includes('approved_evaluation_receipt_invalid'));
+
+  const upperObjective=signedReceipt({
+    receipt_kind:'AQLEVON_OBJECTIVE_VERIFIER_RECEIPT_TEST_V1',
+    objective_receipt_id:'upper-sha',
+    attempt_receipt_sha256:a.receipt_sha256.toUpperCase(),
+    candidate_artifact_manifest_sha256:CANDIDATE,
+    verdict:'PASS',
+  });
+  const objectiveSummary=summarizeVerifiedEfficiency([a],{approvedObjectiveVerifierReceipts:[upperObjective]});
+  assert.equal(objectiveSummary.status,'INVALID');
+  assert.ok(objectiveSummary.invalid_reason_codes.includes('approved_objective_receipt_invalid'));
+});
+
