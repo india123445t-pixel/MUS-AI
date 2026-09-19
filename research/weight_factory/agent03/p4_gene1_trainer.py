@@ -209,9 +209,11 @@ def freeze_plan(*, method_spec_path:Path, shard_manifest_path:Path, shard_path:P
     output.parent.mkdir(parents=True,exist_ok=True); output.write_text(json.dumps(plan,ensure_ascii=False,indent=2,sort_keys=True)+"\n",encoding="utf-8")
     return plan
 
-def build_command_lock(argv:list[str],*,plan_sha256:str,arm_id:str,seed:int,profile:str=PROFILE)->dict[str,Any]:
+def build_command_lock(argv:list[str],*,plan_sha256:str,run_manifest_sha256:str,arm_id:str,seed:int,profile:str=PROFILE)->dict[str,Any]:
     if arm_id not in ARMS or seed not in (1701,1702,1703): raise ContractError("invalid_arm_or_seed")
-    obj={"schema_version":1,"record_kind":COMMAND_LOCK_KIND,"hash_profile":HASH_PROFILE,"task_id":TASK_ID,"training_plan_sha256":plan_sha256,"arm_id":arm_id,"seed":seed,"profile":profile,"model_scope":"surrogate","argv":argv,"command_sha256":canonical_sha256(argv),"automatic_fallback":False,"g1_rerun":False}
+    if not isinstance(plan_sha256,str) or not _SHA.fullmatch(plan_sha256): raise ContractError("invalid_plan_sha256")
+    if not isinstance(run_manifest_sha256,str) or not _SHA.fullmatch(run_manifest_sha256): raise ContractError("invalid_run_manifest_sha256")
+    obj={"schema_version":1,"record_kind":COMMAND_LOCK_KIND,"hash_profile":HASH_PROFILE,"task_id":TASK_ID,"training_plan_sha256":plan_sha256,"run_manifest_sha256":run_manifest_sha256,"arm_id":arm_id,"seed":seed,"profile":profile,"model_scope":"surrogate","argv":argv,"command_sha256":canonical_sha256(argv),"automatic_fallback":False,"g1_rerun":False}
     return seal(obj,"lock_sha256")
 
 def validate_manager_authorization(auth:Any,*,lock:dict[str,Any])->list[str]:
@@ -241,7 +243,7 @@ def validate_manager_authorization(auth:Any,*,lock:dict[str,Any])->list[str]:
         e.append("authorization_id")
     if auth.get("run_task_id")!=TASK_ID:
         e.append("authorization_task")
-    if auth.get("run_manifest_sha256")!=lock.get("training_plan_sha256"):
+    if auth.get("run_manifest_sha256")!=lock.get("run_manifest_sha256"):
         e.append("authorization_plan")
     if auth.get("profile_id")!=lock.get("profile"):
         e.append("authorization_profile")
