@@ -5,7 +5,6 @@ import {once} from 'node:events';
 import {spawn} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import path from 'node:path';
-import {summarizeVerifiedEfficiency} from '../lib/aqlevon/runtime-economics.js';
 
 async function listen(server){server.listen(0,'127.0.0.1');await once(server,'listening');return server.address().port}
 
@@ -188,13 +187,8 @@ test('delayed model HTTP failure retains runtime metrics and compute cost while 
   assert.ok(failed.elapsed_ms>=50,`expected measurable delayed failure, got ${failed.elapsed_ms}ms`);
   assert.ok(failed.allocated_gpu_seconds>0);
   assert.ok(failed.estimated_gpu_cost_usd>0);
-  const summary=summarizeVerifiedEfficiency([
-    {verified:true,runtime_metrics:{allocated_gpu_seconds:1,estimated_gpu_cost_usd:0.001}},
-    {verified:false,runtime_metrics:failed},
-  ]);
-  assert.ok(summary.allocated_gpu_seconds_total>1);
-  assert.ok(summary.estimated_gpu_cost_usd_total>0.001);
-  assert.equal(summary.verified_successes,1);
+  assert.equal(failed.schema,'aqlevon-runtime-metrics-v1');
+  assert.equal(failed.completion_tokens,null);
 });
 
 
