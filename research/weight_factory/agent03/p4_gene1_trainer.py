@@ -216,11 +216,17 @@ def build_command_lock(argv:list[str],*,plan_sha256:str,run_manifest_sha256:str,
     obj={"schema_version":1,"record_kind":COMMAND_LOCK_KIND,"hash_profile":HASH_PROFILE,"task_id":TASK_ID,"training_plan_sha256":plan_sha256,"run_manifest_sha256":run_manifest_sha256,"arm_id":arm_id,"seed":seed,"profile":profile,"model_scope":"surrogate","argv":argv,"command_sha256":canonical_sha256(argv),"automatic_fallback":False,"g1_rerun":False}
     return seal(obj,"lock_sha256")
 
-def validate_manager_authorization(auth:Any,*,lock:dict[str,Any])->list[str]:
+def validate_manager_authorization(
+    auth:Any,
+    *,
+    lock:dict[str,Any],
+    run_manifest_sha256:str,
+)->list[str]:
     """Validate Worker06 AQLEVON_MANAGER_COMPUTE_AUTHORIZATION_V1.
 
-    Worker06 binds paid authority to task + frozen run-manifest + compute
-    profile + economic ceilings. Worker03's command lock separately binds argv.
+    Worker06 binds paid authority to task + exact run-manifest + compute
+    profile + economic ceilings. The run manifest binds Worker03's exact
+    command SHA and command-lock SHA, preventing generic authorization.
     """
     e=[]
     if not isinstance(auth,dict):
@@ -243,8 +249,10 @@ def validate_manager_authorization(auth:Any,*,lock:dict[str,Any])->list[str]:
         e.append("authorization_id")
     if auth.get("run_task_id")!=TASK_ID:
         e.append("authorization_task")
-    if auth.get("run_manifest_sha256")!=lock.get("run_manifest_sha256"):
-        e.append("authorization_plan")
+    if not _SHA.fullmatch(str(run_manifest_sha256 or "")):
+        e.append("expected_run_manifest_sha256")
+    elif auth.get("run_manifest_sha256")!=run_manifest_sha256:
+        e.append("authorization_run_manifest")
     if auth.get("profile_id")!=lock.get("profile"):
         e.append("authorization_profile")
     if auth.get("compute_origin")!="paid_manager_authorized":
@@ -267,14 +275,29 @@ def validate_manager_authorization(auth:Any,*,lock:dict[str,Any])->list[str]:
         e.append("authorization_self_digest")
     return e
 
-def run_locked(lock:dict[str,Any],*,paid:bool,authorization:dict[str,Any]|None,cwd:Path)->int:
-    if not verify_self_digest(lock,"lock_sha256") or lock.get("g1_rerun") is not False: raise ContractError("invalid_command_lock")
+def run_locked(
+    lock:dict[str,Any],
+    *,
+    paid:bool,
+    authorization:dict[str,Any]|None,
+    run_manifest_sha256:str,
+    cwd:Path,
+)->int:
+    if not verify_self_digest(lock,"lock_sha256") or lock.get("g1_rerun") is not False:
+        raise ContractError("invalid_command_lock")
     if paid:
-        if authorization is None: raise ContractError("paid_run_requires_exact_manager_authorization")
-        errors=validate_manager_authorization(authorization,lock=lock)
-        if errors: raise ContractError("FAIL-CLOSED:"+";".join(errors))
+        if authorization is None:
+            raise ContractError("paid_run_requires_exact_manager_authorization")
+        errors=validate_manager_authorization(
+            authorization,
+            lock=lock,
+            run_manifest_sha256=run_manifest_sha256,
+        )
+        if errors:
+            raise ContractError("FAIL-CLOSED:"+";".join(errors))
     argv=lock.get("argv")
-    if not isinstance(argv,list) or not argv or not all(isinstance(x,str) and x for x in argv): raise ContractError("invalid_argv")
+    if not isinstance(argv,list) or not argv or not all(isinstance(x,str) and x for x in argv):
+        raise ContractError("invalid_argv")
     return int(subprocess.run(argv,cwd=str(cwd)).returncode)
 
 def main()->int:
