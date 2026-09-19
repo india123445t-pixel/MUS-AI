@@ -31,8 +31,16 @@
   "worker06_reference_commit": "7204c7ae84eb6d246603fda960cffe02c2b6279e",
   "worker03_sources": {
     "trainer_git_blob_sha1": "14b5573f682c0b50860a570f1328b3b0eca21032",
-    "tournament_git_blob_sha1": "ac9f0381bd03659696d73140aa7bd21fa50c4725",
-    "reward_git_blob_sha1": "c9db3e315299cce59c5d4cece7de86302c10c614"
+    "tournament_git_blob_sha1": "7aeece72d92202386f76b68c4c7dcc8fbc720e14",
+    "reward_git_blob_sha1": "c9db3e315299cce59c5d4cece7de86302c10c614",
+    "runtime_compat_sitecustomize_git_blob_sha1": "ef9c92fb0923ad444f33d33a24ef557cd2af0fcf"
+  },
+  "runtime_compatibility": {
+    "qwen_vl_utils_version": "0.0.14",
+    "processor_template_bridge": "processor.tokenizer.chat_template_to_processor.chat_template_exact_qwen35_staged_model_only",
+    "canonical_chat_template_sha256": "a4aee8afcf2e0711942cf848899be66016f8d14a889ff9ede07bca099c28f715",
+    "pre_gpu_dataset_train_rows": 56,
+    "pre_gpu_dataset_val_rows": 56
   },
   "budget": {
     "optimizer_updates": 12,
@@ -53,5 +61,5 @@
   "automatic_fallback": false,
   "paid_compute_requires_manager_authorization": true,
   "capability_gain_claim": false,
-  "manifest_sha256": "4d673cb52f624148109a172c56d7bdcbf0d1b019632649258fe12c29b3d88453"
+  "manifest_sha256": "11ede4257355220e268fdfbc1c37e4e03f73fd258c13e22ac75d980c5b30d502"
 }
