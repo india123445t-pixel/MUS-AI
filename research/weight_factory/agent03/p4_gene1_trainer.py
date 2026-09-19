@@ -1,22 +1,16 @@
 #!/usr/bin/env python3
-"""AQLEVON Worker 03 — P4 Gene #1 physical trainer control plane.
+"""AQLEVON Worker 03 — P4 Gene #1 frozen-input/authorization control plane.
 
-This module prepares and locks the Worker-01 method specs + Worker-02 training
-shard before any surrogate/27B execution.  It deliberately cannot consume
-sealed evaluation assets and cannot authorize paid compute or a 27B run.
-
-Physical method-specific training is allowed only after exact P4 dependencies
-exist. G1 is complete and this module has no G1 command.
+Consumes the exact Worker-01/W02/W05 P4 public handoffs.  It never reads sealed
+P4 evaluation plaintext.  G1 is historical evidence only and cannot be rerun
+from this module.
 """
 from __future__ import annotations
 
 import argparse
 import hashlib
 import json
-import math
-import os
 import re
-import shlex
 import subprocess
 import unicodedata
 from pathlib import Path
@@ -24,37 +18,54 @@ from typing import Any
 
 HASH_PROFILE = "AQLEVON_CANONICAL_JSON_SHA256_V1"
 TASK_ID = "P4-A03-GENE1-PHYSICAL-TRAINER"
+W01_TASK_ID = "P4-A01-METHOD-TOURNAMENT-DIRECTOR"
 SURROGATE_MODEL = "Qwen/Qwen3.5-4B-Base"
 SURROGATE_REVISION = "daa9c16f371249f9ad1c75a9ed6f956c08ea08f5"
 CANONICAL_MODEL = "Qwen/Qwen3.8-27B"
 CANONICAL_REVISION = "1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0"
 G1_COMMIT = "4a7a5fa2c2c4ba5f291564251c290e2c416ce6ec"
-METHOD_SPEC_KIND = "AQLEVON_P4_GENE1_METHOD_TOURNAMENT_SPEC_V1"
+G1_STATUS = "ALREADY_PASSED_DO_NOT_RERUN"
+METHOD_SPEC_KIND = "AQLEVON_P4_METHOD_TOURNAMENT_SPEC_V1"
+W01_CANONICAL_SHA256 = "7c6cc62b6ae20fd49038198865567df75f1a105607bd9d32d974530bd9894f1d"
+W01_SNAPSHOT_FILE_SHA256 = "4f51eed6107dac85046a432f99edee54f01d3b8100c443eeedd0cb6c56394668"
+W02_MANIFEST_KIND = "AQLEVON_GENE1_TRAINING_SHARD_MANIFEST_V1"
+W02_ROW_KIND = "AQLEVON_P3_SFT_CONTROL_RECORD_V1"
+W02_MANIFEST_SHA256 = "f7499362fdd7e6fd4bc91682a5f1c03767c98685c045ad50a712711c6c4ad55f"
+W02_SHARD_SHA256 = "59480e9ff48b36a0efb77a36d3e35d9f656ef4dee0ce18489d3017c92b2a0d49"
+W02_PACK_SHA256 = "35c7ebe6d5e82f42d7553fa28391f6d82c8800d6eced582d06881c8eb17d9d6b"
+W02_SPLIT_SHA256 = "3cd1c0d32cad8cc7edf55c9392292828d54d2b4bd16ad50d0e70e26ba3dd9202"
+W02_SEALED_COMMITMENT_SHA256 = "7e0463ddf6068fe66d85b5798b4f8037489c99dcd452376e8144dff0a122f4e5"
+W02_SEALED_PACK_SHA256 = "b30b85c59784f9a5b553f4182f8cdc8462c2880dddaadd528ed37ac3aee683bb"
+W02_BINDING_SHA256 = "d9a81a9730e1dac02ecf8b032191a8d878e00d9a25547712168afb0a725095e5"
+W05_LAW_SHA256 = "70581a21c26605317afcb314d990fa2f78b621bf44af1747d8caac6168385ec0"
+W05_SAMPLING_SHA256 = "4dde4741da4c1c469ee6fe555ea9041ad985de829eefb76b702ff0c82e528903"
+SDPO_REPO = "lasgroup/SDPO"
+SDPO_COMMIT = "7c457fc1b1f636ae794eb0362ba37d4743b06fbc"
+PROFILE = "p4-surrogate-1x24"
 FROZEN_PLAN_KIND = "AQLEVON_P4_GENE1_FROZEN_TRAINING_PLAN_V1"
-RUN_RECEIPT_KIND = "AQLEVON_P4_GENE1_TRAINING_RUN_RECEIPT_V1"
+COMMAND_LOCK_KIND = "AQLEVON_P4_GENE1_COMMAND_LOCK_V1"
 AUTH_KIND = "AQLEVON_MANAGER_PAID_RUN_AUTHORIZATION_V1"
-TRAINING_SHARD_KIND = "AQLEVON_TRAINING_SHARD_MANIFEST_V1"
 _SHA = re.compile(r"^[0-9a-f]{64}$")
-FORBIDDEN_EVAL_TOKENS = (
-    "sealed_eval", "sealed-eval", "sealed_transfer", "hidden_canary",
-    "hidden_answer", "protected_eval", "private_eval", "eval_answer",
+ARMS = (
+    "P4_A0_SFT_LORA_CONTROL",
+    "P4_A1_RLVR_CONTROL",
+    "P4_A2_SDPO_RICH_FEEDBACK",
 )
-SUPPORTED_METHODS = {
-    "SFT_LORA_CONTROL",
-    "RLVR_CONTROL",
-    "SDPO_RICH_FEEDBACK",
-    "OPSA_TEACHER_FREE",
-    "SEQUENTIAL_OPD_THEN_RLVR",
-    "VERIFIER_TRIGGERED_TRD",
-}
+EXECUTION_ORDER = (
+    "P4_A1_RLVR_CONTROL",
+    "P4_A0_SFT_LORA_CONTROL",
+    "P4_A2_SDPO_RICH_FEEDBACK",
+)
+FORBIDDEN_PRIVATE_KEYS = (
+    "sealed_eval_plaintext", "eval_secret", "private_eval", "hidden_answer",
+    "canary_plaintext", "sealed_test_body",
+)
 
 class ContractError(ValueError):
     pass
 
-
-def _sha256_bytes(data: bytes) -> str:
+def sha256_bytes(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
-
 
 def sha256_file(path: Path) -> str:
     h = hashlib.sha256()
@@ -63,14 +74,13 @@ def sha256_file(path: Path) -> str:
             h.update(block)
     return h.hexdigest()
 
-
 def _canon(value: Any) -> Any:
     if isinstance(value, str):
         return unicodedata.normalize("NFKC", value).replace("\r\n", "\n").replace("\r", "\n")
     if value is None or type(value) in (bool, int):
         return value
     if isinstance(value, float):
-        raise ContractError("direct_float_forbidden_in_authoritative_payload")
+        raise ContractError("direct_float_forbidden_in_authoritative_hash_payload")
     if isinstance(value, list):
         return [_canon(x) for x in value]
     if isinstance(value, dict):
@@ -80,315 +90,164 @@ def _canon(value: Any) -> Any:
         return {k: _canon(value[k]) for k in sorted(value, key=lambda x: x.encode("ascii"))}
     raise ContractError(f"unsupported_authoritative_type:{type(value).__name__}")
 
-
 def canonical_bytes(value: Any) -> bytes:
     return json.dumps(_canon(value), ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")
 
-
 def canonical_sha256(value: Any) -> str:
-    return _sha256_bytes(canonical_bytes(value))
+    return sha256_bytes(canonical_bytes(value))
 
-
-def seal(obj: dict[str, Any], digest_field: str) -> dict[str, Any]:
+def seal(obj: dict[str, Any], field: str) -> dict[str, Any]:
     out = dict(obj)
-    out[digest_field] = ""
-    payload = {k: out[k] for k in out if k != digest_field}
-    out[digest_field] = canonical_sha256(payload)
+    out[field] = ""
+    out[field] = canonical_sha256({k: out[k] for k in out if k != field})
     return out
 
+def verify_self_digest(obj: Any, field: str) -> bool:
+    return isinstance(obj, dict) and isinstance(obj.get(field), str) and bool(_SHA.fullmatch(obj[field])) and canonical_sha256({k: obj[k] for k in obj if k != field}) == obj[field]
 
-def verify_self_digest(obj: dict[str, Any], field: str) -> bool:
-    value = obj.get(field)
-    if not isinstance(value, str) or not _SHA.fullmatch(value):
-        return False
-    return canonical_sha256({k: obj[k] for k in obj if k != field}) == value
-
-
-def _load(path: Path) -> Any:
+def load_json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
 
-
-def _forbidden_eval_reference(value: Any, path: str = "root") -> list[str]:
+def _private_reference_hits(value: Any, path: str = "root") -> list[str]:
     hits: list[str] = []
     if isinstance(value, dict):
         for k, v in value.items():
-            kl = str(k).casefold()
-            if any(tok in kl for tok in FORBIDDEN_EVAL_TOKENS):
+            key = str(k).casefold().replace("-", "_")
+            if any(tok in key for tok in FORBIDDEN_PRIVATE_KEYS):
                 hits.append(f"{path}.{k}")
-            hits.extend(_forbidden_eval_reference(v, f"{path}.{k}"))
+            hits.extend(_private_reference_hits(v, f"{path}.{k}"))
     elif isinstance(value, list):
         for i, v in enumerate(value):
-            hits.extend(_forbidden_eval_reference(v, f"{path}[{i}]"))
-    elif isinstance(value, str):
-        s = value.casefold().replace(" ", "_")
-        if any(tok in s for tok in FORBIDDEN_EVAL_TOKENS):
-            hits.append(path)
+            hits.extend(_private_reference_hits(v, f"{path}[{i}]"))
     return hits
 
-
-def validate_method_spec(spec: Any) -> list[str]:
+def validate_w01_spec(spec: Any, raw_bytes: bytes | None = None) -> list[str]:
     e: list[str] = []
-    if not isinstance(spec, dict):
-        return ["method_spec_not_object"]
-    if spec.get("schema_version") != 1:
-        e.append("method_spec_schema_version")
-    if spec.get("spec_kind") != METHOD_SPEC_KIND:
-        e.append("method_spec_kind")
-    if spec.get("hash_profile") != HASH_PROFILE:
-        e.append("method_spec_hash_profile")
-    if spec.get("worker_id") != "01" or spec.get("task_id") != "P4-A01-METHOD-TOURNAMENT-DIRECTOR":
-        e.append("method_spec_authority_identity")
-    if not verify_self_digest(spec, "spec_sha256"):
-        e.append("method_spec_self_digest")
+    if not isinstance(spec, dict): return ["w01_spec_not_object"]
+    if str(spec.get("schema_version")) != "1": e.append("w01_schema_version")
+    if spec.get("spec_kind") != METHOD_SPEC_KIND: e.append("w01_spec_kind")
+    if spec.get("task_id") != W01_TASK_ID: e.append("w01_task_id")
+    if canonical_sha256(spec) != W01_CANONICAL_SHA256: e.append("w01_canonical_sha256")
+    if raw_bytes is not None and sha256_bytes(raw_bytes) != W01_SNAPSHOT_FILE_SHA256: e.append("w01_snapshot_file_sha256")
     arms = spec.get("arms")
-    if not isinstance(arms, list) or not 1 <= len(arms) <= 3:
-        e.append("method_spec_arm_count_must_be_1_to_3")
-        arms = []
-    seen = set()
-    for i, arm in enumerate(arms):
-        if not isinstance(arm, dict):
-            e.append(f"arm_{i}_not_object"); continue
-        aid = arm.get("arm_id")
-        method = arm.get("method")
-        if not isinstance(aid, str) or not aid or aid in seen:
-            e.append(f"arm_{i}_invalid_or_duplicate_id")
-        seen.add(aid)
-        if method not in SUPPORTED_METHODS:
-            e.append(f"arm_{i}_unsupported_method")
-        for fld in ("seed_policy", "budget", "optimizer", "stop_conditions", "runner_parameters"):
-            if fld not in arm:
-                e.append(f"arm_{i}_missing_{fld}")
-        if _forbidden_eval_reference(arm):
-            e.append(f"arm_{i}_contains_forbidden_eval_reference")
+    if not isinstance(arms, list) or [x.get("arm_id") for x in arms if isinstance(x, dict)] != list(ARMS): e.append("w01_arm_set_or_order")
+    if spec.get("execution_order", [])[:3] != [
+        "P4_A1_RLVR_CONTROL seed1701 to establish C12",
+        "P4_A0_SFT_LORA_CONTROL seed1701",
+        "P4_A2_SDPO_RICH_FEEDBACK seed1701 if preflight passes",
+    ]: e.append("w01_execution_order")
+    student = spec.get("student_model") or {}
+    if student.get("repo") != SURROGATE_MODEL or student.get("revision") != SURROGATE_REVISION or student.get("precision") != "bf16" or student.get("quantization") != "none": e.append("w01_student_identity")
+    common = spec.get("common_adapter") or {}
+    if common.get("type") != "lora" or common.get("r") != 4 or common.get("alpha") != 4 or common.get("target_scope") != "model.language_model full-attention q_proj + v_proj only": e.append("w01_adapter_contract")
+    budget = spec.get("screen_budget") or {}
+    if budget.get("seed") != 1701 or budget.get("max_optimizer_updates") != 12 or budget.get("examples_or_prompts_per_update") != 4 or budget.get("rl_rollouts_per_prompt") != 4 or budget.get("sft_example_exposure_ceiling") != 48: e.append("w01_screen_budget")
+    if spec.get("training_seeds") != [1701,1702,1703]: e.append("w01_training_seeds")
+    stack = spec.get("common_stack") or {}
+    wanted = {"transformers":"5.17.0","peft":"0.21.0","accelerate":"1.15.0"}
+    for k,v in wanted.items():
+        if (stack.get(k) or {}).get("version") != v: e.append(f"w01_stack_{k}")
+    sdpo = stack.get("sdpo_reference") or {}
+    if sdpo.get("repo") != SDPO_REPO or sdpo.get("commit") != SDPO_COMMIT or sdpo.get("license") != "Apache-2.0": e.append("w01_sdpo_reference")
     return e
 
-
-def validate_training_shard(manifest: Any, shard_bytes: bytes) -> list[str]:
+def validate_w02_inputs(manifest: Any, shard: bytes, pack: Any, split: Any, binding: Any) -> list[str]:
     e: list[str] = []
-    if not isinstance(manifest, dict):
-        return ["training_shard_manifest_not_object"]
-    required = {
-        "schema_version","manifest_kind","hash_profile","manifest_id","admission_policy_id",
-        "admission_policy_sha256","source_registry_snapshot_sha256",
-        "protected_training_contamination_manifest_sha256",
-        "protected_training_contamination_receipt_sha256","admission_gate_code_sha256",
-        "shard_digest_scheme","shard_file_sha256","byte_size","row_count",
-        "admitted_record_content_digest_scheme","admitted_record_content_digest_sha256",
-        "decision_log_scheme","decision_log_sha256","decision_counts",
-        "provenance_license_evidence_bundle_sha256","source_revision_encoding_scheme",
-        "contamination_evidence_scheme","language_audit_applicability_scheme",
-        "language_audit_receipt_sha256","created_from","manifest_sha256",
-    }
-    missing=sorted(required-set(manifest)); extra=sorted(set(manifest)-required)
-    if missing: e.append("training_shard_manifest_missing:"+",".join(missing))
-    if extra: e.append("training_shard_manifest_extra:"+",".join(extra))
-    if manifest.get("schema_version") != 1:
-        e.append("training_shard_schema_version")
-    if manifest.get("manifest_kind") != TRAINING_SHARD_KIND:
-        e.append("training_shard_manifest_kind")
-    if manifest.get("hash_profile") != HASH_PROFILE:
-        e.append("training_shard_hash_profile")
-    if not isinstance(manifest.get("manifest_id"),str) or not manifest["manifest_id"].startswith("aqlevon-training-shard-v1:"):
-        e.append("training_shard_manifest_id")
-    if not verify_self_digest(manifest, "manifest_sha256"):
-        e.append("training_shard_manifest_self_digest")
-    for fld in ("admission_policy_sha256","source_registry_snapshot_sha256","protected_training_contamination_manifest_sha256","admission_gate_code_sha256","shard_file_sha256","admitted_record_content_digest_sha256","decision_log_sha256","provenance_license_evidence_bundle_sha256"):
-        if not isinstance(manifest.get(fld),str) or not _SHA.fullmatch(manifest[fld]): e.append("training_shard_invalid_sha256:"+fld)
-    counts=manifest.get("decision_counts")
-    if not isinstance(counts,dict) or set(counts)!={"ADMIT","QUARANTINE","DENY"}: e.append("training_shard_decision_counts")
-    elif counts.get("ADMIT") != manifest.get("row_count"): e.append("training_shard_admit_count_mismatch")
-    if not isinstance(manifest.get("created_from"),list) or not manifest["created_from"]: e.append("training_shard_created_from")
-    if manifest.get("shard_file_sha256") != _sha256_bytes(shard_bytes):
-        e.append("training_shard_bytes_hash_mismatch")
-    if manifest.get("byte_size") != len(shard_bytes):
-        e.append("training_shard_byte_size_mismatch")
-    try:
-        text = shard_bytes.decode("utf-8")
-    except UnicodeDecodeError:
-        return e + ["training_shard_not_utf8"]
-    rows = [line for line in text.splitlines() if line.strip()]
-    if manifest.get("row_count") != len(rows) or not rows:
-        e.append("training_shard_row_count_mismatch")
-    for i, line in enumerate(rows):
-        try:
-            row = json.loads(line)
-        except json.JSONDecodeError:
-            e.append(f"training_row_{i}_invalid_json")
-            continue
-        if not isinstance(row, dict):
-            e.append(f"training_row_{i}_not_object")
-            continue
-        if row.get("row_kind") != "AQLEVON_TRAINING_SHARD_ROW_V1":
-            e.append(f"training_row_{i}_kind")
-        if _forbidden_eval_reference(row):
-            e.append(f"training_row_{i}_forbidden_eval_reference")
-        if not isinstance(row.get("prompt"), str) or "answer" not in row:
-            e.append(f"training_row_{i}_missing_trainable_fields")
+    if not isinstance(manifest, dict) or manifest.get("manifest_kind") != W02_MANIFEST_KIND: return ["w02_manifest_kind"]
+    if manifest.get("hash_profile") != HASH_PROFILE: e.append("w02_hash_profile")
+    if not verify_self_digest(manifest, "manifest_sha256") or manifest.get("manifest_sha256") != W02_MANIFEST_SHA256: e.append("w02_manifest_sha256")
+    if manifest.get("shard_file_sha256") != W02_SHARD_SHA256 or sha256_bytes(shard) != W02_SHARD_SHA256: e.append("w02_shard_sha256")
+    if manifest.get("row_count") != 56 or manifest.get("byte_size") != len(shard): e.append("w02_shard_size_count")
+    if manifest.get("training_visible_pack_sha256") != W02_PACK_SHA256: e.append("w02_pack_binding")
+    if manifest.get("split_manifest_sha256") != W02_SPLIT_SHA256: e.append("w02_split_binding")
+    if manifest.get("protected_eval_commitment_sha256") != W02_SEALED_COMMITMENT_SHA256: e.append("w02_sealed_commitment_binding")
+    if not isinstance(pack, dict) or pack.get("pack_kind") != "AQLEVON_GENE1_TRAINING_VISIBLE_PACK_V1" or not verify_self_digest(pack,"pack_sha256") or pack.get("pack_sha256") != W02_PACK_SHA256: e.append("w02_training_pack")
+    if not isinstance(split, dict) or not verify_self_digest(split,"manifest_sha256") or split.get("manifest_sha256") != W02_SPLIT_SHA256: e.append("w02_split")
+    if set(split.get("train_semantic_core_ids",[])) & set(split.get("eval_semantic_core_ids",[])): e.append("w02_split_overlap")
+    if not isinstance(binding, dict) or not verify_self_digest(binding,"binding_sha256") or binding.get("binding_sha256") != W02_BINDING_SHA256: e.append("w02_public_binding")
+    if binding.get("sealed_eval_pack_sha256") != W02_SEALED_PACK_SHA256 or binding.get("sealed_eval_commitment_sha256") != W02_SEALED_COMMITMENT_SHA256 or binding.get("training_worker_visibility") != "FORBIDDEN": e.append("w02_sealed_boundary")
+    if _private_reference_hits(pack) or _private_reference_hits(manifest): e.append("w02_private_plaintext_reference")
+    rows=[]
+    for i,line in enumerate(shard.decode("utf-8").splitlines()):
+        if not line.strip(): continue
+        try: row=json.loads(line)
+        except json.JSONDecodeError: e.append(f"w02_row_{i}_json"); continue
+        if row.get("row_kind") != W02_ROW_KIND or not isinstance(row.get("prompt"),str) or "answer" not in row: e.append(f"w02_row_{i}_shape")
+        rows.append(row)
+    if len(rows)!=56: e.append("w02_row_count")
     return e
 
+def validate_w05_law(law: Any, w01_spec: Any, w02_binding: Any) -> list[str]:
+    e=[]
+    if not isinstance(law,dict) or law.get("manifest_kind")!="AQLEVON_GENE1_EVALUATION_LAW_V1": return ["w05_law_kind"]
+    if not verify_self_digest(law,"law_sha256") or law.get("law_sha256")!=W05_LAW_SHA256: e.append("w05_law_sha256")
+    if law.get("worker01_method_tournament_spec_sha256")!=canonical_sha256(w01_spec): e.append("w05_w01_binding")
+    if law.get("worker02_public_pack_binding_sha256")!=w02_binding.get("binding_sha256"): e.append("w05_w02_binding")
+    if law.get("sampling_profile_sha256")!=W05_SAMPLING_SHA256: e.append("w05_sampling_profile")
+    if law.get("score_visibility_at_law_freeze")!="NO_CANDIDATE_SCORES_OR_OUTPUTS_OBSERVED": e.append("w05_candidate_blind_freeze")
+    return e
 
-def freeze_plan(method_spec_path: Path, shard_manifest_path: Path, shard_path: Path, out: Path) -> dict[str, Any]:
-    spec = _load(method_spec_path)
-    manifest = _load(shard_manifest_path)
-    shard_bytes = shard_path.read_bytes()
-    errors = validate_method_spec(spec) + validate_training_shard(manifest, shard_bytes)
-    if errors:
-        raise ContractError("FAIL-CLOSED:" + ";".join(errors))
-    plan = {
-        "schema_version": 1,
-        "plan_kind": FROZEN_PLAN_KIND,
-        "hash_profile": HASH_PROFILE,
-        "task_id": TASK_ID,
-        "method_spec_sha256": spec["spec_sha256"],
-        "method_spec_file_sha256": sha256_file(method_spec_path),
-        "training_shard_manifest_sha256": manifest["manifest_sha256"],
-        "training_shard_manifest_file_sha256": sha256_file(shard_manifest_path),
-        "training_shard_file_sha256": manifest["shard_file_sha256"],
-        "training_shard_file_bytes_sha256": sha256_file(shard_path),
-        "surrogate_model": {"repo": SURROGATE_MODEL, "revision": SURROGATE_REVISION, "precision": "bf16"},
-        "canonical_model": {"repo": CANONICAL_MODEL, "revision": CANONICAL_REVISION, "precision": "bf16"},
-        "g1_status": "ALREADY_PASSED_DO_NOT_RERUN",
-        "g1_source_commit": G1_COMMIT,
-        "arms": spec["arms"],
-        "sealed_eval_consumed": False,
-        "automatic_recipe_mutation": False,
-        "automatic_budget_mutation": False,
-        "automatic_model_revision_mutation": False,
-        "capability_claim_authority": "WORKER05_EVIDENCE_PLUS_MANAGER_ACCEPTANCE_ONLY",
+def freeze_plan(*, method_spec_path:Path, shard_manifest_path:Path, shard_path:Path, pack_path:Path, split_path:Path, binding_path:Path, law_path:Path, output:Path) -> dict[str,Any]:
+    spec=load_json(method_spec_path); raw=method_spec_path.read_bytes(); manifest=load_json(shard_manifest_path); shard=shard_path.read_bytes(); pack=load_json(pack_path); split=load_json(split_path); binding=load_json(binding_path); law=load_json(law_path)
+    errors=validate_w01_spec(spec,raw)+validate_w02_inputs(manifest,shard,pack,split,binding)+validate_w05_law(law,spec,binding)
+    if errors: raise ContractError("FAIL-CLOSED:"+";".join(errors))
+    plan={
+      "schema_version":1,"plan_kind":FROZEN_PLAN_KIND,"hash_profile":HASH_PROFILE,"task_id":TASK_ID,
+      "g1_status":G1_STATUS,"g1_source_commit":G1_COMMIT,
+      "w01_method_spec_canonical_sha256":W01_CANONICAL_SHA256,"w01_method_spec_file_sha256":sha256_file(method_spec_path),
+      "w02_training_manifest_sha256":manifest["manifest_sha256"],"w02_training_manifest_file_sha256":sha256_file(shard_manifest_path),
+      "w02_training_shard_sha256":W02_SHARD_SHA256,"w02_training_visible_pack_sha256":W02_PACK_SHA256,"w02_split_sha256":W02_SPLIT_SHA256,
+      "w02_public_binding_sha256":W02_BINDING_SHA256,"w02_sealed_eval_commitment_sha256":W02_SEALED_COMMITMENT_SHA256,"w02_sealed_eval_pack_sha256":W02_SEALED_PACK_SHA256,
+      "w05_evaluation_law_sha256":W05_LAW_SHA256,"w05_sampling_profile_sha256":W05_SAMPLING_SHA256,
+      "surrogate_model":{"repo":SURROGATE_MODEL,"revision":SURROGATE_REVISION,"precision":"bf16","quantization":"none"},
+      "common_adapter":spec["common_adapter"],"common_stack":spec["common_stack"],"screen_budget":spec["screen_budget"],"generation":spec["generation"],
+      "training_seeds":spec["training_seeds"],"arms":spec["arms"],"execution_order":list(EXECUTION_ORDER),
+      "profile":PROFILE,"sealed_eval_consumed":False,"automatic_recipe_mutation":False,"automatic_budget_mutation":False,"automatic_model_revision_mutation":False,
+      "capability_claim_authority":"WORKER05_EVIDENCE_PLUS_MANAGER_ACCEPTANCE_ONLY",
     }
-    plan = seal(plan, "plan_sha256")
-    out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps(plan, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    plan=seal(plan,"plan_sha256")
+    output.parent.mkdir(parents=True,exist_ok=True); output.write_text(json.dumps(plan,ensure_ascii=False,indent=2,sort_keys=True)+"\n",encoding="utf-8")
     return plan
 
+def build_command_lock(argv:list[str],*,plan_sha256:str,arm_id:str,seed:int,profile:str=PROFILE)->dict[str,Any]:
+    if arm_id not in ARMS or seed not in (1701,1702,1703): raise ContractError("invalid_arm_or_seed")
+    obj={"schema_version":1,"record_kind":COMMAND_LOCK_KIND,"hash_profile":HASH_PROFILE,"task_id":TASK_ID,"training_plan_sha256":plan_sha256,"arm_id":arm_id,"seed":seed,"profile":profile,"model_scope":"surrogate","argv":argv,"command_sha256":canonical_sha256(argv),"automatic_fallback":False,"g1_rerun":False}
+    return seal(obj,"lock_sha256")
 
-def validate_manager_authorization(auth: Any, *, expected_command_sha256: str, expected_profile: str, expected_plan_sha256: str) -> list[str]:
-    e: list[str] = []
-    if not isinstance(auth, dict):
-        return ["authorization_not_object"]
-    if auth.get("schema_version") != 1 or auth.get("authorization_kind") != AUTH_KIND:
-        e.append("authorization_identity")
-    if auth.get("hash_profile") != HASH_PROFILE:
-        e.append("authorization_hash_profile")
-    if not verify_self_digest(auth, "authorization_sha256"):
-        e.append("authorization_self_digest")
-    if auth.get("status") != "AUTHORIZED":
-        e.append("authorization_status")
-    if auth.get("task_id") != TASK_ID:
-        e.append("authorization_task_id")
-    if auth.get("training_plan_sha256") != expected_plan_sha256:
-        e.append("authorization_plan_binding")
-    if auth.get("command_sha256") != expected_command_sha256:
-        e.append("authorization_command_binding")
-    if auth.get("profile") != expected_profile:
-        e.append("authorization_profile_binding")
-    for fld in ("manager_authority_id", "provider", "max_budget_usd", "max_wall_seconds", "authorized_at_utc"):
-        if fld not in auth:
-            e.append(f"authorization_missing_{fld}")
+def validate_manager_authorization(auth:Any,*,lock:dict[str,Any])->list[str]:
+    e=[]
+    if not isinstance(auth,dict): return ["authorization_not_object"]
+    if auth.get("authorization_kind")!=AUTH_KIND or auth.get("status")!="AUTHORIZED": e.append("authorization_identity")
+    if auth.get("task_id")!=TASK_ID: e.append("authorization_task")
+    if auth.get("training_plan_sha256")!=lock.get("training_plan_sha256"): e.append("authorization_plan")
+    if auth.get("command_sha256")!=lock.get("command_sha256"): e.append("authorization_command")
+    if auth.get("profile")!=lock.get("profile"): e.append("authorization_profile")
+    if not verify_self_digest(auth,"authorization_sha256"): e.append("authorization_self_digest")
+    for f in ("manager_authority_id","provider","max_budget_usd","max_wall_seconds","authorized_at_utc"):
+        if f not in auth: e.append("authorization_missing_"+f)
     return e
 
-
-def build_command_lock(command: list[str], *, plan_sha256: str, arm_id: str, profile: str, model_scope: str) -> dict[str, Any]:
-    if model_scope not in {"surrogate", "canonical_27b"}:
-        raise ContractError("invalid_model_scope")
-    payload = {
-        "schema_version": 1,
-        "record_kind": "AQLEVON_P4_GENE1_COMMAND_LOCK_V1",
-        "hash_profile": HASH_PROFILE,
-        "task_id": TASK_ID,
-        "training_plan_sha256": plan_sha256,
-        "arm_id": arm_id,
-        "profile": profile,
-        "model_scope": model_scope,
-        "argv": command,
-        "command_sha256": canonical_sha256(command),
-        "automatic_fallback": False,
-        "g1_rerun": False,
-    }
-    return seal(payload, "lock_sha256")
-
-
-def run_locked(command_lock: dict[str, Any], *, authorization: dict[str, Any] | None, paid: bool, cwd: Path) -> int:
-    if command_lock.get("g1_rerun") is not False:
-        raise ContractError("G1_rerun_forbidden")
-    if not verify_self_digest(command_lock, "lock_sha256"):
-        raise ContractError("command_lock_self_digest_invalid")
-    if command_lock.get("training_plan_sha256") is None:
-        raise ContractError("command_lock_missing_plan")
+def run_locked(lock:dict[str,Any],*,paid:bool,authorization:dict[str,Any]|None,cwd:Path)->int:
+    if not verify_self_digest(lock,"lock_sha256") or lock.get("g1_rerun") is not False: raise ContractError("invalid_command_lock")
     if paid:
-        if authorization is None:
-            raise ContractError("paid_run_requires_manager_authorization")
-        errors = validate_manager_authorization(
-            authorization,
-            expected_command_sha256=command_lock["command_sha256"],
-            expected_profile=command_lock["profile"],
-            expected_plan_sha256=command_lock["training_plan_sha256"],
-        )
-        if errors:
-            raise ContractError("FAIL-CLOSED:" + ";".join(errors))
-    elif authorization is not None and authorization.get("status") == "AUTHORIZED":
-        pass
-    argv = command_lock.get("argv")
-    if not isinstance(argv, list) or not argv or not all(isinstance(x, str) and x for x in argv):
-        raise ContractError("invalid_locked_argv")
-    cp = subprocess.run(argv, cwd=str(cwd))
-    return int(cp.returncode)
+        if authorization is None: raise ContractError("paid_run_requires_exact_manager_authorization")
+        errors=validate_manager_authorization(authorization,lock=lock)
+        if errors: raise ContractError("FAIL-CLOSED:"+";".join(errors))
+    argv=lock.get("argv")
+    if not isinstance(argv,list) or not argv or not all(isinstance(x,str) and x for x in argv): raise ContractError("invalid_argv")
+    return int(subprocess.run(argv,cwd=str(cwd)).returncode)
 
-
-def build_run_receipt(*, plan_sha256: str, command_lock: dict[str, Any], candidate_manifest_sha256: str, training_run_artifact_sha256: str, runtime_receipt_sha256: str | None, status: str) -> dict[str, Any]:
-    if status not in {"COMPLETED_ARTIFACT_PENDING_EVALUATION", "FAILED", "INVALID"}:
-        raise ContractError("invalid_run_receipt_status")
-    for label, val in (("plan_sha256",plan_sha256),("candidate_manifest_sha256",candidate_manifest_sha256),("training_run_artifact_sha256",training_run_artifact_sha256)):
-        if not isinstance(val, str) or not _SHA.fullmatch(val):
-            raise ContractError(f"invalid_{label}")
-    if runtime_receipt_sha256 is not None and not _SHA.fullmatch(runtime_receipt_sha256):
-        raise ContractError("invalid_runtime_receipt_sha256")
-    rec = {
-        "schema_version": 1,
-        "receipt_kind": RUN_RECEIPT_KIND,
-        "hash_profile": HASH_PROFILE,
-        "task_id": TASK_ID,
-        "training_plan_sha256": plan_sha256,
-        "command_lock_sha256": command_lock["lock_sha256"],
-        "command_sha256": command_lock["command_sha256"],
-        "candidate_artifact_manifest_sha256": candidate_manifest_sha256,
-        "training_run_artifact_sha256": training_run_artifact_sha256,
-        "runtime_receipt_sha256": runtime_receipt_sha256,
-        "status": status,
-        "evaluation_status": "NOT_EVALUATED_BY_WORKER05",
-        "capability_gain_claim": False,
-        "authority_boundary": "TRAINING_ARTIFACT_ONLY_WORKER05_PLUS_MANAGER_REQUIRED_FOR_GAIN",
-    }
-    return seal(rec, "receipt_sha256")
-
-
-def main() -> int:
-    ap = argparse.ArgumentParser()
-    sub = ap.add_subparsers(dest="command", required=True)
-    f = sub.add_parser("freeze-plan")
-    f.add_argument("--method-spec", type=Path, required=True)
-    f.add_argument("--training-shard-manifest", type=Path, required=True)
-    f.add_argument("--training-shard", type=Path, required=True)
-    f.add_argument("--output", type=Path, required=True)
-    v = sub.add_parser("validate-inputs")
-    v.add_argument("--method-spec", type=Path, required=True)
-    v.add_argument("--training-shard-manifest", type=Path, required=True)
-    v.add_argument("--training-shard", type=Path, required=True)
-    args = ap.parse_args()
+def main()->int:
+    ap=argparse.ArgumentParser(); sub=ap.add_subparsers(dest="cmd",required=True)
+    p=sub.add_parser("freeze-plan")
+    for name in ("method-spec","training-shard-manifest","training-shard","training-pack","split","w02-binding","w05-law"):
+        p.add_argument("--"+name,type=Path,required=True)
+    p.add_argument("--output",type=Path,required=True)
+    args=ap.parse_args()
     try:
-        if args.command == "freeze-plan":
-            plan = freeze_plan(args.method_spec,args.training_shard_manifest,args.training_shard,args.output)
-            print(json.dumps({"status":"PASS","plan_sha256":plan["plan_sha256"]},sort_keys=True))
-            return 0
-        spec=_load(args.method_spec); man=_load(args.training_shard_manifest); shard=args.training_shard.read_bytes()
-        errors=validate_method_spec(spec)+validate_training_shard(man,shard)
-        if errors:
-            raise ContractError(";".join(errors))
-        print(json.dumps({"status":"PASS","method_spec_sha256":spec["spec_sha256"],"training_shard_manifest_sha256":man["manifest_sha256"]},sort_keys=True))
-        return 0
-    except (OSError,json.JSONDecodeError,ContractError) as exc:
-        print(json.dumps({"status":"FAIL_CLOSED","error":str(exc)},sort_keys=True))
-        return 2
+        plan=freeze_plan(method_spec_path=args.method_spec,shard_manifest_path=args.training_shard_manifest,shard_path=args.training_shard,pack_path=args.training_pack,split_path=args.split,binding_path=args.w02_binding,law_path=args.w05_law,output=args.output)
+        print(json.dumps({"status":"PASS","plan_sha256":plan["plan_sha256"]},sort_keys=True)); return 0
+    except Exception as exc:
+        print(json.dumps({"status":"FAIL_CLOSED","error":f"{type(exc).__name__}: {exc}"},sort_keys=True)); return 2
 
-if __name__ == "__main__":
-    raise SystemExit(main())
+if __name__=="__main__": raise SystemExit(main())
