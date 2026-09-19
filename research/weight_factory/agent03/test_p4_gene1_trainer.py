@@ -1,110 +1,70 @@
 from __future__ import annotations
-import copy, hashlib, json, tempfile, unittest
+import hashlib, json, tempfile, unittest
 from pathlib import Path
-import p4_gene1_trainer as p4
+import p4_gene1_trainer as c
+import p4_aqlevon_reward as reward
+import p4_surrogate_tournament as tour
 import p4_sft_surrogate as sft
 
-H=lambda s: hashlib.sha256(s.encode()).hexdigest()
+H=lambda x:hashlib.sha256(x.encode()).hexdigest()
 
-def method_spec():
-    obj={
-        "schema_version":1,"spec_kind":p4.METHOD_SPEC_KIND,"hash_profile":p4.HASH_PROFILE,
-        "worker_id":"01","task_id":"P4-A01-METHOD-TOURNAMENT-DIRECTOR",
-        "arms":[{
-            "arm_id":"A0","method":"SFT_LORA_CONTROL","seed_policy":{"seeds":[1701]},
-            "budget":{"optimizer_updates":24,"max_gpu_seconds":3600},
-            "optimizer":{"name":"adamw","lr_decimal":"0.00001"},
-            "stop_conditions":["nonfinite","compute_ceiling"],
-            "runner_parameters":{"lora_rank":4,"target_modules":["q_proj","v_proj"]},
-        }],
+def plan_fixture():
+    obj={"schema_version":1,"plan_kind":c.FROZEN_PLAN_KIND,"hash_profile":c.HASH_PROFILE,"task_id":c.TASK_ID,"g1_status":c.G1_STATUS,"sealed_eval_consumed":False,"plan_sha256":"","training_seeds":[1701,1702,1703],"screen_budget":{"max_optimizer_updates":12},"generation":{"temperature":"0.7","top_p":"0.8","top_k":20},"arms":[
+      {"arm_id":"P4_A0_SFT_LORA_CONTROL","training_mode":"supervised_next_token_cross_entropy","lr":"0.00001","weight_decay":"0.10","scheduler":"cosine","min_lr":"0.000001","warmup_fraction":"0.10"},
+      {"arm_id":"P4_A1_RLVR_CONTROL","rollout_group_size":4,"ppo_mini_batch_size":8,"lr":"0.00001"},
+      {"arm_id":"P4_A2_SDPO_RICH_FEEDBACK","rollout_group_size":4,"self_distillation_alpha":"0.5","distillation_topk":100}],
     }
-    return p4.seal(obj,"spec_sha256")
+    return c.seal(obj,"plan_sha256")
 
-def shard_fixture():
-    row={"row_kind":"AQLEVON_TRAINING_SHARD_ROW_V1","record_id":"r1","prompt":"p","answer":"a","record_content_sha256":H("r1"),"source":{"id":"owned","revision":"v1","content_sha256":H("src")},"language_lane":"other","synthetic":True}
-    b=(json.dumps(row,sort_keys=True,separators=(",",":"))+"\n").encode()
-    m={
-      "schema_version":1,"manifest_kind":p4.TRAINING_SHARD_KIND,"hash_profile":p4.HASH_PROFILE,"manifest_id":"aqlevon-training-shard-v1:"+H("id"),
-      "admission_policy_id":"AQLEVON-P4-TEST","admission_policy_sha256":H("policy"),"source_registry_snapshot_sha256":H("registry"),
-      "protected_training_contamination_manifest_sha256":H("contam"),"protected_training_contamination_receipt_sha256":[],"admission_gate_code_sha256":H("gate"),
-      "shard_digest_scheme":"AQLEVON_CANONICAL_TRAINING_SHARD_JSONL_SHA256_V1","shard_file_sha256":hashlib.sha256(b).hexdigest(),"byte_size":len(b),"row_count":1,
-      "admitted_record_content_digest_scheme":"AQLEVON_SORTED_RECORD_CONTENT_SHA256_LIST_V1","admitted_record_content_digest_sha256":H("records"),
-      "decision_log_scheme":"AQLEVON_ADMISSION_DECISION_LOG_V1","decision_log_sha256":H("decision"),"decision_counts":{"ADMIT":1,"QUARANTINE":0,"DENY":0},
-      "provenance_license_evidence_bundle_sha256":H("prov"),"source_revision_encoding_scheme":"AQLEVON_SORTED_SOURCE_REVISION_TRIPLES_V1",
-      "contamination_evidence_scheme":"AQLEVON_PROTECTED_TRAINING_CONTAMINATION_EVIDENCE_V1","language_audit_applicability_scheme":"AQLEVON_P1_LANGUAGE_AUDIT_APPLICABILITY_V1",
-      "language_audit_receipt_sha256":[],"created_from":[{"source_id":"owned","revision":"v1","source_artifact_sha256":H("src")}],
-    }
-    m=p4.seal(m,"manifest_sha256")
-    return m,b
+class ContractTests(unittest.TestCase):
+    def test_canonical_hash_rejects_float(self):
+        with self.assertRaises(c.ContractError): c.canonical_sha256({"x":1.5})
+    def test_constants_pin_real_handoffs(self):
+        self.assertEqual(c.W01_CANONICAL_SHA256,"7c6cc62b6ae20fd49038198865567df75f1a105607bd9d32d974530bd9894f1d")
+        self.assertEqual(c.W02_SHARD_SHA256,"59480e9ff48b36a0efb77a36d3e35d9f656ef4dee0ce18489d3017c92b2a0d49")
+        self.assertEqual(c.W05_LAW_SHA256,"70581a21c26605317afcb314d990fa2f78b621bf44af1747d8caac6168385ec0")
+    def test_execution_order_a1_first(self): self.assertEqual(c.EXECUTION_ORDER[0],"P4_A1_RLVR_CONTROL")
+    def test_profile_is_worker06_24gb_lane(self): self.assertEqual(c.PROFILE,"p4-surrogate-1x24")
+    def test_g1_locked_passed_no_rerun(self): self.assertEqual(c.G1_STATUS,"ALREADY_PASSED_DO_NOT_RERUN")
+    def test_command_lock_has_no_fallback_or_g1(self):
+        x=c.build_command_lock(["python","x.py"],plan_sha256=H("p"),arm_id="P4_A1_RLVR_CONTROL",seed=1701)
+        self.assertFalse(x["automatic_fallback"]); self.assertFalse(x["g1_rerun"]); self.assertTrue(c.verify_self_digest(x,"lock_sha256"))
+    def test_paid_run_requires_auth(self):
+        x=c.build_command_lock(["true"],plan_sha256=H("p"),arm_id="P4_A1_RLVR_CONTROL",seed=1701)
+        with self.assertRaisesRegex(c.ContractError,"requires_exact_manager_authorization"): c.run_locked(x,paid=True,authorization=None,cwd=Path("."))
+    def test_auth_binds_exact_command_profile_plan(self):
+        x=c.build_command_lock(["true"],plan_sha256=H("p"),arm_id="P4_A1_RLVR_CONTROL",seed=1701)
+        a={"authorization_kind":c.AUTH_KIND,"status":"AUTHORIZED","task_id":c.TASK_ID,"training_plan_sha256":H("wrong"),"command_sha256":x["command_sha256"],"profile":c.PROFILE,"manager_authority_id":"m","provider":"p","max_budget_usd":"1","max_wall_seconds":7200,"authorized_at_utc":"2026-09-19T00:00:00Z"}; a=c.seal(a,"authorization_sha256")
+        self.assertIn("authorization_plan",c.validate_manager_authorization(a,lock=x))
 
+class RewardTests(unittest.TestCase):
+    def test_correct_increment_reward(self):
+        gt=json.dumps({"initial_state":{"x":1},"oracle_program":[{"op":"increment","key":"x","by":2}]})
+        r=reward.compute_score(solution_str='[{"op":"increment","key":"x","by":2}]',ground_truth=gt); self.assertEqual(r["score"],1.0); self.assertEqual(r["feedback"],"")
+    def test_wrong_reward_feedback_is_sanitized_class(self):
+        gt=json.dumps({"initial_state":{"x":1},"oracle_program":[{"op":"increment","key":"x","by":2}]})
+        r=reward.compute_score(solution_str='[{"op":"increment","key":"x","by":3}]',ground_truth=gt); self.assertEqual(r["score"],0.0); self.assertEqual(r["feedback"],"final_state_mismatch"); self.assertNotIn("expected",r["feedback"].lower())
+    def test_invalid_json_is_sanitized(self):
+        gt=json.dumps({"initial_state":{"x":1},"oracle_program":[{"op":"set","key":"x","value":2}]}); self.assertEqual(reward.compute_score(solution_str="oops",ground_truth=gt)["feedback"],"invalid_json")
+    def test_feedback_vocab_contains_no_oracle_text(self):
+        for x in reward.ALLOWED_REASONS: self.assertNotIn("expected",x); self.assertNotIn("answer",x); self.assertNotIn("canary",x)
 
-class Tests(unittest.TestCase):
-    def test_method_spec_valid(self): self.assertEqual(p4.validate_method_spec(method_spec()),[])
-    def test_method_spec_max_three(self):
-        s=method_spec(); s["arms"]=s["arms"]*4; s=p4.seal({k:v for k,v in s.items() if k!="spec_sha256"},"spec_sha256")
-        self.assertIn("method_spec_arm_count_must_be_1_to_3",p4.validate_method_spec(s))
-    def test_non_p4_authority_rejected(self):
-        s=method_spec(); s["task_id"]="P3-A01-METHOD-FREEZE"; s=p4.seal({k:v for k,v in s.items() if k!="spec_sha256"},"spec_sha256")
-        self.assertIn("method_spec_authority_identity",p4.validate_method_spec(s))
-    def test_hidden_eval_reference_rejected(self):
-        s=method_spec(); s["arms"][0]["runner_parameters"]["sealed_eval_path"]="secret.json"; s=p4.seal({k:v for k,v in s.items() if k!="spec_sha256"},"spec_sha256")
-        self.assertIn("arm_0_contains_forbidden_eval_reference",p4.validate_method_spec(s))
-    def test_training_shard_valid_and_tamper(self):
-        m,b=shard_fixture(); self.assertEqual(p4.validate_training_shard(m,b),[])
-        self.assertIn("training_shard_bytes_hash_mismatch",p4.validate_training_shard(m,b+b"x"))
-    def test_training_row_private_eval_rejected(self):
-        m,b=shard_fixture(); row=json.loads(b); row["prompt"]="use hidden_canary answer"; b2=(json.dumps(row,sort_keys=True,separators=(",",":"))+"\n").encode(); m["shard_file_sha256"]=hashlib.sha256(b2).hexdigest(); m["byte_size"]=len(b2); m=p4.seal({k:v for k,v in m.items() if k!="manifest_sha256"},"manifest_sha256")
-        self.assertIn("training_row_0_forbidden_eval_reference",p4.validate_training_shard(m,b2))
-    def test_freeze_plan_binds_exact_inputs_and_no_g1(self):
+class RunnerTests(unittest.TestCase):
+    def test_a1_command_exact_budget_sampling_lora(self):
+        p=plan_fixture()
         with tempfile.TemporaryDirectory() as d:
-            d=Path(d); s=method_spec(); m,b=shard_fixture();
-            sp=d/"s.json"; mp=d/"m.json"; sh=d/"shard.jsonl"; op=d/"plan.json"
-            sp.write_text(json.dumps(s)); mp.write_text(json.dumps(m)); sh.write_bytes(b)
-            plan=p4.freeze_plan(sp,mp,sh,op)
-            self.assertEqual(plan["g1_status"],"ALREADY_PASSED_DO_NOT_RERUN")
-            self.assertFalse(plan["sealed_eval_consumed"])
-            self.assertEqual(plan["method_spec_sha256"],s["spec_sha256"])
-            self.assertEqual(plan["training_shard_manifest_sha256"],m["manifest_sha256"])
-            self.assertTrue(p4.verify_self_digest(plan,"plan_sha256"))
-    def test_command_lock_no_g1_rerun(self):
-        lock=p4.build_command_lock(["python","runner.py"],plan_sha256=H("p"),arm_id="A0",profile="1x24",model_scope="surrogate")
-        self.assertFalse(lock["g1_rerun"]); self.assertTrue(p4.verify_self_digest(lock,"lock_sha256"))
-    def test_paid_run_requires_exact_manager_authorization(self):
-        lock=p4.build_command_lock(["python","runner.py"],plan_sha256=H("p"),arm_id="A0",profile="1x24",model_scope="surrogate")
-        with self.assertRaisesRegex(p4.ContractError,"requires_manager_authorization"):
-            p4.run_locked(lock,authorization=None,paid=True,cwd=Path("."))
-    def test_authorization_must_bind_command_profile_plan(self):
-        lock=p4.build_command_lock(["python","runner.py"],plan_sha256=H("p"),arm_id="A0",profile="1x24",model_scope="surrogate")
-        a={"schema_version":1,"authorization_kind":p4.AUTH_KIND,"hash_profile":p4.HASH_PROFILE,"status":"AUTHORIZED","task_id":p4.TASK_ID,"training_plan_sha256":H("wrong"),"command_sha256":lock["command_sha256"],"profile":"1x24","manager_authority_id":"mgr","provider":"x","max_budget_usd":"1","max_wall_seconds":100,"authorized_at_utc":"2026-09-19T00:00:00Z"}
-        a=p4.seal(a,"authorization_sha256")
-        self.assertIn("authorization_plan_binding",p4.validate_manager_authorization(a,expected_command_sha256=lock["command_sha256"],expected_profile="1x24",expected_plan_sha256=H("p")))
-    def test_run_receipt_never_claims_gain(self):
-        lock=p4.build_command_lock(["python","runner.py"],plan_sha256=H("p"),arm_id="A0",profile="1x24",model_scope="surrogate")
-        r=p4.build_run_receipt(plan_sha256=H("p"),command_lock=lock,candidate_manifest_sha256=H("c"),training_run_artifact_sha256=H("a"),runtime_receipt_sha256=None,status="COMPLETED_ARTIFACT_PENDING_EVALUATION")
-        self.assertFalse(r["capability_gain_claim"]); self.assertEqual(r["evaluation_status"],"NOT_EVALUATED_BY_WORKER05")
-    def test_direct_float_rejected_in_hash_payload(self):
-        with self.assertRaises(p4.ContractError): p4.canonical_bytes({"x":1.5})
-
-    def test_sft_runner_summary_obeys_frozen_seed_and_budget(self):
-        spec=method_spec()
+            f=Path(d)/"p.json"; f.write_text(json.dumps(p)); argv=tour.build_a1_argv(f,Path("/workspace")); joined=" ".join(argv)
+            for tok in ("trainer.total_training_steps=12","data.train_batch_size=4","actor_rollout_ref.rollout.n=4","actor_rollout_ref.model.lora_rank=4","actor_rollout_ref.model.lora_alpha=4","temperature=0.7","top_p=0.8","top_k=20","baseline_grpo"): self.assertIn(tok,joined)
+            self.assertIn("self_attn",joined); self.assertNotIn("qlora",joined.lower())
+    def test_a2_command_enables_safe_feedback_contract(self):
+        p=plan_fixture()
         with tempfile.TemporaryDirectory() as d:
-            d=Path(d); m,b=shard_fixture(); sp=d/"s.json"; mp=d/"m.json"; sh=d/"shard.jsonl"; op=d/"plan.json"
-            sp.write_text(json.dumps(spec)); mp.write_text(json.dumps(m)); sh.write_bytes(b)
-            plan=p4.freeze_plan(sp,mp,sh,op)
-            summary=sft.plan_summary(plan,"A0",1701)
-            self.assertEqual(summary["optimizer_updates"],24)
-            self.assertEqual(summary["model"],p4.SURROGATE_MODEL)
-            self.assertFalse(summary["capability_claim"])
-            with self.assertRaisesRegex(sft.RunnerError,"seed is not frozen"):
-                sft.plan_summary(plan,"A0",9999)
-
-    def test_sft_runner_rejects_non_sft_arm(self):
-        spec=method_spec(); spec["arms"][0]["method"]="RLVR_CONTROL"; spec=p4.seal({k:v for k,v in spec.items() if k!="spec_sha256"},"spec_sha256")
-        with tempfile.TemporaryDirectory() as d:
-            d=Path(d); m,b=shard_fixture(); sp=d/"s.json"; mp=d/"m.json"; sh=d/"shard.jsonl"; op=d/"plan.json"
-            sp.write_text(json.dumps(spec)); mp.write_text(json.dumps(m)); sh.write_bytes(b)
-            plan=p4.freeze_plan(sp,mp,sh,op)
-            with self.assertRaisesRegex(sft.RunnerError,"only executes SFT"):
-                sft.plan_summary(plan,"A0",1701)
+            f=Path(d)/"p.json"; f.write_text(json.dumps(p)); joined=" ".join(tour.build_a2_argv(f,Path("/workspace")))
+            self.assertIn("include_environment_feedback=True",joined); self.assertIn("environment_feedback_only_without_solution=True",joined); self.assertIn("distillation_topk=100",joined); self.assertIn("alpha=0.5",joined)
+    def test_sft_summary_uses_12_updates_r4_alpha4(self):
+        s=sft.plan_summary(plan_fixture(),1701); self.assertEqual(s["optimizer_updates"],12); self.assertEqual(s["lora_r"],4); self.assertEqual(s["lora_alpha"],4); self.assertEqual(s["examples_per_update"],4)
+    def test_target_regex_excludes_linear_attention_by_construction(self):
+        self.assertIn("self_attn",tour.TARGET_REGEX); self.assertNotIn("linear_attn",tour.TARGET_REGEX)
+    def test_runtime_guard_pins_w01_versions(self): self.assertEqual(tour.W01_STACK,{"transformers":"5.17.0","peft":"0.21.0","accelerate":"1.15.0"})
 
 if __name__=="__main__": unittest.main()
