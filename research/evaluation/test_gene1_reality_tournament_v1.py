@@ -368,7 +368,29 @@ def _anti_receipt_from_card(binding,card):
     })
 
 
-def decision_with_semantics(*,law,binding,reg,ver,base,cards,p2receipt=None):
+def selected_surrogate_parent_fixture(law=None, *, selected_slot="control"):
+    law = law or law_fixture()
+    binding = binding_fixture(law)
+    if selected_slot == "control":
+        specs = {
+            "control":{"transfer4":6,"primary4":9,"gpu":9000},
+            "challenger_a":{"transfer4":4,"primary4":8,"gpu":10000},
+        }
+    elif selected_slot == "challenger_a":
+        specs = {
+            "control":{"transfer4":4,"primary4":8,"gpu":9000},
+            "challenger_a":{"transfer4":6,"primary4":9,"gpu":10000},
+        }
+    else:
+        raise ValueError("unsupported fixture selected_slot")
+    rounds=[round_bundle_fixture(law,binding,seed,specs) for seed in (1701,1702,1703)]
+    receipt=p4.build_surrogate_recipe_decision(law=law,round_bundles=rounds)
+    assert receipt["decision_status"] == "SURROGATE_RECIPE_SELECTED"
+    assert receipt["selected_candidate_slot"] == selected_slot
+    return receipt
+
+
+def decision_with_semantics(*,law,binding,reg,ver,base,cards,p2receipt=None,parent_surrogate_recipe_decision=None):
     # Build the exact support evidence first, then derive the authoritative score
     # cards from that evidence.  Hand-built cards above are only concise fixture
     # specifications; production decisions never trust their embedded hashes.
@@ -395,6 +417,7 @@ def decision_with_semantics(*,law,binding,reg,ver,base,cards,p2receipt=None):
         baseline_card=semantic_base,candidate_cards=semantic_cards,baseline_p3_evidence=baseline_p3,
         baseline_anti_shortcut_receipt=baseline_anti,candidate_p3_evidence_by_slot=p3_by,
         candidate_anti_shortcut_receipt_by_slot=anti_by,p2_evaluation_decision_receipt=p2receipt,
+        parent_surrogate_recipe_decision=parent_surrogate_recipe_decision,
     )
 
 
@@ -615,28 +638,58 @@ class Gene1RealityTournamentTests(unittest.TestCase):
         self.assertEqual(receipt["decision_status"], "INVALID")
 
     def test_27b_without_p2_receipt_cannot_reach_manager_review(self):
-        law=law_fixture(); binding=binding_fixture(law,"canonical_27b"); reg=registration_fixture(law,binding,"canonical_27b"); ver=verification_fixture(law,binding,reg); base=baseline_fixture(law,binding)
-        card=candidate_from_entry(law,binding,reg["entries"][0],quality=2)
-        receipt=decision_with_semantics(law=law,binding=binding,reg=reg,ver=ver,base=base,cards=[card])
+        law=law_fixture(); parent=selected_surrogate_parent_fixture(law,selected_slot="control")
+        binding=binding_fixture(law,"canonical_27b",parent_decision_receipt_sha256=parent["surrogate_recipe_decision_sha256"])
+        entry=entries_fixture(binding,"canonical_27b")[0]
+        entry["recipe_spec_sha256"]=parent["selected_recipe_spec_sha256"]
+        reg=p4.build_candidate_registration(law=law,stage_binding=binding,entries=[entry]); ver=verification_fixture(law,binding,reg); base=baseline_fixture(law,binding)
+        card=candidate_from_entry(law,binding,entry,quality=2)
+        receipt=decision_with_semantics(law=law,binding=binding,reg=reg,ver=ver,base=base,cards=[card],parent_surrogate_recipe_decision=parent)
         self.assertEqual(receipt["decision_status"],"REJECTED")
         self.assertIsNone(receipt["p2_evaluation_decision_receipt_sha256"])
 
     def test_27b_valid_p2_promotion_receipt_reaches_manager_review_only(self):
-        law=law_fixture(); binding=binding_fixture(law,"canonical_27b")
+        law=law_fixture(); parent=selected_surrogate_parent_fixture(law,selected_slot="control")
+        binding=binding_fixture(law,"canonical_27b",parent_decision_receipt_sha256=parent["surrogate_recipe_decision_sha256"])
         cand, exp, prov, scan, rep, gate, req, anchor, p2receipt = full_fixture()
         entry=entries_fixture(binding,"canonical_27b")[0]
+        entry["recipe_spec_sha256"]=parent["selected_recipe_spec_sha256"]
         entry["candidate_artifact_manifest_sha256"] = cand["manifest_sha256"]
         reg=p4.build_candidate_registration(law=law,stage_binding=binding,entries=[entry]); ver=verification_fixture(law,binding,reg); base=baseline_fixture(law,binding)
         card=candidate_from_entry(law,binding,entry,quality=2)
-        receipt=decision_with_semantics(law=law,binding=binding,reg=reg,ver=ver,base=base,cards=[card],p2receipt=p2receipt)
+        receipt=decision_with_semantics(law=law,binding=binding,reg=reg,ver=ver,base=base,cards=[card],p2receipt=p2receipt,parent_surrogate_recipe_decision=parent)
         self.assertEqual(receipt["decision_status"],"READY_FOR_MANAGER_PROMOTION_REVIEW")
         self.assertFalse(receipt["authority"]["authoritative_for_model_promotion"])
         self.assertEqual(p4.validate_tournament_decision(receipt,law=law),[])
 
     def test_27b_p2_receipt_wrong_candidate_is_invalid(self):
-        law=law_fixture(); binding=binding_fixture(law,"canonical_27b"); reg=registration_fixture(law,binding,"canonical_27b"); ver=verification_fixture(law,binding,reg); base=baseline_fixture(law,binding); card=candidate_from_entry(law,binding,reg["entries"][0],quality=2)
+        law=law_fixture(); parent=selected_surrogate_parent_fixture(law,selected_slot="control")
+        binding=binding_fixture(law,"canonical_27b",parent_decision_receipt_sha256=parent["surrogate_recipe_decision_sha256"])
+        entry=entries_fixture(binding,"canonical_27b")[0]; entry["recipe_spec_sha256"]=parent["selected_recipe_spec_sha256"]
+        reg=p4.build_candidate_registration(law=law,stage_binding=binding,entries=[entry]); ver=verification_fixture(law,binding,reg); base=baseline_fixture(law,binding); card=candidate_from_entry(law,binding,entry,quality=2)
         _,_,_,_,_,_,_,_,p2receipt=full_fixture()
-        receipt=decision_with_semantics(law=law,binding=binding,reg=reg,ver=ver,base=base,cards=[card],p2receipt=p2receipt)
+        receipt=decision_with_semantics(law=law,binding=binding,reg=reg,ver=ver,base=base,cards=[card],p2receipt=p2receipt,parent_surrogate_recipe_decision=parent)
+        self.assertEqual(receipt["decision_status"],"INVALID")
+
+    def test_27b_rejects_recipe_not_bound_to_selected_surrogate_parent(self):
+        law=law_fixture(); parent=selected_surrogate_parent_fixture(law,selected_slot="control")
+        binding=binding_fixture(law,"canonical_27b",parent_decision_receipt_sha256=parent["surrogate_recipe_decision_sha256"])
+        entry=entries_fixture(binding,"canonical_27b")[0]
+        # keep the fixture recipe SHA("a"), deliberately different from the selected surrogate recipe
+        reg=p4.build_candidate_registration(law=law,stage_binding=binding,entries=[entry]); ver=verification_fixture(law,binding,reg); base=baseline_fixture(law,binding)
+        card=candidate_from_entry(law,binding,entry,quality=2)
+        receipt=decision_with_semantics(law=law,binding=binding,reg=reg,ver=ver,base=base,cards=[card],parent_surrogate_recipe_decision=parent)
+        self.assertEqual(receipt["decision_status"],"INVALID")
+
+    def test_27b_rejects_foreign_parent_receipt_even_when_stage_hash_is_rebound(self):
+        law=law_fixture(); parent=selected_surrogate_parent_fixture(law,selected_slot="control")
+        foreign=selected_surrogate_parent_fixture(law,selected_slot="challenger_a")
+        binding=binding_fixture(law,"canonical_27b",parent_decision_receipt_sha256=foreign["surrogate_recipe_decision_sha256"])
+        entry=entries_fixture(binding,"canonical_27b")[0]
+        entry["recipe_spec_sha256"]=parent["selected_recipe_spec_sha256"]
+        reg=p4.build_candidate_registration(law=law,stage_binding=binding,entries=[entry]); ver=verification_fixture(law,binding,reg); base=baseline_fixture(law,binding)
+        card=candidate_from_entry(law,binding,entry,quality=2)
+        receipt=decision_with_semantics(law=law,binding=binding,reg=reg,ver=ver,base=base,cards=[card],parent_surrogate_recipe_decision=parent)
         self.assertEqual(receipt["decision_status"],"INVALID")
 
     def test_decision_authority_cannot_be_laundered_true(self):
@@ -830,6 +883,82 @@ class Gene1RealityTournamentTests(unittest.TestCase):
         receipt=p4.build_surrogate_recipe_decision(law=law,round_bundles=rounds)
         self.assertEqual(receipt["decision_status"],"SURROGATE_RECIPE_SELECTED")
         self.assertEqual(receipt["selected_candidate_slot"],"challenger_a")
+
+    def test_extension24_stage_binding_records_prior_score_visibility_and_parent(self):
+        law=law_fixture()
+        parent_binding=binding_fixture(law)
+        parent_rounds=[round_bundle_fixture(law,parent_binding,seed,{
+            "control":{"transfer4":5,"primary4":8,"gpu":9000},
+            "challenger_a":{"transfer4":6,"primary4":9,"gpu":10000},
+        }) for seed in (1701,1702,1703)]
+        parent=p4.build_surrogate_recipe_decision(law=law,round_bundles=parent_rounds)
+        self.assertEqual(parent["decision_status"],"SURROGATE_MORE_EVIDENCE_REQUIRED")
+        ext_binding=binding_fixture(
+            law, round_mode="extension24",
+            parent_decision_receipt_sha256=parent["surrogate_recipe_decision_sha256"],
+            matched_budget_sha256=SHA("e"),
+        )
+        self.assertEqual(ext_binding["score_visibility_at_binding"],"PRIOR_ROUND_SCORES_OBSERVED_CURRENT_EXTENSION_SCORES_NOT_OBSERVED")
+        self.assertEqual(ext_binding["parent_decision_receipt_sha256"],parent["surrogate_recipe_decision_sha256"])
+        self.assertEqual(p4.validate_stage_binding(ext_binding,law=law),[])
+
+    def test_extension24_resolves_after_parent_ambiguity_without_second_extension(self):
+        law=law_fixture()
+        parent_binding=binding_fixture(law)
+        parent_rounds=[round_bundle_fixture(law,parent_binding,seed,{
+            "control":{"transfer4":5,"primary4":8,"gpu":9000},
+            "challenger_a":{"transfer4":6,"primary4":9,"gpu":10000},
+        }) for seed in (1701,1702,1703)]
+        parent=p4.build_surrogate_recipe_decision(law=law,round_bundles=parent_rounds)
+        self.assertEqual(parent["decision_status"],"SURROGATE_MORE_EVIDENCE_REQUIRED")
+        ext_binding=binding_fixture(
+            law, round_mode="extension24",
+            parent_decision_receipt_sha256=parent["surrogate_recipe_decision_sha256"],
+            matched_budget_sha256=SHA("e"),
+        )
+        ext_rounds=[round_bundle_fixture(law,ext_binding,seed,{
+            "control":{"transfer4":5,"primary4":8,"gpu":18000},
+            "challenger_a":{"transfer4":6,"primary4":9,"gpu":20000},
+        }) for seed in (1701,1702,1703)]
+        receipt=p4.build_surrogate_recipe_decision(
+            law=law,round_bundles=ext_rounds,parent_surrogate_recipe_decision=parent)
+        self.assertEqual(receipt["decision_status"],"SURROGATE_RECIPE_SELECTED")
+        self.assertFalse(receipt["extension_required"])
+        self.assertEqual(receipt["round_mode"],"extension24")
+        self.assertEqual(receipt["parent_surrogate_recipe_decision_sha256"],parent["surrogate_recipe_decision_sha256"])
+        self.assertEqual(p4.validate_surrogate_recipe_decision(
+            receipt,law=law,round_bundles=ext_rounds,parent_surrogate_recipe_decision=parent),[])
+
+    def test_arm_hard_failure_on_one_confirmation_seed_excludes_arm_from_final(self):
+        law=law_fixture(); binding=binding_fixture(law)
+        screen=round_bundle_fixture(law,binding,1701,{
+            "control":{"transfer4":5,"primary4":8,"gpu":9000},
+            "challenger_a":{"transfer4":6,"primary4":9,"gpu":10000},
+        })
+        r2=round_bundle_fixture(law,binding,1702,{
+            "control":{"transfer4":5,"primary4":8,"gpu":9000},
+            "challenger_a":{"transfer4":6,"primary4":9,"primary1":5,"gpu":10000},
+        })
+        r3=round_bundle_fixture(law,binding,1703,{
+            "control":{"transfer4":5,"primary4":8,"gpu":9000},
+            "challenger_a":{"transfer4":6,"primary4":9,"gpu":10000},
+        })
+        receipt=p4.build_surrogate_recipe_decision(law=law,round_bundles=[screen,r2,r3])
+        self.assertEqual(receipt["decision_status"],"SURROGATE_RECIPE_SELECTED")
+        self.assertEqual(receipt["selected_candidate_slot"],"control")
+        self.assertIn("challenger_a",receipt["arm_failure_summary"])
+        self.assertTrue(any("hard_gate_failed_seed_1702" in x for x in receipt["arm_failure_summary"]["challenger_a"]))
+
+    def test_surrogate_recipe_decision_code_identity_tamper_fails_even_rehashed(self):
+        law=law_fixture(); binding=binding_fixture(law)
+        rounds=[round_bundle_fixture(law,binding,seed,{
+            "control":{"transfer4":4,"primary4":8},
+            "challenger_a":{"transfer4":6,"primary4":9},
+        }) for seed in (1701,1702,1703)]
+        receipt=p4.build_surrogate_recipe_decision(law=law,round_bundles=rounds)
+        receipt["gene1_tournament_code_sha256"]=SHA("f")
+        receipt["surrogate_recipe_decision_sha256"]=canonical_p2_sha256({k:v for k,v in receipt.items() if k!="surrogate_recipe_decision_sha256"})
+        self.assertTrue(any("code identity" in x for x in p4.validate_surrogate_recipe_decision(receipt,law=law)))
 
     def test_surrogate_recipe_decision_authority_cannot_be_laundered(self):
         law=law_fixture(); binding=binding_fixture(law)
