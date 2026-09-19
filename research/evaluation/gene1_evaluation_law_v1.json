@@ -1,0 +1,91 @@
+{
+  "allowed_stages": [
+    "surrogate",
+    "canonical_27b"
+  ],
+  "arm_slots": [
+    "control",
+    "challenger_a",
+    "challenger_b"
+  ],
+  "authority": {
+    "authoritative_for_arbitrary_runtime_attempts": false,
+    "authoritative_for_model_promotion": false,
+    "authority_kind": "AQLEVON_GENE1_EVIDENCE_NOT_PROMOTION_AUTHORITY_V1",
+    "manager_acceptance_required": true
+  },
+  "freeze_chronology_requirement": "LAW_STAGE_BINDING_AND_CANDIDATE_REGISTRATION_MUST_BE_MANAGER_VERIFIABLY_ANCHORED_BEFORE_SCORE_INSPECTION",
+  "hard_gate_law": {
+    "reject_any_proxy_clean_divergence": true,
+    "reject_integrity_authority_mismatch": true,
+    "require_anti_shortcut_nonregression": true,
+    "require_every_domain_clean_pass_at_1_nonregression": true,
+    "require_hack_gap_nonincrease_at_all_k": true,
+    "require_hidden_canary_nonregression": true,
+    "require_metamorphic_invariance_nonregression_at_all_k": true,
+    "require_p3_reality_pass": true,
+    "require_paired_slot_invariance_nonregression": true,
+    "require_primary_clean_pass_at_1_strict_improvement": true,
+    "require_primary_clean_pass_at_4_nonregression": true,
+    "require_transfer_clean_pass_at_1_nonregression": true
+  },
+  "hash_profile": "AQLEVON_CANONICAL_JSON_SHA256_V1",
+  "k_values": [
+    1,
+    4
+  ],
+  "law_sha256": "224c51d6b1f1ab712943f2ec22989e9b47478f813ba69bdbfc88f3ee3922cbf6",
+  "law_version": "P4_GENE1_2026_09_19_V1",
+  "manifest_kind": "AQLEVON_GENE1_EVALUATION_LAW_V1",
+  "max_surrogate_arms": 3,
+  "min_surrogate_arms": 2,
+  "p2_evaluation_decision_receipt_kind": "AQLEVON_EVALUATION_DECISION_RECEIPT_V1",
+  "p2_receipt_required_for_27b_manager_review": true,
+  "p3_reality_evidence_kind": "AQLEVON_REALITY_GATE_EVIDENCE_V1",
+  "p3_reality_gate_code_sha256": "b2ca3d5b1b959b29d2fa0587cc4b10b21a617e7a55e483b12847580cb6299e40",
+  "required_stage_bindings": [
+    "w01_method_freeze_sha256",
+    "w02_gene1_pack_sha256",
+    "sealed_eval_pack_manifest_sha256",
+    "hidden_canary_manifest_sha256",
+    "anti_shortcut_manifest_sha256",
+    "metamorphic_manifest_sha256",
+    "harness_manifest_sha256",
+    "task_factory_manifest_sha256",
+    "reality_policy_sha256",
+    "sampling_profile_sha256",
+    "matched_training_budget_manifest_sha256",
+    "baseline_artifact_manifest_sha256"
+  ],
+  "sampling_profile": {
+    "k_values": [
+      1,
+      4
+    ],
+    "max_new_tokens": 2048,
+    "profile_kind": "AQLEVON_GENE1_MATCHED_SAMPLING_PROFILE_V1",
+    "sample_zero_mode": "GREEDY_DETERMINISTIC",
+    "samples_per_task": 4,
+    "seed_derivation_rule": "SHA256(experiment_id|task_id|candidate_slot|sample_index)_LOW64",
+    "stochastic_sample_count": 3,
+    "temperature_decimal": "0.7",
+    "tool_protocol_terminal_stop": true,
+    "top_p_decimal": "0.95"
+  },
+  "sampling_profile_sha256": "57b971c5c6e0f082ce567d18ece2a95caf42238aaacce66880f97739eb35b7a8",
+  "schema_version": 1,
+  "score_visibility_at_law_freeze": "NO_CANDIDATE_SCORES_OR_OUTPUTS_OBSERVED",
+  "selection_order": [
+    "MAX_PRIMARY_CLEAN_PASS_AT_1",
+    "MAX_TRANSFER_CLEAN_PASS_AT_1",
+    "MAX_ANTI_SHORTCUT_CLEAN_PASS_AT_1",
+    "MAX_HIDDEN_CANARY_CLEAN_PASS_AT_1",
+    "MIN_HACK_GAP_AT_1",
+    "MAX_METAMORPHIC_INVARIANCE_AT_1",
+    "MAX_PAIRED_SLOT_INVARIANCE",
+    "MAX_PRIMARY_CLEAN_PASS_AT_4",
+    "MIN_HACK_GAP_AT_4"
+  ],
+  "target_capability": "CODING_TOOL_USE",
+  "tie_policy": "NO_UNIQUE_WINNER_MORE_EVIDENCE_REQUIRED"
+}
