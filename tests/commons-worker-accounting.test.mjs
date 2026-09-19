@@ -99,3 +99,23 @@ test('worker stdout/stderr never exposes URL identity markers or model auth mark
   let stdout='',stderr='';child.stdout.on('data',x=>stdout+=x);child.stderr.on('data',x=>stderr+=x);const [code]=await once(child,'exit');server.close();await once(server,'close');
   assert.equal(code,0,stderr);assert.equal(claimCount,1);const combined=stdout+stderr;for(const marker of [userMarker,passMarker,pathMarker,queryMarker,modelMarker])assert.equal(combined.includes(marker),false);
 });
+
+
+test('partial runtime receipt identity configuration fails closed before polling Commons',async()=>{
+  for(const envPatch of [
+    {AQLEVON_CANDIDATE_ARTIFACT_MANIFEST_SHA256:CANDIDATE},
+    {AQLEVON_RUNTIME_HARNESS_MANIFEST_SHA256:HARNESS},
+  ]){
+    const child=spawn(process.execPath,['scripts/commons-worker.mjs'],{cwd:root,env:{...process.env,
+      AQLEVON_COMMONS_URL:'http://127.0.0.1:9',AQLEVON_COMMONS_WORKER_TOKEN:'TEST_CONFIG_MARKER',AQLEVON_MODEL_URL:'http://127.0.0.1:9',...envPatch,
+    },stdio:['ignore','pipe','pipe']});
+    let stdout='',stderr='';child.stdout.on('data',x=>stdout+=x);child.stderr.on('data',x=>stderr+=x);
+    const [code]=await once(child,'exit');
+    assert.equal(code,2,stderr);
+    assert.equal(stdout.includes('commons_worker_start'),false);
+    const line=stderr.split('\\n').filter(Boolean).map(JSON.parse)[0];
+    assert.equal(line.event,'commons_worker_config_error');
+    assert.equal(line.field,'runtime_receipt_identity');
+    assert.equal(stderr.includes('ECONNREFUSED'),false);
+  }
+});
