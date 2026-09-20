@@ -30,6 +30,11 @@ function short(v,n=12){const s=String(v||'');return s.length>n?`${s.slice(0,n)}�
 function phaseLabel(v){return phases[v]||v||'—'}
 function outcomeLabel(v){return outcomes[v]||v||'—'}
 function executorLabel(v){return ({LIVE:'مباشر',IDLE:'خامل','NOT CONNECTED':'غير متصل',NOT_CONNECTED:'غير متصل',CONNECTED:'متصل'})[v]||v||'—'}
+function sourceStatusLabel(v){return ({CONNECTED:'متصل',PARTIAL:'جزئي','ADAPTER REQUIRED':'يحتاج موصل تنفيذ'})[v]||v||'—'}
+function verificationLabel(v){const r=resultOf(v);return ({VERIFIED:'موثّق',UNVERIFIED:'غير موثّق'})[r]||r||'غير موثّق'}
+function actorLabel(v){return ({OWNER:'المالك',TASK:'مهمة',SYSTEM:'النظام',ADVISORY:'استشاري'})[v]||v||'—'}
+function profileLabel(v){return ({guardian:'الحارس',engineer:'المهندس',model_lab:'مختبر النموذج',research:'البحث',authorized_security:'الأمن المصرّح'})[v]||v||'—'}
+function qualityLabel(v){return ({candidate:'مرشح',approved:'معتمد',rejected:'مرفوض'})[v]||v||'—'}
 function percentile(values,p){const xs=values.map(Number).filter(Number.isFinite).sort((a,b)=>a-b);if(!xs.length)return 0;const i=Math.min(xs.length-1,Math.max(0,Math.ceil((p/100)*xs.length)-1));return Math.round(xs[i])}
 
 export default function AdminPage(){
@@ -40,7 +45,7 @@ export default function AdminPage(){
   const [tasks,setTasks]=useState([]),[intents,setIntents]=useState([]),[attempts,setAttempts]=useState([]),[receipts,setReceipts]=useState([]),[audit,setAudit]=useState([]),[responses,setResponses]=useState([]);
   const [busy,setBusy]=useState(false),[notice,setNotice]=useState(''),[tab,setTab]=useState('owner');
   const [ownerBusy,setOwnerBusy]=useState(false),[ownerInput,setOwnerInput]=useState(''),[ownerProfile,setOwnerProfile]=useState('guardian'),[ownerMode,setOwnerMode]=useState('mission');
-  const [ownerMessages,setOwnerMessages]=useState([{role:'assistant',text:'أنا AQLEVON Owner Core. أعمل داخل لوحة المالك الخاصة. أستطيع تحليل المشروع وتحضير Mission قابلة للموافقة، ولا أدّعي تنفيذ أي إجراء خارجي من دون Permit/Receipt فعلي.'}]);
+  const [ownerMessages,setOwnerMessages]=useState([{role:'assistant',text:'أنا نواة مالك AQLEVON. أعمل داخل لوحة المالك الخاصة. أستطيع تحليل المشروع وتحضير مهمة قابلة للموافقة، ولا أدّعي تنفيذ أي إجراء خارجي من دون تصريح وإيصال فعلي.'}]);
   const [selectedTask,setSelectedTask]=useState(null);
   const [selectedAttempt,setSelectedAttempt]=useState(null);
   const [globalQuery,setGlobalQuery]=useState('');
@@ -98,8 +103,8 @@ export default function AdminPage(){
     }catch(e){setNotice(e?.message||'تعذر حفظ الإعدادات.')}finally{setBusy(false)}
   }
 
-  async function runBenchmark(){if(!session)return;setBusy(true);setNotice('');try{const r=await fetch('/api/benchmark/run',{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${session.access_token}`},body:'{}'});const d=await r.json();if(!r.ok)throw new Error(d.message||'فشل الاختبار.');setNotice(`Benchmark ${domainNames[d.domain]||d.domain}: ${d.score}/100`);await loadAll()}catch(e){setNotice(e?.message||'فشل Benchmark.')}finally{setBusy(false)}}
-  async function promoteTrace(id){setBusy(true);setNotice('');try{const {data,error}=await sb.rpc('promote_verified_chat_to_training',{p_chat_log_id:id});if(error)throw error;setNotice(`تمت ترقية الـtrace إلى Training Candidate: ${data}`);await loadAll()}catch(e){setNotice(e?.message||'تعذر ترقية الـtrace.')}finally{setBusy(false)}}
+  async function runBenchmark(){if(!session)return;setBusy(true);setNotice('');try{const r=await fetch('/api/benchmark/run',{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${session.access_token}`},body:'{}'});const d=await r.json();if(!r.ok)throw new Error(d.message||'فشل الاختبار.');setNotice(`Benchmark ${domainNames[d.domain]||d.domain}: ${d.score}/100`);await loadAll()}catch(e){setNotice(e?.message||'فشل التقييم.')}finally{setBusy(false)}}
+  async function promoteTrace(id){setBusy(true);setNotice('');try{const {data,error}=await sb.rpc('promote_verified_chat_to_training',{p_chat_log_id:id});if(error)throw error;setNotice(`تمت ترقية الـtrace إلى Training Candidate: ${data}`);await loadAll()}catch(e){setNotice(e?.message||'تعذر ترقية التتبّع.')}finally{setBusy(false)}}
   async function reviewExample(id,quality_status){setBusy(true);setNotice('');try{const {error}=await sb.from('training_examples').update({quality_status}).eq('id',id);if(error)throw error;setNotice(quality_status==='approved'?'تم اعتماد المثال.':'تم رفض المثال.');await loadAll()}catch(e){setNotice(e?.message||'تعذر تحديث المثال.')}finally{setBusy(false)}}
 
   async function ownerSend(e){
@@ -109,7 +114,7 @@ export default function AdminPage(){
     setOwnerMessages(v=>[...v,{role:'user',text:input}]);setOwnerInput('');setOwnerBusy(true);setNotice('');
     try{
       const r=await fetch('/api/admin/owner-core/chat',{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${session.access_token}`},body:JSON.stringify({input,history:prior,profile:ownerProfile,mode:ownerMode})});
-      const d=await r.json();if(!r.ok)throw new Error(d.message||'تعذر تشغيل Owner Core.');
+      const d=await r.json();if(!r.ok)throw new Error(d.message||'تعذر تشغيل نواة المالك.');
       setOwnerMessages(v=>[...v,{role:'assistant',text:d.text||'تم إعداد الرد.',meta:{run_id:d.run_id,execution_state:d.execution_state}}]);
       if(d.task?.id)setSelectedTask(d.task.id);
       await loadAll();
@@ -167,12 +172,12 @@ export default function AdminPage(){
   const activeAttemptAudit=activeAttempt?audit.filter(e=>e.task_id===activeAttempt.task_id).slice(0,16):[];
   const securityTasks=tasks.filter(t=>t.scope?.profile==='authorized_security');
   const sourceHealth=[
-    ['Control Plane','CONNECTED','Tasks · intents · attempts · receipts'],
-    ['Project Audit','CONNECTED',`${audit.length} recent events loaded`],
-    ['Evaluation Store','CONNECTED',`${bench.length} benchmarks · ${verified} verified traces`],
-    ['Learning Gate','CONNECTED',`${candidates.length} candidates · ${approved.length} approved`],
-    ['Git / Deploy / Browser','ADAPTER REQUIRED','Execution bridge not connected'],
-    ['Weights / Registry','PARTIAL','Model telemetry visible; lineage registry pending']
+    ['طبقة التحكم','CONNECTED','المهام · نيات التنفيذ · المحاولات · الإيصالات'],
+    ['تدقيق المشروع','CONNECTED',`${audit.length} أحداث حديثة محملة`],
+    ['مخزن التقييم','CONNECTED',`${bench.length} تقييمات · ${verified} تتبّعات موثقة`],
+    ['بوابة التعلّم','CONNECTED',`${candidates.length} مرشحات · ${approved.length} معتمدة`],
+    ['Git / النشر / المتصفح','ADAPTER REQUIRED','جسر التنفيذ غير متصل'],
+    ['الأوزان / السجل','PARTIAL','قياس النموذج ظاهر؛ سجل النسب قيد الربط']
   ];
 
   return <div className="owner-admin-shell" dir="rtl">
@@ -224,12 +229,12 @@ export default function AdminPage(){
             </div>
             <div className="command-context-bar"><span>النمط</span><b>{profiles.find(x=>x[0]===ownerProfile)?.[1]}</b><small>{profiles.find(x=>x[0]===ownerProfile)?.[2]}</small></div>
             <div className="command-chat-stream">
-              {ownerMessages.map((m,i)=><div key={i} className={`command-message ${m.role} ${m.error?'error':''}`}><div className="command-message-meta"><span>{m.role==='user'?'OWNER':'AQLEVON'}</span>{m.meta&&<small>{m.meta.execution_state||'ADVISORY'} · {short(m.meta.run_id,8)}</small>}</div><p>{m.text}</p></div>)}
+              {ownerMessages.map((m,i)=><div key={i} className={`command-message ${m.role} ${m.error?'error':''}`}><div className="command-message-meta"><span>{m.role==='user'?'المالك':'AQLEVON'}</span>{m.meta&&<small>{actorLabel(m.meta.execution_state||'ADVISORY')} · {short(m.meta.run_id,8)}</small>}</div><p>{m.text}</p></div>)}
               {ownerBusy&&<div className="command-message assistant"><div className="command-message-meta"><span>AQLEVON</span></div><p>يتم تحضير الرد…</p></div>}
             </div>
             <form className="command-composer" onSubmit={ownerSend}>
               <textarea value={ownerInput} onChange={e=>setOwnerInput(e.target.value)} placeholder="أعط AQLEVON أمرًا، اطلب تحليل المشروع، أو حضّر مهمة للتنفيذ…" rows="3"/>
-              <div><span>{ownerMode==='mission'?'تتطلب المهمة موافقة صريحة من المالك قبل أي تنفيذ خارجي.':'وضع استشاري · لا يتم إنشاء أو تعديل مهمة.'}</span><button className="primary-btn" disabled={ownerBusy||!ownerInput.trim()}>{ownerMode==='mission'?'Prepare mission':'Send'}</button></div>
+              <div><span>{ownerMode==='mission'?'تتطلب المهمة موافقة صريحة من المالك قبل أي تنفيذ خارجي.':'وضع استشاري · لا يتم إنشاء أو تعديل مهمة.'}</span><button className="primary-btn" disabled={ownerBusy||!ownerInput.trim()}>{ownerMode==='mission'?'تحضير المهمة':'إرسال'}</button></div>
             </form>
           </div>
 
@@ -237,11 +242,11 @@ export default function AdminPage(){
             <div className="command-rail-head"><div><span className="eyebrow">التحكم بالمهام</span><h3>{activeTask?.title||'لم يتم اختيار مهمة'}</h3></div><span className={`v3-state-pill ${String(activeTask?.phase||'idle').toLowerCase()}`}>{activeTask?.phase?phaseLabel(activeTask.phase):'خامل'}</span></div>
             <div className="command-queue">
               <div className="command-queue-title"><b>قائمة الانتظار</b><span>{tasks.length}</span></div>
-              {tasks.length?tasks.slice(0,9).map(t=><button key={t.id} className={activeTask?.id===t.id?'active':''} onClick={()=>setSelectedTask(t.id)}><div><b>{t.title||'AQLEVON Mission'}</b><small>{short(t.id,12)} · {when(t.updated_at||t.created_at)}</small></div><span>{phaseLabel(t.phase)}</span></button>):<div className="empty-panel">لا توجد مهام بعد.</div>}
+              {tasks.length?tasks.slice(0,9).map(t=><button key={t.id} className={activeTask?.id===t.id?'active':''} onClick={()=>setSelectedTask(t.id)}><div><b>{t.title||'مهمة AQLEVON'}</b><small>{short(t.id,12)} · {when(t.updated_at||t.created_at)}</small></div><span>{phaseLabel(t.phase)}</span></button>):<div className="empty-panel">لا توجد مهام بعد.</div>}
             </div>
             {activeTask&&<div className="command-mission-detail">
               <div className="v3-kv"><span>النتيجة</span><b>{outcomeLabel(activeTask.outcome)}</b></div>
-              <div className="v3-kv"><span>النمط</span><b>{activeTask.scope?.profile||'—'}</b></div>
+              <div className="v3-kv"><span>النمط</span><b>{profileLabel(activeTask.scope?.profile)}</b></div>
               <div className="v3-kv"><span>الاستقلالية</span><b>{activeTask.scope?.autonomy||'approval_required'}</b></div>
               <div className="v3-kv"><span>المنفّذ</span><b>{executorLabel(activeTask.scope?.executor_state||'NOT_CONNECTED')}</b></div>
               {activeTask.phase==='OPEN'&&<div className="v3-action-row"><button className="primary-btn" onClick={()=>taskAction(activeTask.id,'approve')} disabled={busy}>موافقة</button><button className="ghost-fit" onClick={()=>taskAction(activeTask.id,'cancel')} disabled={busy}>إلغاء</button></div>}
@@ -259,12 +264,12 @@ export default function AdminPage(){
           </div>
           <div className="command-audit-pane">
             <div className="trace-pane-title"><b>الأدلة وسجل التدقيق</b><button onClick={()=>setTab('traces')}>فتح التتبّع ↗</button></div>
-            <div className="command-audit-list">{activeAudit.length?activeAudit.slice(0,10).map(e=><div key={e.id}><i/><div><b>{e.event_type}</b><small>{e.subject_type||'TASK'} · {when(e.created_at)}</small></div></div>):<div className="empty-panel">لا توجد أحداث تدقيق لهذه المهمة.</div>}</div>
+            <div className="command-audit-list">{activeAudit.length?activeAudit.slice(0,10).map(e=><div key={e.id}><i/><div><b>{e.event_type}</b><small>{actorLabel(e.subject_type||'TASK')} · {when(e.created_at)}</small></div></div>):<div className="empty-panel">لا توجد أحداث تدقيق لهذه المهمة.</div>}</div>
           </div>
         </section>
 
         <section className="command-system-strip">
-          <button onClick={()=>setTab('brain')}><span>ذاكرة المشروع</span><b>طبقة التحكم</b><small>{audit.length} audit events</small></button>
+          <button onClick={()=>setTab('brain')}><span>ذاكرة المشروع</span><b>طبقة التحكم</b><small>{audit.length} أحداث تدقيق</small></button>
           <button onClick={()=>setTab('model_lab')}><span>النموذج</span><b>{short(latestModel,22)}</b><small>{avgBench==='—'?'لا يوجد تقييم':avgBench+'/100 تقييم'}</small></button>
           <button onClick={()=>setTab('traces')}><span>المراقبة</span><b>P95 {p95Latency?p95Latency+'ms':'—'}</b><small>{toolSuccessRate}% tool success</small></button>
           <button onClick={()=>setTab('infrastructure')}><span>المنفّذون</span><b>{executorLabel(executorState)}</b><small>موصلات Git والمتصفح والنشر</small></button>
@@ -277,14 +282,14 @@ export default function AdminPage(){
         <section className="mission-workbench">
           <div className="mission-table-pane">
             <div className="v3-table-head mission-grid"><span>المهمة</span><span>المرحلة</span><span>النتيجة</span><span>النمط</span><span>المنفّذ</span><span>آخر تحديث</span></div>
-            <div className="v3-scroll-list">{filteredTasks.length?filteredTasks.map(t=><button className={`v3-table-row mission-grid ${activeTask?.id===t.id?'selected':''}`} key={t.id} onClick={()=>setSelectedTask(t.id)}><span className="mission-title"><b>{t.title||'AQLEVON Mission'}</b><small>{short(t.id,14)}</small></span><span>{phaseLabel(t.phase)}</span><span className={`tone-${String(t.outcome||'NONE').toLowerCase()}`}>{outcomeLabel(t.outcome)}</span><span>{t.scope?.profile||'—'}</span><span>{t.scope?.executor_state||'NOT_CONNECTED'}</span><span>{when(t.updated_at||t.created_at)}</span></button>):<div className="empty-panel">لا توجد مهام تطابق البحث الحالي.</div>}</div>
+            <div className="v3-scroll-list">{filteredTasks.length?filteredTasks.map(t=><button className={`v3-table-row mission-grid ${activeTask?.id===t.id?'selected':''}`} key={t.id} onClick={()=>setSelectedTask(t.id)}><span className="mission-title"><b>{t.title||'مهمة AQLEVON'}</b><small>{short(t.id,14)}</small></span><span>{phaseLabel(t.phase)}</span><span className={`tone-${String(t.outcome||'NONE').toLowerCase()}`}>{outcomeLabel(t.outcome)}</span><span>{profileLabel(t.scope?.profile)}</span><span>{t.scope?.executor_state||'NOT_CONNECTED'}</span><span>{when(t.updated_at||t.created_at)}</span></button>):<div className="empty-panel">لا توجد مهام تطابق البحث الحالي.</div>}</div>
           </div>
           <aside className="v3-inspector">
             <div className="v3-inspector-head"><span className="eyebrow">تفاصيل المهمة</span><h3>{activeTask?.title||'اختر مهمة'}</h3><small>{activeTask?.id||'—'}</small></div>
             {activeTask&&<>
               <div className="v3-kv"><span>المرحلة</span><b>{phaseLabel(activeTask.phase)}</b></div>
               <div className="v3-kv"><span>النتيجة</span><b>{outcomeLabel(activeTask.outcome)}</b></div>
-              <div className="v3-kv"><span>النمط</span><b>{activeTask.scope?.profile||'—'}</b></div>
+              <div className="v3-kv"><span>النمط</span><b>{profileLabel(activeTask.scope?.profile)}</b></div>
               <div className="v3-kv"><span>الاستقلالية</span><b>{activeTask.scope?.autonomy||'approval_required'}</b></div>
               <div className="v3-kv"><span>المنفّذ</span><b>{executorLabel(activeTask.scope?.executor_state||'NOT_CONNECTED')}</b></div>
               <div className="v3-divider"/>
@@ -311,8 +316,8 @@ export default function AdminPage(){
           <div className="trace-tree-pane">
             <div className="trace-pane-title"><b>تتبّع طبقة التحكم</b><span>{activeAttempt?short(activeAttempt.id,10):'—'}</span></div>
             {activeAttempt?<div className="trace-tree">
-              <div className="trace-node root"><i/><div><span>مهمة</span><b>{activeAttemptTask?.title||'AQLEVON Mission'}</b><small>{activeAttempt.task_id}</small></div></div>
-              <div className="trace-node"><i/><div><span>نية تنفيذ</span><b>{activeAttemptIntent?.semantic_action||'Action intent'}</b><small>{activeAttemptIntent?.canonical_resource||'No canonical resource'}</small></div></div>
+              <div className="trace-node root"><i/><div><span>مهمة</span><b>{activeAttemptTask?.title||'مهمة AQLEVON'}</b><small>{activeAttempt.task_id}</small></div></div>
+              <div className="trace-node"><i/><div><span>نية تنفيذ</span><b>{activeAttemptIntent?.semantic_action||'نية تنفيذ'}</b><small>{activeAttemptIntent?.canonical_resource||'لا يوجد مورد معياري'}</small></div></div>
               <div className="trace-node active"><i/><div><span>محاولة</span><b>{phaseLabel(activeAttempt.phase)} · {outcomeLabel(activeAttempt.outcome)}</b><small>{activeAttempt.provider_operation_id||'لا يوجد معرّف لعملية المزوّد'}</small></div></div>
               <div className={`trace-node ${activeAttemptReceipt?'verified':'muted'}`}><i/><div><span>إيصال</span><b>{activeAttemptReceipt?.executor_reported_outcome||'لا يوجد إيصال بعد'}</b><small>{activeAttemptReceipt?.executor_identity||'الأدلة قيد الانتظار'}</small></div></div>
               {activeAttemptAudit.slice(0,5).map(e=><div className="trace-node audit" key={e.id}><i/><div><span>تدقيق</span><b>{e.event_type}</b><small>{when(e.created_at)}</small></div></div>)}
@@ -337,16 +342,16 @@ export default function AdminPage(){
         </section>
         <section className="model-trace-strip">
           <div className="trace-pane-title"><b>حركة النموذج</b><span>{logs.length} recent traces</span></div>
-          <div className="model-trace-table">{logs.slice(0,18).map(x=><div key={x.id}><span>{domainNames[traceDomain(x)]||traceDomain(x)}</span><b>{short(x.model,20)}</b><span>{x.latency_ms?x.latency_ms+'ms':'—'}</span><span>{x.model_calls||1} calls</span><span className={isVerified(x)?'verified':''}>{resultOf(x.verification)||'UNVERIFIED'}</span></div>)}</div>
+          <div className="model-trace-table">{logs.slice(0,18).map(x=><div key={x.id}><span>{domainNames[traceDomain(x)]||traceDomain(x)}</span><b>{short(x.model,20)}</b><span>{x.latency_ms?x.latency_ms+'ms':'—'}</span><span>{x.model_calls||1} استدعاءات</span><span className={isVerified(x)?'verified':''}>{verificationLabel(x.verification)}</span></div>)}</div>
         </section>
       </>}
 
       {tab==='incidents'&&<>
-        <section className="v3-section-head"><div><span className="eyebrow">مركز الحوادث</span><h2>الإخفاقات والتنفيذ غير المحسوم</h2><p>كل فشل أو نتيجة غير محسومة تظهر هنا لتتحول من سجل مبعثر إلى مسار تحقيق واضح.</p></div><div className="v3-head-stats"><span>{incidentCount} open signals</span><span>{attempts.filter(a=>a.outcome==='FAILED').length} failed</span><span>{attempts.filter(a=>a.outcome==='UNKNOWN').length} unknown</span></div></section>
+        <section className="v3-section-head"><div><span className="eyebrow">مركز الحوادث</span><h2>الإخفاقات والتنفيذ غير المحسوم</h2><p>كل فشل أو نتيجة غير محسومة تظهر هنا لتتحول من سجل مبعثر إلى مسار تحقيق واضح.</p></div><div className="v3-head-stats"><span>{incidentCount} إشارات مفتوحة</span><span>{attempts.filter(a=>a.outcome==='FAILED').length} فاشلة</span><span>{attempts.filter(a=>a.outcome==='UNKNOWN').length} غير محسومة</span></div></section>
         <section className="incident-console">
           <div className="incident-table">
             <div className="incident-head"><span>الخطورة</span><span>المهمة / المحاولة</span><span>الحالة</span><span>عملية المزوّد</span><span>الوقت</span></div>
-            {attempts.filter(a=>['FAILED','UNKNOWN'].includes(a.outcome)).length?attempts.filter(a=>['FAILED','UNKNOWN'].includes(a.outcome)).map(a=><button key={a.id} onClick={()=>{setSelectedAttempt(a.id);setSelectedTask(a.task_id);setTab('traces')}}><span className={a.outcome==='FAILED'?'sev-high':'sev-warn'}>{a.outcome==='FAILED'?'HIGH':'REVIEW'}</span><span><b>{tasks.find(t=>t.id===a.task_id)?.title||'AQLEVON Mission'}</b><small>{short(a.id,14)}</small></span><span>{phaseLabel(a.phase)} · {outcomeLabel(a.outcome)}</span><code>{short(a.provider_operation_id,18)}</code><span>{when(a.started_at||a.created_at)}</span></button>):<div className="empty-panel">لا توجد محاولات تنفيذ فاشلة أو غير محسومة.</div>}
+            {attempts.filter(a=>['FAILED','UNKNOWN'].includes(a.outcome)).length?attempts.filter(a=>['FAILED','UNKNOWN'].includes(a.outcome)).map(a=><button key={a.id} onClick={()=>{setSelectedAttempt(a.id);setSelectedTask(a.task_id);setTab('traces')}}><span className={a.outcome==='FAILED'?'sev-high':'sev-warn'}>{a.outcome==='FAILED'?'مرتفع':'مراجعة'}</span><span><b>{tasks.find(t=>t.id===a.task_id)?.title||'AQLEVON Mission'}</b><small>{short(a.id,14)}</small></span><span>{phaseLabel(a.phase)} · {outcomeLabel(a.outcome)}</span><code>{short(a.provider_operation_id,18)}</code><span>{when(a.started_at||a.created_at)}</span></button>):<div className="empty-panel">لا توجد محاولات تنفيذ فاشلة أو غير محسومة.</div>}
           </div>
           <aside className="incident-guidance"><span className="eyebrow">سياسة المعالجة</span><h3>الأدلة قبل الإغلاق</h3><p>لا نغلق الحادث لأن المنفّذ قال «نجاح». الإغلاق يعتمد على الإيصال والتحقق وسجل التدقيق.</p><div className="v3-kv"><span>تغطية الأدلة</span><b>{evidenceCoverage}%</b></div><div className="v3-kv"><span>نتائج غير محسومة</span><b>{attempts.filter(a=>a.outcome==='UNKNOWN').length}</b></div><div className="v3-kv"><span>طلبات الإيقاف</span><b>{audit.filter(e=>e.event_type==='OWNER_STOP_REQUESTED').length}</b></div></aside>
         </section>
@@ -358,10 +363,10 @@ export default function AdminPage(){
           <div className="brain-score"><span>المصادر المتصلة</span><strong>{sourceHealth.filter(x=>x[1]==='CONNECTED').length}/{sourceHealth.length}</strong></div>
         </section>
         <section className="brain-grid">
-          {sourceHealth.map(([name,state,detail])=><div className="brain-source" key={name}><div><i className={state==='CONNECTED'?'ok':state==='PARTIAL'?'warn':''}/><span>{name}</span></div><b>{state}</b><small>{detail}</small></div>)}
+          {sourceHealth.map(([name,state,detail])=><div className="brain-source" key={name}><div><i className={state==='CONNECTED'?'ok':state==='PARTIAL'?'warn':''}/><span>{name}</span></div><b>{sourceStatusLabel(state)}</b><small>{detail}</small></div>)}
         </section>
         <section className="panel-grid">
-          <div className="admin-panel"><div className="panel-head"><div><span className="eyebrow">القرارات الأخيرة</span><h3>ذاكرة التدقيق</h3></div></div><div className="owner-timeline">{audit.slice(0,18).map(e=><div key={e.id}><i/><div><b>{e.event_type}</b><span>{e.subject_type||'SYSTEM'} · {when(e.created_at)}</span></div></div>)}</div></div>
+          <div className="admin-panel"><div className="panel-head"><div><span className="eyebrow">القرارات الأخيرة</span><h3>ذاكرة التدقيق</h3></div></div><div className="owner-timeline">{audit.slice(0,18).map(e=><div key={e.id}><i/><div><b>{e.event_type}</b><span>{actorLabel(e.subject_type||'SYSTEM')} · {when(e.created_at)}</span></div></div>)}</div></div>
           <div className="admin-panel"><div className="panel-head"><div><span className="eyebrow">مخرجات نواة المالك</span><h3>آخر الردود المحفوظة</h3></div></div><div className="brain-response-list">{responses.slice(0,12).map(r=><div key={r.id}><b>{r.response_type}</b><p>{String(r.body||'').slice(0,180)}</p><span>{when(r.emitted_at)}</span></div>)}</div></div>
         </section>
       </>}
@@ -418,7 +423,7 @@ export default function AdminPage(){
           </div>
           <div className="admin-panel">
             <div className="panel-head"><div><span className="eyebrow">المهام الأمنية</span><h3>النطاقات المصرّح بها</h3></div></div>
-            <div className="security-mission-list">{securityTasks.length?securityTasks.map(t=><button key={t.id} onClick={()=>{setSelectedTask(t.id);setTab('missions')}}><div><b>{t.title||'Security Mission'}</b><small>{short(t.id,14)}</small></div><span>{phaseLabel(t.phase)} · {outcomeLabel(t.outcome)}</span></button>):<div className="empty-panel">لا توجد مهام أمنية مصرّح بها مسجلة.</div>}</div>
+            <div className="security-mission-list">{securityTasks.length?securityTasks.map(t=><button key={t.id} onClick={()=>{setSelectedTask(t.id);setTab('missions')}}><div><b>{t.title||'مهمة أمنية'}</b><small>{short(t.id,14)}</small></div><span>{phaseLabel(t.phase)} · {outcomeLabel(t.outcome)}</span></button>):<div className="empty-panel">لا توجد مهام أمنية مصرّح بها مسجلة.</div>}</div>
           </div>
         </section>
       </>}
@@ -427,7 +432,7 @@ export default function AdminPage(){
 
       {tab==='evaluation'&&<><section className="panel-grid"><div className="admin-panel"><div className="panel-head"><div><span className="eyebrow">التقييم</span><h3>القياس المجاني</h3><p>يشغّل تقييمًا واحدًا فقط ضمن بوابة تمنع أي تكلفة مدفوعة.</p></div></div><div className="status-list"><div><span>OpenRouter المجاني</span><b>{status?.openrouter_configured?'جاهز':'غير جاهز'}</b></div><div><span>AQLEVON ذاتي الاستضافة</span><b>{status?.self_hosted_configured?'جاهز':'بانتظار GPU'}</b></div><div><span>مرشحات التدريب</span><b>{candidates.length}</b></div><div><span>معتمدة</span><b>{approved.length}</b></div></div><button className="primary-btn fit" onClick={runBenchmark} disabled={busy}>تشغيل تقييم واحد</button></div><div className="admin-panel"><div className="panel-head"><div><span className="eyebrow">التحقق</span><h3>الحقيقة قبل الترقية</h3></div></div><div className="status-list"><div><span>تتبّعات موثقة</span><b>{verified}</b></div><div><span>مؤهلة للتعلّم</span><b>{eligible.length}</b></div><div><span>إيصالات الأدلة</span><b>{receipts.length}</b></div><div><span>محاولات غير محسومة</span><b>{attempts.filter(a=>a.outcome==='UNKNOWN').length}</b></div></div></div></section></>}
 
-      {tab==='learning'&&<><section className="admin-panel wide"><div className="panel-head"><div><span className="eyebrow">بوابة التعلّم الآمن</span><h3>التتبّعات المؤهلة للتعلّم</h3><p>التوثيق وحده لا يغيّر مجموعة التدريب. الترقية تحتاج قرار المالك من هنا.</p></div></div><div className="table-list">{eligible.length?eligible.slice(0,40).map(x=>{const promoted=promotedIds.has(String(x.id));return <div className="table-row" key={x.id}><div><b>{domainNames[traceDomain(x)]||traceDomain(x)} · {x.difficulty||'—'}</b><span>{x.provider||'—'} · {x.model||'—'} · {x.model_calls||1} calls</span></div><span>{resultOf(x.verification)}</span><span>{x.latency_ms?`${x.latency_ms}ms`:'—'}</span><button className="primary-btn fit" disabled={busy||promoted} onClick={()=>promoteTrace(x.id)}>{promoted?'تمت الترقية':'ترقية للتعلم'}</button></div>}):<div className="empty-panel">لا توجد تتبّعات موثقة مؤهلة حاليًا.</div>}</div></section><section className="admin-panel wide"><div className="panel-head"><div><span className="eyebrow">مراجعة التدريب</span><h3>مراجعة مرشحات التدريب</h3><p>لا يصبح المثال معتمدًا إلا بعد قرار المالك.</p></div></div><div className="table-list">{candidates.length?candidates.slice(0,50).map(x=><div className="table-row" key={x.id}><div><b>{String(x.user_input||'').slice(0,90)||'Training example'}</b><span>{(x.tags||[]).join(' · ')}</span></div><span>{x.quality_status}</span><div style={{display:'flex',gap:8}}><button className="primary-btn fit" disabled={busy} onClick={()=>reviewExample(x.id,'approved')}>اعتماد</button><button className="ghost-fit" disabled={busy} onClick={()=>reviewExample(x.id,'rejected')}>رفض</button></div></div>):<div className="empty-panel">لا توجد مرشحات تدريب تنتظر المراجعة.</div>}</div></section></>}
+      {tab==='learning'&&<><section className="admin-panel wide"><div className="panel-head"><div><span className="eyebrow">بوابة التعلّم الآمن</span><h3>التتبّعات المؤهلة للتعلّم</h3><p>التوثيق وحده لا يغيّر مجموعة التدريب. الترقية تحتاج قرار المالك من هنا.</p></div></div><div className="table-list">{eligible.length?eligible.slice(0,40).map(x=>{const promoted=promotedIds.has(String(x.id));return <div className="table-row" key={x.id}><div><b>{domainNames[traceDomain(x)]||traceDomain(x)} · {x.difficulty||'—'}</b><span>{x.provider||'—'} · {x.model||'—'} · {x.model_calls||1} استدعاءات</span></div><span>{verificationLabel(x.verification)}</span><span>{x.latency_ms?`${x.latency_ms}ms`:'—'}</span><button className="primary-btn fit" disabled={busy||promoted} onClick={()=>promoteTrace(x.id)}>{promoted?'تمت الترقية':'ترقية للتعلم'}</button></div>}):<div className="empty-panel">لا توجد تتبّعات موثقة مؤهلة حاليًا.</div>}</div></section><section className="admin-panel wide"><div className="panel-head"><div><span className="eyebrow">مراجعة التدريب</span><h3>مراجعة مرشحات التدريب</h3><p>لا يصبح المثال معتمدًا إلا بعد قرار المالك.</p></div></div><div className="table-list">{candidates.length?candidates.slice(0,50).map(x=><div className="table-row" key={x.id}><div><b>{String(x.user_input||'').slice(0,90)||'مثال تدريب'}</b><span>{(x.tags||[]).join(' · ')}</span></div><span>{qualityLabel(x.quality_status)}</span><div style={{display:'flex',gap:8}}><button className="primary-btn fit" disabled={busy} onClick={()=>reviewExample(x.id,'approved')}>اعتماد</button><button className="ghost-fit" disabled={busy} onClick={()=>reviewExample(x.id,'rejected')}>رفض</button></div></div>):<div className="empty-panel">لا توجد مرشحات تدريب تنتظر المراجعة.</div>}</div></section></>}
     </main>
   </div>;
 }
