@@ -49,11 +49,12 @@ PY
 RUN set -eux; \
     ABI="$(python -c "import torch; print('TRUE' if torch._C._GLIBCXX_USE_CXX11_ABI else 'FALSE')")"; \
     if [ "$ABI" = "TRUE" ]; then SHA="f25da18657a87fc83dc1bfb8b7751b82246e9db355510226b674fd437c34b5fb"; else SHA="2605b2653e7b9d6615bbb154896ae4d3f0b95d3120af7a6374ee97092e61df02"; fi; \
+    WHEEL="/tmp/flash_attn-2.8.3+cu12torch2.8cxx11abi${ABI}-cp312-cp312-linux_x86_64.whl"; \
     URL="https://github.com/Dao-AILab/flash-attention/releases/download/v2.8.3/flash_attn-2.8.3%2Bcu12torch2.8cxx11abi${ABI}-cp312-cp312-linux_x86_64.whl"; \
-    curl -fL --retry 3 --retry-delay 2 -o /tmp/flash_attn.whl "$URL"; \
-    echo "$SHA  /tmp/flash_attn.whl" | sha256sum -c -; \
-    python -m pip install --no-cache-dir --no-deps /tmp/flash_attn.whl; \
-    rm -f /tmp/flash_attn.whl
+    curl -fL --retry 3 --retry-delay 2 -o "$WHEEL" "$URL"; \
+    echo "$SHA  $WHEEL" | sha256sum -c -; \
+    python -m pip install --no-cache-dir --no-deps "$WHEEL"; \
+    rm -f "$WHEEL"
 
 COPY research/weight_factory/agent03/runtime_appliance/smoke_runtime.py /opt/aqlevon/runtime/smoke_runtime.py
 RUN python /opt/aqlevon/runtime/smoke_runtime.py --build-check
