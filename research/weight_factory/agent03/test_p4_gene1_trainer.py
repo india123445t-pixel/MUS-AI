@@ -218,9 +218,6 @@ class RuntimeResolverTests(unittest.TestCase):
 
             marker = repo / "source.txt"
             marker.write_text("source\n")
-            self._git(repo, "add", ".")
-            self._git(repo, "commit", "-m", "source")
-            source = self._git(repo, "rev-parse", "HEAD")
 
             run_sha = H("run")
             lock_sha = H("lock")
@@ -245,6 +242,9 @@ class RuntimeResolverTests(unittest.TestCase):
             )
             auth_path = agent / "p4_a1_runpod_manager_authorization_retrytest_v1.json"
             auth_path.write_text(json.dumps(auth))
+            self._git(repo, "add", ".")
+            self._git(repo, "commit", "-m", "source plus authorization")
+            source = self._git(repo, "rev-parse", "HEAD")
 
             binding = c.seal(
                 {
@@ -287,9 +287,6 @@ class RuntimeResolverTests(unittest.TestCase):
             self._git(repo, "config", "user.email", "aqlevon@example.invalid")
             self._git(repo, "config", "user.name", "AQLEVON Test")
             (repo / "source.txt").write_text("source\n")
-            self._git(repo, "add", ".")
-            self._git(repo, "commit", "-m", "source")
-            source = self._git(repo, "rev-parse", "HEAD")
 
             run_sha = H("run")
             lock_sha = H("lock")
@@ -313,6 +310,9 @@ class RuntimeResolverTests(unittest.TestCase):
                 "authorization_sha256",
             )
             (agent / "p4_a1_runpod_manager_authorization_retrytest_v1.json").write_text(json.dumps(auth))
+            self._git(repo, "add", ".")
+            self._git(repo, "commit", "-m", "source plus authorization")
+            source = self._git(repo, "rev-parse", "HEAD")
             binding = c.seal(
                 {
                     "authorization_sha256": auth["authorization_sha256"],
