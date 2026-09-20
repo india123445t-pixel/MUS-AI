@@ -197,6 +197,154 @@ class ContractTests(unittest.TestCase):
         self.assertEqual(c.AUTH_KIND, "AQLEVON_MANAGER_COMPUTE_AUTHORIZATION_V1")
 
 
+class RuntimeResolverTests(unittest.TestCase):
+    def _git(self, repo: Path, *args: str) -> str:
+        cp = subprocess.run(
+            ["git", "-C", str(repo), *args],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        return cp.stdout.strip()
+
+    def test_runtime_resolver_discovers_exact_binding_and_auth_without_ui_filenames(self):
+        with tempfile.TemporaryDirectory() as d:
+            repo = Path(d)
+            agent = repo / "research" / "weight_factory" / "agent03"
+            agent.mkdir(parents=True)
+            self._git(repo, "init")
+            self._git(repo, "config", "user.email", "aqlevon@example.invalid")
+            self._git(repo, "config", "user.name", "AQLEVON Test")
+
+            marker = repo / "source.txt"
+            marker.write_text("source\n")
+            self._git(repo, "add", ".")
+            self._git(repo, "commit", "-m", "source")
+            source = self._git(repo, "rev-parse", "HEAD")
+
+            run_sha = H("run")
+            lock_sha = H("lock")
+            digest = "sha256:" + H("image")
+            auth = c.seal(
+                {
+                    "schema_version": 1,
+                    "authorization_kind": c.AUTH_KIND,
+                    "hash_profile": c.HASH_PROFILE,
+                    "authorization_id": "retry-test",
+                    "run_task_id": c.TASK_ID,
+                    "run_manifest_sha256": run_sha,
+                    "profile_id": c.PROFILE,
+                    "compute_origin": "paid_manager_authorized",
+                    "max_billed_seconds": 1800,
+                    "max_total_cost_usd": "0.40",
+                    "max_hourly_rate_usd": "0.80",
+                    "max_artifact_egress_bytes": 1,
+                    "single_use": True,
+                },
+                "authorization_sha256",
+            )
+            auth_path = agent / "p4_a1_runpod_manager_authorization_retrytest_v1.json"
+            auth_path.write_text(json.dumps(auth))
+
+            binding = c.seal(
+                {
+                    "authorization_sha256": auth["authorization_sha256"],
+                    "binding_kind": "AQLEVON_RUNTIME_APPLIANCE_BINDING_V1",
+                    "command_lock_sha256": lock_sha,
+                    "hash_profile": c.HASH_PROFILE,
+                    "run_manifest_sha256": run_sha,
+                    "runtime_appliance_digest": digest,
+                    "runtime_appliance_image": "ghcr.io/india123445t-pixel/mus-ai@" + digest,
+                    "schema_version": 1,
+                    "worker03_runtime_source_commit": source,
+                    "workflow_run_id": 1,
+                },
+                "binding_sha256",
+            )
+            binding_path = agent / "p4_a1_runtime_appliance_binding_retrytest_v1.json"
+            binding_path.write_text(json.dumps(binding))
+            self._git(repo, "add", ".")
+            self._git(repo, "commit", "-m", "binding only")
+            head = self._git(repo, "rev-parse", "HEAD")
+
+            auth_name, binding_name = c.resolve_runtime_launch_files(
+                agent_dir=agent,
+                repo_dir=repo,
+                actual_head=head,
+                expected_image_digest=digest,
+                run_manifest_sha256=run_sha,
+                command_lock_sha256=lock_sha,
+            )
+            self.assertEqual(auth_name, auth_path.name)
+            self.assertEqual(binding_name, binding_path.name)
+
+    def test_runtime_resolver_rejects_source_drift(self):
+        with tempfile.TemporaryDirectory() as d:
+            repo = Path(d)
+            agent = repo / "research" / "weight_factory" / "agent03"
+            agent.mkdir(parents=True)
+            self._git(repo, "init")
+            self._git(repo, "config", "user.email", "aqlevon@example.invalid")
+            self._git(repo, "config", "user.name", "AQLEVON Test")
+            (repo / "source.txt").write_text("source\n")
+            self._git(repo, "add", ".")
+            self._git(repo, "commit", "-m", "source")
+            source = self._git(repo, "rev-parse", "HEAD")
+
+            run_sha = H("run")
+            lock_sha = H("lock")
+            digest = "sha256:" + H("image")
+            auth = c.seal(
+                {
+                    "schema_version": 1,
+                    "authorization_kind": c.AUTH_KIND,
+                    "hash_profile": c.HASH_PROFILE,
+                    "authorization_id": "retry-test",
+                    "run_task_id": c.TASK_ID,
+                    "run_manifest_sha256": run_sha,
+                    "profile_id": c.PROFILE,
+                    "compute_origin": "paid_manager_authorized",
+                    "max_billed_seconds": 1800,
+                    "max_total_cost_usd": "0.40",
+                    "max_hourly_rate_usd": "0.80",
+                    "max_artifact_egress_bytes": 1,
+                    "single_use": True,
+                },
+                "authorization_sha256",
+            )
+            (agent / "p4_a1_runpod_manager_authorization_retrytest_v1.json").write_text(json.dumps(auth))
+            binding = c.seal(
+                {
+                    "authorization_sha256": auth["authorization_sha256"],
+                    "binding_kind": "AQLEVON_RUNTIME_APPLIANCE_BINDING_V1",
+                    "command_lock_sha256": lock_sha,
+                    "hash_profile": c.HASH_PROFILE,
+                    "run_manifest_sha256": run_sha,
+                    "runtime_appliance_digest": digest,
+                    "runtime_appliance_image": "ghcr.io/india123445t-pixel/mus-ai@" + digest,
+                    "schema_version": 1,
+                    "worker03_runtime_source_commit": source,
+                    "workflow_run_id": 1,
+                },
+                "binding_sha256",
+            )
+            (agent / "p4_a1_runtime_appliance_binding_retrytest_v1.json").write_text(json.dumps(binding))
+            (repo / "unexpected.txt").write_text("drift\n")
+            self._git(repo, "add", ".")
+            self._git(repo, "commit", "-m", "binding plus drift")
+            head = self._git(repo, "rev-parse", "HEAD")
+
+            with self.assertRaisesRegex(c.ContractError, "runtime_binding_resolution_count:0"):
+                c.resolve_runtime_launch_files(
+                    agent_dir=agent,
+                    repo_dir=repo,
+                    actual_head=head,
+                    expected_image_digest=digest,
+                    run_manifest_sha256=run_sha,
+                    command_lock_sha256=lock_sha,
+                )
+
+
 class RewardTests(unittest.TestCase):
     def test_correct_increment_reward(self):
         gt = json.dumps(
