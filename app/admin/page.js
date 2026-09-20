@@ -225,7 +225,7 @@ export default function AdminPage(){
             <div className="command-context-bar"><span>النمط</span><b>{profiles.find(x=>x[0]===ownerProfile)?.[1]}</b><small>{profiles.find(x=>x[0]===ownerProfile)?.[2]}</small></div>
             <div className="command-chat-stream">
               {ownerMessages.map((m,i)=><div key={i} className={`command-message ${m.role} ${m.error?'error':''}`}><div className="command-message-meta"><span>{m.role==='user'?'OWNER':'AQLEVON'}</span>{m.meta&&<small>{m.meta.execution_state||'ADVISORY'} · {short(m.meta.run_id,8)}</small>}</div><p>{m.text}</p></div>)}
-              {ownerBusy&&<div className="command-message assistant"><div className="command-message-meta"><span>AQLEVON</span></div><p>Preparing response…</p></div>}
+              {ownerBusy&&<div className="command-message assistant"><div className="command-message-meta"><span>AQLEVON</span></div><p>يتم تحضير الرد…</p></div>}
             </div>
             <form className="command-composer" onSubmit={ownerSend}>
               <textarea value={ownerInput} onChange={e=>setOwnerInput(e.target.value)} placeholder="أعط AQLEVON أمرًا، اطلب تحليل المشروع، أو حضّر مهمة للتنفيذ…" rows="3"/>
@@ -237,7 +237,7 @@ export default function AdminPage(){
             <div className="command-rail-head"><div><span className="eyebrow">التحكم بالمهام</span><h3>{activeTask?.title||'لم يتم اختيار مهمة'}</h3></div><span className={`v3-state-pill ${String(activeTask?.phase||'idle').toLowerCase()}`}>{activeTask?.phase?phaseLabel(activeTask.phase):'خامل'}</span></div>
             <div className="command-queue">
               <div className="command-queue-title"><b>قائمة الانتظار</b><span>{tasks.length}</span></div>
-              {tasks.length?tasks.slice(0,9).map(t=><button key={t.id} className={activeTask?.id===t.id?'active':''} onClick={()=>setSelectedTask(t.id)}><div><b>{t.title||'AQLEVON Mission'}</b><small>{short(t.id,12)} · {when(t.updated_at||t.created_at)}</small></div><span>{phaseLabel(t.phase)}</span></button>):<div className="empty-panel">No missions yet.</div>}
+              {tasks.length?tasks.slice(0,9).map(t=><button key={t.id} className={activeTask?.id===t.id?'active':''} onClick={()=>setSelectedTask(t.id)}><div><b>{t.title||'AQLEVON Mission'}</b><small>{short(t.id,12)} · {when(t.updated_at||t.created_at)}</small></div><span>{phaseLabel(t.phase)}</span></button>):<div className="empty-panel">لا توجد مهام بعد.</div>}
             </div>
             {activeTask&&<div className="command-mission-detail">
               <div className="v3-kv"><span>النتيجة</span><b>{outcomeLabel(activeTask.outcome)}</b></div>
@@ -254,21 +254,21 @@ export default function AdminPage(){
           <div className="command-live-pane">
             <div className="trace-pane-title"><b>التنفيذ المباشر</b><span>{hasInFlight?'LIVE':'NO ACTIVE EXECUTOR'}</span></div>
             <div className="command-live-rows">
-              {activeAttempts.length?activeAttempts.slice(0,12).map(a=><button key={a.id} onClick={()=>{setSelectedAttempt(a.id);setTab('traces')}}><span className={a.phase==='IN_FLIGHT'?'live-dot-cell':''}>{phaseLabel(a.phase)}</span><code>attempt #{a.attempt_no}</code><span>{short(a.provider_operation_id,18)}</span><b>{outcomeLabel(a.outcome)}</b></button>):<div className="command-empty-console">No external executor is connected. Tool activity will appear here only when real ActionAttempts exist.</div>}
+              {activeAttempts.length?activeAttempts.slice(0,12).map(a=><button key={a.id} onClick={()=>{setSelectedAttempt(a.id);setTab('traces')}}><span className={a.phase==='IN_FLIGHT'?'live-dot-cell':''}>{phaseLabel(a.phase)}</span><code>attempt #{a.attempt_no}</code><span>{short(a.provider_operation_id,18)}</span><b>{outcomeLabel(a.outcome)}</b></button>):<div className="command-empty-console">لا يوجد منفّذ خارجي متصل. ستظهر أنشطة الأدوات هنا فقط عند وجود محاولات تنفيذ حقيقية.</div>}
             </div>
           </div>
           <div className="command-audit-pane">
             <div className="trace-pane-title"><b>الأدلة وسجل التدقيق</b><button onClick={()=>setTab('traces')}>فتح التتبّع ↗</button></div>
-            <div className="command-audit-list">{activeAudit.length?activeAudit.slice(0,10).map(e=><div key={e.id}><i/><div><b>{e.event_type}</b><small>{e.subject_type||'TASK'} · {when(e.created_at)}</small></div></div>):<div className="empty-panel">No audit events for this mission.</div>}</div>
+            <div className="command-audit-list">{activeAudit.length?activeAudit.slice(0,10).map(e=><div key={e.id}><i/><div><b>{e.event_type}</b><small>{e.subject_type||'TASK'} · {when(e.created_at)}</small></div></div>):<div className="empty-panel">لا توجد أحداث تدقيق لهذه المهمة.</div>}</div>
           </div>
         </section>
 
         <section className="command-system-strip">
           <button onClick={()=>setTab('brain')}><span>ذاكرة المشروع</span><b>طبقة التحكم</b><small>{audit.length} audit events</small></button>
-          <button onClick={()=>setTab('model_lab')}><span>النموذج</span><b>{short(latestModel,22)}</b><small>{avgBench==='—'?'لا يوجد تقييم':avgBench+'/100 benchmark'}</small></button>
+          <button onClick={()=>setTab('model_lab')}><span>النموذج</span><b>{short(latestModel,22)}</b><small>{avgBench==='—'?'لا يوجد تقييم':avgBench+'/100 تقييم'}</small></button>
           <button onClick={()=>setTab('traces')}><span>المراقبة</span><b>P95 {p95Latency?p95Latency+'ms':'—'}</b><small>{toolSuccessRate}% tool success</small></button>
-          <button onClick={()=>setTab('infrastructure')}><span>المنفّذون</span><b>{executorLabel(executorState)}</b><small>Git / Browser / Deploy adapters</small></button>
-          <button onClick={()=>setTab('security')}><span>الأمن</span><b>ضمن نطاق مصرح فقط</b><small>{securityTasks.length} authorized missions</small></button>
+          <button onClick={()=>setTab('infrastructure')}><span>المنفّذون</span><b>{executorLabel(executorState)}</b><small>موصلات Git والمتصفح والنشر</small></button>
+          <button onClick={()=>setTab('security')}><span>الأمن</span><b>ضمن نطاق مصرح فقط</b><small>{securityTasks.length} مهام مصرّح بها</small></button>
         </section>
       </>}
 
@@ -277,7 +277,7 @@ export default function AdminPage(){
         <section className="mission-workbench">
           <div className="mission-table-pane">
             <div className="v3-table-head mission-grid"><span>المهمة</span><span>المرحلة</span><span>النتيجة</span><span>النمط</span><span>المنفّذ</span><span>آخر تحديث</span></div>
-            <div className="v3-scroll-list">{filteredTasks.length?filteredTasks.map(t=><button className={`v3-table-row mission-grid ${activeTask?.id===t.id?'selected':''}`} key={t.id} onClick={()=>setSelectedTask(t.id)}><span className="mission-title"><b>{t.title||'AQLEVON Mission'}</b><small>{short(t.id,14)}</small></span><span>{phaseLabel(t.phase)}</span><span className={`tone-${String(t.outcome||'NONE').toLowerCase()}`}>{outcomeLabel(t.outcome)}</span><span>{t.scope?.profile||'—'}</span><span>{t.scope?.executor_state||'NOT_CONNECTED'}</span><span>{when(t.updated_at||t.created_at)}</span></button>):<div className="empty-panel">No missions match the current search.</div>}</div>
+            <div className="v3-scroll-list">{filteredTasks.length?filteredTasks.map(t=><button className={`v3-table-row mission-grid ${activeTask?.id===t.id?'selected':''}`} key={t.id} onClick={()=>setSelectedTask(t.id)}><span className="mission-title"><b>{t.title||'AQLEVON Mission'}</b><small>{short(t.id,14)}</small></span><span>{phaseLabel(t.phase)}</span><span className={`tone-${String(t.outcome||'NONE').toLowerCase()}`}>{outcomeLabel(t.outcome)}</span><span>{t.scope?.profile||'—'}</span><span>{t.scope?.executor_state||'NOT_CONNECTED'}</span><span>{when(t.updated_at||t.created_at)}</span></button>):<div className="empty-panel">لا توجد مهام تطابق البحث الحالي.</div>}</div>
           </div>
           <aside className="v3-inspector">
             <div className="v3-inspector-head"><span className="eyebrow">تفاصيل المهمة</span><h3>{activeTask?.title||'اختر مهمة'}</h3><small>{activeTask?.id||'—'}</small></div>
@@ -300,13 +300,13 @@ export default function AdminPage(){
       {tab==='traces'&&<>
         <section className="trace-toolbar">
           <div><span className="eyebrow">مستكشف التتبّع</span><h2>مراقبة التنفيذ</h2></div>
-          <div className="trace-metrics"><span>P50 <b>{p50Latency?p50Latency+'ms':'—'}</b></span><span>P95 <b>{p95Latency?p95Latency+'ms':'—'}</b></span><span>P99 <b>{p99Latency?p99Latency+'ms':'—'}</b></span><span>Tool success <b>{toolSuccessRate}%</b></span><span>Attempts <b>{attempts.length}</b></span><span>Receipts <b>{receipts.length}</b></span></div>
+          <div className="trace-metrics"><span>P50 <b>{p50Latency?p50Latency+'ms':'—'}</b></span><span>P95 <b>{p95Latency?p95Latency+'ms':'—'}</b></span><span>P99 <b>{p99Latency?p99Latency+'ms':'—'}</b></span><span>نجاح الأدوات <b>{toolSuccessRate}%</b></span><span>المحاولات <b>{attempts.length}</b></span><span>الإيصالات <b>{receipts.length}</b></span></div>
           <select value={traceFilter} onChange={e=>setTraceFilter(e.target.value)}><option value="ALL">كل التتبّعات</option><option value="IN_FLIGHT">قيد التنفيذ</option><option value="CLOSED">مغلقة</option><option value="SUCCESS">نجاح</option><option value="FAILED">فشل</option><option value="UNKNOWN">غير محسوم</option></select>
         </section>
         <section className="trace-workbench">
           <div className="trace-list-pane">
             <div className="trace-pane-title"><b>التشغيلات</b><span>{filteredAttempts.length}</span></div>
-            <div className="trace-run-list">{filteredAttempts.length?filteredAttempts.slice(0,80).map(a=><button key={a.id} className={activeAttempt?.id===a.id?'selected':''} onClick={()=>{setSelectedAttempt(a.id);setSelectedTask(a.task_id)}}><div><i className={a.phase==='IN_FLIGHT'?'live':''}/><b>{activeAttemptTask?.id===a.task_id?(activeAttemptTask?.title||'Mission'):(tasks.find(t=>t.id===a.task_id)?.title||'Mission')}</b></div><span>{phaseLabel(a.phase)} · {outcomeLabel(a.outcome)}</span><small>#{a.attempt_no} · {when(a.started_at||a.created_at)}</small></button>):<div className="empty-panel">No execution traces recorded yet.</div>}</div>
+            <div className="trace-run-list">{filteredAttempts.length?filteredAttempts.slice(0,80).map(a=><button key={a.id} className={activeAttempt?.id===a.id?'selected':''} onClick={()=>{setSelectedAttempt(a.id);setSelectedTask(a.task_id)}}><div><i className={a.phase==='IN_FLIGHT'?'live':''}/><b>{activeAttemptTask?.id===a.task_id?(activeAttemptTask?.title||'Mission'):(tasks.find(t=>t.id===a.task_id)?.title||'Mission')}</b></div><span>{phaseLabel(a.phase)} · {outcomeLabel(a.outcome)}</span><small>#{a.attempt_no} · {when(a.started_at||a.created_at)}</small></button>):<div className="empty-panel">لا توجد تتبّعات تنفيذ مسجلة بعد.</div>}</div>
           </div>
           <div className="trace-tree-pane">
             <div className="trace-pane-title"><b>تتبّع طبقة التحكم</b><span>{activeAttempt?short(activeAttempt.id,10):'—'}</span></div>
@@ -316,7 +316,7 @@ export default function AdminPage(){
               <div className="trace-node active"><i/><div><span>محاولة</span><b>{phaseLabel(activeAttempt.phase)} · {outcomeLabel(activeAttempt.outcome)}</b><small>{activeAttempt.provider_operation_id||'لا يوجد معرّف لعملية المزوّد'}</small></div></div>
               <div className={`trace-node ${activeAttemptReceipt?'verified':'muted'}`}><i/><div><span>إيصال</span><b>{activeAttemptReceipt?.executor_reported_outcome||'لا يوجد إيصال بعد'}</b><small>{activeAttemptReceipt?.executor_identity||'الأدلة قيد الانتظار'}</small></div></div>
               {activeAttemptAudit.slice(0,5).map(e=><div className="trace-node audit" key={e.id}><i/><div><span>تدقيق</span><b>{e.event_type}</b><small>{when(e.created_at)}</small></div></div>)}
-            </div>:<div className="empty-panel">Select a trace to inspect.</div>}
+            </div>:<div className="empty-panel">اختر تتبّعًا لعرض التفاصيل.</div>}
           </div>
           <aside className="trace-inspector">
             <div className="trace-pane-title"><b>التفاصيل</b><span>{activeAttempt?phaseLabel(activeAttempt.phase):'—'}</span></div>
@@ -346,7 +346,7 @@ export default function AdminPage(){
         <section className="incident-console">
           <div className="incident-table">
             <div className="incident-head"><span>الخطورة</span><span>المهمة / المحاولة</span><span>الحالة</span><span>عملية المزوّد</span><span>الوقت</span></div>
-            {attempts.filter(a=>['FAILED','UNKNOWN'].includes(a.outcome)).length?attempts.filter(a=>['FAILED','UNKNOWN'].includes(a.outcome)).map(a=><button key={a.id} onClick={()=>{setSelectedAttempt(a.id);setSelectedTask(a.task_id);setTab('traces')}}><span className={a.outcome==='FAILED'?'sev-high':'sev-warn'}>{a.outcome==='FAILED'?'HIGH':'REVIEW'}</span><span><b>{tasks.find(t=>t.id===a.task_id)?.title||'AQLEVON Mission'}</b><small>{short(a.id,14)}</small></span><span>{phaseLabel(a.phase)} · {outcomeLabel(a.outcome)}</span><code>{short(a.provider_operation_id,18)}</code><span>{when(a.started_at||a.created_at)}</span></button>):<div className="empty-panel">No failed or unresolved execution attempts.</div>}
+            {attempts.filter(a=>['FAILED','UNKNOWN'].includes(a.outcome)).length?attempts.filter(a=>['FAILED','UNKNOWN'].includes(a.outcome)).map(a=><button key={a.id} onClick={()=>{setSelectedAttempt(a.id);setSelectedTask(a.task_id);setTab('traces')}}><span className={a.outcome==='FAILED'?'sev-high':'sev-warn'}>{a.outcome==='FAILED'?'HIGH':'REVIEW'}</span><span><b>{tasks.find(t=>t.id===a.task_id)?.title||'AQLEVON Mission'}</b><small>{short(a.id,14)}</small></span><span>{phaseLabel(a.phase)} · {outcomeLabel(a.outcome)}</span><code>{short(a.provider_operation_id,18)}</code><span>{when(a.started_at||a.created_at)}</span></button>):<div className="empty-panel">لا توجد محاولات تنفيذ فاشلة أو غير محسومة.</div>}
           </div>
           <aside className="incident-guidance"><span className="eyebrow">سياسة المعالجة</span><h3>الأدلة قبل الإغلاق</h3><p>لا نغلق الحادث لأن المنفّذ قال «نجاح». الإغلاق يعتمد على الإيصال والتحقق وسجل التدقيق.</p><div className="v3-kv"><span>تغطية الأدلة</span><b>{evidenceCoverage}%</b></div><div className="v3-kv"><span>نتائج غير محسومة</span><b>{attempts.filter(a=>a.outcome==='UNKNOWN').length}</b></div><div className="v3-kv"><span>طلبات الإيقاف</span><b>{audit.filter(e=>e.event_type==='OWNER_STOP_REQUESTED').length}</b></div></aside>
         </section>
@@ -380,14 +380,14 @@ export default function AdminPage(){
       {tab==='access'&&<>
         <section className="access-hero"><div><span className="eyebrow">الهوية والصلاحيات</span><h2>حدود التنفيذ تحت سيطرة المالك</h2><p>هوية المالك، مزودات التشغيل، وحدود الصلاحيات المستخدمة في المهام.</p></div><span className="access-owner-badge">مالك النظام · نشط</span></section>
         <section className="access-grid">
-          <div className="access-card connected"><span>هوية المالك</span><b>{session.user?.email||'system_owner'}</b><small>Supabase authenticated + system_owner row</small></div>
-          <div className="access-card connected"><span>طبقة تحكم Supabase</span><b>متصل</b><small>Auth · tasks · receipts · audit · learning</small></div>
-          <div className="access-card"><span>منفّذ Git / المستودع</span><b>غير متصل</b><small>Adapter required before autonomous code changes</small></div>
-          <div className="access-card"><span>منفّذ المتصفح / الطرفية</span><b>غير متصل</b><small>No external execution is claimed</small></div>
-          <div className="access-card"><span>منفّذ النشر</span><b>غير متصل</b><small>Deploy requires explicit owner-approved mission</small></div>
-          <div className="access-card warning"><span>الحوسبة المدفوعة</span><b>مقفلة</b><small>$0 daily paid budget in current runtime policy</small></div>
-          <div className="access-card warning"><span>الأمن المصرّح</span><b>ضمن نطاق مصرح فقط</b><small>Requires explicit target scope inside mission</small></div>
-          <div className="access-card connected"><span>أدلة التدقيق</span><b>{audit.length} EVENTS</b><small>{receipts.length} execution receipts loaded</small></div>
+          <div className="access-card connected"><span>هوية المالك</span><b>{session.user?.email||'system_owner'}</b><small>مصادقة Supabase + سجل مالك النظام</small></div>
+          <div className="access-card connected"><span>طبقة تحكم Supabase</span><b>متصل</b><small>المصادقة · المهام · الإيصالات · التدقيق · التعلّم</small></div>
+          <div className="access-card"><span>منفّذ Git / المستودع</span><b>غير متصل</b><small>يلزم موصل تنفيذ قبل أي تعديل تلقائي للكود</small></div>
+          <div className="access-card"><span>منفّذ المتصفح / الطرفية</span><b>غير متصل</b><small>لا يتم الادعاء بأي تنفيذ خارجي غير موجود</small></div>
+          <div className="access-card"><span>منفّذ النشر</span><b>غير متصل</b><small>النشر يتطلب مهمة وافق عليها المالك صراحة</small></div>
+          <div className="access-card warning"><span>الحوسبة المدفوعة</span><b>مقفلة</b><small>ميزانية التشغيل المدفوع اليومية الحالية: 0 دولار</small></div>
+          <div className="access-card warning"><span>الأمن المصرّح</span><b>ضمن نطاق مصرح فقط</b><small>يتطلب تحديد الهدف والنطاق صراحة داخل المهمة</small></div>
+          <div className="access-card connected"><span>أدلة التدقيق</span><b>{audit.length} أحداث</b><small>{receipts.length} إيصالات تنفيذ محملة</small></div>
         </section>
       </>}
 
@@ -396,29 +396,29 @@ export default function AdminPage(){
       {tab==='infrastructure'&&<>
         <section className="v3-section-head"><div><span className="eyebrow">البنية التحتية</span><h2>بيئة التشغيل والتنفيذ</h2><p>الحالة التي نعرفها فعليًا من النظام، مع فصل واضح بين المتصل وغير الموصول.</p></div></section>
         <section className="infra-matrix">
-          <div className="infra-row"><div><i className="ok"/><b>طبقة تحكم Supabase</b></div><span>متصل</span><small>Auth · missions · receipts · audit · learning</small></div>
-          <div className="infra-row"><div><i className={status?.openrouter_configured?'ok':'warn'}/><b>تشغيل OpenRouter</b></div><span>{status?.openrouter_configured?'CONFIGURED':'NOT CONFIGURED'}</span><small>{settings?.openrouter_model||'openrouter/free'}</small></div>
-          <div className="infra-row"><div><i className={status?.self_hosted_configured?'ok':'warn'}/><b>AQLEVON ذاتي الاستضافة</b></div><span>{status?.self_hosted_configured?'CONNECTED':'NOT CONNECTED'}</span><small>{settings?.runtime_mode||'runtime mode unknown'}</small></div>
-          <div className="infra-row"><div><i/><b>منفّذ Git</b></div><span>يحتاج موصل تنفيذ</span><small>No autonomous repository execution is claimed.</small></div>
-          <div className="infra-row"><div><i/><b>المتصفح / الطرفية</b></div><span>يحتاج موصل تنفيذ</span><small>No live external process bridge connected.</small></div>
-          <div className="infra-row"><div><i/><b>منفّذ النشر</b></div><span>يحتاج موصل تنفيذ</span><small>Owner-approved deployment adapter pending.</small></div>
-          <div className="infra-row"><div><i/><b>قياس التكلفة والرموز</b></div><span>غير موصول بالقياس</span><small>No cost/token figures are fabricated until telemetry fields are wired.</small></div>
-          <div className="infra-row"><div><i className="warn"/><b>الحوسبة المدفوعة</b></div><span>مقفلة</span><small>Daily paid budget: $0</small></div>
+          <div className="infra-row"><div><i className="ok"/><b>طبقة تحكم Supabase</b></div><span>متصل</span><small>المصادقة · المهام · الإيصالات · التدقيق · التعلّم</small></div>
+          <div className="infra-row"><div><i className={status?.openrouter_configured?'ok':'warn'}/><b>تشغيل OpenRouter</b></div><span>{status?.openrouter_configured?'مُعدّ':'غير مُعدّ'}</span><small>{settings?.openrouter_model||'openrouter/free'}</small></div>
+          <div className="infra-row"><div><i className={status?.self_hosted_configured?'ok':'warn'}/><b>AQLEVON ذاتي الاستضافة</b></div><span>{status?.self_hosted_configured?'متصل':'غير متصل'}</span><small>{settings?.runtime_mode||'runtime mode unknown'}</small></div>
+          <div className="infra-row"><div><i/><b>منفّذ Git</b></div><span>يحتاج موصل تنفيذ</span><small>لا يوجد ادعاء بتنفيذ تلقائي على المستودع.</small></div>
+          <div className="infra-row"><div><i/><b>المتصفح / الطرفية</b></div><span>يحتاج موصل تنفيذ</span><small>لا يوجد جسر عمليات خارجية مباشر متصل.</small></div>
+          <div className="infra-row"><div><i/><b>منفّذ النشر</b></div><span>يحتاج موصل تنفيذ</span><small>موصل النشر بانتظار الربط ضمن موافقة المالك.</small></div>
+          <div className="infra-row"><div><i/><b>قياس التكلفة والرموز</b></div><span>غير موصول بالقياس</span><small>لن تُعرض أرقام تكلفة أو رموز غير حقيقية قبل ربط القياس الفعلي.</small></div>
+          <div className="infra-row"><div><i className="warn"/><b>الحوسبة المدفوعة</b></div><span>مقفلة</span><small>الميزانية المدفوعة اليومية: 0 دولار</small></div>
         </section>
       </>}
 
       {tab==='security'&&<>
-        <section className="v3-section-head"><div><span className="eyebrow">الأمن المصرّح</span><h2>عمليات أمنية ضمن نطاق مصرح</h2><p>لا توجد صلاحية عامة: كل مهمة أمنية مرتبطة بهدف ونطاق مصرح به داخل Mission.</p></div><span className="access-owner-badge">موافقة المالك مطلوبة</span></section>
+        <section className="v3-section-head"><div><span className="eyebrow">الأمن المصرّح</span><h2>عمليات أمنية ضمن نطاق مصرح</h2><p>لا توجد صلاحية عامة: كل مهمة أمنية مرتبطة بهدف ونطاق مصرح به داخل المهمة.</p></div><span className="access-owner-badge">موافقة المالك مطلوبة</span></section>
         <section className="security-layout">
           <div className="security-policy">
-            <div><span>تفويض الهدف</span><b>نطاق صريح فقط</b><small>Assets must be named inside the mission scope.</small></div>
-            <div><span>التنفيذ</span><b>{executorLabel(executorState)}</b><small>Security executor is not considered connected without a real adapter.</small></div>
-            <div><span>الأدلة</span><b>{receipts.length} RECEIPTS</b><small>Execution claims require recorded evidence.</small></div>
-            <div><span>تحكم المالك</span><b>إلزامي</b><small>Scope expansion requires a new approval.</small></div>
+            <div><span>تفويض الهدف</span><b>نطاق صريح فقط</b><small>يجب تحديد الأصول صراحة داخل نطاق المهمة.</small></div>
+            <div><span>التنفيذ</span><b>{executorLabel(executorState)}</b><small>لا يعتبر منفّذ الأمن متصلًا من دون موصل تنفيذ حقيقي.</small></div>
+            <div><span>الأدلة</span><b>{receipts.length} إيصالات</b><small>أي ادعاء تنفيذ يتطلب أدلة مسجلة.</small></div>
+            <div><span>تحكم المالك</span><b>إلزامي</b><small>توسيع النطاق يتطلب موافقة جديدة.</small></div>
           </div>
           <div className="admin-panel">
             <div className="panel-head"><div><span className="eyebrow">المهام الأمنية</span><h3>النطاقات المصرّح بها</h3></div></div>
-            <div className="security-mission-list">{securityTasks.length?securityTasks.map(t=><button key={t.id} onClick={()=>{setSelectedTask(t.id);setTab('missions')}}><div><b>{t.title||'Security Mission'}</b><small>{short(t.id,14)}</small></div><span>{phaseLabel(t.phase)} · {outcomeLabel(t.outcome)}</span></button>):<div className="empty-panel">No authorized-security missions recorded.</div>}</div>
+            <div className="security-mission-list">{securityTasks.length?securityTasks.map(t=><button key={t.id} onClick={()=>{setSelectedTask(t.id);setTab('missions')}}><div><b>{t.title||'Security Mission'}</b><small>{short(t.id,14)}</small></div><span>{phaseLabel(t.phase)} · {outcomeLabel(t.outcome)}</span></button>):<div className="empty-panel">لا توجد مهام أمنية مصرّح بها مسجلة.</div>}</div>
           </div>
         </section>
       </>}
@@ -427,7 +427,7 @@ export default function AdminPage(){
 
       {tab==='evaluation'&&<><section className="panel-grid"><div className="admin-panel"><div className="panel-head"><div><span className="eyebrow">التقييم</span><h3>القياس المجاني</h3><p>يشغّل تقييمًا واحدًا فقط ضمن بوابة تمنع أي تكلفة مدفوعة.</p></div></div><div className="status-list"><div><span>OpenRouter المجاني</span><b>{status?.openrouter_configured?'جاهز':'غير جاهز'}</b></div><div><span>AQLEVON ذاتي الاستضافة</span><b>{status?.self_hosted_configured?'جاهز':'بانتظار GPU'}</b></div><div><span>مرشحات التدريب</span><b>{candidates.length}</b></div><div><span>معتمدة</span><b>{approved.length}</b></div></div><button className="primary-btn fit" onClick={runBenchmark} disabled={busy}>تشغيل تقييم واحد</button></div><div className="admin-panel"><div className="panel-head"><div><span className="eyebrow">التحقق</span><h3>الحقيقة قبل الترقية</h3></div></div><div className="status-list"><div><span>تتبّعات موثقة</span><b>{verified}</b></div><div><span>مؤهلة للتعلّم</span><b>{eligible.length}</b></div><div><span>إيصالات الأدلة</span><b>{receipts.length}</b></div><div><span>محاولات غير محسومة</span><b>{attempts.filter(a=>a.outcome==='UNKNOWN').length}</b></div></div></div></section></>}
 
-      {tab==='learning'&&<><section className="admin-panel wide"><div className="panel-head"><div><span className="eyebrow">بوابة التعلّم الآمن</span><h3>التتبّعات المؤهلة للتعلّم</h3><p>التوثيق وحده لا يغيّر مجموعة التدريب. الترقية تحتاج قرار المالك من هنا.</p></div></div><div className="table-list">{eligible.length?eligible.slice(0,40).map(x=>{const promoted=promotedIds.has(String(x.id));return <div className="table-row" key={x.id}><div><b>{domainNames[traceDomain(x)]||traceDomain(x)} · {x.difficulty||'—'}</b><span>{x.provider||'—'} · {x.model||'—'} · {x.model_calls||1} calls</span></div><span>{resultOf(x.verification)}</span><span>{x.latency_ms?`${x.latency_ms}ms`:'—'}</span><button className="primary-btn fit" disabled={busy||promoted} onClick={()=>promoteTrace(x.id)}>{promoted?'تمت الترقية':'ترقية للتعلم'}</button></div>}):<div className="empty-panel">لا توجد Traces VERIFIED مؤهلة حاليًا.</div>}</div></section><section className="admin-panel wide"><div className="panel-head"><div><span className="eyebrow">مراجعة التدريب</span><h3>مراجعة مرشحات التدريب</h3><p>لا يصبح المثال معتمدًا إلا بعد قرار المالك.</p></div></div><div className="table-list">{candidates.length?candidates.slice(0,50).map(x=><div className="table-row" key={x.id}><div><b>{String(x.user_input||'').slice(0,90)||'Training example'}</b><span>{(x.tags||[]).join(' · ')}</span></div><span>{x.quality_status}</span><div style={{display:'flex',gap:8}}><button className="primary-btn fit" disabled={busy} onClick={()=>reviewExample(x.id,'approved')}>اعتماد</button><button className="ghost-fit" disabled={busy} onClick={()=>reviewExample(x.id,'rejected')}>رفض</button></div></div>):<div className="empty-panel">لا توجد Candidates تنتظر المراجعة.</div>}</div></section></>}
+      {tab==='learning'&&<><section className="admin-panel wide"><div className="panel-head"><div><span className="eyebrow">بوابة التعلّم الآمن</span><h3>التتبّعات المؤهلة للتعلّم</h3><p>التوثيق وحده لا يغيّر مجموعة التدريب. الترقية تحتاج قرار المالك من هنا.</p></div></div><div className="table-list">{eligible.length?eligible.slice(0,40).map(x=>{const promoted=promotedIds.has(String(x.id));return <div className="table-row" key={x.id}><div><b>{domainNames[traceDomain(x)]||traceDomain(x)} · {x.difficulty||'—'}</b><span>{x.provider||'—'} · {x.model||'—'} · {x.model_calls||1} calls</span></div><span>{resultOf(x.verification)}</span><span>{x.latency_ms?`${x.latency_ms}ms`:'—'}</span><button className="primary-btn fit" disabled={busy||promoted} onClick={()=>promoteTrace(x.id)}>{promoted?'تمت الترقية':'ترقية للتعلم'}</button></div>}):<div className="empty-panel">لا توجد تتبّعات موثقة مؤهلة حاليًا.</div>}</div></section><section className="admin-panel wide"><div className="panel-head"><div><span className="eyebrow">مراجعة التدريب</span><h3>مراجعة مرشحات التدريب</h3><p>لا يصبح المثال معتمدًا إلا بعد قرار المالك.</p></div></div><div className="table-list">{candidates.length?candidates.slice(0,50).map(x=><div className="table-row" key={x.id}><div><b>{String(x.user_input||'').slice(0,90)||'Training example'}</b><span>{(x.tags||[]).join(' · ')}</span></div><span>{x.quality_status}</span><div style={{display:'flex',gap:8}}><button className="primary-btn fit" disabled={busy} onClick={()=>reviewExample(x.id,'approved')}>اعتماد</button><button className="ghost-fit" disabled={busy} onClick={()=>reviewExample(x.id,'rejected')}>رفض</button></div></div>):<div className="empty-panel">لا توجد مرشحات تدريب تنتظر المراجعة.</div>}</div></section></>}
     </main>
   </div>;
 }
