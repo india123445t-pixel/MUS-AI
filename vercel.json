@@ -2,22 +2,5 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
   "installCommand": "npm install",
-  "buildCommand": "npm run bos:check && npm run bos:test && npm run build",
-  "rewrites": [
-    {
-      "source": "/:path*",
-      "destination": "https://mus-ai-probe-git-agent-01-owner-core-311e26-india123445t-pixel.vercel.app/:path*"
-    }
-  ],
-  "headers": [
-    {
-      "source": "/:path*",
-      "headers": [
-        {
-          "key": "x-vercel-enable-rewrite-caching",
-          "value": "0"
-        }
-      ]
-    }
-  ]
+  "buildCommand": "npm run bos:check && npm run bos:test && npm run build"
 }
