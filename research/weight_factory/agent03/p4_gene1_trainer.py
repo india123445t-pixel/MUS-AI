@@ -209,8 +209,23 @@ def freeze_plan(*, method_spec_path:Path, shard_manifest_path:Path, shard_path:P
     output.parent.mkdir(parents=True,exist_ok=True); output.write_text(json.dumps(plan,ensure_ascii=False,indent=2,sort_keys=True)+"\n",encoding="utf-8")
     return plan
 
+def validate_command_seed_binding(argv:list[str], *, arm_id:str, seed:int)->list[str]:
+    if arm_id not in ("P4_A1_RLVR_CONTROL","P4_A2_SDPO_RICH_FEEDBACK"):
+        return []
+    required={
+        f"data.seed={seed}",
+        f"actor_rollout_ref.actor.data_loader_seed={seed}",
+        f"actor_rollout_ref.actor.fsdp_config.seed={seed}",
+        f"actor_rollout_ref.ref.fsdp_config.seed={seed}",
+        f"++actor_rollout_ref.rollout.engine_kwargs.vllm.seed={seed}",
+    }
+    present=set(argv) if isinstance(argv,list) else set()
+    return sorted(required-present)
+
 def build_command_lock(argv:list[str],*,plan_sha256:str,run_manifest_sha256:str,arm_id:str,seed:int,profile:str=PROFILE)->dict[str,Any]:
     if arm_id not in ARMS or seed not in (1701,1702,1703): raise ContractError("invalid_arm_or_seed")
+    missing_seed=validate_command_seed_binding(argv,arm_id=arm_id,seed=seed)
+    if missing_seed: raise ContractError("seed_binding_missing:"+",".join(missing_seed))
     if not isinstance(plan_sha256,str) or not _SHA.fullmatch(plan_sha256): raise ContractError("invalid_plan_sha256")
     if not isinstance(run_manifest_sha256,str) or not _SHA.fullmatch(run_manifest_sha256): raise ContractError("invalid_run_manifest_sha256")
     obj={"schema_version":1,"record_kind":COMMAND_LOCK_KIND,"hash_profile":HASH_PROFILE,"task_id":TASK_ID,"training_plan_sha256":plan_sha256,"run_manifest_sha256":run_manifest_sha256,"arm_id":arm_id,"seed":seed,"profile":profile,"model_scope":"surrogate","argv":argv,"command_sha256":canonical_sha256(argv),"automatic_fallback":False,"g1_rerun":False}
@@ -298,6 +313,9 @@ def run_locked(
     argv=lock.get("argv")
     if not isinstance(argv,list) or not argv or not all(isinstance(x,str) and x for x in argv):
         raise ContractError("invalid_argv")
+    missing_seed=validate_command_seed_binding(argv,arm_id=str(lock.get("arm_id")),seed=int(lock.get("seed",-1)))
+    if missing_seed:
+        raise ContractError("FAIL-CLOSED:seed_binding_missing:"+",".join(missing_seed))
     return int(subprocess.run(argv,cwd=str(cwd)).returncode)
 
 def main()->int:
