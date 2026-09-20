@@ -200,40 +200,73 @@ export default function AdminPage(){
       {notice&&<div className="admin-notice">{notice}</div>}
 
       {tab==='owner'&&<>
-        <section className="owner-command-strip">
-          <div><span className="eyebrow">AQLEVON OWNER CORE · COMMAND PLANE</span><h2>Executive AI Operations Center</h2><p>أصدر الأوامر، راجع الخطة، وافق على التنفيذ، ثم تابع traces والأدلة والنتائج من نفس المكان.</p></div>
-          <div className="owner-strip-metrics"><div><span>Approval queue</span><b>{pendingTasks.length+pendingIntents.length}</b></div><div><span>Active missions</span><b>{runningTasks.length}</b></div><div><span>Executor</span><b className="metric-text">{executorState}</b></div></div>
-        </section>
-        <section className="owner-pulse-grid">
-          <div><span>Mission success</span><strong>{successRate}%</strong><small>{successfulTasks.length}/{closedTasks.length||0} closed</small></div>
-          <div><span>Verified traces</span><strong>{logs.length?Math.round(verified/logs.length*100):0}%</strong><small>{verified} / {logs.length}</small></div>
-          <div><span>Avg latency</span><strong>{avgLatency?avgLatency+'ms':'—'}</strong><small>recent model traffic</small></div>
-          <div><span>Evidence coverage</span><strong>{evidenceCoverage}%</strong><small>{receipts.length} receipts / {attempts.length} attempts</small></div>
-          <div><span>Open incidents</span><strong>{incidentCount}</strong><small>failed or unresolved attempts</small></div>
-          <div><span>Active model</span><strong className="compact-value">{short(latestModel,22)}</strong><small>{settings?.runtime_mode||'runtime unknown'}</small></div>
-        </section>
-
-        <section className="owner-core-grid">
-          <div className="owner-chat-card">
-            <div className="owner-card-head"><div><span className="eyebrow">OPERATOR CHAT</span><h3>تحدث مع AQLEVON</h3></div><div className="owner-inline-controls"><select value={ownerProfile} onChange={e=>setOwnerProfile(e.target.value)}>{profiles.map(p=><option key={p[0]} value={p[0]}>{p[1]}</option>)}</select><select value={ownerMode} onChange={e=>setOwnerMode(e.target.value)}><option value="chat">نقاش / تحليل</option><option value="mission">حضّر Mission للموافقة</option></select></div></div>
-            <div className="owner-profile-note">{profiles.find(p=>p[0]===ownerProfile)?.[2]}</div>
-            <div className="owner-chat-stream">{ownerMessages.map((m,i)=><div key={i} className={`owner-msg ${m.role} ${m.error?'error':''}`}><span>{m.role==='user'?'أنت':'AQLEVON'}</span><p>{m.text}</p>{m.meta&&<small>{m.meta.execution_state||'ADVISORY'} · {short(m.meta.run_id,8)}</small>}</div>)}{ownerBusy&&<div className="owner-msg assistant"><span>AQLEVON</span><p>يفكر ويجهز الرد…</p></div>}</div>
-            <form className="owner-composer" onSubmit={ownerSend}><textarea value={ownerInput} onChange={e=>setOwnerInput(e.target.value)} placeholder="مثال: افحص حالة المشروع، اقترح ما يجب إصلاحه، أو حضّر مهمة محددة للموافقة…" rows="3"/><div><span>{ownerMode==='mission'?'سيتم إنشاء Mission بانتظار موافقتك، ولن يُدّعى أي تنفيذ قبل Receipt فعلي.':'وضع تحليلي بدون إنشاء Mission.'}</span><button className="primary-btn" disabled={ownerBusy||!ownerInput.trim()}>{ownerMode==='mission'?'حضّر المهمة':'إرسال'}</button></div></form>
-          </div>
-
-          <div className="owner-mission-card">
-            <div className="owner-card-head"><div><span className="eyebrow">MISSION CONTROL</span><h3>الموافقات والمهام</h3></div><span className="state-badge">{pendingTasks.length} pending</span></div>
-            <div className="owner-task-list">{tasks.length?tasks.slice(0,14).map(t=><button key={t.id} className={activeTask?.id===t.id?'active':''} onClick={()=>setSelectedTask(t.id)}><div><b>{t.title||'AQLEVON Mission'}</b><small>{when(t.updated_at||t.created_at)}</small></div><span>{phases[t.phase]||t.phase}</span></button>):<div className="empty-panel">لا توجد Missions بعد.</div>}</div>
-            {activeTask&&<div className="owner-task-detail"><div className="owner-task-status"><b>{activeTask.title||'AQLEVON Mission'}</b><span>{phases[activeTask.phase]||activeTask.phase} · {outcomes[activeTask.outcome]||activeTask.outcome}</span></div><div className="owner-scope-row"><span>Profile</span><b>{activeTask.scope?.profile||'—'}</b></div><div className="owner-scope-row"><span>Autonomy</span><b>{activeTask.scope?.autonomy||'approval_required'}</b></div><div className="owner-scope-row"><span>Executor</span><b>{activeTask.scope?.executor_state||'NOT_CONNECTED'}</b></div>{activeTask.phase==='OPEN'&&<div className="owner-approval-actions"><button className="primary-btn" onClick={()=>taskAction(activeTask.id,'approve')} disabled={busy}>Approve Mission</button><button className="ghost-fit" onClick={()=>taskAction(activeTask.id,'cancel')} disabled={busy}>رفض / إلغاء</button></div>}<button className="owner-stop-btn" disabled={!hasInFlight} title={hasInFlight?'إرسال طلب إيقاف إلى executor المتصل':'لا يوجد تنفيذ خارجي In-Flight حاليًا'} onClick={()=>taskAction(activeTask.id,'stop')}>STOP NOW</button></div>}
+        <section className="v3-command-head">
+          <div><span className="eyebrow">OWNER CORE V3 · COMMAND WORKBENCH</span><h2>Command AQLEVON</h2><p>أرسل الأمر، راجع المهمة، وافق، ثم راقب التنفيذ والأدلة دون مغادرة نفس مساحة العمل.</p></div>
+          <div className="v3-command-status">
+            <span><i className={executorState==='LIVE'?'live':''}/>{executorState}</span>
+            <span>{pendingTasks.length+pendingIntents.length} approvals</span>
+            <span>{incidentCount} incidents</span>
+            <span>{evidenceCoverage}% evidence</span>
           </div>
         </section>
 
-        <section className="owner-workspace-grid">
-          <div className="owner-workspace-panel"><div className="owner-card-head"><div><span className="eyebrow">LIVE WORKSPACE</span><h3>ما الذي يحدث فعليًا؟</h3></div><span className={`state-badge ${hasInFlight?'live':''}`}>{hasInFlight?'LIVE':'NO ACTIVE EXECUTOR'}</span></div><div className="owner-workspace-tabs"><span>Terminal</span><span>Browser</span><span>Files / Diff</span><span>Model</span><span>Security</span></div><div className="owner-terminal">{activeAttempts.length?activeAttempts.slice(0,10).map(a=><div key={a.id}><span>{a.phase}</span><code>attempt #{a.attempt_no} · {short(a.provider_operation_id,18)}</code><b>{a.outcome}</b></div>):<p>لا توجد عملية executor حية. عندما يُربط Tool Adapter وتبدأ ActionAttempt حقيقية ستظهر هنا بدل أي محاكاة.</p>}</div></div>
-          <div className="owner-timeline-panel"><div className="owner-card-head"><div><span className="eyebrow">MISSION TIMELINE</span><h3>Evidence & Audit</h3></div></div><div className="owner-timeline">{activeAudit.length?activeAudit.map(e=><div key={e.id}><i/><div><b>{e.event_type}</b><span>{e.subject_type||'TASK'} · {when(e.created_at)}</span></div></div>):<div className="empty-panel">لا توجد أحداث تدقيق لهذه المهمة.</div>}</div>{activeReceipts.length>0&&<div className="owner-receipts"><b>Receipts</b>{activeReceipts.map(r=><span key={r.id}>{r.executor_identity} · {r.executor_reported_outcome||'UNKNOWN'} · {short(r.id,8)}</span>)}</div>}{activeResponses.length>0&&<div className="owner-receipts"><b>Agent responses</b>{activeResponses.map(r=><span key={r.id}>{r.response_type} · {String(r.body||'').slice(0,90)}</span>)}</div>}</div>
+        <section className="command-workbench">
+          <div className="command-chat-pane">
+            <div className="command-pane-bar">
+              <div><b>Operator session</b><span>{session.user?.email||'system_owner'}</span></div>
+              <div className="owner-inline-controls">
+                <select value={ownerProfile} onChange={e=>setOwnerProfile(e.target.value)}>{profiles.map(x=><option key={x[0]} value={x[0]}>{x[1]}</option>)}</select>
+                <select value={ownerMode} onChange={e=>setOwnerMode(e.target.value)}><option value="chat">Analyze</option><option value="mission">Prepare mission</option></select>
+              </div>
+            </div>
+            <div className="command-context-bar"><span>Profile</span><b>{profiles.find(x=>x[0]===ownerProfile)?.[1]}</b><small>{profiles.find(x=>x[0]===ownerProfile)?.[2]}</small></div>
+            <div className="command-chat-stream">
+              {ownerMessages.map((m,i)=><div key={i} className={`command-message ${m.role} ${m.error?'error':''}`}><div className="command-message-meta"><span>{m.role==='user'?'OWNER':'AQLEVON'}</span>{m.meta&&<small>{m.meta.execution_state||'ADVISORY'} · {short(m.meta.run_id,8)}</small>}</div><p>{m.text}</p></div>)}
+              {ownerBusy&&<div className="command-message assistant"><div className="command-message-meta"><span>AQLEVON</span></div><p>Preparing response…</p></div>}
+            </div>
+            <form className="command-composer" onSubmit={ownerSend}>
+              <textarea value={ownerInput} onChange={e=>setOwnerInput(e.target.value)} placeholder="أعط AQLEVON أمرًا، اطلب تحليل المشروع، أو حضّر Mission للتنفيذ…" rows="3"/>
+              <div><span>{ownerMode==='mission'?'Mission will require explicit owner approval before external execution.':'Advisory mode · no mission mutation.'}</span><button className="primary-btn" disabled={ownerBusy||!ownerInput.trim()}>{ownerMode==='mission'?'Prepare mission':'Send'}</button></div>
+            </form>
+          </div>
+
+          <aside className="command-control-rail">
+            <div className="command-rail-head"><div><span className="eyebrow">MISSION CONTROL</span><h3>{activeTask?.title||'No mission selected'}</h3></div><span className={`v3-state-pill ${String(activeTask?.phase||'idle').toLowerCase()}`}>{activeTask?.phase||'IDLE'}</span></div>
+            <div className="command-queue">
+              <div className="command-queue-title"><b>Queue</b><span>{tasks.length}</span></div>
+              {tasks.length?tasks.slice(0,9).map(t=><button key={t.id} className={activeTask?.id===t.id?'active':''} onClick={()=>setSelectedTask(t.id)}><div><b>{t.title||'AQLEVON Mission'}</b><small>{short(t.id,12)} · {when(t.updated_at||t.created_at)}</small></div><span>{t.phase}</span></button>):<div className="empty-panel">No missions yet.</div>}
+            </div>
+            {activeTask&&<div className="command-mission-detail">
+              <div className="v3-kv"><span>Outcome</span><b>{activeTask.outcome}</b></div>
+              <div className="v3-kv"><span>Profile</span><b>{activeTask.scope?.profile||'—'}</b></div>
+              <div className="v3-kv"><span>Autonomy</span><b>{activeTask.scope?.autonomy||'approval_required'}</b></div>
+              <div className="v3-kv"><span>Executor</span><b>{activeTask.scope?.executor_state||'NOT_CONNECTED'}</b></div>
+              {activeTask.phase==='OPEN'&&<div className="v3-action-row"><button className="primary-btn" onClick={()=>taskAction(activeTask.id,'approve')} disabled={busy}>Approve</button><button className="ghost-fit" onClick={()=>taskAction(activeTask.id,'cancel')} disabled={busy}>Cancel</button></div>}
+              <button className="owner-stop-btn" disabled={!hasInFlight} onClick={()=>taskAction(activeTask.id,'stop')}>STOP NOW</button>
+            </div>}
+          </aside>
         </section>
 
-        <section className="owner-identity-panel"><div><span className="eyebrow">IDENTITY & ACCESS</span><h3>AQLEVON operational identity</h3><p>الحسابات والتكاملات التنفيذية تُربط عبر scoped service identities/OAuth. الأسرار نفسها لا تظهر في الشات.</p></div><div className="owner-identity-grid"><div><span>Project Brain</span><b>CONTROL-PLANE CONNECTED</b><small>Tasks · receipts · evaluations · audit</small></div><div><span>Git / Deploy / Browser</span><b>ADAPTER REQUIRED</b><small>لا ندّعي اتصالًا غير موجود</small></div><div><span>Paid compute</span><b>OWNER APPROVAL REQUIRED</b><small>لا تفويض ضمني للإنفاق</small></div><div><span>Security mode</span><b>AUTHORIZED SCOPE ONLY</b><small>الأصول المحددة في Mission</small></div></div></section>
+        <section className="command-lower-grid">
+          <div className="command-live-pane">
+            <div className="trace-pane-title"><b>Live execution</b><span>{hasInFlight?'LIVE':'NO ACTIVE EXECUTOR'}</span></div>
+            <div className="command-live-rows">
+              {activeAttempts.length?activeAttempts.slice(0,12).map(a=><button key={a.id} onClick={()=>{setSelectedAttempt(a.id);setTab('traces')}}><span className={a.phase==='IN_FLIGHT'?'live-dot-cell':''}>{a.phase}</span><code>attempt #{a.attempt_no}</code><span>{short(a.provider_operation_id,18)}</span><b>{a.outcome}</b></button>):<div className="command-empty-console">No external executor is connected. Tool activity will appear here only when real ActionAttempts exist.</div>}
+            </div>
+          </div>
+          <div className="command-audit-pane">
+            <div className="trace-pane-title"><b>Evidence & audit</b><button onClick={()=>setTab('traces')}>Open traces ↗</button></div>
+            <div className="command-audit-list">{activeAudit.length?activeAudit.slice(0,10).map(e=><div key={e.id}><i/><div><b>{e.event_type}</b><small>{e.subject_type||'TASK'} · {when(e.created_at)}</small></div></div>):<div className="empty-panel">No audit events for this mission.</div>}</div>
+          </div>
+        </section>
+
+        <section className="command-system-strip">
+          <button onClick={()=>setTab('brain')}><span>Project Brain</span><b>CONTROL PLANE</b><small>{audit.length} audit events</small></button>
+          <button onClick={()=>setTab('model_lab')}><span>Model</span><b>{short(latestModel,22)}</b><small>{avgBench==='—'?'No benchmark':avgBench+'/100 benchmark'}</small></button>
+          <button onClick={()=>setTab('traces')}><span>Observability</span><b>P95 {p95Latency?p95Latency+'ms':'—'}</b><small>{toolSuccessRate}% tool success</small></button>
+          <button onClick={()=>setTab('infrastructure')}><span>Executors</span><b>{executorState}</b><small>Git / Browser / Deploy adapters</small></button>
+          <button onClick={()=>setTab('security')}><span>Security</span><b>SCOPED ONLY</b><small>{securityTasks.length} authorized missions</small></button>
+        </section>
       </>}
 
       {tab==='missions'&&<>
