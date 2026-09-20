@@ -16,3 +16,12 @@ safetensors
 psutil
 huggingface-hub
 pillow
+
+# Required by pinned SDPO/verl package metadata; keep pip check clean.
+numpy==1.26.4
+pybind11==3.0.1
+pylatexenc==2.10
+tensorboard==2.20.0
+wandb==0.23.1
+packaging==25.0
+dill==0.4.0
