@@ -54,3 +54,22 @@ test('professional control plane exposes operations intelligence and access surf
   assert.match(page,/CAPABILITY MAP/);
   assert.match(page,/Owner-controlled execution boundary/);
 });
+
+test('trace-first V3 exposes mission trace and system workbenches',()=>{
+  assert.match(page,/MISSION REGISTRY/);
+  assert.match(page,/TRACE EXPLORER/);
+  assert.match(page,/Control-plane trace/);
+  assert.match(page,/MISSION INSPECTOR/);
+  assert.match(page,/INFRASTRUCTURE/);
+  assert.match(page,/AUTHORIZED SECURITY/);
+  assert.match(page,/Search missions, traces, IDs, providers/);
+  assert.match(page,/NO_RECEIPT/);
+});
+
+test('V3 keeps execution truth explicit',()=>{
+  assert.match(page,/ADAPTER REQUIRED/);
+  assert.match(page,/NOT CONNECTED/);
+  assert.match(page,/OWNER APPROVAL REQUIRED/);
+  assert.match(page,/No autonomous repository execution is claimed/);
+  assert.match(page,/No live external process bridge connected/);
+});
