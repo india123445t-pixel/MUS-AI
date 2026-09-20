@@ -192,7 +192,7 @@ export default function AdminPage(){
 
     <main className="owner-admin-main">
       <header className="owner-admin-header v3-header">
-        <div className="v3-title"><span className="eyebrow">AQLEVON · OWNER CORE V3 · TRACE WORKBENCH</span><h1>{nav.find(x=>x[0]===tab)?.[1]}</h1></div>
+        <div className="v3-title"><span className="eyebrow">AQLEVON · نواة المالك V3 · منصة التتبّع</span><h1>{nav.find(x=>x[0]===tab)?.[1]}</h1></div>
         <div className="v3-global-search"><span>⌕</span><input value={globalQuery} onChange={e=>setGlobalQuery(e.target.value)} placeholder="ابحث في المهام والتتبّعات والمعرّفات والمزوّدين…"/></div>
         <div className="header-actions">
           <span className="v3-env-pill">معاينة</span>
