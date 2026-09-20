@@ -201,7 +201,7 @@ export default function AdminPage(){
 
       {tab==='owner'&&<>
         <section className="v3-command-head">
-          <div><span className="eyebrow">OWNER CORE V3 · COMMAND WORKBENCH</span><h2>Command AQLEVON</h2><p>أرسل الأمر، راجع المهمة، وافق، ثم راقب التنفيذ والأدلة دون مغادرة نفس مساحة العمل.</p></div>
+          <div><span className="eyebrow">AQLEVON OWNER CORE V3 · COMMAND WORKBENCH</span><h2>Command AQLEVON</h2><p>أرسل الأمر، راجع المهمة، وافق، ثم راقب التنفيذ والأدلة دون مغادرة نفس مساحة العمل.</p></div>
           <div className="v3-command-status">
             <span><i className={executorState==='LIVE'?'live':''}/>{executorState}</span>
             <span>{pendingTasks.length+pendingIntents.length} approvals</span>
