@@ -100,7 +100,8 @@ jobs:
               assert forbidden not in p, forbidden
           for required in (
               "AQLEVON_EXPECTED_IMAGE_DIGEST",
-              "AQLEVON_BINDING_FILE",
+              "APPLIANCE_RUNTIME_CONTRACT_AUTO_RESOLVED",
+              "resolve_runtime_launch_files",
               "runtime_appliance_digest",
               "smoke_runtime.py --build-check --gpu-check",
               "APPLIANCE_BINDING_PASS",
