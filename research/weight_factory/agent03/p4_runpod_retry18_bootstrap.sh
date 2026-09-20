@@ -8,12 +8,12 @@ SDPO="$ROOT/SDPO"
 DATA="$ROOT/aqlevon_p4/data"
 MODEL="$ROOT/models/qwen35-4b-daa9c16f3712"
 AGENT="$REPO/research/weight_factory/agent03"
-AUTH="$AGENT/p4_a1_runpod_manager_authorization_retry18_v1.json"
+AUTH="$AGENT/p4_a1_runpod_manager_authorization_retry18b_v1.json"
 RUN="$AGENT/p4_a1_seed1701_run_manifest_v1.json"
 LOCK="$AGENT/p4_a1_seed1701_command_lock_v1.json"
 PLAN="$AGENT/p4_frozen_training_plan_v1.json"
 
-echo "AQLEVON_RETRY18_BOOTSTRAP_START $(date -u +%FT%TZ)"
+echo "AQLEVON_RETRY18B_BOOTSTRAP_START $(date -u +%FT%TZ)"
 if [ ! -d "$REPO/.git" ]; then
   git clone -q --branch agent/03-p4-gene1-physical-trainer --single-branch https://github.com/india123445t-pixel/MUS-AI.git "$REPO"
 fi
@@ -22,26 +22,32 @@ git -C "$REPO" checkout -q agent/03-p4-gene1-physical-trainer
 git -C "$REPO" reset -q --hard origin/agent/03-p4-gene1-physical-trainer
 echo "MUS_AI_HEAD=$(git -C "$REPO" rev-parse HEAD)"
 
-GPU_COUNT="$(nvidia-smi --query-gpu=name --format=csv,noheader | wc -l | tr -d ' ')"
-GPU_NAME="$(nvidia-smi --query-gpu=name --format=csv,noheader | head -n1 | xargs)"
-test "$GPU_COUNT" = "1"
-case "$GPU_NAME" in
-  *RTX\ 4090*) ;;
-  *) echo "FAIL_CLOSED unexpected GPU: $GPU_NAME"; exit 20 ;;
-esac
-echo "GPU_PASS $GPU_NAME"
+python - <<'PY'
+import torch
+assert torch.cuda.is_available(), "CUDA_NOT_AVAILABLE"
+count = torch.cuda.device_count()
+assert count == 1, f"EXPECTED_EXACTLY_ONE_GPU:{count}"
+name = torch.cuda.get_device_name(0)
+assert "RTX 4090" in name, f"UNEXPECTED_GPU:{name}"
+print("GPU_PASS", name)
+PY
+if command -v nvidia-smi >/dev/null 2>&1; then
+  nvidia-smi --query-gpu=name,driver_version --format=csv,noheader || true
+else
+  echo "NVIDIA_SMI_OPTIONAL_MISSING torch_cuda_gate_passed"
+fi
 
 python - <<'PY'
 import json
 from pathlib import Path
-a=json.loads(Path("/workspace/MUS-AI/research/weight_factory/agent03/p4_a1_runpod_manager_authorization_retry18_v1.json").read_text())
-assert a["authorization_id"]=="P4-A1-RUNPOD-4090-20260920-18-REWARD-RUNTIME-CLOSURE"
-assert a["authorization_sha256"]=="55ef1e64e55eda44b5e9e8779754628562e9674865c65950551d972c3a4d7ad6"
+a=json.loads(Path("/workspace/MUS-AI/research/weight_factory/agent03/p4_a1_runpod_manager_authorization_retry18b_v1.json").read_text())
+assert a["authorization_id"]=="P4-A1-RUNPOD-4090-20260920-18B-RUNTIME-GATE-REBIND"
+assert a["authorization_sha256"]=="d27251665af9f81ea70e54dd31205c6a7c7c629d1f0d509afa5ec566ed23ff18"
 assert a["max_billed_seconds"]==1800
 assert a["max_total_cost_usd"]=="0.40"
 assert a["max_hourly_rate_usd"]=="0.80"
 assert a["single_use"] is True
-print("RETRY18_FILE_IDENTITY_PASS")
+print("RETRY18B_FILE_IDENTITY_PASS")
 PY
 
 rm -rf "$SDPO" "$ROOT/aqlevon_p4"
@@ -214,7 +220,7 @@ import p4_gene1_trainer as c
 import p4_surrogate_tournament as t
 run=json.loads(Path("p4_a1_seed1701_run_manifest_v1.json").read_text())
 lock=json.loads(Path("p4_a1_seed1701_command_lock_v1.json").read_text())
-auth=json.loads(Path("p4_a1_runpod_manager_authorization_retry18_v1.json").read_text())
+auth=json.loads(Path("p4_a1_runpod_manager_authorization_retry18b_v1.json").read_text())
 assert run["manifest_sha256"]=="7152cdea6ffd082f632a819e153122b401bd7394ed0273a327537ca961c7fe45"
 assert lock["lock_sha256"]=="f1d05b53d0e00b07f7f4d60c90a6bf489f4cd2bd118b2b6a6b38c66026cee44e"
 assert c.verify_self_digest(auth,"authorization_sha256")
@@ -223,7 +229,7 @@ assert argv==lock["argv"]
 assert c.canonical_sha256(argv)==run["command_sha256"]
 errors=c.validate_manager_authorization(auth,lock=lock,run_manifest_sha256=run["manifest_sha256"])
 assert not errors, errors
-print("RETRY18_EXACT_AUTHORIZATION_PASS")
+print("RETRY18B_EXACT_AUTHORIZATION_PASS")
 PY
 
 ELAPSED="$(( $(date +%s) - START_TS ))"
@@ -236,7 +242,7 @@ echo "A1_LOCKED_TRAINING_START elapsed=${ELAPSED}s"
 
 set +e
 timeout --signal=TERM --kill-after=20s 900s \
-python - <<'PY' 2>&1 | tee "$ROOT/aqlevon_p4/P4_A1_seed1701_retry18.log"
+python - <<'PY' 2>&1 | tee "$ROOT/aqlevon_p4/P4_A1_seed1701_retry18b.log"
 import json
 from pathlib import Path
 import p4_gene1_trainer as c
@@ -257,5 +263,5 @@ set -e
 
 echo "AQLEVON_A1_EXIT_CODE=$RC"
 find "$ROOT/aqlevon_p4/runs" -maxdepth 5 -type f -printf '%p %s bytes\\n' 2>/dev/null | tail -n 100 || true
-echo "AQLEVON_RETRY18_TOTAL_SCRIPT_SECONDS=$(( $(date +%s) - START_TS ))"
+echo "AQLEVON_RETRY18B_TOTAL_SCRIPT_SECONDS=$(( $(date +%s) - START_TS ))"
 exit "$RC"
