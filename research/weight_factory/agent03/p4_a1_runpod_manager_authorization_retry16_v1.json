@@ -1,0 +1,16 @@
+{
+  "authorization_id": "P4-A1-RUNPOD-4090-20260920-16-VERL-IMPORT-REPAIR",
+  "authorization_kind": "AQLEVON_MANAGER_COMPUTE_AUTHORIZATION_V1",
+  "authorization_sha256": "1ee0afee26d34e474c6fb1e594bd182593947662a0c92a664194e2d64dcd39de",
+  "compute_origin": "paid_manager_authorized",
+  "hash_profile": "AQLEVON_CANONICAL_JSON_SHA256_V1",
+  "max_artifact_egress_bytes": 5368709120,
+  "max_billed_seconds": 1800,
+  "max_hourly_rate_usd": "0.80",
+  "max_total_cost_usd": "0.40",
+  "profile_id": "p4-surrogate-1x24",
+  "run_manifest_sha256": "7152cdea6ffd082f632a819e153122b401bd7394ed0273a327537ca961c7fe45",
+  "run_task_id": "P4-A03-GENE1-PHYSICAL-TRAINER",
+  "schema_version": 1,
+  "single_use": true
+}
