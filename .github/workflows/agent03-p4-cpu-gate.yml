@@ -109,3 +109,31 @@ jobs:
               assert required in p, required
           print("APPLIANCE_LAUNCHER_CONTRACT_PASS")
           PY
+
+  p4-runtime-appliance-build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Free disk for CUDA image build
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc || true
+          docker system prune -af || true
+          df -h
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build immutable runtime appliance locally
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker buildx build             --load             --provenance=false             --sbom=false             -f research/weight_factory/agent03/runtime_appliance/Dockerfile             -t aqlevon-p4-a1-w03:ci             .
+          IMAGE_ID="$(docker image inspect aqlevon-p4-a1-w03:ci --format '{{.Id}}')"
+          test -n "$IMAGE_ID"
+          echo "AQLEVON_APPLIANCE_LOCAL_IMAGE_ID=$IMAGE_ID"
+
+      - name: Smoke immutable runtime appliance
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm aqlevon-p4-a1-w03:ci             python /opt/aqlevon/runtime/smoke_runtime.py --build-check
