@@ -34,7 +34,7 @@ def _execute(program:Any,initial:dict[str,Any])->tuple[dict[str,Any],list[str]]:
             elif op=="dedupe_list":
                 k=st["key"]; seen=[]; s[k]=[x for x in get(k) if not (x in seen or seen.append(x))]; touched.append(k)
             elif op=="replace_text": k=st["key"]; s[k]=get(k).replace(st["old"],st["new"]); touched.append(k)
-            elif op=="dict_put": k=st["key"]; cur=get(k); cur[st["subkey"]]=copy.deepcopy(st.get("value")); touched.append(k)
+            elif op=="dict_put": k=st["key"]; sub=st["subkey"]; cur=get(k); cur[sub]=copy.deepcopy(st.get("value")); touched.append(f"{k}.{sub}")
             elif op=="move_item":
                 src,dst,val=st["from"],st["to"],st["value"]; a=get(src); b=get(dst); a.remove(val); b.append(val); touched.extend([src,dst])
             else: raise ValueError("unknown_op")
