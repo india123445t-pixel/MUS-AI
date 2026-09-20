@@ -44,12 +44,13 @@ test('dashboard exposes owner controls and real evidence surfaces',()=>{
   assert.match(page,/NO ACTIVE EXECUTOR/);
 });
 
-test('professional control plane exposes operations intelligence and access surfaces',()=>{
-  assert.match(page,/Operations/);
+test('professional control plane exposes intelligence and access surfaces',()=>{
+  assert.match(page,/Missions/);
+  assert.match(page,/Traces/);
   assert.match(page,/Project Brain/);
   assert.match(page,/Model Lab/);
-  assert.match(page,/Identity & Access/);
-  assert.match(page,/EXECUTION TRACES/);
+  assert.match(page,/Infrastructure/);
+  assert.match(page,/Security/);
   assert.match(page,/Operational truth map/);
   assert.match(page,/CAPABILITY MAP/);
   assert.match(page,/Owner-controlled execution boundary/);
