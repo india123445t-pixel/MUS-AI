@@ -7,7 +7,7 @@
   "seed": 1701,
   "profile_id": "p4-surrogate-1x24",
   "training_plan_sha256": "3cd6e0bada2535a80f83f400f45f5d0fdc5ad8d938f42757785335959f331095",
-  "command_sha256": "3ad2fd2cd5303e1eb4ea71f3e25edf07d38269df1b5b3c8b6e98c8553e017400",
+  "command_sha256": "660479c16f636879338d4c220b443b563a40bc52373264383065c805764ab903",
   "student_model": {
     "repo": "Qwen/Qwen3.5-4B-Base",
     "revision": "daa9c16f371249f9ad1c75a9ed6f956c08ea08f5",
@@ -30,8 +30,8 @@
   "worker06_compute_profile": "p4-surrogate-1x24",
   "worker06_reference_commit": "7204c7ae84eb6d246603fda960cffe02c2b6279e",
   "worker03_sources": {
-    "trainer_git_blob_sha1": "14b5573f682c0b50860a570f1328b3b0eca21032",
-    "tournament_git_blob_sha1": "20accc2df44c5a5db002e14a0f3842e459631987",
+    "trainer_git_blob_sha1": "06ae7345828315825177540c5ab948e911f42ac9",
+    "tournament_git_blob_sha1": "e2a997e54020bf948b82dc0f35dff4a82b29e950",
     "reward_git_blob_sha1": "c9db3e315299cce59c5d4cece7de86302c10c614",
     "runtime_compat_sitecustomize_git_blob_sha1": "ef9c92fb0923ad444f33d33a24ef557cd2af0fcf",
     "sdpo_tf5_patch_git_blob_sha1": "81d4c2e2df463293c16a3a3d5ff84f0ecb991fd2"
@@ -71,5 +71,5 @@
   "automatic_fallback": false,
   "paid_compute_requires_manager_authorization": true,
   "capability_gain_claim": false,
-  "manifest_sha256": "7152cdea6ffd082f632a819e153122b401bd7394ed0273a327537ca961c7fe45"
+  "manifest_sha256": "24e3d21155c3f1011ca92f90e6c622fe03f92bfd65656d31d87fa627886fad47"
 }
