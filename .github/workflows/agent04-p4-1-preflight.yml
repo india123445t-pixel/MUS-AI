@@ -1,0 +1,30 @@
+name: Agent04 P4.1 Gene Package Preflight
+
+on:
+  push:
+    branches:
+      - agent/04-p4-gene-packaging-v1
+  pull_request:
+    branches:
+      - agent/04-p2-merge-receipt-integration-v1
+
+permissions:
+  contents: read
+
+jobs:
+  p4-1-preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: P2.1 + P4 + P4.1 + P4.3 control-plane tests
+        working-directory: research/weight_factory/genome
+        run: |
+          python3 -m unittest -v test_p2_merge_receipt_gate.py test_p4_gene_package.py test_p4_1_gene_package_preflight.py test_p4_3_instant_gene_packager.py
+          python3 -m py_compile p2_merge_receipt_gate.py p4_gene_package.py p4_3_instant_gene_packager.py test_p4_gene_package.py test_p4_1_gene_package_preflight.py test_p4_3_instant_gene_packager.py
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          json.loads(Path("p4_gene_package.schema.json").read_text(encoding="utf-8"))
+          print("P4_3_SCHEMA_PARSE_PASS")
+          PY
