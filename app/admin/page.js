@@ -123,7 +123,7 @@ export default function AdminPage(){
 
   if(!URL||!KEY)return <div className="center-screen"><div className="error-box">إعداد Supabase غير مكتمل.</div></div>;
   if(!ready)return <div className="center-screen"><div className="brand-loader"><img src="/icon.svg" alt=""/><b>AQLEVON AI</b></div></div>;
-  if(!session)return <div className="admin-login-shell"><form className="admin-login-card" onSubmit={login}><img src="/icon.svg" alt="AQLEVON AI"/><span className="eyebrow">PRIVATE CONTROL CENTER</span><h1>AQLEVON AI</h1><p>لوحة الإدارة الخاصة بالمشروع.</p><label>البريد الإلكتروني<input type="email" value={email} onChange={e=>setEmail(e.target.value)} required/></label><label>كلمة المرور<input type="password" value={password} onChange={e=>setPassword(e.target.value)} required/></label><button className="primary-btn" type="submit">دخول</button>{authMsg&&<div className="auth-msg">{authMsg}</div>}</form></div>;
+  if(!session)return <div className="admin-login-shell"><form className="admin-login-card" onSubmit={login}><img src="/icon.svg" alt="AQLEVON AI"/><span className="eyebrow">PRIVATE CONTROL CENTER</span><h1>AQLEVON AI</h1><div className="admin-version-badge">OWNER CORE V3 · TRACE WORKBENCH</div><p>لوحة الإدارة الخاصة بالمشروع.</p><label>البريد الإلكتروني<input type="email" value={email} onChange={e=>setEmail(e.target.value)} required/></label><label>كلمة المرور<input type="password" value={password} onChange={e=>setPassword(e.target.value)} required/></label><button className="primary-btn" type="submit">دخول</button>{authMsg&&<div className="auth-msg">{authMsg}</div>}</form></div>;
   if(!authorized&&!busy)return <div className="center-screen"><div className="error-box">غير مصرح لهذا الحساب.</div></div>;
 
   const verified=logs.filter(isVerified).length,eligible=logs.filter(learningEligible),promotedIds=new Set(examples.map(x=>x.context_snapshot?.public_chat_log_id).filter(Boolean).map(String));
@@ -189,7 +189,7 @@ export default function AdminPage(){
 
     <main className="owner-admin-main">
       <header className="owner-admin-header v3-header">
-        <div className="v3-title"><span className="eyebrow">AQLEVON · PRIVATE CONTROL PLANE</span><h1>{nav.find(x=>x[0]===tab)?.[1]}</h1></div>
+        <div className="v3-title"><span className="eyebrow">AQLEVON · OWNER CORE V3 · TRACE WORKBENCH</span><h1>{nav.find(x=>x[0]===tab)?.[1]}</h1></div>
         <div className="v3-global-search"><span>⌕</span><input value={globalQuery} onChange={e=>setGlobalQuery(e.target.value)} placeholder="Search missions, traces, IDs, providers…"/></div>
         <div className="header-actions">
           <span className="v3-env-pill">PREVIEW</span>
