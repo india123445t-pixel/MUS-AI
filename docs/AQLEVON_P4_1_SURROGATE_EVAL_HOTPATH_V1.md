@@ -21,7 +21,7 @@ Worker 05 may emit evaluation evidence. Only the Manager may accept a recipe for
 
 The hot path is pinned to the current P4.1 Worker-03 A1 contract:
 
-- Worker-03 executable source head: `4c56b8f738c51d57de981e9ae9a8a1a5f4e887ab`
+- Worker-03 executable source head: `a3abc957f7b81a4dc4e8e20ecb1bb0de3047f783`
 - task: `P4-A03-GENE1-PHYSICAL-TRAINER`
 - arm: `P4_A1_RLVR_CONTROL`
 - seed: `1701`
