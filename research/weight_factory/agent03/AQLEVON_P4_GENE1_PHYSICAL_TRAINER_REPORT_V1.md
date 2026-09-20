@@ -379,3 +379,38 @@ Fresh exact authorization issued:
 - single-use; no fallback; no G1 rerun.
 
 Next attempt must deploy on a currently available RTX 4090 host with the Jupyter access variable present before billing begins.
+
+
+## Retry10 Jupyter access attempt — stopped before training — 2026-09-20
+
+A fresh RTX 4090 Pod was deployed successfully:
+- Pod: `AQLEVON-P4-A1-4090-R10`
+- Pod ID: `25b5zbz1t2dcad`
+- GPU: exactly 1x RTX 4090
+- observed rate: USD 0.74/hour
+- Jupyter password configured before deployment
+- HTTP endpoint reached the Runpod proxy, but the Manager-side browser transport required a separate Runpod login session and could not pass the account login boundary.
+
+No shell command, dataset prep, model download, SDPO process, optimizer step, checkpoint save, or sealed evaluation occurred.
+
+The Pod was stopped after an observed total runtime of 380 seconds. At the advertised USD 0.74/hour GPU rate this is approximately USD 0.0781 of rate exposure; Runpod billing records remain authoritative.
+
+Retry10:
+- ID: `P4-A1-RUNPOD-4090-20260920-10-JUPYTER-READY`
+- authorization SHA256: `f4dabdc756872cc81e723bc700349d44104126a0e169b23407099d2d03cb47a8`
+- classification: CONSUMED/FAILED ACCESS ATTEMPT — DO NOT REUSE.
+
+Physical truth after Retry10:
+- optimizer step completed: NO
+- candidate checkpoint: NONE
+- capability gain verified: NO
+- G1 rerun: NO
+- sealed eval consumed: NO.
+
+For the next attempt, a Manager-owned ephemeral SSH keypair was generated before any GPU restart. Only the public key will be placed on the stopped Pod; the private key is retained only in the Manager execution environment.
+
+Fresh authorization:
+- Retry11 ID: `P4-A1-RUNPOD-4090-20260920-11-SSH-READY`
+- Retry11 SHA256: `fc595fd893369eae39ff0a5a3119a457fe3be0ea9b87d9dd00c4c9b71adcd961`
+- same frozen run manifest/profile and USD 0.40 / 1800 s / USD 0.80/hr ceilings;
+- single-use; no fallback; no G1 rerun.
