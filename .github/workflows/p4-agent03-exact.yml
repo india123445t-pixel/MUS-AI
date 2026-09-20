@@ -115,6 +115,16 @@ jobs:
           assert "trainer.n_gpus_per_node=1" in argv
           assert "actor_rollout_ref.rollout.tensor_model_parallel_size=1" in argv
           assert "max_model_len=4096" in argv
+          for seed_token in (
+              "data.seed=1701",
+              "actor_rollout_ref.actor.data_loader_seed=1701",
+              "actor_rollout_ref.actor.fsdp_config.seed=1701",
+              "actor_rollout_ref.ref.fsdp_config.seed=1701",
+              "++actor_rollout_ref.rollout.engine_kwargs.vllm.seed=1701",
+          ):
+              assert seed_token in argv, seed_token
+          assert not c.validate_command_seed_binding(argv,arm_id=lock["arm_id"],seed=lock["seed"])
+          print("P4_A1_SEED1701_BINDING_PASS")
           print("P4_A1_COMMAND_LOCK_PASS", run["manifest_sha256"], lock["command_sha256"], lock["lock_sha256"])
           PY
 
@@ -263,6 +273,12 @@ jobs:
           assert cfg.trainer.project_name=="SDPO-root",cfg.trainer.project_name
           assert str(cfg.data.train_files)=="/workspace/aqlevon_p4/data/train.parquet"
           assert str(cfg.data.val_files)=="/workspace/aqlevon_p4/data/test.parquet"
+          assert cfg.data.seed==1701,cfg.data.seed
+          assert cfg.actor_rollout_ref.actor.data_loader_seed==1701,cfg.actor_rollout_ref.actor.data_loader_seed
+          assert cfg.actor_rollout_ref.actor.fsdp_config.seed==1701,cfg.actor_rollout_ref.actor.fsdp_config.seed
+          assert cfg.actor_rollout_ref.ref.fsdp_config.seed==1701,cfg.actor_rollout_ref.ref.fsdp_config.seed
+          assert cfg.actor_rollout_ref.rollout.engine_kwargs.vllm.seed==1701,cfg.actor_rollout_ref.rollout.engine_kwargs.vllm.seed
+          print("HYDRA_SEED1701_RESOLUTION_PASS")
           print("HYDRA_OMEGACONF_EXACT_PASS")
 
           t.install_runtime_compat()
