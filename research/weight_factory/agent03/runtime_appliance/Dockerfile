@@ -47,11 +47,7 @@ print("TORCH_RUNTIME_IDENTITY_PASS",torch.__version__,torch.version.cuda)
 PY
 
 RUN set -eux; \
-    ABI="$(python - <<'PY'
-import torch
-print('TRUE' if torch._C._GLIBCXX_USE_CXX11_ABI else 'FALSE')
-PY
-)"; \
+    ABI="$(python -c "import torch; print('TRUE' if torch._C._GLIBCXX_USE_CXX11_ABI else 'FALSE')")"; \
     if [ "$ABI" = "TRUE" ]; then SHA="f25da18657a87fc83dc1bfb8b7751b82246e9db355510226b674fd437c34b5fb"; else SHA="2605b2653e7b9d6615bbb154896ae4d3f0b95d3120af7a6374ee97092e61df02"; fi; \
     URL="https://github.com/Dao-AILab/flash-attention/releases/download/v2.8.3/flash_attn-2.8.3%2Bcu12torch2.8cxx11abi${ABI}-cp312-cp312-linux_x86_64.whl"; \
     curl -fL --retry 3 --retry-delay 2 -o /tmp/flash_attn.whl "$URL"; \
