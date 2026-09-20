@@ -8,7 +8,7 @@ const KEY=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
 const domainNames={reasoning:'الاستدلال',math:'الرياضيات',science:'العلوم',coding:'البرمجة',language:'اللغة',research:'البحث',planning:'التخطيط',knowledge:'المعرفة',general:'عام',software:'البرمجة',data:'البيانات',communication:'التواصل',operations:'العمليات'};
 const safeModes=['openrouter_primary','openrouter_only','self_hosted_primary','self_hosted_only'];
-const nav=[['owner','Owner Core'],['overview','نظرة عامة'],['runtime','المحرك'],['evaluation','التقييم'],['learning','التعلم']];
+const nav=[['owner','Command Center'],['operations','Operations'],['overview','System Overview'],['brain','Project Brain'],['model_lab','Model Lab'],['evaluation','Evaluation'],['learning','Learning'],['runtime','Runtime'],['access','Identity & Access']];
 const profiles=[
   ['guardian','Guardian','حراسة المشروع ومراقبة الحالة والانحرافات.'],
   ['engineer','Engineer','الكود، الإصلاح، الاختبارات، والبنية.'],
@@ -134,11 +134,34 @@ export default function AdminPage(){
   const activeReceiptIds=new Set(activeAttempts.map(a=>a.id));
   const activeReceipts=receipts.filter(r=>activeReceiptIds.has(r.action_attempt_id)).slice(0,8);
   const hasInFlight=activeAttempts.some(a=>a.phase==='IN_FLIGHT');
+  const closedTasks=tasks.filter(t=>t.phase==='CLOSED');
+  const successfulTasks=closedTasks.filter(t=>t.outcome==='SUCCESS');
+  const successRate=closedTasks.length?Math.round(successfulTasks.length/closedTasks.length*100):0;
+  const avgLatency=logs.length?Math.round(logs.reduce((sum,x)=>sum+Number(x.latency_ms||0),0)/logs.length):0;
+  const evidenceCoverage=attempts.length?Math.min(100,Math.round(receipts.length/attempts.length*100)):0;
+  const incidentCount=attempts.filter(a=>['FAILED','UNKNOWN'].includes(a.outcome)).length;
+  const latestModel=logs.find(x=>x.model)?.model||settings?.openrouter_model||'—';
+  const executorState=hasInFlight?'LIVE':attempts.length?'IDLE':'NOT CONNECTED';
+  const sourceHealth=[
+    ['Control Plane','CONNECTED','Tasks · intents · attempts · receipts'],
+    ['Project Audit','CONNECTED',`${audit.length} recent events loaded`],
+    ['Evaluation Store','CONNECTED',`${bench.length} benchmarks · ${verified} verified traces`],
+    ['Learning Gate','CONNECTED',`${candidates.length} candidates · ${approved.length} approved`],
+    ['Git / Deploy / Browser','ADAPTER REQUIRED','Execution bridge not connected'],
+    ['Weights / Registry','PARTIAL','Model telemetry visible; lineage registry pending']
+  ];
 
   return <div className="owner-admin-shell" dir="rtl">
     <aside className="owner-admin-sidebar">
       <div className="owner-brand"><img src="/icon.svg" alt="AQLEVON"/><div><strong>AQLEVON</strong><span>OWNER CONTROL</span></div></div>
-      <nav>{nav.map(([id,label])=><button key={id} className={tab===id?'active':''} onClick={()=>setTab(id)}>{label}{id==='owner'&&pendingTasks.length>0?<b>{pendingTasks.length}</b>:null}</button>)}</nav>
+      <nav>
+        <span className="owner-nav-kicker">OPERATE</span>
+        {nav.slice(0,3).map(([id,label])=><button key={id} className={tab===id?'active':''} onClick={()=>setTab(id)}><span>{label}</span>{id==='owner'&&pendingTasks.length>0?<b>{pendingTasks.length}</b>:null}</button>)}
+        <span className="owner-nav-kicker">INTELLIGENCE</span>
+        {nav.slice(3,7).map(([id,label])=><button key={id} className={tab===id?'active':''} onClick={()=>setTab(id)}><span>{label}</span></button>)}
+        <span className="owner-nav-kicker">SYSTEM</span>
+        {nav.slice(7).map(([id,label])=><button key={id} className={tab===id?'active':''} onClick={()=>setTab(id)}><span>{label}</span></button>)}
+      </nav>
       <div className="owner-side-status"><span>Owner authority</span><strong>ACTIVE</strong><small>{session.user?.email||'system_owner'}</small></div>
       <div className="owner-side-actions"><a href="/" target="_blank">فتح التطبيق العام ↗</a><button onClick={()=>sb.auth.signOut()}>تسجيل الخروج</button></div>
     </aside>
@@ -149,8 +172,16 @@ export default function AdminPage(){
 
       {tab==='owner'&&<>
         <section className="owner-command-strip">
-          <div><span className="eyebrow">AQLEVON OWNER CORE</span><h2>مديرك الرقمي داخل المشروع</h2><p>ناقش، حضّر Mission، راقب التنفيذ الحقيقي، ووافق على الأفعال المؤثرة من مكان واحد.</p></div>
-          <div className="owner-strip-metrics"><div><span>Pending approvals</span><b>{pendingTasks.length+pendingIntents.length}</b></div><div><span>Active missions</span><b>{runningTasks.length}</b></div><div><span>In-flight actions</span><b>{attempts.filter(a=>a.phase==='IN_FLIGHT').length}</b></div></div>
+          <div><span className="eyebrow">AQLEVON OWNER CORE · COMMAND PLANE</span><h2>Executive AI Operations Center</h2><p>أصدر الأوامر، راجع الخطة، وافق على التنفيذ، ثم تابع traces والأدلة والنتائج من نفس المكان.</p></div>
+          <div className="owner-strip-metrics"><div><span>Approval queue</span><b>{pendingTasks.length+pendingIntents.length}</b></div><div><span>Active missions</span><b>{runningTasks.length}</b></div><div><span>Executor</span><b className="metric-text">{executorState}</b></div></div>
+        </section>
+        <section className="owner-pulse-grid">
+          <div><span>Mission success</span><strong>{successRate}%</strong><small>{successfulTasks.length}/{closedTasks.length||0} closed</small></div>
+          <div><span>Verified traces</span><strong>{logs.length?Math.round(verified/logs.length*100):0}%</strong><small>{verified} / {logs.length}</small></div>
+          <div><span>Avg latency</span><strong>{avgLatency?avgLatency+'ms':'—'}</strong><small>recent model traffic</small></div>
+          <div><span>Evidence coverage</span><strong>{evidenceCoverage}%</strong><small>{receipts.length} receipts / {attempts.length} attempts</small></div>
+          <div><span>Open incidents</span><strong>{incidentCount}</strong><small>failed or unresolved attempts</small></div>
+          <div><span>Active model</span><strong className="compact-value">{short(latestModel,22)}</strong><small>{settings?.runtime_mode||'runtime unknown'}</small></div>
         </section>
 
         <section className="owner-core-grid">
@@ -174,6 +205,74 @@ export default function AdminPage(){
         </section>
 
         <section className="owner-identity-panel"><div><span className="eyebrow">IDENTITY & ACCESS</span><h3>AQLEVON operational identity</h3><p>الحسابات والتكاملات التنفيذية تُربط عبر scoped service identities/OAuth. الأسرار نفسها لا تظهر في الشات.</p></div><div className="owner-identity-grid"><div><span>Project Brain</span><b>CONTROL-PLANE CONNECTED</b><small>Tasks · receipts · evaluations · audit</small></div><div><span>Git / Deploy / Browser</span><b>ADAPTER REQUIRED</b><small>لا ندّعي اتصالًا غير موجود</small></div><div><span>Paid compute</span><b>OWNER APPROVAL REQUIRED</b><small>لا تفويض ضمني للإنفاق</small></div><div><span>Security mode</span><b>AUTHORIZED SCOPE ONLY</b><small>الأصول المحددة في Mission</small></div></div></section>
+      </>}
+
+      {tab==='operations'&&<>
+        <section className="ops-summary-grid">
+          <Metric label="Executor state" value={executorState} sub={hasInFlight?'live action in progress':'no active external execution'}/>
+          <Metric label="Action attempts" value={attempts.length} sub={`${attempts.filter(a=>a.phase==='IN_FLIGHT').length} in-flight`}/>
+          <Metric label="Receipts" value={receipts.length} sub={`${evidenceCoverage}% evidence coverage`}/>
+          <Metric label="Incidents" value={incidentCount} sub="failed + unresolved"/>
+        </section>
+        <section className="ops-console-grid">
+          <div className="admin-panel wide ops-run-panel">
+            <div className="panel-head"><div><span className="eyebrow">EXECUTION TRACES</span><h3>Mission runs & tool attempts</h3><p>كل محاولة تنفيذ حقيقية تظهر هنا مع permit، provider operation، outcome، والتوقيت.</p></div></div>
+            <div className="ops-table">
+              <div className="ops-table-head"><span>State</span><span>Mission</span><span>Attempt</span><span>Provider op</span><span>Outcome</span><span>Started</span></div>
+              {attempts.length?attempts.slice(0,40).map(a=><div className="ops-table-row" key={a.id}><span className={a.phase==='IN_FLIGHT'?'live-dot-cell':''}>{a.phase}</span><button onClick={()=>{setSelectedTask(a.task_id);setTab('owner')}}>{short(a.task_id,10)}</button><span>#{a.attempt_no}</span><code>{short(a.provider_operation_id,16)}</code><b>{a.outcome}</b><span>{when(a.started_at||a.created_at)}</span></div>):<div className="empty-panel">No executor attempts recorded yet.</div>}
+            </div>
+          </div>
+          <div className="admin-panel ops-side-panel">
+            <div className="panel-head"><div><span className="eyebrow">CONTROL QUEUE</span><h3>Needs attention</h3></div></div>
+            <div className="attention-list">
+              <div><span>Owner approvals</span><b>{pendingTasks.length+pendingIntents.length}</b></div>
+              <div><span>Ready missions</span><b>{tasks.filter(t=>t.phase==='READY').length}</b></div>
+              <div><span>Running</span><b>{tasks.filter(t=>t.phase==='RUNNING').length}</b></div>
+              <div><span>Waiting / reconcile</span><b>{tasks.filter(t=>['WAITING','RECONCILING'].includes(t.phase)).length}</b></div>
+              <div><span>Unknown outcomes</span><b>{attempts.filter(a=>a.outcome==='UNKNOWN').length}</b></div>
+            </div>
+            <button className="primary-btn fit" onClick={()=>setTab('owner')}>Open Command Center</button>
+          </div>
+        </section>
+      </>}
+
+      {tab==='brain'&&<>
+        <section className="brain-hero">
+          <div><span className="eyebrow">PROJECT BRAIN</span><h2>Operational truth map</h2><p>مصادر الحقيقة التي يعتمد عليها Owner Core الآن، وما هو موصول فعليًا وما زال يحتاج Adapter.</p></div>
+          <div className="brain-score"><span>Connected sources</span><strong>{sourceHealth.filter(x=>x[1]==='CONNECTED').length}/{sourceHealth.length}</strong></div>
+        </section>
+        <section className="brain-grid">
+          {sourceHealth.map(([name,state,detail])=><div className="brain-source" key={name}><div><i className={state==='CONNECTED'?'ok':state==='PARTIAL'?'warn':''}/><span>{name}</span></div><b>{state}</b><small>{detail}</small></div>)}
+        </section>
+        <section className="panel-grid">
+          <div className="admin-panel"><div className="panel-head"><div><span className="eyebrow">RECENT DECISIONS</span><h3>Audit memory</h3></div></div><div className="owner-timeline">{audit.slice(0,18).map(e=><div key={e.id}><i/><div><b>{e.event_type}</b><span>{e.subject_type||'SYSTEM'} · {when(e.created_at)}</span></div></div>)}</div></div>
+          <div className="admin-panel"><div className="panel-head"><div><span className="eyebrow">OWNER CORE OUTPUT</span><h3>Latest persisted responses</h3></div></div><div className="brain-response-list">{responses.slice(0,12).map(r=><div key={r.id}><b>{r.response_type}</b><p>{String(r.body||'').slice(0,180)}</p><span>{when(r.emitted_at)}</span></div>)}</div></div>
+        </section>
+      </>}
+
+      {tab==='model_lab'&&<>
+        <section className="model-lab-hero">
+          <div><span className="eyebrow">MODEL LAB</span><h2>{short(latestModel,34)}</h2><p>قياس الجودة، المهارات، traces، وحالة التعلم قبل أي ادعاء بتحسن النموذج.</p></div>
+          <div className="model-lab-kpis"><div><span>Benchmark</span><b>{avgBench==='—'?'—':avgBench+'/100'}</b></div><div><span>Skill avg</span><b>{avgSkill==='—'?'—':avgSkill+'/100'}</b></div><div><span>Verified</span><b>{verified}</b></div><div><span>Approved data</span><b>{approved.length}</b></div></div>
+        </section>
+        <section className="panel-grid">
+          <div className="admin-panel"><div className="panel-head"><div><span className="eyebrow">CAPABILITY MAP</span><h3>Skill state</h3></div></div><div className="skill-stack">{skills.slice(0,12).map(s=><div className="skill-line" key={s.domain}><div><span>{domainNames[s.domain]||s.domain}</span><b>{Number(s.score||0).toFixed(0)}</b></div><div><i style={{width:`${Math.max(2,Number(s.score)||0)}%`}}/></div></div>)}</div></div>
+          <div className="admin-panel"><div className="panel-head"><div><span className="eyebrow">EVALUATION HISTORY</span><h3>Recent benchmark results</h3></div></div><div className="eval-list">{bench.slice(0,16).map(b=><div key={b.id}><div><b>{b.model_label||'AQLEVON'}</b><span>{when(b.created_at)}</span></div><strong>{Number(b.score||0).toFixed(1)}</strong><small>{b.judge||'judge'}</small></div>)}</div></div>
+        </section>
+      </>}
+
+      {tab==='access'&&<>
+        <section className="access-hero"><div><span className="eyebrow">IDENTITY & ACCESS</span><h2>Owner-controlled execution boundary</h2><p>هوية المالك، مزودات التشغيل، وحدود الصلاحيات المستخدمة في المهام.</p></div><span className="access-owner-badge">SYSTEM OWNER · ACTIVE</span></section>
+        <section className="access-grid">
+          <div className="access-card connected"><span>Owner identity</span><b>{session.user?.email||'system_owner'}</b><small>Supabase authenticated + system_owner row</small></div>
+          <div className="access-card connected"><span>Supabase control plane</span><b>CONNECTED</b><small>Auth · tasks · receipts · audit · learning</small></div>
+          <div className="access-card"><span>Git / Repository executor</span><b>NOT CONNECTED</b><small>Adapter required before autonomous code changes</small></div>
+          <div className="access-card"><span>Browser / Terminal executor</span><b>NOT CONNECTED</b><small>No external execution is claimed</small></div>
+          <div className="access-card"><span>Deployment executor</span><b>NOT CONNECTED</b><small>Deploy requires explicit owner-approved mission</small></div>
+          <div className="access-card warning"><span>Paid compute</span><b>LOCKED</b><small>$0 daily paid budget in current runtime policy</small></div>
+          <div className="access-card warning"><span>Authorized Security</span><b>SCOPED ONLY</b><small>Requires explicit target scope inside mission</small></div>
+          <div className="access-card connected"><span>Audit evidence</span><b>{audit.length} EVENTS</b><small>{receipts.length} execution receipts loaded</small></div>
+        </section>
       </>}
 
       {tab==='overview'&&<><section className="metric-grid"><Metric label="الحالة" value={status?.openrouter_configured||status?.self_hosted_configured?'متصل':'يحتاج إعداد'} sub={settings?.runtime_mode||'—'}/><Metric label="Verified" value={logs.length?`${Math.round(verified/logs.length*100)}%`:'—'} sub={`${verified} من ${logs.length}`}/><Metric label="Benchmark" value={avgBench==='—'?'—':`${avgBench}/100`} sub={`${bench.length} نتائج`}/><Metric label="متوسط القدرات" value={avgSkill==='—'?'—':`${avgSkill}/100`} sub={`${skills.length} مجالات`}/><Metric label="Missions" value={tasks.length} sub={`${runningTasks.length} نشطة`}/><Metric label="Receipts" value={receipts.length} sub="أدلة تنفيذ مسجلة"/></section><section className="panel-grid"><div className="admin-panel"><div className="panel-head"><div><span className="eyebrow">CURRENT TRUTH</span><h3>حالة النظام</h3></div></div><div className="status-list"><div><span>Self-hosted</span><b>{status?.self_hosted_configured?'متصل':'غير موصول'}</b></div><div><span>Runtime mode</span><b>{settings?.runtime_mode||'—'}</b></div><div><span>Pending approvals</span><b>{pendingTasks.length+pendingIntents.length}</b></div><div><span>In-flight actions</span><b>{attempts.filter(a=>a.phase==='IN_FLIGHT').length}</b></div></div></div><div className="admin-panel"><div className="panel-head"><div><span className="eyebrow">WEAKEST SKILLS</span><h3>أضعف المجالات</h3></div></div><div className="skill-stack">{skills.slice(0,6).map(s=><div className="skill-line" key={s.domain}><div><span>{domainNames[s.domain]||s.domain}</span><b>{Number(s.score||0).toFixed(0)}</b></div><div><i style={{width:`${Math.max(2,Number(s.score)||0)}%`}}/></div></div>)}</div></div></section></>}
