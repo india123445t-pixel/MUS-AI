@@ -296,7 +296,7 @@ export default function AdminPage(){
               {activeTask.phase==='OPEN'&&<div className="v3-action-row"><button className="primary-btn" onClick={()=>taskAction(activeTask.id,'approve')} disabled={busy}>موافقة</button><button className="ghost-fit" onClick={()=>taskAction(activeTask.id,'cancel')} disabled={busy}>إلغاء</button></div>}
               <button className="owner-stop-btn" disabled={!hasInFlight} onClick={()=>taskAction(activeTask.id,'stop')}>إيقاف الآن</button>
               <div className="v3-subhead">الخط الزمني للأدلة</div>
-              <div className="v3-event-list">{activeAudit.length?activeAudit.map(e=><div key={e.id}><i/><div><b>{e.event_type}</b><small>{when(e.created_at)}</small></div></div>):<span className="empty-inline">No audit events.</span>}</div>
+              <div className="v3-event-list">{activeAudit.length?activeAudit.map(e=><div key={e.id}><i/><div><b>{e.event_type}</b><small>{when(e.created_at)}</small></div></div>):<span className="empty-inline">لا توجد أحداث تدقيق.</span>}</div>
             </>}
           </aside>
         </section>
