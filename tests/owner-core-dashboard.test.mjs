@@ -36,51 +36,52 @@ test('STOP cannot claim success without a cancellation adapter',()=>{
 });
 
 test('dashboard exposes owner controls and real evidence surfaces',()=>{
-  assert.match(page,/AQLEVON OWNER CORE/);
-  assert.match(page,/STOP NOW/);
+  assert.match(page,/نواة مالك AQLEVON V3/);
+  assert.match(page,/إيقاف الآن/);
   assert.match(page,/aqlevon_action_attempts/);
   assert.match(page,/aqlevon_action_receipts/);
   assert.match(page,/aqlevon_audit_events/);
-  assert.match(page,/NO ACTIVE EXECUTOR/);
+  assert.match(page,/لا يوجد منفّذ نشط/);
+  assert.match(page,/\/admin-icon\.svg/);
 });
 
-test('professional control plane exposes intelligence and access surfaces',()=>{
-  assert.match(page,/Missions/);
-  assert.match(page,/Traces/);
-  assert.match(page,/Project Brain/);
-  assert.match(page,/Model Lab/);
-  assert.match(page,/Infrastructure/);
-  assert.match(page,/Security/);
-  assert.match(page,/Operational truth map/);
-  assert.match(page,/CAPABILITY MAP/);
-  assert.match(page,/Owner-controlled execution boundary/);
+test('professional control plane exposes Arabic intelligence and access surfaces',()=>{
+  assert.match(page,/المهام/);
+  assert.match(page,/التتبّع/);
+  assert.match(page,/ذاكرة المشروع/);
+  assert.match(page,/مختبر النموذج/);
+  assert.match(page,/البنية التحتية/);
+  assert.match(page,/الأمن المصرّح/);
+  assert.match(page,/خريطة الحقيقة التشغيلية/);
+  assert.match(page,/خريطة القدرات/);
+  assert.match(page,/حدود التنفيذ تحت سيطرة المالك/);
 });
 
-test('trace-first V3 exposes mission trace and system workbenches',()=>{
-  assert.match(page,/MISSION REGISTRY/);
-  assert.match(page,/TRACE EXPLORER/);
-  assert.match(page,/Control-plane trace/);
-  assert.match(page,/MISSION INSPECTOR/);
-  assert.match(page,/INFRASTRUCTURE/);
-  assert.match(page,/AUTHORIZED SECURITY/);
-  assert.match(page,/Search missions, traces, IDs, providers/);
+test('trace-first V3 exposes Arabic mission trace and system workbenches',()=>{
+  assert.match(page,/سجل المهام/);
+  assert.match(page,/مستكشف التتبّع/);
+  assert.match(page,/تتبّع طبقة التحكم/);
+  assert.match(page,/تفاصيل المهمة/);
+  assert.match(page,/البنية التحتية/);
+  assert.match(page,/الأمن المصرّح/);
+  assert.match(page,/ابحث في المهام والتتبّعات/);
   assert.match(page,/NO_RECEIPT/);
 });
 
-test('V3 keeps execution truth explicit',()=>{
-  assert.match(page,/ADAPTER REQUIRED/);
-  assert.match(page,/NOT CONNECTED/);
-  assert.match(page,/OWNER APPROVAL REQUIRED/);
-  assert.match(page,/No autonomous repository execution is claimed/);
-  assert.match(page,/No live external process bridge connected/);
+test('V3 keeps execution truth explicit in Arabic',()=>{
+  assert.match(page,/يحتاج موصل تنفيذ/);
+  assert.match(page,/غير متصل/);
+  assert.match(page,/موافقة المالك مطلوبة/);
+  assert.match(page,/لا يوجد ادعاء بتنفيذ تلقائي على المستودع/);
+  assert.match(page,/لا يوجد جسر عمليات خارجية مباشر متصل/);
 });
 
 
 test('V3 exposes incident and observability truth surfaces',()=>{
-  assert.match(page,/INCIDENT CENTER/);
+  assert.match(page,/مركز الحوادث/);
   assert.match(page,/P99/);
-  assert.match(page,/Tool success/);
-  assert.match(page,/Cost & token telemetry/);
-  assert.match(page,/NOT INSTRUMENTED/);
-  assert.match(page,/No cost\/token figures are fabricated/);
+  assert.match(page,/نجاح الأدوات/);
+  assert.match(page,/قياس التكلفة والرموز/);
+  assert.match(page,/غير موصول بالقياس/);
+  assert.match(page,/لن تُعرض أرقام تكلفة أو رموز غير حقيقية/);
 });
