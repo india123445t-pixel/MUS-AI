@@ -74,3 +74,13 @@ test('V3 keeps execution truth explicit',()=>{
   assert.match(page,/No autonomous repository execution is claimed/);
   assert.match(page,/No live external process bridge connected/);
 });
+
+
+test('V3 exposes incident and observability truth surfaces',()=>{
+  assert.match(page,/INCIDENT CENTER/);
+  assert.match(page,/P99/);
+  assert.match(page,/Tool success/);
+  assert.match(page,/Cost & token telemetry/);
+  assert.match(page,/NOT INSTRUMENTED/);
+  assert.match(page,/No cost\/token figures are fabricated/);
+});
