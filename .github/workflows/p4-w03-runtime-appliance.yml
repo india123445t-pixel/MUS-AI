@@ -9,6 +9,13 @@ on:
       - 'research/weight_factory/agent03/runtime_appliance/**'
       - 'research/weight_factory/agent03/p4_patch_sdpo_transformers5_compat.py'
       - '.github/workflows/p4-w03-runtime-appliance.yml'
+  pull_request:
+    branches:
+      - agent/03-p3-g1-ready
+    paths:
+      - 'research/weight_factory/agent03/runtime_appliance/**'
+      - 'research/weight_factory/agent03/p4_patch_sdpo_transformers5_compat.py'
+      - '.github/workflows/p4-w03-runtime-appliance.yml'
 
 permissions:
   contents: read
