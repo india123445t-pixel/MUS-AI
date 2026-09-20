@@ -119,8 +119,16 @@ class ContractTests(unittest.TestCase):
         self.assertEqual(c.G1_STATUS, "ALREADY_PASSED_DO_NOT_RERUN")
 
     def test_command_lock_has_no_fallback_or_g1(self):
+        argv = [
+            "python", "x.py",
+            "data.seed=1701",
+            "actor_rollout_ref.actor.data_loader_seed=1701",
+            "actor_rollout_ref.actor.fsdp_config.seed=1701",
+            "actor_rollout_ref.ref.fsdp_config.seed=1701",
+            "++actor_rollout_ref.rollout.engine_kwargs.vllm.seed=1701",
+        ]
         x = c.build_command_lock(
-            ["python", "x.py"],
+            argv,
             plan_sha256=H("p"),
             run_manifest_sha256=RUN_MANIFEST_SHA,
             arm_id="P4_A1_RLVR_CONTROL",
@@ -130,9 +138,19 @@ class ContractTests(unittest.TestCase):
         self.assertFalse(x["g1_rerun"])
         self.assertTrue(c.verify_self_digest(x, "lock_sha256"))
 
+    def test_rl_command_lock_rejects_metadata_only_seed(self):
+        with self.assertRaisesRegex(c.ContractError, "seed_binding_missing"):
+            c.build_command_lock(
+                ["python", "x.py"],
+                plan_sha256=H("p"),
+                run_manifest_sha256=RUN_MANIFEST_SHA,
+                arm_id="P4_A1_RLVR_CONTROL",
+                seed=1701,
+            )
+
     def test_paid_run_requires_exact_manager_auth(self):
         x = c.build_command_lock(
-            ["true"],
+            ["true","data.seed=1701","actor_rollout_ref.actor.data_loader_seed=1701","actor_rollout_ref.actor.fsdp_config.seed=1701","actor_rollout_ref.ref.fsdp_config.seed=1701","++actor_rollout_ref.rollout.engine_kwargs.vllm.seed=1701"],
             plan_sha256=H("p"),
             run_manifest_sha256=RUN_MANIFEST_SHA,
             arm_id="P4_A1_RLVR_CONTROL",
@@ -151,7 +169,7 @@ class ContractTests(unittest.TestCase):
 
     def test_worker06_auth_binds_exact_run_manifest_and_profile(self):
         x = c.build_command_lock(
-            ["true"],
+            ["true","data.seed=1701","actor_rollout_ref.actor.data_loader_seed=1701","actor_rollout_ref.actor.fsdp_config.seed=1701","actor_rollout_ref.ref.fsdp_config.seed=1701","++actor_rollout_ref.rollout.engine_kwargs.vllm.seed=1701"],
             plan_sha256=H("p"),
             run_manifest_sha256=RUN_MANIFEST_SHA,
             arm_id="P4_A1_RLVR_CONTROL",
@@ -261,6 +279,11 @@ class RunnerTests(unittest.TestCase):
             for token in (
                 "trainer.total_training_steps=12",
                 "data.train_batch_size=4",
+                "data.seed=1701",
+                "actor_rollout_ref.actor.data_loader_seed=1701",
+                "actor_rollout_ref.actor.fsdp_config.seed=1701",
+                "actor_rollout_ref.ref.fsdp_config.seed=1701",
+                "actor_rollout_ref.rollout.engine_kwargs.vllm.seed=1701",
                 "actor_rollout_ref.rollout.n=4",
                 "actor_rollout_ref.actor.ppo_mini_batch_size=4",
                 "actor_rollout_ref.model.lora_rank=4",
