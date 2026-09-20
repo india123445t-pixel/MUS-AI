@@ -8,7 +8,7 @@ const KEY=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
 const domainNames={reasoning:'الاستدلال',math:'الرياضيات',science:'العلوم',coding:'البرمجة',language:'اللغة',research:'البحث',planning:'التخطيط',knowledge:'المعرفة',general:'عام',software:'البرمجة',data:'البيانات',communication:'التواصل',operations:'العمليات'};
 const safeModes=['openrouter_primary','openrouter_only','self_hosted_primary','self_hosted_only'];
-const nav=[['owner','Command'],['missions','Missions'],['traces','Traces'],['overview','Overview'],['brain','Project Brain'],['model_lab','Model Lab'],['evaluation','Evaluations'],['learning','Learning'],['infrastructure','Infrastructure'],['security','Security'],['runtime','Runtime'],['access','Access']];
+const nav=[['owner','Command'],['missions','Missions'],['traces','Traces'],['incidents','Incidents'],['overview','Overview'],['brain','Project Brain'],['model_lab','Model Lab'],['evaluation','Evaluations'],['learning','Learning'],['infrastructure','Infrastructure'],['security','Security'],['runtime','Runtime'],['access','Access']];
 const profiles=[
   ['guardian','Guardian','حراسة المشروع ومراقبة الحالة والانحرافات.'],
   ['engineer','Engineer','الكود، الإصلاح، الاختبارات، والبنية.'],
@@ -147,7 +147,9 @@ export default function AdminPage(){
   const latestModel=logs.find(x=>x.model)?.model||settings?.openrouter_model||'—';
   const executorState=hasInFlight?'LIVE':attempts.length?'IDLE':'NOT CONNECTED';
   const latencyValues=logs.map(x=>Number(x.latency_ms||0)).filter(x=>x>0);
-  const p50Latency=percentile(latencyValues,50),p95Latency=percentile(latencyValues,95);
+  const p50Latency=percentile(latencyValues,50),p95Latency=percentile(latencyValues,95),p99Latency=percentile(latencyValues,99);
+  const terminalAttempts=attempts.filter(a=>['SUCCESS','PARTIAL','FAILED','CANCELLED'].includes(a.outcome));
+  const toolSuccessRate=terminalAttempts.length?Math.round(terminalAttempts.filter(a=>a.outcome==='SUCCESS').length/terminalAttempts.length*100):0;
   const q=globalQuery.trim().toLowerCase();
   const filteredTasks=tasks.filter(t=>!q||String(t.title||'').toLowerCase().includes(q)||String(t.id||'').toLowerCase().includes(q)||String(t.scope?.profile||'').toLowerCase().includes(q));
   const filteredAttempts=attempts.filter(a=>{
@@ -175,7 +177,7 @@ export default function AdminPage(){
       <div className="owner-brand"><img src="/icon.svg" alt="AQLEVON"/><div><strong>AQLEVON</strong><span>OWNER CONTROL</span></div></div>
       <nav>
         <span className="owner-nav-kicker">OPERATE</span>
-        {nav.filter(([id])=>['owner','missions','traces','overview'].includes(id)).map(([id,label])=><button key={id} className={tab===id?'active':''} onClick={()=>setTab(id)}><span>{label}</span>{id==='owner'&&pendingTasks.length>0?<b>{pendingTasks.length}</b>:null}</button>)}
+        {nav.filter(([id])=>['owner','missions','traces','incidents','overview'].includes(id)).map(([id,label])=><button key={id} className={tab===id?'active':''} onClick={()=>setTab(id)}><span>{label}</span>{id==='owner'&&pendingTasks.length>0?<b>{pendingTasks.length}</b>:null}</button>)}
         <span className="owner-nav-kicker">INTELLIGENCE</span>
         {nav.filter(([id])=>['brain','model_lab','evaluation','learning'].includes(id)).map(([id,label])=><button key={id} className={tab===id?'active':''} onClick={()=>setTab(id)}><span>{label}</span></button>)}
         <span className="owner-nav-kicker">SYSTEM</span>
@@ -262,7 +264,7 @@ export default function AdminPage(){
       {tab==='traces'&&<>
         <section className="trace-toolbar">
           <div><span className="eyebrow">TRACE EXPLORER</span><h2>Execution observability</h2></div>
-          <div className="trace-metrics"><span>P50 <b>{p50Latency?p50Latency+'ms':'—'}</b></span><span>P95 <b>{p95Latency?p95Latency+'ms':'—'}</b></span><span>Attempts <b>{attempts.length}</b></span><span>Receipts <b>{receipts.length}</b></span></div>
+          <div className="trace-metrics"><span>P50 <b>{p50Latency?p50Latency+'ms':'—'}</b></span><span>P95 <b>{p95Latency?p95Latency+'ms':'—'}</b></span><span>P99 <b>{p99Latency?p99Latency+'ms':'—'}</b></span><span>Tool success <b>{toolSuccessRate}%</b></span><span>Attempts <b>{attempts.length}</b></span><span>Receipts <b>{receipts.length}</b></span></div>
           <select value={traceFilter} onChange={e=>setTraceFilter(e.target.value)}><option value="ALL">All traces</option><option value="IN_FLIGHT">In flight</option><option value="CLOSED">Closed</option><option value="SUCCESS">Success</option><option value="FAILED">Failed</option><option value="UNKNOWN">Unknown</option></select>
         </section>
         <section className="trace-workbench">
@@ -300,6 +302,17 @@ export default function AdminPage(){
         <section className="model-trace-strip">
           <div className="trace-pane-title"><b>Model traffic</b><span>{logs.length} recent traces</span></div>
           <div className="model-trace-table">{logs.slice(0,18).map(x=><div key={x.id}><span>{domainNames[traceDomain(x)]||traceDomain(x)}</span><b>{short(x.model,20)}</b><span>{x.latency_ms?x.latency_ms+'ms':'—'}</span><span>{x.model_calls||1} calls</span><span className={isVerified(x)?'verified':''}>{resultOf(x.verification)||'UNVERIFIED'}</span></div>)}</div>
+        </section>
+      </>}
+
+      {tab==='incidents'&&<>
+        <section className="v3-section-head"><div><span className="eyebrow">INCIDENT CENTER</span><h2>Failures & unresolved execution</h2><p>كل failure أو outcome غير محسوم يظهر هنا ليتحول من log مبعثر إلى مسار تحقيق واضح.</p></div><div className="v3-head-stats"><span>{incidentCount} open signals</span><span>{attempts.filter(a=>a.outcome==='FAILED').length} failed</span><span>{attempts.filter(a=>a.outcome==='UNKNOWN').length} unknown</span></div></section>
+        <section className="incident-console">
+          <div className="incident-table">
+            <div className="incident-head"><span>Severity</span><span>Mission / Attempt</span><span>State</span><span>Provider operation</span><span>Time</span></div>
+            {attempts.filter(a=>['FAILED','UNKNOWN'].includes(a.outcome)).length?attempts.filter(a=>['FAILED','UNKNOWN'].includes(a.outcome)).map(a=><button key={a.id} onClick={()=>{setSelectedAttempt(a.id);setSelectedTask(a.task_id);setTab('traces')}}><span className={a.outcome==='FAILED'?'sev-high':'sev-warn'}>{a.outcome==='FAILED'?'HIGH':'REVIEW'}</span><span><b>{tasks.find(t=>t.id===a.task_id)?.title||'AQLEVON Mission'}</b><small>{short(a.id,14)}</small></span><span>{a.phase} · {a.outcome}</span><code>{short(a.provider_operation_id,18)}</code><span>{when(a.started_at||a.created_at)}</span></button>):<div className="empty-panel">No failed or unresolved execution attempts.</div>}
+          </div>
+          <aside className="incident-guidance"><span className="eyebrow">TRIAGE POLICY</span><h3>Evidence before resolution</h3><p>لا نغلق Incident لأن executor قال “نجاح”. الإغلاق يعتمد على receipt + verification + audit trail.</p><div className="v3-kv"><span>Evidence coverage</span><b>{evidenceCoverage}%</b></div><div className="v3-kv"><span>Unknown outcomes</span><b>{attempts.filter(a=>a.outcome==='UNKNOWN').length}</b></div><div className="v3-kv"><span>STOP requests</span><b>{audit.filter(e=>e.event_type==='OWNER_STOP_REQUESTED').length}</b></div></aside>
         </section>
       </>}
 
@@ -353,6 +366,7 @@ export default function AdminPage(){
           <div className="infra-row"><div><i/><b>Git executor</b></div><span>ADAPTER REQUIRED</span><small>No autonomous repository execution is claimed.</small></div>
           <div className="infra-row"><div><i/><b>Browser / Terminal</b></div><span>ADAPTER REQUIRED</span><small>No live external process bridge connected.</small></div>
           <div className="infra-row"><div><i/><b>Deployment executor</b></div><span>ADAPTER REQUIRED</span><small>Owner-approved deployment adapter pending.</small></div>
+          <div className="infra-row"><div><i/><b>Cost & token telemetry</b></div><span>NOT INSTRUMENTED</span><small>No cost/token figures are fabricated until telemetry fields are wired.</small></div>
           <div className="infra-row"><div><i className="warn"/><b>Paid compute</b></div><span>LOCKED</span><small>Daily paid budget: $0</small></div>
         </section>
       </>}
