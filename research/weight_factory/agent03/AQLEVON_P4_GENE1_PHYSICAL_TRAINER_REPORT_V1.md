@@ -351,3 +351,31 @@ A fresh exact single-use authorization has been issued for the next attempt:
 - Retry09 SHA256: `1021c455a4e9d6d9ff48ee3e74cfb650b344bd1146900a1faecc8f734c2dbc77`
 - same frozen run manifest/profile/budget ceilings;
 - no fallback and no G1 rerun.
+
+
+## Retry09 allocation failure — no GPU allocation/no spend — 2026-09-20
+
+Retry09 attempted to start stopped Pod `AQLEVON-P4-A1-4090` (ID `sinjwnjciet8a0`) after adding `JUPYTER_PASSWORD` while stopped.
+
+RunPod rejected the start request with:
+`There are not enough free GPUs on the host machine to start this pod.`
+
+Observed result:
+- Pod state remained `Stopped / EXITED`;
+- no GPU allocation occurred;
+- no billed runtime from this Retry09 start attempt;
+- no shell command or training process ran;
+- no optimizer step;
+- no candidate;
+- no sealed eval access;
+- no G1 rerun.
+
+Retry09 is classified as FAILED ALLOCATION ATTEMPT — DO NOT REUSE.
+
+Fresh exact authorization issued:
+- Retry10 ID: `P4-A1-RUNPOD-4090-20260920-10-JUPYTER-READY`
+- Retry10 SHA256: `f4dabdc756872cc81e723bc700349d44104126a0e169b23407099d2d03cb47a8`
+- same run manifest/profile and USD 0.40 / 1800 s / USD 0.80/hr ceilings;
+- single-use; no fallback; no G1 rerun.
+
+Next attempt must deploy on a currently available RTX 4090 host with the Jupyter access variable present before billing begins.
