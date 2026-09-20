@@ -108,6 +108,88 @@ def verify_self_digest(obj: Any, field: str) -> bool:
 def load_json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
 
+
+def resolve_runtime_launch_files(
+    *,
+    agent_dir: Path,
+    repo_dir: Path,
+    actual_head: str,
+    expected_image_digest: str,
+    run_manifest_sha256: str,
+    command_lock_sha256: str,
+) -> tuple[str, str]:
+    """Resolve the one valid runtime binding and its exact authorization.
+
+    This intentionally removes mutable AUTH_FILE/BINDING_FILE names from the
+    RunPod UI. A binding is eligible only when it is self-sealed, matches the
+    frozen run/lock/image identities, and is the *only* repository delta from
+    its declared runtime source commit to the exact launch HEAD.
+    """
+    if not re.fullmatch(r"[0-9a-f]{40}", str(actual_head or "")):
+        raise ContractError("runtime_head_invalid")
+    if not re.fullmatch(r"sha256:[0-9a-f]{64}", str(expected_image_digest or "")):
+        raise ContractError("runtime_image_digest_invalid")
+    if not _SHA.fullmatch(str(run_manifest_sha256 or "")):
+        raise ContractError("runtime_run_manifest_sha_invalid")
+    if not _SHA.fullmatch(str(command_lock_sha256 or "")):
+        raise ContractError("runtime_command_lock_sha_invalid")
+
+    bindings: list[tuple[Path, dict[str, Any]]] = []
+    for path in sorted(agent_dir.glob("p4_a1_runtime_appliance_binding_retry*_v1.json")):
+        try:
+            binding = load_json(path)
+        except Exception:
+            continue
+        if not verify_self_digest(binding, "binding_sha256"):
+            continue
+        if binding.get("binding_kind") != "AQLEVON_RUNTIME_APPLIANCE_BINDING_V1":
+            continue
+        if binding.get("run_manifest_sha256") != run_manifest_sha256:
+            continue
+        if binding.get("command_lock_sha256") != command_lock_sha256:
+            continue
+        if binding.get("runtime_appliance_digest") != expected_image_digest:
+            continue
+        if binding.get("runtime_appliance_image") != "ghcr.io/india123445t-pixel/mus-ai@" + expected_image_digest:
+            continue
+        source = binding.get("worker03_runtime_source_commit")
+        if not isinstance(source, str) or not re.fullmatch(r"[0-9a-f]{40}", source):
+            continue
+        rel = path.relative_to(repo_dir).as_posix()
+        cp = subprocess.run(
+            ["git", "-C", str(repo_dir), "diff", "--name-only", f"{source}..{actual_head}"],
+            capture_output=True,
+            text=True,
+        )
+        if cp.returncode != 0:
+            continue
+        changed = [line.strip() for line in cp.stdout.splitlines() if line.strip()]
+        if changed == [rel]:
+            bindings.append((path, binding))
+
+    if len(bindings) != 1:
+        raise ContractError(f"runtime_binding_resolution_count:{len(bindings)}")
+
+    binding_path, binding = bindings[0]
+    auth_sha = binding.get("authorization_sha256")
+    auths: list[Path] = []
+    for path in sorted(agent_dir.glob("p4_a1_runpod_manager_authorization_retry*_v1.json")):
+        try:
+            auth = load_json(path)
+        except Exception:
+            continue
+        if not verify_self_digest(auth, "authorization_sha256"):
+            continue
+        if auth.get("authorization_sha256") != auth_sha:
+            continue
+        if auth.get("run_manifest_sha256") != run_manifest_sha256:
+            continue
+        auths.append(path)
+
+    if len(auths) != 1:
+        raise ContractError(f"runtime_authorization_resolution_count:{len(auths)}")
+    return auths[0].name, binding_path.name
+
 def _private_reference_hits(value: Any, path: str = "root") -> list[str]:
     hits: list[str] = []
     if isinstance(value, dict):
