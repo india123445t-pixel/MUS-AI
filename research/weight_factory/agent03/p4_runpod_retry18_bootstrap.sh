@@ -56,13 +56,10 @@ mkdir -p "$DATA" "$MODEL" /tmp/p4inputs
 git clone -q https://github.com/lasgroup/SDPO.git "$SDPO"
 git -C "$SDPO" checkout -q 7c457fc1b1f636ae794eb0362ba37d4743b06fbc
 
-# Retry17 repair 1: make the pinned SDPO/verl package importable for the driver and Ray workers.
+# Retry18C repair: install the full runtime dependency set before importing verl.
+# verl imports ray at module import time, so the editable install must not be smoke-tested
+# until ray and the rest of the pinned runtime dependencies are present.
 python -m pip install -q --disable-pip-version-check --no-deps -e "$SDPO"
-python - <<'PY'
-import verl
-assert verl.__file__.startswith("/workspace/SDPO/verl/"), verl.__file__
-print("VERL_EDITABLE_IMPORT_PASS", verl.__file__)
-PY
 
 python -m pip install -q --disable-pip-version-check \
   transformers==5.17.0 peft==0.21.0 accelerate==1.15.0 \
@@ -73,6 +70,14 @@ python -m pip install -q --disable-pip-version-check \
 
 python -m pip check
 echo "PIP_CHECK_PASS"
+
+python - <<'PY'
+import ray
+import verl
+assert verl.__file__.startswith("/workspace/SDPO/verl/"), verl.__file__
+print("VERL_EDITABLE_IMPORT_PASS", verl.__file__)
+print("RAY_IMPORT_PASS", ray.__version__)
+PY
 
 cd "$REPO"
 python research/weight_factory/agent03/p4_patch_sdpo_transformers5_compat.py
@@ -248,7 +253,7 @@ from pathlib import Path
 import p4_gene1_trainer as c
 run=json.loads(Path("p4_a1_seed1701_run_manifest_v1.json").read_text())
 lock=json.loads(Path("p4_a1_seed1701_command_lock_v1.json").read_text())
-auth=json.loads(Path("p4_a1_runpod_manager_authorization_retry18_v1.json").read_text())
+auth=json.loads(Path("p4_a1_runpod_manager_authorization_retry18b_v1.json").read_text())
 rc=c.run_locked(
     lock,
     paid=True,
