@@ -252,7 +252,7 @@ export default function AdminPage(){
 
         <section className="command-lower-grid">
           <div className="command-live-pane">
-            <div className="trace-pane-title"><b>التنفيذ المباشر</b><span>{hasInFlight?'LIVE':'NO ACTIVE EXECUTOR'}</span></div>
+            <div className="trace-pane-title"><b>التنفيذ المباشر</b><span>{hasInFlight?'مباشر':'لا يوجد منفّذ نشط'}</span></div>
             <div className="command-live-rows">
               {activeAttempts.length?activeAttempts.slice(0,12).map(a=><button key={a.id} onClick={()=>{setSelectedAttempt(a.id);setTab('traces')}}><span className={a.phase==='IN_FLIGHT'?'live-dot-cell':''}>{phaseLabel(a.phase)}</span><code>attempt #{a.attempt_no}</code><span>{short(a.provider_operation_id,18)}</span><b>{outcomeLabel(a.outcome)}</b></button>):<div className="command-empty-console">لا يوجد منفّذ خارجي متصل. ستظهر أنشطة الأدوات هنا فقط عند وجود محاولات تنفيذ حقيقية.</div>}
             </div>
