@@ -313,3 +313,41 @@ Therefore:
 - capability gain claim: NO.
 
 This is an external browser-tooling funding blocker, not a RunPod availability/price failure and not a model/training failure. Do not classify it as a physical A1 attempt.
+
+
+## Retry08 paid access attempt — stopped before training — 2026-09-20
+
+Manager provisioned exactly one replacement Secure Cloud Pod for the frozen P4 A1 lane:
+- Pod name: `AQLEVON-P4-A1-4090`
+- Pod ID: `sinjwnjciet8a0`
+- region: `EUR-IS-2`
+- GPU: exactly 1x RTX 4090
+- observed rate: USD 0.74/hour
+- image: `runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404`
+- container disk: 40 GB
+- network volume: none.
+
+The Pod reached `Running`, but the attempted browser endpoint returned the Runpod proxy message that the service on the selected port was still initializing or not running. No shell command, model download, dataset preparation, SDPO process, optimizer step, checkpoint save, or sealed evaluation occurred.
+
+The Pod was stopped at an observed runtime of approximately 644 seconds. At USD 0.74/hour this corresponds to approximately USD 0.1324 of GPU-rate exposure. This is accounting context only; the authoritative billed amount remains Runpod's invoice/usage record.
+
+Retry08 authorization:
+- ID: `P4-A1-RUNPOD-4090-20260920-08-SDPO-TF5-PATCH`
+- authorization SHA256: `27b0ea6103fd20c29b38371116f79c2f928be213ed037ab2e5102dd5cac39b25`
+- classification: CONSUMED/FAILED ACCESS ATTEMPT — DO NOT REUSE.
+
+Physical truth after Retry08:
+- P4 A1 optimizer step completed: NO
+- P4 A1 candidate checkpoint: NONE
+- capability gain verified: NO
+- G1 rerun: NO
+- sealed eval consumed: NO
+- 27B run: NO.
+
+Runpod's official base-container startup script starts Jupyter on port 8888 only when `JUPYTER_PASSWORD` is set. The next attempt must establish an authenticated control path before GPU billing is restarted; do not infer a training failure from the unavailable HTTP service.
+
+A fresh exact single-use authorization has been issued for the next attempt:
+- Retry09 ID: `P4-A1-RUNPOD-4090-20260920-09-JUPYTER-ACCESS`
+- Retry09 SHA256: `1021c455a4e9d6d9ff48ee3e74cfb650b344bd1146900a1faecc8f734c2dbc77`
+- same frozen run manifest/profile/budget ceilings;
+- no fallback and no G1 rerun.
