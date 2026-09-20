@@ -32,7 +32,37 @@ RUN="$AGENT/p4_a1_seed1701_run_manifest_v1.json"
 LOCK="$AGENT/p4_a1_seed1701_command_lock_v1.json"
 PLAN="$AGENT/p4_frozen_training_plan_v1.json"
 
-IFS=
+RESOLVED_RUNTIME_FILES="$(python - <<'PY'
+import json, os, sys
+from pathlib import Path
+repo=Path("/workspace/MUS-AI")
+agent=repo/"research/weight_factory/agent03"
+sys.path.insert(0,str(agent))
+import p4_gene1_trainer as c
+run=json.loads((agent/"p4_a1_seed1701_run_manifest_v1.json").read_text())
+lock=json.loads((agent/"p4_a1_seed1701_command_lock_v1.json").read_text())
+auth_name,binding_name=c.resolve_runtime_launch_files(
+    agent_dir=agent,
+    repo_dir=repo,
+    actual_head=os.environ["AQLEVON_EXPECTED_W03_HEAD"],
+    expected_image_digest=os.environ["AQLEVON_EXPECTED_IMAGE_DIGEST"],
+    run_manifest_sha256=run["manifest_sha256"],
+    command_lock_sha256=lock["lock_sha256"],
+)
+print(auth_name+"|"+binding_name)
+PY
+)"
+AUTH_FILE="${RESOLVED_RUNTIME_FILES%%|*}"
+BINDING_FILE="${RESOLVED_RUNTIME_FILES#*|}"
+test -n "$AUTH_FILE" -a -n "$BINDING_FILE" -a "$AUTH_FILE" != "$BINDING_FILE" || { echo "FAIL_CLOSED_RUNTIME_CONTRACT_RESOLUTION"; exit 42; }
+export AQLEVON_RESOLVED_AUTH_FILE="$AUTH_FILE"
+export AQLEVON_RESOLVED_BINDING_FILE="$BINDING_FILE"
+echo "APPLIANCE_RUNTIME_CONTRACT_AUTO_RESOLVED auth=$AUTH_FILE binding=$BINDING_FILE"
+
+AUTH="$AGENT/$AUTH_FILE"
+BINDING="$AGENT/$BINDING_FILE"
+test -f "$AUTH" || { echo "FAIL_CLOSED_AUTH_FILE_MISSING=$AUTH_FILE"; exit 42; }
+test -f "$BINDING" || { echo "FAIL_CLOSED_BINDING_FILE_MISSING=$BINDING_FILE"; exit 44; }
 rm -rf "$SDPO"
 ln -s "$SDPO_IMAGE" "$SDPO"
 rm -rf "$ROOT/aqlevon_p4"
