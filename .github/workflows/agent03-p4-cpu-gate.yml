@@ -88,3 +88,24 @@ jobs:
               assert needle in b, needle
           print("RETRY17_CPU_CONTRACT_PASS")
           PY
+
+      - name: Verify immutable appliance launcher contract
+        run: |
+          set -euo pipefail
+          bash -n p4_runpod_appliance_launch.sh
+          python - <<'PY'
+          from pathlib import Path
+          p=Path("p4_runpod_appliance_launch.sh").read_text()
+          for forbidden in ("pip install","git clone -q https://github.com/lasgroup/SDPO.git"):
+              assert forbidden not in p, forbidden
+          for required in (
+              "AQLEVON_EXPECTED_IMAGE_DIGEST",
+              "runtime_appliance_digest",
+              "runtime_appliance_required",
+              "smoke_runtime.py --build-check --gpu-check",
+              "APPLIANCE_EXACT_AUTHORIZATION_PASS",
+              "A1_LOCKED_TRAINING_START",
+          ):
+              assert required in p, required
+          print("APPLIANCE_LAUNCHER_CONTRACT_PASS")
+          PY
