@@ -8,7 +8,7 @@ const KEY=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
 const domainNames={reasoning:'الاستدلال',math:'الرياضيات',science:'العلوم',coding:'البرمجة',language:'اللغة',research:'البحث',planning:'التخطيط',knowledge:'المعرفة',general:'عام',software:'البرمجة',data:'البيانات',communication:'التواصل',operations:'العمليات'};
 const safeModes=['openrouter_primary','openrouter_only','self_hosted_primary','self_hosted_only'];
-const nav=[['owner','Command Center'],['operations','Operations'],['overview','System Overview'],['brain','Project Brain'],['model_lab','Model Lab'],['evaluation','Evaluation'],['learning','Learning'],['runtime','Runtime'],['access','Identity & Access']];
+const nav=[['owner','Command'],['missions','Missions'],['traces','Traces'],['overview','Overview'],['brain','Project Brain'],['model_lab','Model Lab'],['evaluation','Evaluations'],['learning','Learning'],['infrastructure','Infrastructure'],['security','Security'],['runtime','Runtime'],['access','Access']];
 const profiles=[
   ['guardian','Guardian','حراسة المشروع ومراقبة الحالة والانحرافات.'],
   ['engineer','Engineer','الكود، الإصلاح، الاختبارات، والبنية.'],
@@ -27,6 +27,7 @@ function traceDomain(log){return log?.task_contract?.primary_domain||log?.task_c
 function freeModel(v){const s=String(v||'openrouter/free').trim();return s==='openrouter/free'||s.endsWith(':free')?s:'openrouter/free'}
 function when(v){if(!v)return '—';try{return new Date(v).toLocaleString('ar-MA')}catch{return '—'}}
 function short(v,n=12){const s=String(v||'');return s.length>n?`${s.slice(0,n)}…`:s||'—'}
+function percentile(values,p){const xs=values.map(Number).filter(Number.isFinite).sort((a,b)=>a-b);if(!xs.length)return 0;const i=Math.min(xs.length-1,Math.max(0,Math.ceil((p/100)*xs.length)-1));return Math.round(xs[i])}
 
 export default function AdminPage(){
   const sb=useMemo(()=>URL&&KEY?createClient(URL,KEY):null,[]);
@@ -38,6 +39,9 @@ export default function AdminPage(){
   const [ownerBusy,setOwnerBusy]=useState(false),[ownerInput,setOwnerInput]=useState(''),[ownerProfile,setOwnerProfile]=useState('guardian'),[ownerMode,setOwnerMode]=useState('mission');
   const [ownerMessages,setOwnerMessages]=useState([{role:'assistant',text:'أنا AQLEVON Owner Core. أعمل داخل لوحة المالك الخاصة. أستطيع تحليل المشروع وتحضير Mission قابلة للموافقة، ولا أدّعي تنفيذ أي إجراء خارجي من دون Permit/Receipt فعلي.'}]);
   const [selectedTask,setSelectedTask]=useState(null);
+  const [selectedAttempt,setSelectedAttempt]=useState(null);
+  const [globalQuery,setGlobalQuery]=useState('');
+  const [traceFilter,setTraceFilter]=useState('ALL');
 
   useEffect(()=>{
     if(!sb){setReady(true);return}
@@ -142,6 +146,21 @@ export default function AdminPage(){
   const incidentCount=attempts.filter(a=>['FAILED','UNKNOWN'].includes(a.outcome)).length;
   const latestModel=logs.find(x=>x.model)?.model||settings?.openrouter_model||'—';
   const executorState=hasInFlight?'LIVE':attempts.length?'IDLE':'NOT CONNECTED';
+  const latencyValues=logs.map(x=>Number(x.latency_ms||0)).filter(x=>x>0);
+  const p50Latency=percentile(latencyValues,50),p95Latency=percentile(latencyValues,95);
+  const q=globalQuery.trim().toLowerCase();
+  const filteredTasks=tasks.filter(t=>!q||String(t.title||'').toLowerCase().includes(q)||String(t.id||'').toLowerCase().includes(q)||String(t.scope?.profile||'').toLowerCase().includes(q));
+  const filteredAttempts=attempts.filter(a=>{
+    const matchFilter=traceFilter==='ALL'||a.phase===traceFilter||a.outcome===traceFilter;
+    const matchQuery=!q||[a.id,a.task_id,a.provider_operation_id,a.permit_id,a.phase,a.outcome].some(v=>String(v||'').toLowerCase().includes(q));
+    return matchFilter&&matchQuery;
+  });
+  const activeAttempt=attempts.find(a=>a.id===selectedAttempt)||filteredAttempts[0]||null;
+  const activeAttemptTask=activeAttempt?tasks.find(t=>t.id===activeAttempt.task_id):null;
+  const activeAttemptIntent=activeAttempt?intents.find(i=>i.id===activeAttempt.action_intent_id):null;
+  const activeAttemptReceipt=activeAttempt?receipts.find(r=>r.action_attempt_id===activeAttempt.id):null;
+  const activeAttemptAudit=activeAttempt?audit.filter(e=>e.task_id===activeAttempt.task_id).slice(0,16):[];
+  const securityTasks=tasks.filter(t=>t.scope?.profile==='authorized_security');
   const sourceHealth=[
     ['Control Plane','CONNECTED','Tasks · intents · attempts · receipts'],
     ['Project Audit','CONNECTED',`${audit.length} recent events loaded`],
@@ -156,18 +175,26 @@ export default function AdminPage(){
       <div className="owner-brand"><img src="/icon.svg" alt="AQLEVON"/><div><strong>AQLEVON</strong><span>OWNER CONTROL</span></div></div>
       <nav>
         <span className="owner-nav-kicker">OPERATE</span>
-        {nav.slice(0,3).map(([id,label])=><button key={id} className={tab===id?'active':''} onClick={()=>setTab(id)}><span>{label}</span>{id==='owner'&&pendingTasks.length>0?<b>{pendingTasks.length}</b>:null}</button>)}
+        {nav.filter(([id])=>['owner','missions','traces','overview'].includes(id)).map(([id,label])=><button key={id} className={tab===id?'active':''} onClick={()=>setTab(id)}><span>{label}</span>{id==='owner'&&pendingTasks.length>0?<b>{pendingTasks.length}</b>:null}</button>)}
         <span className="owner-nav-kicker">INTELLIGENCE</span>
-        {nav.slice(3,7).map(([id,label])=><button key={id} className={tab===id?'active':''} onClick={()=>setTab(id)}><span>{label}</span></button>)}
+        {nav.filter(([id])=>['brain','model_lab','evaluation','learning'].includes(id)).map(([id,label])=><button key={id} className={tab===id?'active':''} onClick={()=>setTab(id)}><span>{label}</span></button>)}
         <span className="owner-nav-kicker">SYSTEM</span>
-        {nav.slice(7).map(([id,label])=><button key={id} className={tab===id?'active':''} onClick={()=>setTab(id)}><span>{label}</span></button>)}
+        {nav.filter(([id])=>['infrastructure','security','runtime','access'].includes(id)).map(([id,label])=><button key={id} className={tab===id?'active':''} onClick={()=>setTab(id)}><span>{label}</span></button>)}
       </nav>
       <div className="owner-side-status"><span>Owner authority</span><strong>ACTIVE</strong><small>{session.user?.email||'system_owner'}</small></div>
       <div className="owner-side-actions"><a href="/" target="_blank">فتح التطبيق العام ↗</a><button onClick={()=>sb.auth.signOut()}>تسجيل الخروج</button></div>
     </aside>
 
     <main className="owner-admin-main">
-      <header className="owner-admin-header"><div><span className="eyebrow">PRIVATE · SYSTEM OWNER</span><h1>{nav.find(x=>x[0]===tab)?.[1]}</h1></div><div className="header-actions"><span className={`health-pill ${status?.openrouter_configured||status?.self_hosted_configured?'ok':'warn'}`}><i/>{status?.self_hosted_configured?'Sovereign ready':status?.openrouter_configured?'Fallback connected':'Runtime needs setup'}</span><button className="refresh-btn" onClick={loadAll} disabled={busy}>{busy?'…':'تحديث'}</button></div></header>
+      <header className="owner-admin-header v3-header">
+        <div className="v3-title"><span className="eyebrow">AQLEVON · PRIVATE CONTROL PLANE</span><h1>{nav.find(x=>x[0]===tab)?.[1]}</h1></div>
+        <div className="v3-global-search"><span>⌕</span><input value={globalQuery} onChange={e=>setGlobalQuery(e.target.value)} placeholder="Search missions, traces, IDs, providers…"/></div>
+        <div className="header-actions">
+          <span className="v3-env-pill">PREVIEW</span>
+          <span className={`health-pill ${status?.openrouter_configured||status?.self_hosted_configured?'ok':'warn'}`}><i/>{status?.self_hosted_configured?'Sovereign':status?.openrouter_configured?'Fallback':'Runtime setup'}</span>
+          <button className="refresh-btn" onClick={loadAll} disabled={busy}>{busy?'…':'↻'}</button>
+        </div>
+      </header>
       {notice&&<div className="admin-notice">{notice}</div>}
 
       {tab==='owner'&&<>
@@ -207,32 +234,72 @@ export default function AdminPage(){
         <section className="owner-identity-panel"><div><span className="eyebrow">IDENTITY & ACCESS</span><h3>AQLEVON operational identity</h3><p>الحسابات والتكاملات التنفيذية تُربط عبر scoped service identities/OAuth. الأسرار نفسها لا تظهر في الشات.</p></div><div className="owner-identity-grid"><div><span>Project Brain</span><b>CONTROL-PLANE CONNECTED</b><small>Tasks · receipts · evaluations · audit</small></div><div><span>Git / Deploy / Browser</span><b>ADAPTER REQUIRED</b><small>لا ندّعي اتصالًا غير موجود</small></div><div><span>Paid compute</span><b>OWNER APPROVAL REQUIRED</b><small>لا تفويض ضمني للإنفاق</small></div><div><span>Security mode</span><b>AUTHORIZED SCOPE ONLY</b><small>الأصول المحددة في Mission</small></div></div></section>
       </>}
 
-      {tab==='operations'&&<>
-        <section className="ops-summary-grid">
-          <Metric label="Executor state" value={executorState} sub={hasInFlight?'live action in progress':'no active external execution'}/>
-          <Metric label="Action attempts" value={attempts.length} sub={`${attempts.filter(a=>a.phase==='IN_FLIGHT').length} in-flight`}/>
-          <Metric label="Receipts" value={receipts.length} sub={`${evidenceCoverage}% evidence coverage`}/>
-          <Metric label="Incidents" value={incidentCount} sub="failed + unresolved"/>
+      {tab==='missions'&&<>
+        <section className="v3-section-head"><div><span className="eyebrow">MISSION REGISTRY</span><h2>Owner-scoped missions</h2><p>المهام الحقيقية وحالتها وحدودها وقرارات المالك في سجل واحد.</p></div><div className="v3-head-stats"><span>{filteredTasks.length} visible</span><span>{pendingTasks.length} approval</span><span>{runningTasks.length} active</span></div></section>
+        <section className="mission-workbench">
+          <div className="mission-table-pane">
+            <div className="v3-table-head mission-grid"><span>Mission</span><span>Phase</span><span>Outcome</span><span>Profile</span><span>Executor</span><span>Updated</span></div>
+            <div className="v3-scroll-list">{filteredTasks.length?filteredTasks.map(t=><button className={`v3-table-row mission-grid ${activeTask?.id===t.id?'selected':''}`} key={t.id} onClick={()=>setSelectedTask(t.id)}><span className="mission-title"><b>{t.title||'AQLEVON Mission'}</b><small>{short(t.id,14)}</small></span><span>{t.phase}</span><span className={`tone-${String(t.outcome||'NONE').toLowerCase()}`}>{t.outcome}</span><span>{t.scope?.profile||'—'}</span><span>{t.scope?.executor_state||'NOT_CONNECTED'}</span><span>{when(t.updated_at||t.created_at)}</span></button>):<div className="empty-panel">No missions match the current search.</div>}</div>
+          </div>
+          <aside className="v3-inspector">
+            <div className="v3-inspector-head"><span className="eyebrow">MISSION INSPECTOR</span><h3>{activeTask?.title||'Select a mission'}</h3><small>{activeTask?.id||'—'}</small></div>
+            {activeTask&&<>
+              <div className="v3-kv"><span>Phase</span><b>{activeTask.phase}</b></div>
+              <div className="v3-kv"><span>Outcome</span><b>{activeTask.outcome}</b></div>
+              <div className="v3-kv"><span>Profile</span><b>{activeTask.scope?.profile||'—'}</b></div>
+              <div className="v3-kv"><span>Autonomy</span><b>{activeTask.scope?.autonomy||'approval_required'}</b></div>
+              <div className="v3-kv"><span>Executor</span><b>{activeTask.scope?.executor_state||'NOT_CONNECTED'}</b></div>
+              <div className="v3-divider"/>
+              {activeTask.phase==='OPEN'&&<div className="v3-action-row"><button className="primary-btn" onClick={()=>taskAction(activeTask.id,'approve')} disabled={busy}>Approve</button><button className="ghost-fit" onClick={()=>taskAction(activeTask.id,'cancel')} disabled={busy}>Cancel</button></div>}
+              <button className="owner-stop-btn" disabled={!hasInFlight} onClick={()=>taskAction(activeTask.id,'stop')}>STOP NOW</button>
+              <div className="v3-subhead">Evidence timeline</div>
+              <div className="v3-event-list">{activeAudit.length?activeAudit.map(e=><div key={e.id}><i/><div><b>{e.event_type}</b><small>{when(e.created_at)}</small></div></div>):<span className="empty-inline">No audit events.</span>}</div>
+            </>}
+          </aside>
         </section>
-        <section className="ops-console-grid">
-          <div className="admin-panel wide ops-run-panel">
-            <div className="panel-head"><div><span className="eyebrow">EXECUTION TRACES</span><h3>Mission runs & tool attempts</h3><p>كل محاولة تنفيذ حقيقية تظهر هنا مع permit، provider operation، outcome، والتوقيت.</p></div></div>
-            <div className="ops-table">
-              <div className="ops-table-head"><span>State</span><span>Mission</span><span>Attempt</span><span>Provider op</span><span>Outcome</span><span>Started</span></div>
-              {attempts.length?attempts.slice(0,40).map(a=><div className="ops-table-row" key={a.id}><span className={a.phase==='IN_FLIGHT'?'live-dot-cell':''}>{a.phase}</span><button onClick={()=>{setSelectedTask(a.task_id);setTab('owner')}}>{short(a.task_id,10)}</button><span>#{a.attempt_no}</span><code>{short(a.provider_operation_id,16)}</code><b>{a.outcome}</b><span>{when(a.started_at||a.created_at)}</span></div>):<div className="empty-panel">No executor attempts recorded yet.</div>}
-            </div>
+      </>}
+
+      {tab==='traces'&&<>
+        <section className="trace-toolbar">
+          <div><span className="eyebrow">TRACE EXPLORER</span><h2>Execution observability</h2></div>
+          <div className="trace-metrics"><span>P50 <b>{p50Latency?p50Latency+'ms':'—'}</b></span><span>P95 <b>{p95Latency?p95Latency+'ms':'—'}</b></span><span>Attempts <b>{attempts.length}</b></span><span>Receipts <b>{receipts.length}</b></span></div>
+          <select value={traceFilter} onChange={e=>setTraceFilter(e.target.value)}><option value="ALL">All traces</option><option value="IN_FLIGHT">In flight</option><option value="CLOSED">Closed</option><option value="SUCCESS">Success</option><option value="FAILED">Failed</option><option value="UNKNOWN">Unknown</option></select>
+        </section>
+        <section className="trace-workbench">
+          <div className="trace-list-pane">
+            <div className="trace-pane-title"><b>Runs</b><span>{filteredAttempts.length}</span></div>
+            <div className="trace-run-list">{filteredAttempts.length?filteredAttempts.slice(0,80).map(a=><button key={a.id} className={activeAttempt?.id===a.id?'selected':''} onClick={()=>{setSelectedAttempt(a.id);setSelectedTask(a.task_id)}}><div><i className={a.phase==='IN_FLIGHT'?'live':''}/><b>{activeAttemptTask?.id===a.task_id?(activeAttemptTask?.title||'Mission'):(tasks.find(t=>t.id===a.task_id)?.title||'Mission')}</b></div><span>{a.phase} · {a.outcome}</span><small>#{a.attempt_no} · {when(a.started_at||a.created_at)}</small></button>):<div className="empty-panel">No execution traces recorded yet.</div>}</div>
           </div>
-          <div className="admin-panel ops-side-panel">
-            <div className="panel-head"><div><span className="eyebrow">CONTROL QUEUE</span><h3>Needs attention</h3></div></div>
-            <div className="attention-list">
-              <div><span>Owner approvals</span><b>{pendingTasks.length+pendingIntents.length}</b></div>
-              <div><span>Ready missions</span><b>{tasks.filter(t=>t.phase==='READY').length}</b></div>
-              <div><span>Running</span><b>{tasks.filter(t=>t.phase==='RUNNING').length}</b></div>
-              <div><span>Waiting / reconcile</span><b>{tasks.filter(t=>['WAITING','RECONCILING'].includes(t.phase)).length}</b></div>
-              <div><span>Unknown outcomes</span><b>{attempts.filter(a=>a.outcome==='UNKNOWN').length}</b></div>
-            </div>
-            <button className="primary-btn fit" onClick={()=>setTab('owner')}>Open Command Center</button>
+          <div className="trace-tree-pane">
+            <div className="trace-pane-title"><b>Control-plane trace</b><span>{activeAttempt?short(activeAttempt.id,10):'—'}</span></div>
+            {activeAttempt?<div className="trace-tree">
+              <div className="trace-node root"><i/><div><span>MISSION</span><b>{activeAttemptTask?.title||'AQLEVON Mission'}</b><small>{activeAttempt.task_id}</small></div></div>
+              <div className="trace-node"><i/><div><span>INTENT</span><b>{activeAttemptIntent?.semantic_action||'Action intent'}</b><small>{activeAttemptIntent?.canonical_resource||'No canonical resource'}</small></div></div>
+              <div className="trace-node active"><i/><div><span>ATTEMPT</span><b>{activeAttempt.phase} · {activeAttempt.outcome}</b><small>{activeAttempt.provider_operation_id||'No provider operation id'}</small></div></div>
+              <div className={`trace-node ${activeAttemptReceipt?'verified':'muted'}`}><i/><div><span>RECEIPT</span><b>{activeAttemptReceipt?.executor_reported_outcome||'No receipt yet'}</b><small>{activeAttemptReceipt?.executor_identity||'Evidence pending'}</small></div></div>
+              {activeAttemptAudit.slice(0,5).map(e=><div className="trace-node audit" key={e.id}><i/><div><span>AUDIT</span><b>{e.event_type}</b><small>{when(e.created_at)}</small></div></div>)}
+            </div>:<div className="empty-panel">Select a trace to inspect.</div>}
           </div>
+          <aside className="trace-inspector">
+            <div className="trace-pane-title"><b>Inspector</b><span>{activeAttempt?.phase||'—'}</span></div>
+            {activeAttempt&&<>
+              <div className="v3-inspector-tabs"><span className="active">Details</span><span>Evidence</span><span>Audit</span></div>
+              <div className="v3-kv"><span>Attempt</span><code>{activeAttempt.id}</code></div>
+              <div className="v3-kv"><span>Permit</span><code>{activeAttempt.permit_id||'—'}</code></div>
+              <div className="v3-kv"><span>Provider operation</span><code>{activeAttempt.provider_operation_id||'—'}</code></div>
+              <div className="v3-kv"><span>Started</span><b>{when(activeAttempt.started_at||activeAttempt.created_at)}</b></div>
+              <div className="v3-kv"><span>Closed</span><b>{when(activeAttempt.closed_at)}</b></div>
+              <div className="v3-divider"/>
+              <div className="v3-subhead">Intent</div>
+              <pre className="trace-json">{JSON.stringify({action:activeAttemptIntent?.semantic_action||null,resource:activeAttemptIntent?.canonical_resource||null,parameters:activeAttemptIntent?.canonical_parameters||null},null,2)}</pre>
+              <div className="v3-subhead">Receipt</div>
+              <pre className="trace-json">{JSON.stringify(activeAttemptReceipt?{executor:activeAttemptReceipt.executor_identity,transport:activeAttemptReceipt.transport_status,outcome:activeAttemptReceipt.executor_reported_outcome,operation:activeAttemptReceipt.provider_operation_id}:{status:'NO_RECEIPT'},null,2)}</pre>
+            </>}
+          </aside>
+        </section>
+        <section className="model-trace-strip">
+          <div className="trace-pane-title"><b>Model traffic</b><span>{logs.length} recent traces</span></div>
+          <div className="model-trace-table">{logs.slice(0,18).map(x=><div key={x.id}><span>{domainNames[traceDomain(x)]||traceDomain(x)}</span><b>{short(x.model,20)}</b><span>{x.latency_ms?x.latency_ms+'ms':'—'}</span><span>{x.model_calls||1} calls</span><span className={isVerified(x)?'verified':''}>{resultOf(x.verification)||'UNVERIFIED'}</span></div>)}</div>
         </section>
       </>}
 
@@ -276,6 +343,35 @@ export default function AdminPage(){
       </>}
 
       {tab==='overview'&&<><section className="metric-grid"><Metric label="الحالة" value={status?.openrouter_configured||status?.self_hosted_configured?'متصل':'يحتاج إعداد'} sub={settings?.runtime_mode||'—'}/><Metric label="Verified" value={logs.length?`${Math.round(verified/logs.length*100)}%`:'—'} sub={`${verified} من ${logs.length}`}/><Metric label="Benchmark" value={avgBench==='—'?'—':`${avgBench}/100`} sub={`${bench.length} نتائج`}/><Metric label="متوسط القدرات" value={avgSkill==='—'?'—':`${avgSkill}/100`} sub={`${skills.length} مجالات`}/><Metric label="Missions" value={tasks.length} sub={`${runningTasks.length} نشطة`}/><Metric label="Receipts" value={receipts.length} sub="أدلة تنفيذ مسجلة"/></section><section className="panel-grid"><div className="admin-panel"><div className="panel-head"><div><span className="eyebrow">CURRENT TRUTH</span><h3>حالة النظام</h3></div></div><div className="status-list"><div><span>Self-hosted</span><b>{status?.self_hosted_configured?'متصل':'غير موصول'}</b></div><div><span>Runtime mode</span><b>{settings?.runtime_mode||'—'}</b></div><div><span>Pending approvals</span><b>{pendingTasks.length+pendingIntents.length}</b></div><div><span>In-flight actions</span><b>{attempts.filter(a=>a.phase==='IN_FLIGHT').length}</b></div></div></div><div className="admin-panel"><div className="panel-head"><div><span className="eyebrow">WEAKEST SKILLS</span><h3>أضعف المجالات</h3></div></div><div className="skill-stack">{skills.slice(0,6).map(s=><div className="skill-line" key={s.domain}><div><span>{domainNames[s.domain]||s.domain}</span><b>{Number(s.score||0).toFixed(0)}</b></div><div><i style={{width:`${Math.max(2,Number(s.score)||0)}%`}}/></div></div>)}</div></div></section></>}
+
+      {tab==='infrastructure'&&<>
+        <section className="v3-section-head"><div><span className="eyebrow">INFRASTRUCTURE</span><h2>Runtime & execution fabric</h2><p>الحالة التي نعرفها فعليًا من النظام، مع فصل واضح بين المتصل وغير الموصول.</p></div></section>
+        <section className="infra-matrix">
+          <div className="infra-row"><div><i className="ok"/><b>Supabase control plane</b></div><span>CONNECTED</span><small>Auth · missions · receipts · audit · learning</small></div>
+          <div className="infra-row"><div><i className={status?.openrouter_configured?'ok':'warn'}/><b>OpenRouter runtime</b></div><span>{status?.openrouter_configured?'CONFIGURED':'NOT CONFIGURED'}</span><small>{settings?.openrouter_model||'openrouter/free'}</small></div>
+          <div className="infra-row"><div><i className={status?.self_hosted_configured?'ok':'warn'}/><b>Self-hosted AQLEVON</b></div><span>{status?.self_hosted_configured?'CONNECTED':'NOT CONNECTED'}</span><small>{settings?.runtime_mode||'runtime mode unknown'}</small></div>
+          <div className="infra-row"><div><i/><b>Git executor</b></div><span>ADAPTER REQUIRED</span><small>No autonomous repository execution is claimed.</small></div>
+          <div className="infra-row"><div><i/><b>Browser / Terminal</b></div><span>ADAPTER REQUIRED</span><small>No live external process bridge connected.</small></div>
+          <div className="infra-row"><div><i/><b>Deployment executor</b></div><span>ADAPTER REQUIRED</span><small>Owner-approved deployment adapter pending.</small></div>
+          <div className="infra-row"><div><i className="warn"/><b>Paid compute</b></div><span>LOCKED</span><small>Daily paid budget: $0</small></div>
+        </section>
+      </>}
+
+      {tab==='security'&&<>
+        <section className="v3-section-head"><div><span className="eyebrow">AUTHORIZED SECURITY</span><h2>Scoped security operations</h2><p>لا توجد صلاحية عامة: كل مهمة أمنية مرتبطة بهدف ونطاق مصرح به داخل Mission.</p></div><span className="access-owner-badge">OWNER APPROVAL REQUIRED</span></section>
+        <section className="security-layout">
+          <div className="security-policy">
+            <div><span>Target authorization</span><b>EXPLICIT SCOPE ONLY</b><small>Assets must be named inside the mission scope.</small></div>
+            <div><span>Execution</span><b>{executorState}</b><small>Security executor is not considered connected without a real adapter.</small></div>
+            <div><span>Evidence</span><b>{receipts.length} RECEIPTS</b><small>Execution claims require recorded evidence.</small></div>
+            <div><span>Owner control</span><b>MANDATORY</b><small>Scope expansion requires a new approval.</small></div>
+          </div>
+          <div className="admin-panel">
+            <div className="panel-head"><div><span className="eyebrow">SECURITY MISSIONS</span><h3>Authorized scopes</h3></div></div>
+            <div className="security-mission-list">{securityTasks.length?securityTasks.map(t=><button key={t.id} onClick={()=>{setSelectedTask(t.id);setTab('missions')}}><div><b>{t.title||'Security Mission'}</b><small>{short(t.id,14)}</small></div><span>{t.phase} · {t.outcome}</span></button>):<div className="empty-panel">No authorized-security missions recorded.</div>}</div>
+          </div>
+        </section>
+      </>}
 
       {tab==='runtime'&&<section className="panel-grid"><div className="admin-panel"><div className="panel-head"><div><span className="eyebrow">RUNTIME</span><h3>المحرك والسياسة</h3><p>الإنفاق المدفوع مقفول في هذه المرحلة.</p></div></div>{settings&&<div className="form-grid"><label>وضع التشغيل<select value={settings.runtime_mode||'openrouter_primary'} onChange={e=>setSettings({...settings,runtime_mode:e.target.value})}><option value="openrouter_primary">OpenRouter Free أولًا</option><option value="openrouter_only">OpenRouter Free فقط</option><option value="self_hosted_primary">AQLEVON Self-hosted أولًا</option><option value="self_hosted_only">AQLEVON Self-hosted فقط</option></select></label><label>نموذج OpenRouter المجاني<input value={settings.openrouter_model||'openrouter/free'} onChange={e=>setSettings({...settings,openrouter_model:e.target.value})}/></label><label>Temperature<input type="number" min="0" max="2" step="0.1" value={settings.temperature??0.6} onChange={e=>setSettings({...settings,temperature:Number(e.target.value)})}/></label><label>سياق المحادثة<input type="number" min="4" max="64" value={settings.max_history||16} onChange={e=>setSettings({...settings,max_history:Number(e.target.value)})}/></label><label className="switch-row"><input type="checkbox" checked={!!settings.verification_enabled} onChange={e=>setSettings({...settings,verification_enabled:e.target.checked})}/><span><b>Formal Verification</b></span></label><label className="switch-row"><input type="checkbox" checked={!!settings.deep_reasoning_enabled} onChange={e=>setSettings({...settings,deep_reasoning_enabled:e.target.checked})}/><span><b>Deep Reasoning</b></span></label></div>}<div className="status-list"><div><span>Paid external</span><b>مغلق</b></div><div><span>Daily paid budget</span><b>$0</b></div><div><span>Self-hosted</span><b>{status?.self_hosted_configured?'متصل':'غير موصول بعد'}</b></div></div><button className="primary-btn fit" onClick={saveRuntime} disabled={busy}>حفظ الإعدادات</button></div><div className="admin-panel"><div className="panel-head"><div><span className="eyebrow">OPERATIONS</span><h3>Action execution truth</h3></div></div><div className="status-list"><div><span>Tasks</span><b>{tasks.length}</b></div><div><span>Action intents</span><b>{intents.length}</b></div><div><span>Attempts</span><b>{attempts.length}</b></div><div><span>Receipts</span><b>{receipts.length}</b></div></div></div></section>}
 
