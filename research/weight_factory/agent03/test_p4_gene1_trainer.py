@@ -227,6 +227,27 @@ class RewardTests(unittest.TestCase):
             self.assertNotIn("answer", item)
             self.assertNotIn("canary", item)
 
+    def test_dict_put_cannot_be_shortcut_by_whole_dict_set(self):
+        gt = json.dumps(
+            {
+                "initial_state": {"config": {"stable": True}, "audit": 1},
+                "oracle_program": [
+                    {"op": "dict_put", "key": "config", "subkey": "limit", "value": 12}
+                ],
+            }
+        )
+        oracle = reward.compute_score(
+            solution_str='[{"op":"dict_put","key":"config","subkey":"limit","value":12}]',
+            ground_truth=gt,
+        )
+        shortcut = reward.compute_score(
+            solution_str='[{"op":"set","key":"config","value":{"stable":true,"limit":12}}]',
+            ground_truth=gt,
+        )
+        self.assertEqual(oracle["score"], 1.0)
+        self.assertEqual(shortcut["score"], 0.0)
+        self.assertEqual(shortcut["feedback"], "side_effect_mismatch")
+
 
 class RunnerTests(unittest.TestCase):
     def test_a1_command_exact_budget_sampling_lora_and_one_gpu(self):
