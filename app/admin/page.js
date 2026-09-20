@@ -35,6 +35,8 @@ function verificationLabel(v){const r=resultOf(v);return ({VERIFIED:'موثّق'
 function actorLabel(v){return ({OWNER:'المالك',TASK:'مهمة',SYSTEM:'النظام',ADVISORY:'استشاري'})[v]||v||'—'}
 function profileLabel(v){return ({guardian:'الحارس',engineer:'المهندس',model_lab:'مختبر النموذج',research:'البحث',authorized_security:'الأمن المصرّح'})[v]||v||'—'}
 function qualityLabel(v){return ({candidate:'مرشح',approved:'معتمد',rejected:'مرفوض'})[v]||v||'—'}
+function eventLabel(v){return ({OWNER_CORE_MISSION_PREPARED:'تم تحضير المهمة',OWNER_APPROVED_MISSION:'وافق المالك على المهمة',OWNER_CANCELLED_MISSION:'ألغى المالك المهمة',OWNER_STOP_REQUESTED:'طلب المالك الإيقاف'})[v]||v||'—'}
+function responseTypeLabel(v){return ({APPROVAL_REQUEST:'طلب موافقة'})[v]||v||'—'}
 function percentile(values,p){const xs=values.map(Number).filter(Number.isFinite).sort((a,b)=>a-b);if(!xs.length)return 0;const i=Math.min(xs.length-1,Math.max(0,Math.ceil((p/100)*xs.length)-1));return Math.round(xs[i])}
 
 export default function AdminPage(){
@@ -264,7 +266,7 @@ export default function AdminPage(){
           </div>
           <div className="command-audit-pane">
             <div className="trace-pane-title"><b>الأدلة وسجل التدقيق</b><button onClick={()=>setTab('traces')}>فتح التتبّع ↗</button></div>
-            <div className="command-audit-list">{activeAudit.length?activeAudit.slice(0,10).map(e=><div key={e.id}><i/><div><b>{e.event_type}</b><small>{actorLabel(e.subject_type||'TASK')} · {when(e.created_at)}</small></div></div>):<div className="empty-panel">لا توجد أحداث تدقيق لهذه المهمة.</div>}</div>
+            <div className="command-audit-list">{activeAudit.length?activeAudit.slice(0,10).map(e=><div key={e.id}><i/><div><b>{eventLabel(e.event_type)}</b><small>{actorLabel(e.subject_type||'TASK')} · {when(e.created_at)}</small></div></div>):<div className="empty-panel">لا توجد أحداث تدقيق لهذه المهمة.</div>}</div>
           </div>
         </section>
 
@@ -296,7 +298,7 @@ export default function AdminPage(){
               {activeTask.phase==='OPEN'&&<div className="v3-action-row"><button className="primary-btn" onClick={()=>taskAction(activeTask.id,'approve')} disabled={busy}>موافقة</button><button className="ghost-fit" onClick={()=>taskAction(activeTask.id,'cancel')} disabled={busy}>إلغاء</button></div>}
               <button className="owner-stop-btn" disabled={!hasInFlight} onClick={()=>taskAction(activeTask.id,'stop')}>إيقاف الآن</button>
               <div className="v3-subhead">الخط الزمني للأدلة</div>
-              <div className="v3-event-list">{activeAudit.length?activeAudit.map(e=><div key={e.id}><i/><div><b>{e.event_type}</b><small>{when(e.created_at)}</small></div></div>):<span className="empty-inline">لا توجد أحداث تدقيق.</span>}</div>
+              <div className="v3-event-list">{activeAudit.length?activeAudit.map(e=><div key={e.id}><i/><div><b>{eventLabel(e.event_type)}</b><small>{when(e.created_at)}</small></div></div>):<span className="empty-inline">لا توجد أحداث تدقيق.</span>}</div>
             </>}
           </aside>
         </section>
@@ -320,7 +322,7 @@ export default function AdminPage(){
               <div className="trace-node"><i/><div><span>نية تنفيذ</span><b>{activeAttemptIntent?.semantic_action||'نية تنفيذ'}</b><small>{activeAttemptIntent?.canonical_resource||'لا يوجد مورد معياري'}</small></div></div>
               <div className="trace-node active"><i/><div><span>محاولة</span><b>{phaseLabel(activeAttempt.phase)} · {outcomeLabel(activeAttempt.outcome)}</b><small>{activeAttempt.provider_operation_id||'لا يوجد معرّف لعملية المزوّد'}</small></div></div>
               <div className={`trace-node ${activeAttemptReceipt?'verified':'muted'}`}><i/><div><span>إيصال</span><b>{activeAttemptReceipt?.executor_reported_outcome||'لا يوجد إيصال بعد'}</b><small>{activeAttemptReceipt?.executor_identity||'الأدلة قيد الانتظار'}</small></div></div>
-              {activeAttemptAudit.slice(0,5).map(e=><div className="trace-node audit" key={e.id}><i/><div><span>تدقيق</span><b>{e.event_type}</b><small>{when(e.created_at)}</small></div></div>)}
+              {activeAttemptAudit.slice(0,5).map(e=><div className="trace-node audit" key={e.id}><i/><div><span>تدقيق</span><b>{eventLabel(e.event_type)}</b><small>{when(e.created_at)}</small></div></div>)}
             </div>:<div className="empty-panel">اختر تتبّعًا لعرض التفاصيل.</div>}
           </div>
           <aside className="trace-inspector">
@@ -351,7 +353,7 @@ export default function AdminPage(){
         <section className="incident-console">
           <div className="incident-table">
             <div className="incident-head"><span>الخطورة</span><span>المهمة / المحاولة</span><span>الحالة</span><span>عملية المزوّد</span><span>الوقت</span></div>
-            {attempts.filter(a=>['FAILED','UNKNOWN'].includes(a.outcome)).length?attempts.filter(a=>['FAILED','UNKNOWN'].includes(a.outcome)).map(a=><button key={a.id} onClick={()=>{setSelectedAttempt(a.id);setSelectedTask(a.task_id);setTab('traces')}}><span className={a.outcome==='FAILED'?'sev-high':'sev-warn'}>{a.outcome==='FAILED'?'مرتفع':'مراجعة'}</span><span><b>{tasks.find(t=>t.id===a.task_id)?.title||'AQLEVON Mission'}</b><small>{short(a.id,14)}</small></span><span>{phaseLabel(a.phase)} · {outcomeLabel(a.outcome)}</span><code>{short(a.provider_operation_id,18)}</code><span>{when(a.started_at||a.created_at)}</span></button>):<div className="empty-panel">لا توجد محاولات تنفيذ فاشلة أو غير محسومة.</div>}
+            {attempts.filter(a=>['FAILED','UNKNOWN'].includes(a.outcome)).length?attempts.filter(a=>['FAILED','UNKNOWN'].includes(a.outcome)).map(a=><button key={a.id} onClick={()=>{setSelectedAttempt(a.id);setSelectedTask(a.task_id);setTab('traces')}}><span className={a.outcome==='FAILED'?'sev-high':'sev-warn'}>{a.outcome==='FAILED'?'مرتفع':'مراجعة'}</span><span><b>{tasks.find(t=>t.id===a.task_id)?.title||'مهمة AQLEVON'}</b><small>{short(a.id,14)}</small></span><span>{phaseLabel(a.phase)} · {outcomeLabel(a.outcome)}</span><code>{short(a.provider_operation_id,18)}</code><span>{when(a.started_at||a.created_at)}</span></button>):<div className="empty-panel">لا توجد محاولات تنفيذ فاشلة أو غير محسومة.</div>}
           </div>
           <aside className="incident-guidance"><span className="eyebrow">سياسة المعالجة</span><h3>الأدلة قبل الإغلاق</h3><p>لا نغلق الحادث لأن المنفّذ قال «نجاح». الإغلاق يعتمد على الإيصال والتحقق وسجل التدقيق.</p><div className="v3-kv"><span>تغطية الأدلة</span><b>{evidenceCoverage}%</b></div><div className="v3-kv"><span>نتائج غير محسومة</span><b>{attempts.filter(a=>a.outcome==='UNKNOWN').length}</b></div><div className="v3-kv"><span>طلبات الإيقاف</span><b>{audit.filter(e=>e.event_type==='OWNER_STOP_REQUESTED').length}</b></div></aside>
         </section>
@@ -366,8 +368,8 @@ export default function AdminPage(){
           {sourceHealth.map(([name,state,detail])=><div className="brain-source" key={name}><div><i className={state==='CONNECTED'?'ok':state==='PARTIAL'?'warn':''}/><span>{name}</span></div><b>{sourceStatusLabel(state)}</b><small>{detail}</small></div>)}
         </section>
         <section className="panel-grid">
-          <div className="admin-panel"><div className="panel-head"><div><span className="eyebrow">القرارات الأخيرة</span><h3>ذاكرة التدقيق</h3></div></div><div className="owner-timeline">{audit.slice(0,18).map(e=><div key={e.id}><i/><div><b>{e.event_type}</b><span>{actorLabel(e.subject_type||'SYSTEM')} · {when(e.created_at)}</span></div></div>)}</div></div>
-          <div className="admin-panel"><div className="panel-head"><div><span className="eyebrow">مخرجات نواة المالك</span><h3>آخر الردود المحفوظة</h3></div></div><div className="brain-response-list">{responses.slice(0,12).map(r=><div key={r.id}><b>{r.response_type}</b><p>{String(r.body||'').slice(0,180)}</p><span>{when(r.emitted_at)}</span></div>)}</div></div>
+          <div className="admin-panel"><div className="panel-head"><div><span className="eyebrow">القرارات الأخيرة</span><h3>ذاكرة التدقيق</h3></div></div><div className="owner-timeline">{audit.slice(0,18).map(e=><div key={e.id}><i/><div><b>{eventLabel(e.event_type)}</b><span>{actorLabel(e.subject_type||'SYSTEM')} · {when(e.created_at)}</span></div></div>)}</div></div>
+          <div className="admin-panel"><div className="panel-head"><div><span className="eyebrow">مخرجات نواة المالك</span><h3>آخر الردود المحفوظة</h3></div></div><div className="brain-response-list">{responses.slice(0,12).map(r=><div key={r.id}><b>{responseTypeLabel(r.response_type)}</b><p>{String(r.body||'').slice(0,180)}</p><span>{when(r.emitted_at)}</span></div>)}</div></div>
         </section>
       </>}
 
@@ -403,7 +405,7 @@ export default function AdminPage(){
         <section className="infra-matrix">
           <div className="infra-row"><div><i className="ok"/><b>طبقة تحكم Supabase</b></div><span>متصل</span><small>المصادقة · المهام · الإيصالات · التدقيق · التعلّم</small></div>
           <div className="infra-row"><div><i className={status?.openrouter_configured?'ok':'warn'}/><b>تشغيل OpenRouter</b></div><span>{status?.openrouter_configured?'مُعدّ':'غير مُعدّ'}</span><small>{settings?.openrouter_model||'openrouter/free'}</small></div>
-          <div className="infra-row"><div><i className={status?.self_hosted_configured?'ok':'warn'}/><b>AQLEVON ذاتي الاستضافة</b></div><span>{status?.self_hosted_configured?'متصل':'غير متصل'}</span><small>{settings?.runtime_mode||'runtime mode unknown'}</small></div>
+          <div className="infra-row"><div><i className={status?.self_hosted_configured?'ok':'warn'}/><b>AQLEVON ذاتي الاستضافة</b></div><span>{status?.self_hosted_configured?'متصل':'غير متصل'}</span><small>{settings?.runtime_mode||'وضع التشغيل غير معروف'}</small></div>
           <div className="infra-row"><div><i/><b>منفّذ Git</b></div><span>يحتاج موصل تنفيذ</span><small>لا يوجد ادعاء بتنفيذ تلقائي على المستودع.</small></div>
           <div className="infra-row"><div><i/><b>المتصفح / الطرفية</b></div><span>يحتاج موصل تنفيذ</span><small>لا يوجد جسر عمليات خارجية مباشر متصل.</small></div>
           <div className="infra-row"><div><i/><b>منفّذ النشر</b></div><span>يحتاج موصل تنفيذ</span><small>موصل النشر بانتظار الربط ضمن موافقة المالك.</small></div>
