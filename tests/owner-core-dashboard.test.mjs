@@ -43,3 +43,14 @@ test('dashboard exposes owner controls and real evidence surfaces',()=>{
   assert.match(page,/aqlevon_audit_events/);
   assert.match(page,/NO ACTIVE EXECUTOR/);
 });
+
+test('professional control plane exposes operations intelligence and access surfaces',()=>{
+  assert.match(page,/Operations/);
+  assert.match(page,/Project Brain/);
+  assert.match(page,/Model Lab/);
+  assert.match(page,/Identity & Access/);
+  assert.match(page,/EXECUTION TRACES/);
+  assert.match(page,/Operational truth map/);
+  assert.match(page,/CAPABILITY MAP/);
+  assert.match(page,/Owner-controlled execution boundary/);
+});
