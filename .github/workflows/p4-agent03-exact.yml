@@ -140,18 +140,31 @@ jobs:
         working-directory: research/weight_factory/agent03
         run: |
           python - <<'PY'
+          import copy
           import json
           from pathlib import Path
           import p4_aqlevon_reward as r
           pack=json.loads(Path("/tmp/p4inputs/pack.json").read_text())
           hard=[x for x in pack["tasks"] if x.get("training_eligible") is True and x.get("verifier_mode")=="hardened"]
           assert len(hard)==56
+          dict_put_attacks=0
           for task in hard:
               gt=json.dumps({"initial_state":task["visible_initial_state"],"oracle_program":task["oracle_program"]},sort_keys=True,separators=(",",":"))
               sol=json.dumps(task["oracle_program"],sort_keys=True,separators=(",",":"))
               out=r.compute_score(solution_str=sol,ground_truth=gt)
               assert out["score"]==1.0, (task["task_id"],out)
+              if task.get("family")=="dict_put":
+                  step=task["oracle_program"][0]
+                  final_dict=copy.deepcopy(task["visible_initial_state"][step["key"]])
+                  final_dict[step["subkey"]]=copy.deepcopy(step.get("value"))
+                  attack=[{"op":"set","key":step["key"],"value":final_dict}]
+                  bad=r.compute_score(solution_str=json.dumps(attack,separators=(",",":")),ground_truth=gt)
+                  assert bad["score"]==0.0, (task["task_id"],bad)
+                  assert bad["feedback"]=="side_effect_mismatch", (task["task_id"],bad)
+                  dict_put_attacks += 1
+          assert dict_put_attacks==4, dict_put_attacks
           print("P4_REWARD_ORACLE_56_PASS")
+          print("P4_DICT_PUT_SHORTCUT_4_REJECT_PASS")
           PY
 
 
