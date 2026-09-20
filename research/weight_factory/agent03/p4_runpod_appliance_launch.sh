@@ -10,6 +10,7 @@ DATA="$ROOT/aqlevon_p4/data"
 MODEL="$ROOT/models/qwen35-4b-daa9c16f3712"
 EXPECTED_HEAD="${AQLEVON_EXPECTED_W03_HEAD:?AQLEVON_EXPECTED_W03_HEAD is required}"
 AUTH_FILE="${AQLEVON_AUTH_FILE:?AQLEVON_AUTH_FILE is required}"
+BINDING_FILE="${AQLEVON_BINDING_FILE:?AQLEVON_BINDING_FILE is required}"
 EXPECTED_IMAGE_DIGEST="${AQLEVON_EXPECTED_IMAGE_DIGEST:?AQLEVON_EXPECTED_IMAGE_DIGEST is required}"
 
 echo "AQLEVON_APPLIANCE_LAUNCH_START $(date -u +%FT%TZ)"
@@ -33,7 +34,9 @@ RUN="$AGENT/p4_a1_seed1701_run_manifest_v1.json"
 LOCK="$AGENT/p4_a1_seed1701_command_lock_v1.json"
 PLAN="$AGENT/p4_frozen_training_plan_v1.json"
 AUTH="$AGENT/$AUTH_FILE"
+BINDING="$AGENT/$BINDING_FILE"
 test -f "$AUTH" || { echo "FAIL_CLOSED_AUTH_FILE_MISSING=$AUTH_FILE"; exit 42; }
+test -f "$BINDING" || { echo "FAIL_CLOSED_BINDING_FILE_MISSING=$BINDING_FILE"; exit 44; }
 
 rm -rf "$SDPO"
 ln -s "$SDPO_IMAGE" "$SDPO"
@@ -41,17 +44,39 @@ rm -rf "$ROOT/aqlevon_p4"
 mkdir -p "$DATA" "$MODEL" /tmp/p4inputs
 
 python - <<'PY'
+import json, os, sys
+from pathlib import Path
+agent=Path("/workspace/MUS-AI/research/weight_factory/agent03")
+sys.path.insert(0,str(agent))
+import p4_gene1_trainer as c
+auth=json.loads((agent/os.environ["AQLEVON_AUTH_FILE"]).read_text())
+binding=json.loads((agent/os.environ["AQLEVON_BINDING_FILE"]).read_text())
+run=json.loads((agent/"p4_a1_seed1701_run_manifest_v1.json").read_text())
+lock=json.loads((agent/"p4_a1_seed1701_command_lock_v1.json").read_text())
+assert c.verify_self_digest(auth,"authorization_sha256"),auth
+assert c.verify_self_digest(binding,"binding_sha256"),binding
+assert binding["binding_kind"]=="AQLEVON_RUNTIME_APPLIANCE_BINDING_V1",binding
+assert binding["authorization_sha256"]==auth["authorization_sha256"],binding
+assert binding["run_manifest_sha256"]==run["manifest_sha256"],binding
+assert binding["command_lock_sha256"]==lock["lock_sha256"],binding
+assert binding["runtime_appliance_digest"]==os.environ["AQLEVON_EXPECTED_IMAGE_DIGEST"],binding
+assert binding["runtime_appliance_image"]=="ghcr.io/india123445t-pixel/mus-ai@"+binding["runtime_appliance_digest"],binding
+print("APPLIANCE_BINDING_PASS",binding["binding_sha256"],binding["runtime_appliance_digest"])
+print("APPLIANCE_RUNTIME_SOURCE_COMMIT",binding["worker03_runtime_source_commit"])
+PY
+
+RUNTIME_SOURCE="$(python - <<'PY'
 import json, os
 from pathlib import Path
-auth=Path(os.environ["AQLEVON_AUTH_FILE"])
-if not auth.is_absolute():
-    auth=Path("/workspace/MUS-AI/research/weight_factory/agent03")/auth
-a=json.loads(auth.read_text())
-expected=os.environ["AQLEVON_EXPECTED_IMAGE_DIGEST"]
-assert a.get("runtime_appliance_digest")==expected,(a.get("runtime_appliance_digest"),expected)
-assert a.get("runtime_appliance_required") is True,a
-print("APPLIANCE_AUTH_BINDING_PASS",expected)
+agent=Path("/workspace/MUS-AI/research/weight_factory/agent03")
+b=json.loads((agent/os.environ["AQLEVON_BINDING_FILE"]).read_text())
+print(b["worker03_runtime_source_commit"])
 PY
+)"
+DELTA="$(git -C "$REPO" diff --name-only "$RUNTIME_SOURCE..$ACTUAL_HEAD")"
+EXPECTED_DELTA="research/weight_factory/agent03/$BINDING_FILE"
+test "$DELTA" = "$EXPECTED_DELTA" || { echo "FAIL_CLOSED_RUNTIME_SOURCE_DRIFT"; printf '%s\n' "$DELTA"; exit 45; }
+echo "APPLIANCE_SOURCE_DELTA_PASS=$EXPECTED_DELTA"
 
 git -C "$REPO" fetch -q --no-tags origin \
   abb94ef134e2e97036b6959dbc9db4278d3736b6 \
@@ -109,9 +134,7 @@ assert argv==lock["argv"]
 assert c.canonical_sha256(argv)==run["command_sha256"]
 errors=c.validate_manager_authorization(auth,lock=lock,run_manifest_sha256=run["manifest_sha256"])
 assert not errors, errors
-assert auth["runtime_appliance_required"] is True
-assert auth["runtime_appliance_digest"]==os.environ["AQLEVON_EXPECTED_IMAGE_DIGEST"]
-print("APPLIANCE_EXACT_AUTHORIZATION_PASS")
+print("APPLIANCE_EXACT_AUTHORIZATION_PASS",auth["authorization_sha256"])
 PY
 
 ELAPSED="$(( $(date +%s) - START_TS ))"
