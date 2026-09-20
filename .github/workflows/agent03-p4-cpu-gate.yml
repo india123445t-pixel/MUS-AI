@@ -63,21 +63,21 @@ jobs:
           print('A1_IDENTITY_PASS',run['manifest_sha256'],lock['lock_sha256'])
           PY
 
-      - name: Verify Retry17 runtime-repair bootstrap
+      - name: Verify Retry18 runtime-repair bootstrap
         run: |
           set -euo pipefail
-          bash -n p4_runpod_retry17_bootstrap.sh
+          bash -n p4_runpod_retry18_bootstrap.sh
           python - <<'PY'
           import json
           from pathlib import Path
           import p4_gene1_trainer as c
-          a=json.loads(Path("p4_a1_runpod_manager_authorization_retry17_v1.json").read_text())
+          a=json.loads(Path("p4_a1_runpod_manager_authorization_retry18_v1.json").read_text())
           assert c.verify_self_digest(a,"authorization_sha256")
-          assert a["authorization_id"]=="P4-A1-RUNPOD-4090-20260920-17-FLASHATTN-VERL-REPAIR"
-          assert a["authorization_sha256"]=="aea8d26d5cadd94e9c7364f8c23129d99aa8c2d2de5e4ceb65d2ebb5ec2cf869"
+          assert a["authorization_id"]=="P4-A1-RUNPOD-4090-20260920-18-REWARD-RUNTIME-CLOSURE"
+          assert a["authorization_sha256"]=="55ef1e64e55eda44b5e9e8779754628562e9674865c65950551d972c3a4d7ad6"
           assert a["run_manifest_sha256"]=="7152cdea6ffd082f632a819e153122b401bd7394ed0273a327537ca961c7fe45"
           assert a["max_billed_seconds"]==1800 and a["max_total_cost_usd"]=="0.40"
-          b=Path("p4_runpod_retry17_bootstrap.sh").read_text()
+          b=Path("p4_runpod_retry18_bootstrap.sh").read_text()
           for needle in (
               "python -m pip install -q --disable-pip-version-check --no-deps -e \"$SDPO\"",
               "flash_attn-2.8.3%2Bcu12torch2.8cxx11abi",
