@@ -126,12 +126,22 @@ import p4_surrogate_tournament as t
 run=json.loads(Path("p4_a1_seed1701_run_manifest_v1.json").read_text())
 lock=json.loads(Path("p4_a1_seed1701_command_lock_v1.json").read_text())
 auth=json.loads(Path(os.environ["AQLEVON_AUTH_FILE"]).read_text())
-assert run["manifest_sha256"]=="7152cdea6ffd082f632a819e153122b401bd7394ed0273a327537ca961c7fe45"
-assert lock["lock_sha256"]=="f1d05b53d0e00b07f7f4d60c90a6bf489f4cd2bd118b2b6a6b38c66026cee44e"
+assert run["manifest_sha256"]=="24e3d21155c3f1011ca92f90e6c622fe03f92bfd65656d31d87fa627886fad47"
+assert lock["lock_sha256"]=="b07441e07d0f26191fc5bd20ebf61e61c88003c542205687a2679243d90623c2"
 assert c.verify_self_digest(auth,"authorization_sha256")
 argv=t.build_a1_argv(Path("p4_frozen_training_plan_v1.json"),Path("/workspace"))
 assert argv==lock["argv"]
 assert c.canonical_sha256(argv)==run["command_sha256"]
+required_seed={
+    "data.seed=1701",
+    "actor_rollout_ref.actor.data_loader_seed=1701",
+    "actor_rollout_ref.actor.fsdp_config.seed=1701",
+    "actor_rollout_ref.ref.fsdp_config.seed=1701",
+    "++actor_rollout_ref.rollout.engine_kwargs.vllm.seed=1701",
+}
+assert required_seed.issubset(set(argv)), sorted(required_seed-set(argv))
+assert not c.validate_command_seed_binding(argv,arm_id=lock["arm_id"],seed=lock["seed"])
+print("APPLIANCE_SEED1701_BINDING_PASS")
 errors=c.validate_manager_authorization(auth,lock=lock,run_manifest_sha256=run["manifest_sha256"])
 assert not errors, errors
 print("APPLIANCE_EXACT_AUTHORIZATION_PASS",auth["authorization_sha256"])
