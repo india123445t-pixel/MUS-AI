@@ -147,7 +147,7 @@ class TestHotPath(unittest.TestCase):
                 compute_receipt_sha256=H("5"),training_budget_manifest_sha256=self.binding["matched_training_budget_manifest_sha256"])
 
     def test_frozen_constants_match_p41_manager_snapshot(self):
-        self.assertEqual(hp.W03_TESTED_SOURCE_COMMIT,"4c56b8f738c51d57de981e9ae9a8a1a5f4e887ab")
+        self.assertEqual(hp.W03_TESTED_SOURCE_COMMIT,"a3abc957f7b81a4dc4e8e20ecb1bb0de3047f783")
         self.assertEqual(hp.A1_RUN_MANIFEST_SHA256,"7152cdea6ffd082f632a819e153122b401bd7394ed0273a327537ca961c7fe45")
         self.assertEqual(hp.A1_COMMAND_SHA256,"3ad2fd2cd5303e1eb4ea71f3e25edf07d38269df1b5b3c8b6e98c8553e017400")
         self.assertEqual(hp.A1_COMMAND_LOCK_SHA256,"f1d05b53d0e00b07f7f4d60c90a6bf489f4cd2bd118b2b6a6b38c66026cee44e")
