@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+<title>AQLEVON</title>
+<defs><linearGradient id="g" x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse"><stop stop-color="#61E6E4"/><stop offset="1" stop-color="#2498D8"/></linearGradient></defs>
+<rect x="2" y="2" width="60" height="60" rx="16" fill="#07111B" stroke="#1E3646" stroke-width="2"/>
+<path d="M32 10 52 21.5v21L32 54 12 42.5v-21L32 10Z" fill="none" stroke="url(#g)" stroke-width="3"/>
+<path d="M20 43 31.8 19 44 43h-6.8l-2.1-4.8h-6.8L26.2 43H20Zm10.7-10.5h2.1l-1.1-2.7-1 2.7Z" fill="url(#g)"/>
+<circle cx="32" cy="32" r="3" fill="#E9FFFF"/>
+</svg>
