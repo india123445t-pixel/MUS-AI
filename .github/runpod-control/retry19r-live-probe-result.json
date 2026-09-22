@@ -1,5 +1,16 @@
 {
-  "container_logs": [],
+  "container_logs": [
+    {
+      "line": "Server listening on 0.0.0.0 port 22.",
+      "source": "container",
+      "ts": "2026-09-22T22:00:20.833479244Z"
+    },
+    {
+      "line": "Server listening on :: port 22.",
+      "source": "container",
+      "ts": "2026-09-22T22:00:20.833525838Z"
+    }
+  ],
   "graphql": {
     "container": null,
     "costPerHr": null,
