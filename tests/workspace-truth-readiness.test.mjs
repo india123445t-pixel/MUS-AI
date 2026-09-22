@@ -35,7 +35,10 @@ test('chat exposes real inference readiness and disables unavailable actions',()
   assert.match(health,/api\.cerebras\.ai\/v1\/models/);
   assert.match(health,/huggingface\.co\/api\/whoami-v2/);
   assert.match(health,/checkSelfHostedHealth/);
-  assert.match(health,/Object\.values\(providers\)\.some\(x=>x\?\.ok===true\)/);
+  assert.match(health,/mode==='self_hosted_only'\?selfHostedReady:anyProviderReady/);
+  assert.match(health,/modeKnown\?\(mode==='self_hosted_only'\?selfHostedReady:anyProviderReady\):false/);
+  assert.match(api,/inference-health\?runtime_mode=/);
+  assert.match(api,/runtimeMode:status\?\.settings\?\.runtime_mode\|\|null/);
   assert.match(health,/AUTH_ERROR/);
   assert.match(api,/\/api\/inference-health/);
   assert.match(api,/allow_paid_external===true&&!!status\?\.settings\?\.public_web_search_enabled/);
