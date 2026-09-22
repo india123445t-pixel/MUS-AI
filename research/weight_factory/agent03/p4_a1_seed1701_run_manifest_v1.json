@@ -30,11 +30,12 @@
   "worker06_compute_profile": "p4-surrogate-1x24",
   "worker06_reference_commit": "7204c7ae84eb6d246603fda960cffe02c2b6279e",
   "worker03_sources": {
-    "trainer_git_blob_sha1": "06ae7345828315825177540c5ab948e911f42ac9",
+    "trainer_git_blob_sha1": "d38d7b8e1598c5277ef7c06d9532f6f02a799f90",
     "tournament_git_blob_sha1": "32d6f5c7de13d2e445189c7f955da1a1df017364",
-    "reward_git_blob_sha1": "c9db3e315299cce59c5d4cece7de86302c10c614",
+    "reward_git_blob_sha1": "cc406570da64e21211ae02d917ba302049cdd03f",
     "runtime_compat_sitecustomize_git_blob_sha1": "ef9c92fb0923ad444f33d33a24ef557cd2af0fcf",
-    "sdpo_tf5_patch_git_blob_sha1": "81d4c2e2df463293c16a3a3d5ff84f0ecb991fd2"
+    "sdpo_tf5_patch_git_blob_sha1": "ad4b93d0eca8d051af23fd959ad91961baffad7d",
+    "vllm_qwen35_backend_patch_git_blob_sha1": "1b526a63244ddf0ed7241b2b52458e1549cd2c66"
   },
   "runtime_compatibility": {
     "qwen_vl_utils_version": "0.0.14",
@@ -71,5 +72,5 @@
   "automatic_fallback": false,
   "paid_compute_requires_manager_authorization": true,
   "capability_gain_claim": false,
-  "manifest_sha256": "c95ad9d40da6837cd4f12c32f9a1873ed73ae9b703fa693c6d74dbfebc1bafcb"
+  "manifest_sha256": "54d731c83b667e8db76255c0f07b783c8f100b051549c59411c1805b341d5240"
 }

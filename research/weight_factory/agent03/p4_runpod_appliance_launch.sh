@@ -158,8 +158,8 @@ import p4_surrogate_tournament as t
 run=json.loads(Path("p4_a1_seed1701_run_manifest_v1.json").read_text())
 lock=json.loads(Path("p4_a1_seed1701_command_lock_v1.json").read_text())
 auth=json.loads(Path(os.environ["AQLEVON_RESOLVED_AUTH_FILE"]).read_text())
-assert run["manifest_sha256"]=="c95ad9d40da6837cd4f12c32f9a1873ed73ae9b703fa693c6d74dbfebc1bafcb"
-assert lock["lock_sha256"]=="3b9ca1448ab30636d8dcbfc0ae1e5e836ec2d9584199d0e60f6a69a966b2eb16"
+assert run["manifest_sha256"]=="54d731c83b667e8db76255c0f07b783c8f100b051549c59411c1805b341d5240"
+assert lock["lock_sha256"]=="340dab7f87becb7f7af186015a77d3e04b7a40c1c83e55626191600e8c167340"
 assert c.verify_self_digest(auth,"authorization_sha256")
 argv=t.build_a1_argv(Path("p4_frozen_training_plan_v1.json"),Path("/workspace"))
 assert argv==lock["argv"]
