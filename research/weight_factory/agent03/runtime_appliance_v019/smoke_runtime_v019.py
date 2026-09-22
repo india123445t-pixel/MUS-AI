@@ -11,6 +11,7 @@ def build_check():
     assert peft.__version__ == "0.21.0", peft.__version__
     assert accelerate.__version__ == "1.15.0", accelerate.__version__
     assert ray.__version__ == "2.53.0", ray.__version__
+    assert flash_attn.__version__.split("+")[0] == "2.8.3", flash_attn.__version__
 
     # Native Qwen3.5 implementation must exist; generic Transformers backend is forbidden.
     q=importlib.import_module("vllm.model_executor.models.qwen3_5")
