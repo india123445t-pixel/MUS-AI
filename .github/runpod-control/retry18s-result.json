@@ -1,0 +1,19 @@
+{
+  "authorization_id": "P4-A1-RUNPOD-4090-20260922-18S-TOKENIZER-COMPAT",
+  "checked_at_utc": "2026-09-22T09:27:39.233090+00:00",
+  "evidence_archive_present": false,
+  "expected_head": "730ecb10516b883fee301a4f2fa31f81bb7adce6",
+  "log_sha256": "a628742b0dd8d2e5fab9f054d46c6a63e93d0682dff311ab2d0131d4da1eba6d",
+  "markers": {
+    "A1_LOCKED_TRAINING_START": false,
+    "APPLIANCE_BINDING_PASS": false,
+    "APPLIANCE_EXACT_AUTHORIZATION_PASS": false,
+    "APPLIANCE_SEED1701_BINDING_PASS": false,
+    "APPLIANCE_SOURCE_DELTA_PASS": false,
+    "AQLEVON_A1_EXIT_CODE": false,
+    "AQLEVON_APPLIANCE_LAUNCH_START": true,
+    "AQLEVON_APPLIANCE_TOTAL_SCRIPT_SECONDS": false,
+    "MODEL_STAGE_PASS": false
+  },
+  "training_exit_code": null
+}
