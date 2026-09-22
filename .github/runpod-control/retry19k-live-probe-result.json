@@ -1,15 +1,18 @@
 {
   "details": {
     "container": {
-      "cpu_percent": null,
-      "memory_percent": null
+      "cpu_percent": 1,
+      "memory_percent": 15
     },
     "desired_status": "RUNNING",
-    "gpus": [],
-    "raw_gpu_runtime": null,
-    "runtime_keys": [],
+    "gpus": [
+      {
+        "gpu_util_percent": 0,
+        "memory_util_percent": 0
+      }
+    ],
     "runtime_status": "running",
-    "uptime_seconds": 498
+    "uptime_seconds": 658
   },
   "lines": [
     {
