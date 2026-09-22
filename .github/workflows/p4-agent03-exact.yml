@@ -219,6 +219,7 @@ jobs:
           set -euo pipefail
           python - <<'PY'
           import json
+          import re
           from pathlib import Path
           cfg=json.loads(Path("/workspace/models/qwen35-4b-daa9c16f3712/config.json").read_text())
           assert cfg["architectures"]==["Qwen3_5ForConditionalGeneration"],cfg["architectures"]
@@ -246,6 +247,9 @@ jobs:
           ):
               assert token in launch,token
           assert "p4_patch_sdpo_transformers5_compat.py" not in launch
+          assert not re.search(r"(?<![A-Za-z0-9_])python(?=\\s)", launch), "bare_python_runtime_command"
+          assert "python3 /opt/aqlevon/runtime/smoke_runtime_v019.py --build-check" in launch
+          print("V019_PYTHON3_RUNTIME_COMMAND_GATE_PASS")
           print("QWEN35_PINNED_HYBRID_16_TARGET_CONTRACT_PASS",full)
           print("V019_FUNCTIONAL_LORA_SMOKE_WIRING_PASS")
           PY
