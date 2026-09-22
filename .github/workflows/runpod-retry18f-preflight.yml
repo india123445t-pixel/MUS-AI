@@ -1,0 +1,78 @@
+name: AQLEVON RunPod Retry18F Preflight
+
+on:
+  push:
+    branches:
+      - ops/runpod-retry18f-execute-20260922
+    paths:
+      - .github/workflows/runpod-retry18f-preflight.yml
+
+permissions:
+  contents: write
+
+env:
+  RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+  POD_NAME: "AQLEVON-P4-A1-R18F-API"
+  GPU_ID: "NVIDIA GeForce RTX 4090"
+  MAX_RATE_USD: "0.80"
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install runpodctl
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL https://github.com/runpod/runpodctl/releases/download/v2.14.0/runpodctl-linux-amd64.tar.gz -o /tmp/runpodctl.tgz
+          tar -xzf /tmp/runpodctl.tgz -C /tmp runpodctl
+          sudo install -m 0755 /tmp/runpodctl /usr/local/bin/runpodctl
+          runpodctl version
+
+      - name: Read-only RunPod preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${RUNPOD_API_KEY:-}"
+          runpodctl user >/dev/null
+
+          EXISTING="$(runpodctl pod list --all --name "$POD_NAME")"
+          EXISTING_COUNT="$(printf '%s' "$EXISTING" | jq 'length')"
+
+          GPU_JSON="$(runpodctl gpu list --include-unavailable)"
+          GPU_ROW="$(printf '%s' "$GPU_JSON" | jq -c --arg id "$GPU_ID" '.[] | select(.gpuId == $id)' | head -n1)"
+          test -n "$GPU_ROW"
+          RATE="$(printf '%s' "$GPU_ROW" | jq -r '.securePricePerHr // empty')"
+          test -n "$RATE"
+          WITHIN="$(awk -v p="$RATE" -v m="$MAX_RATE_USD" 'BEGIN { print (p <= m) ? "true" : "false" }')"
+          AVAILABLE="$(printf '%s' "$GPU_ROW" | jq -r '
+            if has("available") and .available == true then "true"
+            elif ([.dataCenterAvailability[]? | select(((.stockStatus // "") | ascii_downcase) != "none")] | length) > 0 then "true"
+            else "false" end
+          ')"
+
+          mkdir -p ops
+          jq -cn             --arg rate "$RATE"             --argjson existing "$EXISTING_COUNT"             --argjson within "$WITHIN"             --argjson available "$AVAILABLE"             '{
+              schema_version:1,
+              auth:"PASS",
+              gpu:"NVIDIA GeForce RTX 4090",
+              secure_price_per_hr:$rate,
+              within_authorized_rate:$within,
+              gpu_available:$available,
+              exact_name_existing_pods:$existing,
+              paid_action_performed:false,
+              secret_exposed:false
+            }' > ops/runpod-r18f-preflight.json
+
+      - name: Persist sanitized preflight receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "aqlevon-runpod-control"
+          git config user.email "aqlevon-runpod-control@users.noreply.github.com"
+          git add ops/runpod-r18f-preflight.json
+          git commit -m "ops: record Retry18F RunPod preflight" || exit 0
+          git push origin "HEAD:${GITHUB_REF_NAME}"
