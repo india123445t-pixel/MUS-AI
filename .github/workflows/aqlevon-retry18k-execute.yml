@@ -43,12 +43,15 @@ jobs:
             .approved_by_owner==true
           ' .github/runpod-control/paid-trigger-retry18l.json >/dev/null
 
-      - name: Install runpodctl
+      - name: Install pinned runpodctl v2.8.0
         shell: bash
         run: |
           set -euo pipefail
-          curl -sSL https://cli.runpod.net | bash
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          curl -fsSL https://github.com/runpod/runpodctl/releases/download/v2.8.0/runpodctl-linux-amd64 -o /tmp/runpodctl
+          echo "33184eb9b4ede3524582d81dfb84a0a632402cec11feb97d9ae46e26d3090c4c  /tmp/runpodctl" | sha256sum -c -
+          chmod +x /tmp/runpodctl
+          sudo mv /tmp/runpodctl /usr/local/bin/runpodctl
+          runpodctl version
 
       - name: Execute guarded Retry18L
         shell: bash
