@@ -1,0 +1,46 @@
+name: AQLEVON Cancel Stale Retry19S Runs
+
+on:
+  push:
+    branches: [ops/runpod-control-v1]
+    paths:
+      - ".github/runpod-control/cancel-stale-retry19s-trigger.json"
+
+permissions:
+  actions: write
+  contents: write
+
+jobs:
+  cancel:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/runpod-control-v1
+      - name: Cancel stale Retry19S workflow runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for run in 35791328635 35791523237; do
+            code="$(curl -sS -o /tmp/cancel-$run.json -w '%{http_code}' -X POST               -H "Authorization: Bearer $GH_TOKEN"               -H "Accept: application/vnd.github+json"               -H "X-GitHub-Api-Version: 2022-11-28"               "https://api.github.com/repos/india123445t-pixel/MUS-AI/actions/runs/$run/cancel")"
+            if [ "$code" != "202" ] && [ "$code" != "409" ]; then
+              echo "::error::cancel $run returned HTTP $code"
+              cat /tmp/cancel-$run.json || true
+              exit 1
+            fi
+            echo "$run:$code"
+          done
+          python - <<'PY'
+          import json,datetime
+          out={"runs":[35791328635,35791523237],"requested_at_utc":datetime.datetime.now(datetime.timezone.utc).isoformat(),"reason":"stale Retry19S bound to old head/image; pod already emergency-stopped"}
+          open('.github/runpod-control/cancel-stale-retry19s-result.json','w').write(json.dumps(out,indent=2,sort_keys=True)+'\n')
+          PY
+          git config user.name aqlevon-runpod-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/runpod-control/cancel-stale-retry19s-result.json
+          git commit -m "ops: record stale Retry19S cancellation [skip ci]" || true
+          git pull --rebase origin ops/runpod-control-v1
+          git push origin HEAD:ops/runpod-control-v1
