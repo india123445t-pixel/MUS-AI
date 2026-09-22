@@ -250,7 +250,11 @@ jobs:
           ):
               assert token in launch,token
           assert "p4_patch_sdpo_transformers5_compat.py" not in launch
-          assert not re.search(r"(?<![A-Za-z0-9_])python(?=\\s)", launch), "bare_python_runtime_command"
+          assert '"vllm_lora_target_modules": None' in smoke
+          assert '"vllm_lora_target_modules": null' not in smoke
+          assert 'command -v python' in launch
+          assert 'ln -sf "$PY3" /usr/local/bin/python' in launch
+          assert "AQLEVON_SDPO_PYTHON_LAUNCHER_PASS" in launch
           assert "python3 /opt/aqlevon/runtime/smoke_runtime_v019.py --build-check" in launch
           assert 'assert gib >= 44.0' in launch
           assert 'assert gib >= 45.0' not in launch
