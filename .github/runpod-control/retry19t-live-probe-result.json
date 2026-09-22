@@ -1,12 +1,75 @@
 {
-  "container_logs": [],
+  "container_logs": [
+    {
+      "line": "Server listening on 0.0.0.0 port 22.",
+      "source": "container",
+      "ts": "2026-09-22T22:29:55.181902250Z"
+    },
+    {
+      "line": "Server listening on :: port 22.",
+      "source": "container",
+      "ts": "2026-09-22T22:29:55.181962637Z"
+    },
+    {
+      "line": "Accepted publickey for root from 172.182.193.129 port 4032 ssh2: ED25519 SHA256:nXaP9Ja3XuZYAN6lnwTpLwEPbYivBXMC45cAHKKrkeQ",
+      "source": "container",
+      "ts": "2026-09-22T22:30:21.614716632Z"
+    },
+    {
+      "line": "Received disconnect from 172.182.193.129 port 4032:11: disconnected by user",
+      "source": "container",
+      "ts": "2026-09-22T22:30:22.476941231Z"
+    },
+    {
+      "line": "Disconnected from user root 172.182.193.129 port 4032",
+      "source": "container",
+      "ts": "2026-09-22T22:30:22.477167039Z"
+    },
+    {
+      "line": "Accepted publickey for root from 172.182.193.129 port 4033 ssh2: ED25519 SHA256:nXaP9Ja3XuZYAN6lnwTpLwEPbYivBXMC45cAHKKrkeQ",
+      "source": "container",
+      "ts": "2026-09-22T22:30:23.201640059Z"
+    },
+    {
+      "line": "Received disconnect from 172.182.193.129 port 4033:11: disconnected by user",
+      "source": "container",
+      "ts": "2026-09-22T22:30:23.659490483Z"
+    },
+    {
+      "line": "Disconnected from user root 172.182.193.129 port 4033",
+      "source": "container",
+      "ts": "2026-09-22T22:30:23.659783002Z"
+    },
+    {
+      "line": "Accepted publickey for root from 172.182.193.129 port 4034 ssh2: ED25519 SHA256:nXaP9Ja3XuZYAN6lnwTpLwEPbYivBXMC45cAHKKrkeQ",
+      "source": "container",
+      "ts": "2026-09-22T22:30:24.393855084Z"
+    },
+    {
+      "line": "Received disconnect from 172.182.193.129 port 4034:11: disconnected by user",
+      "source": "container",
+      "ts": "2026-09-22T22:30:24.753391727Z"
+    },
+    {
+      "line": "Disconnected from user root 172.182.193.129 port 4034",
+      "source": "container",
+      "ts": "2026-09-22T22:30:24.753620124Z"
+    },
+    {
+      "line": "Accepted publickey for root from 172.182.193.129 port 4035 ssh2: ED25519 SHA256:nXaP9Ja3XuZYAN6lnwTpLwEPbYivBXMC45cAHKKrkeQ",
+      "source": "container",
+      "ts": "2026-09-22T22:30:25.476888533Z"
+    }
+  ],
   "rest": {
     "costPerHr": 0.49,
     "desiredStatus": "RUNNING",
     "id": "3u1res8nwlqalk",
     "name": "AQLEVON-P4-A1-Retry19T",
-    "portMappings": null,
-    "publicIp": false
+    "portMappings": {
+      "22": 22077
+    },
+    "publicIp": true
   },
   "runpodctl": {
     "containerDiskInGb": 40,
@@ -26,14 +89,21 @@
     "ports": [
       "22/tcp"
     ],
-    "runtimeStatus": "initializing",
-    "runtimeStatusReason": "awaiting_container",
+    "runtimeStatus": "running",
     "ssh": {
-      "error": "pod not ready: no container reported yet (image pull, container create or boot)",
       "id": "3u1res8nwlqalk",
+      "ip": "69.30.85.74",
       "name": "AQLEVON-P4-A1-Retry19T",
-      "status": "RUNNING"
+      "port": 22077,
+      "setup": "runpodctl doctor",
+      "ssh_command": "ssh root@69.30.85.74 -p 22077",
+      "ssh_key": {
+        "exists": false,
+        "path": "/home/runner/.runpod/ssh/runpodctl-ssh-key",
+        "source": "runpodctl doctor"
+      }
     },
+    "uptimeSeconds": 18,
     "vcpuCount": 9,
     "volumeInGb": 20,
     "volumeMountPath": "/workspace"
