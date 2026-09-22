@@ -16,7 +16,7 @@ permissions:
 
 concurrency:
   group: p4-w03-runtime-appliance-v019-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   contract:
@@ -61,6 +61,7 @@ jobs:
   build-publish:
     needs: contract
     runs-on: ubuntu-24.04
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - name: Free disk
