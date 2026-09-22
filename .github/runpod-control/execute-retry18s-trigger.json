@@ -1,0 +1,11 @@
+{
+  "authorization_id": "P4-A1-RUNPOD-4090-20260922-18S-TOKENIZER-COMPAT",
+  "authorization_sha256": "ff2e978d51388cf0692b3d297f219200c951343aa1c219f86e044176b90a426f",
+  "max_billed_seconds": 1800,
+  "max_total_cost_usd": "0.40",
+  "single_use": true,
+  "expected_head": "730ecb10516b883fee301a4f2fa31f81bb7adce6",
+  "runtime_appliance_digest": "sha256:ac5c13b4ded6a529c03d334632fe2f2bd51205630b5b3950be8b0f4f061bf3c8",
+  "requested_by": "AQLEVON_MANAGER",
+  "nonce": "2026-09-22T09:26Z"
+}
