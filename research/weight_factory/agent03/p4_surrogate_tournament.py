@@ -240,6 +240,8 @@ def _base_rl_args(
         "data.seed=1701",
         "actor_rollout_ref.actor.data_loader_seed=1701",
         "actor_rollout_ref.actor.fsdp_config.seed=1701",
+        "actor_rollout_ref.actor.fsdp_config.param_offload=True",
+        "actor_rollout_ref.actor.fsdp_config.optimizer_offload=True",
         "actor_rollout_ref.ref.fsdp_config.seed=1701",
         "++actor_rollout_ref.rollout.engine_kwargs.vllm.seed=1701",
         f"max_model_len={MAX_MODEL_LEN}",
