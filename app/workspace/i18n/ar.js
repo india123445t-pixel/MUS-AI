@@ -30,7 +30,7 @@ export default {
   'chat.starter.code': 'شرح كود', 'chat.starter.code.d': 'الصق مقطعًا برمجيًا لشرح مفصّل',
   'chat.starter.email': 'صياغة بريد', 'chat.starter.email.d': 'اكتب رسالة واضحة بنبرة مناسبة',
   'chat.attached': 'مرفق', 'chat.codeSheetTitle': 'الصق الكود المراد شرحه',
-  'chat.fileContext': 'استخدم محتوى الملف النصي التالي كسياق للطلب:', 'chat.fileEnd': 'نهاية الملف', 'chat.fileUnsupported': 'هذا النوع غير مدعوم في المحادثة الحالية. الملفات النصية فقط مدعومة؛ PDF والصور تحتاج Adapter مخصصًا.', 'chat.fileTooLarge': 'الملف النصي أكبر من حد المحادثة الحالي (100 KB).', 'chat.fileEmpty': 'الملف النصي فارغ.', 'chat.fileReadError': 'تعذر قراءة الملف محليًا.', 'chat.imageUnavailable': 'الصور غير متصلة بالمحادثة الحالية؛ يلزم Multimodal Adapter.',
+  'chat.fileContext': 'استخدم محتوى الملف النصي التالي كسياق للطلب:', 'chat.fileEnd': 'نهاية الملف', 'chat.fileUnsupported': 'هذا النوع غير مدعوم في المحادثة الحالية. الملفات النصية فقط مدعومة؛ PDF والصور تحتاج Adapter مخصصًا.', 'chat.fileTooLarge': 'الملف النصي أكبر من حد المحادثة الآمن الحالي (32 KB ملفًا / 12,000 حرف محتوى).', 'chat.fileEmpty': 'الملف النصي فارغ.', 'chat.fileReadError': 'تعذر قراءة الملف محليًا.', 'chat.imageUnavailable': 'الصور غير متصلة بالمحادثة الحالية؛ يلزم Multimodal Adapter.',
   'chat.planTemplate': 'ساعدني في تخطيط هذا المشروع:\n\nالهدف: \nالموعد النهائي: \nحجم الفريق: \nالقيود: ',
   'chat.emailTemplate': 'اكتب لي بريدًا إلكترونيًا:\n\nإلى: \nالهدف: \nالنبرة: مهنية\nالنقاط الأساسية: ',
   // work
