@@ -1,0 +1,8 @@
+{
+  "action": "emergency_stop",
+  "desired_status": "EXITED",
+  "ok": true,
+  "pod_fingerprint": "3b722f097abc",
+  "recorded_at_utc": "2026-09-22T04:46:27.337132+00:00",
+  "run": "Retry18I"
+}
