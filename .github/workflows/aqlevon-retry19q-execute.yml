@@ -1,0 +1,406 @@
+name: AQLEVON Retry19Q A40 v019 Smoke Then Train
+
+on:
+  push:
+    branches: [ops/runpod-control-v1]
+    paths:
+      - ".github/runpod-control/execute-retry19q-trigger.json"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aqlevon-retry19q-paid-single-use
+  cancel-in-progress: false
+
+jobs:
+  execute:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 62
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      GPU_TYPE: NVIDIA A40
+      AUTH_ID: P4-A1-RUNPOD-A40-20260922-19Q-VLLM019-FUNCTIONAL-SMOKE-THEN-TRAIN
+      AUTH_SHA: bbe5ab7e5473c5813ef45fb7fdfc0c74b5c96ec7ba06c90bea243fe572d535a3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/runpod-control-v1
+
+      - name: Validate Retry19Q trigger and secret
+        id: gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${RUNPOD_API_KEY:-}"
+          trigger=.github/runpod-control/execute-retry19q-trigger.json
+          test -f "$trigger"
+          test ! -f .github/runpod-control/retry19q-consumed.json || { echo "::error::Retry19Q paid authorization already consumed"; exit 90; }
+          jq -e --arg aid "$AUTH_ID" --arg asha "$AUTH_SHA" '
+            .authorization_id==$aid and
+            .authorization_sha256==$asha and
+            .max_total_cost_usd=="0.55" and
+            .max_hourly_rate_usd=="0.55" and
+            .gpu_type==env.GPU_TYPE and
+            .min_memory_gb==48 and
+            .selection_mode=="dynamic_datacenter" and
+            .request_schema=="runpodctl_graphql_dynamic_dc" and
+            .max_billed_seconds==3600 and
+            .single_use==true and
+            (.expected_head|test("^[0-9a-f]{40}$")) and
+            (.image_digest|test("^sha256:[0-9a-f]{64}$"))
+          ' "$trigger" >/dev/null
+          expected_head="$(jq -r '.expected_head' "$trigger")"
+          image_digest="$(jq -r '.image_digest' "$trigger")"
+          echo "expected_head=$expected_head" >> "$GITHUB_OUTPUT"
+          echo "image_digest=$image_digest" >> "$GITHUB_OUTPUT"
+          echo "image=ghcr.io/india123445t-pixel/mus-ai@$image_digest" >> "$GITHUB_OUTPUT"
+
+      - name: Confirm no active AQLEVON P4 A1 Pod before spend
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -sS -f "https://rest.runpod.io/v1/pods" -H "Authorization: Bearer $RUNPOD_API_KEY" > /tmp/pods-preflight.json
+          python - <<'PY'
+          import json,sys
+          p=json.load(open('/tmp/pods-preflight.json'))
+          pods=p if isinstance(p,list) else p.get('pods') or p.get('items') or []
+          active=[]
+          for x in pods:
+              name=str(x.get('name') or '')
+              status=str(x.get('desiredStatus') or x.get('status') or 'UNKNOWN')
+              if name.startswith('AQLEVON-P4-A1-') and status!='EXITED':
+                  active.append({'id':x.get('id'),'name':name,'status':status})
+          if active:
+              print('FAIL_CLOSED_ACTIVE_AQLEVON_P4_A1_PODS',json.dumps(active,sort_keys=True))
+              sys.exit(95)
+          print('AQLEVON_NO_ACTIVE_P4_A1_PODS_PASS')
+          PY
+
+      - name: Generate ephemeral SSH key
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh-keygen -q -t ed25519 -N '' -f /tmp/aqlevon_key
+          echo "PUBKEY=$(cat /tmp/aqlevon_key.pub)" >> "$GITHUB_ENV"
+
+      - name: Select live A40 capacity inside authorization ceiling
+        id: capacity
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -sSL https://cli.runpod.net | sudo bash
+          runpodctl gpu list --output json > /tmp/gpus.json
+          python - <<'PY'
+          import json,sys,os
+          g=json.load(open('/tmp/gpus.json'))
+          target=os.environ['GPU_TYPE']
+          candidates=[]
+          for x in g:
+              try:
+                  secure=bool(x.get('secureCloud'))
+                  avail=bool(x.get('available'))
+                  mem=float(x.get('memoryInGb') or 0)
+                  price=float(x.get('securePricePerHr') or 999)
+              except Exception:
+                  continue
+              if x.get('gpuId') != target or not secure or not avail or mem < 48 or price > 0.55:
+                  continue
+              for dc in x.get('dataCenterAvailability') or []:
+                  if str(dc.get('stockStatus') or '').lower() == 'none':
+                      continue
+                  candidates.append({'dc':dc.get('dataCenterId'),'memory':mem,'price':price,'stock':dc.get('stockStatus')})
+          if not candidates:
+              print('FAIL_CLOSED_NO_A40_CAPACITY_UNDER_AUTH_CEILING')
+              sys.exit(94)
+          candidates.sort(key=lambda z:(z['price'],z['dc'] or ''))
+          c=candidates[0]
+          open('/tmp/selected_dc','w').write(str(c['dc']))
+          open('/tmp/selected_rate','w').write(str(c['price']))
+          print('SELECTED_A40_CAPACITY',json.dumps(c,sort_keys=True))
+          PY
+          echo "dc=$(cat /tmp/selected_dc)" >> "$GITHUB_OUTPUT"
+          echo "rate=$(cat /tmp/selected_rate)" >> "$GITHUB_OUTPUT"
+
+      - name: Create exactly one authorized A40 Pod
+        id: create
+        shell: bash
+        env:
+          EXPECTED_HEAD: ${{ steps.gate.outputs.expected_head }}
+          IMAGE: ${{ steps.gate.outputs.image }}
+          DC: ${{ steps.capacity.outputs.dc }}
+          SELECTED_RATE: ${{ steps.capacity.outputs.rate }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import os,sys
+          rate=float(os.environ['SELECTED_RATE'])
+          if rate > 0.55:
+              print('FAIL_CLOSED_SELECTED_RATE',rate)
+              sys.exit(96)
+          print('SELECTED_RATE_PASS',rate)
+          PY
+          env_json="$(python - <<'PY'
+          import json,os
+          print(json.dumps({
+            "PUBLIC_KEY":os.environ["PUBKEY"],
+            "AQLEVON_EXPECTED_W03_HEAD":os.environ["EXPECTED_HEAD"]
+          },separators=(',',':')))
+          PY
+          )"
+          set +e
+          runpodctl pod create \
+            --name AQLEVON-P4-A1-Retry19Q \
+            --image "$IMAGE" \
+            --gpu-id "$GPU_TYPE" \
+            --gpu-count 1 \
+            --cloud-type SECURE \
+            --data-center-ids "$DC" \
+            --container-disk-in-gb 40 \
+            --volume-in-gb 20 \
+            --volume-mount-path /workspace \
+            --ports 22/tcp \
+            --env "$env_json" \
+            --output json > /tmp/create-response.json 2>/tmp/create-stderr.txt
+          create_rc=$?
+          set -e
+          if [ "$create_rc" -ne 0 ]; then
+            cat /tmp/create-stderr.txt >&2 || true
+            exit "$create_rc"
+          fi
+          python - <<'PY'
+          import json,sys
+          p=json.load(open('/tmp/create-response.json'))
+          pod_id=p.get('id') or p.get('podId')
+          if not pod_id:
+              print('FAIL_CLOSED_CREATE_NO_POD_ID',p)
+              sys.exit(2)
+          open('/tmp/pod_id','w').write(pod_id)
+          print('CREATE_PASS',pod_id)
+          PY
+          echo "pod_id=$(cat /tmp/pod_id)" >> "$GITHUB_OUTPUT"
+          python - <<'PY'
+          import json,os,datetime
+          out={
+            'authorization_id':os.environ['AUTH_ID'],
+            'pod_id':open('/tmp/pod_id').read().strip(),
+            'created_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            'single_use_consumed':True
+          }
+          open('.github/runpod-control/retry19q-consumed.json','w').write(json.dumps(out,indent=2,sort_keys=True)+'\n')
+          PY
+          git config user.name aqlevon-runpod-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/runpod-control/retry19q-consumed.json
+          git commit -m "ops: consume Retry19Q paid authorization [skip ci]"
+          git push origin HEAD:ops/runpod-control-v1
+
+      - name: Verify created Pod contract and wait for SSH
+        id: ssh
+        shell: bash
+        run: |
+          set -euo pipefail
+          pod="${{ steps.create.outputs.pod_id }}"
+          for i in $(seq 1 120); do
+            curl -sS -f "https://rest.runpod.io/v1/pods/$pod" -H "Authorization: Bearer $RUNPOD_API_KEY" > /tmp/pod.json || true
+            if python - <<'PY'
+          import json,sys,os
+          try: p=json.load(open('/tmp/pod.json'))
+          except Exception: sys.exit(1)
+          rate=float(p.get('costPerHr') or 999)
+          if rate>0.55:
+              print('FAIL_CLOSED_LIVE_RATE',rate); sys.exit(2)
+          ip=p.get('publicIp'); m=p.get('portMappings') or {}; port=m.get('22') or m.get(22)
+          if p.get('desiredStatus')=='RUNNING' and ip and port:
+              open('/tmp/ssh_target','w').write(f"{ip}|{port}")
+              open('/tmp/live_rate','w').write(str(rate))
+              sys.exit(0)
+          sys.exit(1)
+          PY
+            then break
+            else rc=$?; if [ "$rc" -eq 2 ]; then exit 96; fi
+            fi
+            sleep 5
+          done
+          test -s /tmp/ssh_target
+          echo "host=$(cut -d'|' -f1 /tmp/ssh_target)" >> "$GITHUB_OUTPUT"
+          echo "port=$(cut -d'|' -f2 /tmp/ssh_target)" >> "$GITHUB_OUTPUT"
+
+      - name: Post-create hardware safety gate
+        shell: bash
+        env:
+          HOST: ${{ steps.ssh.outputs.host }}
+          PORT: ${{ steps.ssh.outputs.port }}
+        run: |
+          set -euo pipefail
+          cat > /tmp/aqlevon_hw_gate.py <<'PY'
+          import subprocess
+
+          name = subprocess.check_output(
+              ["nvidia-smi", "--query-gpu=name", "--format=csv,noheader"],
+              text=True,
+          ).splitlines()[0].strip()
+          mem = float(subprocess.check_output(
+              ["nvidia-smi", "--query-gpu=memory.free", "--format=csv,noheader,nounits"],
+              text=True,
+          ).splitlines()[0])
+          available_kib = 0
+          for line in open("/proc/meminfo"):
+              if line.startswith("MemAvailable:"):
+                  available_kib = int(line.split()[1])
+                  break
+          available_gib = available_kib / 1024 / 1024
+          print("AQLEVON_POST_CREATE_HW", {
+              "gpu": name,
+              "free_vram_mib": mem,
+              "host_mem_available_gib": round(available_gib, 2),
+          })
+          if name != "NVIDIA A40":
+              raise SystemExit("FAIL_CLOSED_GPU_IDENTITY:" + name)
+          if mem < 44000:
+              raise SystemExit("FAIL_CLOSED_GPU_FREE_MEMORY:" + str(mem))
+          if available_gib < 32:
+              raise SystemExit("FAIL_CLOSED_HOST_RAM:" + str(available_gib))
+          print("AQLEVON_POST_CREATE_HW_PASS")
+          PY
+          ssh_opts=(-i /tmp/aqlevon_key -p "$PORT" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10)
+          scp_opts=(-i /tmp/aqlevon_key -P "$PORT" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10)
+          scp -q "${scp_opts[@]}" /tmp/aqlevon_hw_gate.py root@"$HOST":/tmp/aqlevon_hw_gate.py
+          ssh "${ssh_opts[@]}" root@"$HOST" python3 /tmp/aqlevon_hw_gate.py
+
+      - name: Execute v019 smoke then frozen training and retrieve evidence
+        id: train
+        continue-on-error: true
+        shell: bash
+        env:
+          EXPECTED_HEAD: ${{ steps.gate.outputs.expected_head }}
+          IMAGE_DIGEST: ${{ steps.gate.outputs.image_digest }}
+        run: |
+          set +e
+          host="${{ steps.ssh.outputs.host }}"
+          port="${{ steps.ssh.outputs.port }}"
+          ssh_opts=(-i /tmp/aqlevon_key -p "$port" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10)
+          scp_opts=(-i /tmp/aqlevon_key -P "$port" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10)
+          ready=0
+          for i in $(seq 1 60); do
+            ssh "${ssh_opts[@]}" root@$host "actual=\$(nvidia-smi --query-gpu=name --format=csv,noheader | head -n1); printf '%s\n' \"\$actual\"; test \"\$actual\" = \"$GPU_TYPE\"" && { ready=1; break; }
+            sleep 5
+          done
+          if [ "$ready" -ne 1 ]; then
+            rc=91
+            echo "FAIL_CLOSED_GPU_SSH_READINESS" | tee /tmp/retry19q.log
+          else
+            timeout --signal=TERM --kill-after=20s 3300s ssh "${ssh_opts[@]}" root@$host "export AQLEVON_EXPECTED_W03_HEAD=$EXPECTED_HEAD AQLEVON_EXPECTED_IMAGE_DIGEST=$IMAGE_DIGEST; rm -rf /workspace/MUS-AI; git clone -q https://github.com/india123445t-pixel/MUS-AI.git /workspace/MUS-AI; git -C /workspace/MUS-AI fetch -q origin $EXPECTED_HEAD; git -C /workspace/MUS-AI checkout -q --detach $EXPECTED_HEAD; bash /workspace/MUS-AI/research/weight_factory/agent03/p4_runpod_appliance_launch_v019.sh" 2>&1 | tee /tmp/retry19q.log
+            rc=${PIPESTATUS[0]}
+          fi
+          printf '%s\n' "$rc" > /tmp/train_rc
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          if [ "$ready" -eq 1 ]; then
+            ssh "${ssh_opts[@]}" root@$host 'cd /workspace && tar -czf /tmp/aqlevon-retry19q-evidence.tgz aqlevon_p4 2>/dev/null' || true
+            scp -q "${scp_opts[@]}" root@$host:/tmp/aqlevon-retry19q-evidence.tgz /tmp/aqlevon-retry19q-evidence.tgz || true
+          fi
+          exit "$rc"
+
+      - name: Stop Pod immediately and verify EXITED
+        if: always()
+        id: stop
+        shell: bash
+        run: |
+          set -euo pipefail
+          pod="${{ steps.create.outputs.pod_id }}"
+          if [ -z "$pod" ] && [ -s /tmp/pod_id ]; then pod="$(cat /tmp/pod_id)"; fi
+          if [ -z "$pod" ]; then echo "verified=no_pod_created" >> "$GITHUB_OUTPUT"; exit 0; fi
+          stopped=0
+          for i in $(seq 1 10); do
+            curl -sS -f -X POST "https://rest.runpod.io/v1/pods/$pod/stop" -H "Authorization: Bearer $RUNPOD_API_KEY" -H 'Content-Type: application/json' -d '{}' >/tmp/stop.json || true
+            sleep 3
+            curl -sS -f "https://rest.runpod.io/v1/pods/$pod" -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/stop-probe.json || true
+            if python - <<'PY'
+          import json,sys
+          try:p=json.load(open('/tmp/stop-probe.json'))
+          except Exception:sys.exit(1)
+          sys.exit(0 if p.get('desiredStatus')=='EXITED' else 1)
+          PY
+            then stopped=1; break; fi
+          done
+          test "$stopped" -eq 1 || { echo "::error::RunPod stop could not be verified EXITED"; exit 93; }
+          echo "verified=exited" >> "$GITHUB_OUTPUT"
+
+      - name: Write sanitized Retry19Q result
+        if: always()
+        shell: bash
+        env:
+          STEP_RC: ${{ steps.train.outputs.rc }}
+          EXPECTED_HEAD: ${{ steps.gate.outputs.expected_head }}
+          IMAGE_DIGEST: ${{ steps.gate.outputs.image_digest }}
+          STOP_STATUS: ${{ steps.stop.outputs.verified }}
+        run: |
+          mkdir -p .github/runpod-control
+          python - <<'PY'
+          import json,os,re,hashlib,datetime
+          log=open('/tmp/retry19q.log',errors='replace').read() if os.path.exists('/tmp/retry19q.log') else ''
+          rc=None
+          for v in [os.environ.get('STEP_RC',''), open('/tmp/train_rc').read().strip() if os.path.exists('/tmp/train_rc') else '']:
+              try: rc=int(v); break
+              except Exception: pass
+          if rc is None: rc=255
+          markers={k:(k in log) for k in [
+            'AQLEVON_V019_NATIVE_LORA_FUNCTIONAL_SMOKE_PASS',
+            'AQLEVON_V019_LORA_SMOKE_PASS',
+            'APPLIANCE_NATIVE_QWEN35_VLLM019_PASS',
+            'APPLIANCE_BINDING_PASS',
+            'APPLIANCE_SOURCE_DELTA_PASS',
+            'APPLIANCE_SEED1701_BINDING_PASS',
+            'APPLIANCE_EXACT_AUTHORIZATION_PASS',
+            'MODEL_STAGE_PASS',
+            'A1_LOCKED_TRAINING_START',
+            'AQLEVON_A1_EXIT_CODE'
+          ]}
+          out={
+            'authorization_id':os.environ['AUTH_ID'],
+            'expected_head':os.environ.get('EXPECTED_HEAD'),
+            'image_digest':os.environ.get('IMAGE_DIGEST'),
+            'checked_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            'training_exit_code':rc,
+            'markers':markers,
+            'log_sha256':hashlib.sha256(log.encode()).hexdigest() if log else None,
+            'evidence_archive_present':os.path.exists('/tmp/aqlevon-retry19q-evidence.tgz'),
+            'stop_status':os.environ.get('STOP_STATUS')
+          }
+          open('.github/runpod-control/retry19q-result.json','w').write(json.dumps(out,indent=2,sort_keys=True)+'\n')
+          PY
+          git pull --rebase origin ops/runpod-control-v1
+          git config user.name aqlevon-runpod-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/runpod-control/retry19q-result.json
+          git commit -m "ops: record Retry19Q sanitized result [skip ci]" || true
+          git push origin HEAD:ops/runpod-control-v1 || true
+
+      - name: Upload Retry19Q evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aqlevon-retry19q-evidence
+          path: |
+            /tmp/retry19q.log
+            /tmp/train_rc
+            /tmp/aqlevon-retry19q-evidence.tgz
+            /tmp/create-response.json
+            /tmp/pod.json
+            /tmp/stop.json
+            /tmp/stop-probe.json
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Fail job on true training exit code
+        if: always()
+        shell: bash
+        env:
+          STEP_RC: ${{ steps.train.outputs.rc }}
+        run: |
+          set -euo pipefail
+          rc="${STEP_RC:-}"
+          if ! [[ "$rc" =~ ^[0-9]+$ ]] && [ -s /tmp/train_rc ]; then rc="$(cat /tmp/train_rc)"; fi
+          if ! [[ "$rc" =~ ^[0-9]+$ ]]; then echo "::error::Retry19Q training exit code missing"; exit 255; fi
+          echo "AQLEVON_RETRY19P_TRUE_EXIT_CODE=$rc"
+          test "$rc" -eq 0 || exit "$rc"
