@@ -1,0 +1,14 @@
+{
+  "authorization_id": "P4-A1-RUNPOD-4090-20260922-19E-LIVE-VLLM-LORA-PATCH",
+  "authorization_sha256": "877def34fdbc0d0fe01f6a9cbd6001794c2f0ccd207628c3498ed4259c8b4918",
+  "expected_head": "7dbedff17ca83a76ffc6a81f434443dc26656fd0",
+  "selection_mode": "dynamic_datacenter",
+  "gpu_type": "NVIDIA GeForce RTX 4090",
+  "min_memory_gb": 24,
+  "request_schema": "runpodctl_graphql_dynamic_dc",
+  "max_total_cost_usd": "0.60",
+  "max_hourly_rate_usd": "0.80",
+  "max_billed_seconds": 1800,
+  "single_use": true,
+  "reason": "Owner authorized autonomous completion; CPU Gate and Exact Contract PASS on live-vLLM-patch source; select any live secure RTX4090 datacenter under 0.80 USD/hr"
+}
