@@ -10,6 +10,7 @@ on:
       - 'research/weight_factory/agent03/runtime_appliance/**'
       - 'research/weight_factory/agent03/p4_patch_sdpo_transformers5_compat.py'
       - 'research/weight_factory/agent03/p4_patch_vllm_qwen35_transformers_backend.py'
+      - 'research/weight_factory/agent03/p4_patch_vllm_transformers5_tokenizer_compat.py'
       - '.github/workflows/p4-w03-runtime-appliance.yml'
 
 permissions:
@@ -34,11 +35,13 @@ jobs:
         run: |
           set -euo pipefail
           python -m py_compile research/weight_factory/agent03/runtime_appliance/smoke_runtime.py
+          python -m py_compile research/weight_factory/agent03/p4_patch_vllm_transformers5_tokenizer_compat.py
           python - <<'PY'
           from pathlib import Path
           req=Path("research/weight_factory/agent03/runtime_appliance/requirements-p4-a1.txt").read_text()
           docker=Path("research/weight_factory/agent03/runtime_appliance/Dockerfile").read_text()
           smoke=Path("research/weight_factory/agent03/runtime_appliance/smoke_runtime.py").read_text()
+          tokpatch=Path("research/weight_factory/agent03/p4_patch_vllm_transformers5_tokenizer_compat.py").read_text()
           required_req=[
               "transformers==5.17.0","peft==0.21.0","accelerate==1.15.0",
               "pyarrow==22.0.0","hydra-core==1.3.2","ray[default]==2.53.0",
@@ -56,9 +59,11 @@ jobs:
               "smoke_runtime.py --build-check",
               'CMD ["/start.sh"]',
               "p4_patch_vllm_qwen35_transformers_backend.py",
+              "p4_patch_vllm_transformers5_tokenizer_compat.py",
           ]
           for x in required_docker:
               assert x in docker,x
+          assert "AQLEVON_VLLM_TRANSFORMERS5_TOKENIZER_COMPAT_PASS" in tokpatch
           for x in ("AQLEVON_APPLIANCE_BUILD_CHECK_PASS","AQLEVON_APPLIANCE_GPU_CHECK_PASS","RTX 4090","qwen35_model_impl"):
               assert x in smoke,x
           print("APPLIANCE_STATIC_CONTRACT_PASS")
