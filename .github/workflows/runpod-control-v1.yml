@@ -54,7 +54,7 @@ jobs:
 
           mkdir -p .github/runpod-control
           python - <<'PY'
-          import json, datetime
+          import json, datetime, hashlib
           with open('/tmp/pods.json','r',encoding='utf-8') as f:
               data=json.load(f)
 
@@ -78,17 +78,39 @@ jobs:
               "pods": []
           }
 
+          def first(*vals):
+              for v in vals:
+                  if v not in (None,"",[],{}):
+                      return v
+              return None
+
           for p in pods:
               if not isinstance(p,dict):
                   continue
-              status=p.get('desiredStatus') or p.get('status') or p.get('runtimeStatus') or 'UNKNOWN'
-              gpu=p.get('gpu',{})
-              gpu_name=(gpu.get('displayName') if isinstance(gpu,dict) else None) or p.get('gpuTypeId') or p.get('gpuType') or 'unknown'
-              cost=p.get('costPerHr') or p.get('costPerHour') or p.get('pricePerHr')
+              pid=str(p.get('id') or '')
+              fp=hashlib.sha256(pid.encode()).hexdigest()[:12] if pid else None
+              machine=p.get('machine') if isinstance(p.get('machine'),dict) else {}
+              gpu_obj=p.get('gpu') if isinstance(p.get('gpu'),dict) else {}
+              gpu=first(
+                  p.get('gpuTypeId'),
+                  p.get('gpuType'),
+                  p.get('gpuTypeName'),
+                  gpu_obj.get('displayName'),
+                  gpu_obj.get('name'),
+                  machine.get('gpuDisplayName'),
+                  machine.get('gpuTypeId'),
+                  machine.get('gpuType'),
+                  machine.get('gpuTypeName')
+              ) or "unknown"
+              status=first(p.get('desiredStatus'),p.get('status'),p.get('runtimeStatus')) or "UNKNOWN"
+              cost=first(p.get('costPerHr'),p.get('costPerHour'),p.get('pricePerHr'))
+              created=first(p.get('createdAt'),p.get('created_at'),p.get('lastStartedAt'))
               out["pods"].append({
+                  "fingerprint": fp,
                   "status": status,
-                  "gpu": gpu_name,
-                  "cost_per_hr": cost
+                  "gpu": gpu,
+                  "cost_per_hr": cost,
+                  "created_at": created
               })
 
           with open('.github/runpod-control/status.json','w',encoding='utf-8') as f:
