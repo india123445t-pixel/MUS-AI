@@ -53,6 +53,18 @@ test('chat exposes real inference readiness and disables unavailable actions',()
   assert.match(chat,/webSearchAvailable !== true/);
 });
 
+test('apps never solicit browser secrets or claim disconnected capabilities are live',()=>{
+  assert.doesNotMatch(plugins,/type="password"/);
+  assert.doesNotMatch(plugins,/token\.trim\(\)/);
+  assert.doesNotMatch(plugins,/setConnecting/);
+  assert.match(plugins,/disabled title=\{t\('apps\.browserNotice'\)\}/);
+  assert.match(en,/code-interpreter': 'Not connected in the browser edition/);
+  assert.match(en,/image-gen': 'Not connected in the browser edition/);
+  assert.match(en,/github': 'Not connected in the browser edition/);
+  assert.match(ar,/code-interpreter': 'غير متصل في نسخة المتصفح/);
+  assert.match(ar,/image-gen': 'غير متصل في نسخة المتصفح/);
+});
+
 test('public work surface only advertises the format it actually renders',()=>{
   assert.match(work,/format: 'md'/);
   assert.doesNotMatch(work,/format: 'pdf'/);
