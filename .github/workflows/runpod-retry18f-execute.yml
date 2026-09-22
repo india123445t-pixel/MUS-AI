@@ -228,9 +228,17 @@ jobs:
           # binding, image digest, run manifest, command lock, GPU identity, and authorization.
           set +e
           timeout --signal=TERM --kill-after=20s 1500s \
-            ssh "${SSH_OPTS[@]}" root@"$IP" \
-            "set -euo pipefail; rm -rf /workspace/MUS-AI; git clone -q --branch agent/03-p4-gene1-physical-trainer --single-branch https://github.com/india123445t-pixel/MUS-AI.git /workspace/MUS-AI; git -C /workspace/MUS-AI reset -q --hard $P4_HEAD; test \"$(git -C /workspace/MUS-AI rev-parse HEAD)\" = \"$P4_HEAD\"; export AQLEVON_EXPECTED_W03_HEAD=$P4_HEAD; bash /workspace/MUS-AI/research/weight_factory/agent03/p4_runpod_appliance_launch.sh" \
-            2>&1 | tee "$GITHUB_WORKSPACE/retry18f-artifact/retry18f-console.log"
+            ssh "${SSH_OPTS[@]}" root@"$IP" "P4_HEAD='$P4_HEAD' bash -s" \
+            2>&1 <<'REMOTE' | tee "$GITHUB_WORKSPACE/retry18f-artifact/retry18f-console.log"
+          set -euo pipefail
+          rm -rf /workspace/MUS-AI
+          git clone -q --branch agent/03-p4-gene1-physical-trainer --single-branch https://github.com/india123445t-pixel/MUS-AI.git /workspace/MUS-AI
+          git -C /workspace/MUS-AI reset -q --hard "$P4_HEAD"
+          actual_head="$(git -C /workspace/MUS-AI rev-parse HEAD)"
+          test "$actual_head" = "$P4_HEAD"
+          export AQLEVON_EXPECTED_W03_HEAD="$P4_HEAD"
+          bash /workspace/MUS-AI/research/weight_factory/agent03/p4_runpod_appliance_launch.sh
+REMOTE
           run_rc=${PIPESTATUS[0]}
           set -e
           echo "$run_rc" > "$GITHUB_WORKSPACE/retry18f-artifact/launcher-exit-code.txt"
