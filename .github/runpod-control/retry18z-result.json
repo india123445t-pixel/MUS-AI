@@ -1,9 +1,9 @@
 {
   "authorization_id": "P4-A1-RUNPOD-L4-20260922-18Z-VLLM-LORA-GUARD",
-  "checked_at_utc": "2026-09-22T14:24:14.209073+00:00",
+  "checked_at_utc": "2026-09-22T14:28:06.090818+00:00",
   "checkpoint_valid": false,
   "evidence_archive_present": false,
-  "expected_head": "7af35739fb45600bac8828464fbd67307d1aef8d",
+  "expected_head": "",
   "log_sha256": null,
   "markers": {
     "A1_LOCKED_TRAINING_START": false,
