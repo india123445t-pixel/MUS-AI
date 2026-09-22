@@ -106,7 +106,7 @@ jobs:
               available=d.get('available')
               if isinstance(price,(int,float)) and price <= float(os.environ['MAX_RATE']) and available is True:
                   ok.append((price,d.get('stockStatus')))
-          assert ok, ('RTX4090_SECURE_GATE_FAIL',[(d.get('communityPricePerHr'),d.get('available'),d.get('stockStatus')) for d in hits])
+          assert ok, ('RTX4090_COMMUNITY_GATE_FAIL',[(d.get('communityPricePerHr'),d.get('available'),d.get('stockStatus')) for d in hits])
           print('RTX4090_COMMUNITY_MARKET_GATE_PASS',min(ok))
           PY
 
@@ -147,6 +147,7 @@ jobs:
           POD_DELETED=false
           POD_STOPPED=false
           ACTUAL_RATE=""
+          ERROR_MESSAGE=""
           PHASE="init"
           START_UTC="$(date -u +%FT%TZ)"
 
@@ -154,6 +155,13 @@ jobs:
             python - "$RESULT" "$PHASE" "$START_UTC" "$POD_FP" "$ACTUAL_RATE" "$TRAIN_RC" "$ARTIFACT_RETRIEVED" "$POD_STOPPED" "$POD_DELETED" <<'PY'
           import json,sys,datetime
           path,phase,start,fp,rate,rc,artifact,stopped,deleted=sys.argv[1:]
+          import re, pathlib
+          err=""
+          ep=pathlib.Path("/tmp/controller-error")
+          if ep.exists():
+              err=ep.read_text(encoding="utf-8",errors="replace")[:3000]
+              err=re.sub(r"rpa_[A-Za-z0-9_-]+","<REDACTED_RUNPOD_KEY>",err)
+              err=re.sub(r"gh[pousr]_[A-Za-z0-9_]+","<REDACTED_GITHUB_TOKEN>",err)
           out={
             "schema_version":1,
             "run":"Retry18I",
@@ -169,7 +177,8 @@ jobs:
             "training_exit_code":int(rc),
             "artifact_retrieved":artifact=="true",
             "pod_stopped":stopped=="true",
-            "pod_deleted":deleted=="true"
+            "pod_deleted":deleted=="true",
+            "error":err or None
           }
           open(path,'w',encoding='utf-8').write(json.dumps(out,indent=2,sort_keys=True)+'\n')
           PY
@@ -193,19 +202,20 @@ jobs:
           trap cleanup EXIT
 
           PHASE="ssh_key"
-          mkdir -p /tmp/aqlevon-r18h
-          ssh-keygen -q -t ed25519 -f /tmp/aqlevon-r18h/id_ed25519 -N '' -C "AQLEVON-R18I" </dev/null
-          KEY_FP="$(ssh-keygen -lf /tmp/aqlevon-r18h/id_ed25519.pub -E sha256 | awk '{print $2}')"
-          runpodctl ssh add-key --key-file /tmp/aqlevon-r18h/id_ed25519.pub >/tmp/add-key.json
+          mkdir -p /tmp/aqlevon-r18i
+          ssh-keygen -q -t ed25519 -f /tmp/aqlevon-r18i/id_ed25519 -N '' -C "AQLEVON-R18I" </dev/null
+          KEY_FP="$(ssh-keygen -lf /tmp/aqlevon-r18i/id_ed25519.pub -E sha256 | awk '{print $2}')"
+          runpodctl ssh add-key --key-file /tmp/aqlevon-r18i/id_ed25519.pub >/tmp/add-key.json
           echo "EPHEMERAL_SSH_KEY_REGISTERED"
 
           PHASE="create"
           set +e
-          runpodctl pod create             --name "${POD_NAME}"             --image "${IMAGE}"             --gpu-id "${GPU_ID}"             --gpu-count 1             --cloud-type COMMUNITY             --container-disk-in-gb 40             --ports "22/tcp"             --ssh             --stop-after 30m             > /tmp/create.json 2>/tmp/create.err
+          runpodctl pod create             --name "${POD_NAME}"             --image "${IMAGE}"             --gpu-id "${GPU_ID}"             --gpu-count 1             --cloud-type COMMUNITY             --public-ip             --container-disk-in-gb 40             --ports "22/tcp"             --ssh             --stop-after 30m             > /tmp/create.json 2>/tmp/create.err
           CREATE_RC=$?
           set -e
           if [ "$CREATE_RC" -ne 0 ]; then
             PHASE="create_failed"
+            { cat /tmp/create.err; cat /tmp/create.json; } | head -c 3000 > /tmp/controller-error || true
             cat /tmp/create.err >&2 || true
             exit "$CREATE_RC"
           fi
@@ -258,7 +268,9 @@ jobs:
           import sys
           v=float(sys.argv[1])
           assert v <= 0.80, ('ACTUAL_RATE_EXCEEDS_AUTHORIZATION',v)
-          print('ACTUAL_RATE_GATE_PASS',v)
+          projected=v*1800/3600
+          assert projected <= 0.40, ('PROJECTED_TOTAL_EXCEEDS_AUTHORIZATION',projected)
+          print('ACTUAL_RATE_AND_TOTAL_GATE_PASS',v,projected)
           PY
 
           PHASE="wait_ssh"
@@ -280,7 +292,7 @@ jobs:
           PY
               )
               if [ -n "${SSH_IP:-}" ] && [ -n "${SSH_PORT:-}" ]; then
-                if ssh -i /tmp/aqlevon-r18h/id_ed25519                   -o BatchMode=yes -o ConnectTimeout=8                   -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null                   -p "$SSH_PORT" "root@$SSH_IP" 'echo AQLEVON_SSH_READY' >/tmp/ssh-test.out 2>/tmp/ssh-test.err; then
+                if ssh -i /tmp/aqlevon-r18i/id_ed25519                   -o BatchMode=yes -o ConnectTimeout=8                   -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null                   -p "$SSH_PORT" "root@$SSH_IP" 'echo AQLEVON_SSH_READY' >/tmp/ssh-test.out 2>/tmp/ssh-test.err; then
                   break
                 fi
               fi
@@ -288,7 +300,7 @@ jobs:
             sleep 5
           done
           test -n "${SSH_IP:-}" -a -n "${SSH_PORT:-}" || { PHASE="ssh_info_failed"; exit 41; }
-          ssh -i /tmp/aqlevon-r18h/id_ed25519             -o BatchMode=yes -o ConnectTimeout=10             -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null             -p "$SSH_PORT" "root@$SSH_IP" 'echo AQLEVON_SSH_AUTH_PASS'
+          ssh -i /tmp/aqlevon-r18i/id_ed25519             -o BatchMode=yes -o ConnectTimeout=10             -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null             -p "$SSH_PORT" "root@$SSH_IP" 'echo AQLEVON_SSH_AUTH_PASS'
 
           PHASE="bootstrap"
           cat > /tmp/retry18i-bootstrap.sh <<'REMOTE'
@@ -433,23 +445,23 @@ jobs:
           REMOTE
           chmod +x /tmp/retry18i-bootstrap.sh
 
-          scp -q -i /tmp/aqlevon-r18h/id_ed25519             -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null             -P "$SSH_PORT" /tmp/retry18i-bootstrap.sh "root@$SSH_IP:/workspace/retry18i-bootstrap.sh"
+          scp -q -i /tmp/aqlevon-r18i/id_ed25519             -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null             -P "$SSH_PORT" /tmp/retry18i-bootstrap.sh "root@$SSH_IP:/workspace/retry18i-bootstrap.sh"
 
           PHASE="training"
           set +e
-          ssh -i /tmp/aqlevon-r18h/id_ed25519             -o BatchMode=yes -o ServerAliveInterval=20 -o ServerAliveCountMax=3             -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null             -p "$SSH_PORT" "root@$SSH_IP"             'bash /workspace/retry18i-bootstrap.sh'             2>&1 | tee /tmp/retry18i-controller.log
+          ssh -i /tmp/aqlevon-r18i/id_ed25519             -o BatchMode=yes -o ServerAliveInterval=20 -o ServerAliveCountMax=3             -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null             -p "$SSH_PORT" "root@$SSH_IP"             'bash /workspace/retry18i-bootstrap.sh'             2>&1 | tee /tmp/retry18i-controller.log
           TRAIN_RC=${PIPESTATUS[0]}
           set -e
           echo "REMOTE_TRAINING_RC=$TRAIN_RC"
 
           PHASE="artifact_retrieval"
           set +e
-          ssh -i /tmp/aqlevon-r18h/id_ed25519             -o BatchMode=yes -o ConnectTimeout=10             -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null             -p "$SSH_PORT" "root@$SSH_IP"             'test -f /workspace/retry18i-evidence.tgz && stat -c %s /workspace/retry18i-evidence.tgz'             > /tmp/remote-size.txt 2>/tmp/remote-size.err
+          ssh -i /tmp/aqlevon-r18i/id_ed25519             -o BatchMode=yes -o ConnectTimeout=10             -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null             -p "$SSH_PORT" "root@$SSH_IP"             'test -f /workspace/retry18i-evidence.tgz && stat -c %s /workspace/retry18i-evidence.tgz'             > /tmp/remote-size.txt 2>/tmp/remote-size.err
           SIZE_RC=$?
           if [ "$SIZE_RC" -eq 0 ]; then
             REMOTE_SIZE="$(tr -dc '0-9' </tmp/remote-size.txt)"
             if [ -n "$REMOTE_SIZE" ] && [ "$REMOTE_SIZE" -le 5368709120 ]; then
-              timeout 300s scp -q -i /tmp/aqlevon-r18h/id_ed25519                 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null                 -P "$SSH_PORT" "root@$SSH_IP:/workspace/retry18i-evidence.tgz"                 "$GITHUB_WORKSPACE/retry18i-evidence.tgz"
+              timeout 300s scp -q -i /tmp/aqlevon-r18i/id_ed25519                 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null                 -P "$SSH_PORT" "root@$SSH_IP:/workspace/retry18i-evidence.tgz"                 "$GITHUB_WORKSPACE/retry18i-evidence.tgz"
               [ $? -eq 0 ] && ARTIFACT_RETRIEVED=true
             fi
           fi
