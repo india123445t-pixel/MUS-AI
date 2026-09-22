@@ -238,7 +238,7 @@ jobs:
           test "$actual_head" = "$P4_HEAD"
           export AQLEVON_EXPECTED_W03_HEAD="$P4_HEAD"
           bash /workspace/MUS-AI/research/weight_factory/agent03/p4_runpod_appliance_launch.sh
-REMOTE
+          REMOTE
           run_rc=${PIPESTATUS[0]}
           set -e
           echo "$run_rc" > "$GITHUB_WORKSPACE/retry18f-artifact/launcher-exit-code.txt"
