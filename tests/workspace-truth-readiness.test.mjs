@@ -16,6 +16,12 @@ const i18n=read('app/workspace/i18n/index.js');
 const ar=read('app/workspace/i18n/ar.js');
 const en=read('app/workspace/i18n/en.js');
 const health=read('app/api/inference-health/route.js');
+const chatRoute=read('app/api/chat/route.js');
+const statusRoute=read('app/api/status/route.js');
+const benchmarkRoute=read('app/api/benchmark/run/route.js');
+const goalRoute=read('app/api/goal/run/route.js');
+const evalRoute=read('app/api/internal/eval-snapshot/route.js');
+const providerTestRoute=read('app/api/provider-test/route.js');
 
 test('browser workspace fails closed for unavailable adapters',()=>{
   assert.match(api,/adapter_state:'NOT_CONNECTED'/);
@@ -63,4 +69,16 @@ test('new users default to Arabic and persistence claims are truthful',()=>{
   assert.doesNotMatch(en,/Public repositories clone without a token/);
   assert.match(dev,/browserSandboxNotice/);
   assert.match(settings,/set\.webUnavailable/);
+});
+
+
+test('public runtime never silently falls back to the legacy Supabase project',()=>{
+  const guarded=[chatRoute,statusRoute,benchmarkRoute,goalRoute,evalRoute,providerTestRoute];
+  for(const src of guarded){
+    assert.doesNotMatch(src,/qkoscgdegnqcypkjrefn/);
+    assert.doesNotMatch(src,/sb_publishable_wGDAyv5bwOrGjNX6QK0KzQ_K_xWI6w8/);
+  }
+  assert.match(chatRoute,/ENV_MISSING/);
+  assert.match(chatRoute,/status:503/);
+  assert.match(statusRoute,/database_configured:!!client/);
 });
