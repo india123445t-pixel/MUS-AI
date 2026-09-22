@@ -1,0 +1,73 @@
+name: AQLEVON RunPod SSH Key Smoke
+
+on:
+  push:
+    branches:
+      - ops/runpod-retry18f-execute-20260922
+    paths:
+      - .github/workflows/runpod-ssh-key-smoke.yml
+
+permissions:
+  contents: write
+
+env:
+  RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install runpodctl
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL https://github.com/runpod/runpodctl/releases/download/v2.14.0/runpodctl-linux-amd64.tar.gz -o /tmp/runpodctl.tgz
+          tar -xzf /tmp/runpodctl.tgz -C /tmp runpodctl
+          sudo install -m 0755 /tmp/runpodctl /usr/local/bin/runpodctl
+          runpodctl version
+
+      - name: Add, verify, and remove ephemeral SSH key
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${RUNPOD_API_KEY:-}"
+          mkdir -p ~/.ssh
+          ssh-keygen -q -t ed25519 -f ~/.ssh/aqlevon-r18f-smoke -N ''
+          FP="$(ssh-keygen -lf ~/.ssh/aqlevon-r18f-smoke.pub -E sha256 | awk '{print $2}')"
+          echo "::add-mask::$FP"
+
+          cleanup() {
+            runpodctl ssh remove-key --fingerprint "$FP" >/dev/null 2>&1 || true
+            rm -f ~/.ssh/aqlevon-r18f-smoke ~/.ssh/aqlevon-r18f-smoke.pub
+          }
+          trap cleanup EXIT
+
+          runpodctl ssh add-key --key-file ~/.ssh/aqlevon-r18f-smoke.pub >/dev/null
+          runpodctl ssh list-keys > /tmp/keys.json
+          grep -Fq "$FP" /tmp/keys.json || { echo "::error::ephemeral key not found after add"; exit 1; }
+
+          runpodctl ssh remove-key --fingerprint "$FP" >/dev/null
+          rm -f ~/.ssh/aqlevon-r18f-smoke ~/.ssh/aqlevon-r18f-smoke.pub
+          trap - EXIT
+
+          runpodctl ssh list-keys > /tmp/keys-after.json
+          if grep -Fq "$FP" /tmp/keys-after.json; then
+            echo "::error::ephemeral key still present after remove"
+            exit 2
+          fi
+
+          mkdir -p ops
+          printf '%s\n' '{"schema_version":1,"ssh_ephemeral_key_cycle":"PASS","paid_action_performed":false,"secret_exposed":false}' > ops/runpod-r18f-ssh-smoke.json
+
+      - name: Persist sanitized receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "aqlevon-runpod-control"
+          git config user.email "aqlevon-runpod-control@users.noreply.github.com"
+          git add ops/runpod-r18f-ssh-smoke.json
+          git commit -m "ops: record Retry18F SSH key smoke" || exit 0
+          git push origin "HEAD:${GITHUB_REF_NAME}"
