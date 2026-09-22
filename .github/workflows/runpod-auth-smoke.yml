@@ -25,7 +25,7 @@ jobs:
           fi
           echo "RUNPOD_API_KEY is present (value not printed)."
 
-      - name: Validate RunPod key with read-only List Pods
+      - name: Read sanitized RunPod status
         shell: bash
         env:
           RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
@@ -38,4 +38,24 @@ jobs:
             exit 1
           fi
 
-          echo "RunPod authentication PASS: read-only List Pods returned HTTP 200."
+          echo "RunPod authentication PASS: HTTP 200."
+          echo "SANITIZED_POD_STATUS_BEGIN"
+          jq '
+            def pods:
+              if type == "array" then .
+              elif (.pods? | type) == "array" then .pods
+              elif (.data? | type) == "array" then .data
+              else [] end;
+            {
+              pod_count:(pods|length),
+              pods:(pods | map({
+                id:(.id // null),
+                name:(.name // null),
+                status:(.status // .desiredStatus // null),
+                desired_status:(.desiredStatus // null),
+                gpu_type:(.gpu?.displayName // .gpuTypeId // .machine?.gpuDisplayName // null),
+                gpu_count:(.gpuCount // .gpu?.count // null),
+                cost_per_hr:(.costPerHr // .costPerHour // null)
+              }))
+            }' /tmp/runpod-response.json
+          echo "SANITIZED_POD_STATUS_END"
