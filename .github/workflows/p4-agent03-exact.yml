@@ -219,8 +219,10 @@ jobs:
           cd /workspace/MUS-AI
           curl -fsSL https://raw.githubusercontent.com/vllm-project/vllm/v0.10.2/vllm/lora/models.py -o /tmp/vllm-0.10.2-lora-models.py
           curl -fsSL https://raw.githubusercontent.com/vllm-project/vllm/v0.10.2/vllm/model_executor/models/transformers.py -o /tmp/vllm-0.10.2-transformers.py
+          curl -fsSL https://raw.githubusercontent.com/huggingface/transformers/v5.17.0/src/transformers/models/qwen3_5/modeling_qwen3_5.py -o /tmp/transformers-5.17-qwen35.py
           AQLEVON_VLLM_LORA_MODELS_PATH=/tmp/vllm-0.10.2-lora-models.py \
           AQLEVON_VLLM_TRANSFORMERS_MODELS_PATH=/tmp/vllm-0.10.2-transformers.py \
+          AQLEVON_TRANSFORMERS_QWEN35_MODELING_PATH=/tmp/transformers-5.17-qwen35.py \
             python research/weight_factory/agent03/p4_patch_sdpo_transformers5_compat.py
           python research/weight_factory/agent03/p4_patch_vllm_qwen35_transformers_backend.py
           python - <<'PY'
@@ -252,6 +254,13 @@ jobs:
           assert 'vision_embeddings = vision_embeddings.pooler_output' in vllm_tf
           print("QWEN35_VLLM_MM_LORA_MAPPING_PATCH_PASS")
           print("QWEN35_VLLM_MM_OUTPUT_UNWRAP_PATCH_PASS")
+          qwen35_tf=Path("/tmp/transformers-5.17-qwen35.py").read_text()
+          assert "AQLEVON_QWEN35_VLLM_LINEAR_SHAPE_RESTORE" in qwen35_tf
+          assert "mixed_qkv = mixed_qkv.reshape(batch_size, seq_len, -1)" in qwen35_tf
+          assert "b = b.reshape(batch_size, seq_len, -1)" in qwen35_tf
+          assert "a = a.reshape(batch_size, seq_len, -1)" in qwen35_tf
+          assert "output = output.reshape(batch_size, seq_len, -1)" in qwen35_tf
+          print("QWEN35_VLLM_LINEAR_SHAPE_RESTORE_PATCH_PASS")
           qwen=Path("/workspace/SDPO/verl/workers/rollout/vllm_rollout/vllm_async_server.py").read_text()
           assert 'getattr(self.model_config.hf_config, "model_type", None) == "qwen3_5"' in qwen
           assert 'engine_kwargs["model_impl"] = "transformers"' in qwen
