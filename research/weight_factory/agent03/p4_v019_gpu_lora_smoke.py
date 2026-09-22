@@ -133,7 +133,9 @@ def run_vllm_smoke(model_path: Path, adapter_dir: Path) -> dict:
         gpu_memory_utilization=0.20,
         enable_lora=True,
         max_loras=1,
-        max_lora_rank=4,
+        # vLLM 0.19.1 accepts discrete capacity ceilings; rank-4 adapters use ceiling 8.
+        # This does NOT change the frozen PEFT adapter rank (r=4).
+        max_lora_rank=8,
         # Native Qwen3.5 packs HF q/k/v into the actual vLLM module qkv_proj.
         # Keep PEFT adapter targets q_proj/v_proj; restrict only vLLM's deployment
         # wrapper to the packed container so the 8 full-attention qkv_proj layers
@@ -184,7 +186,8 @@ def run_vllm_smoke(model_path: Path, adapter_dir: Path) -> dict:
         "max_model_len": 4096,
         "peft_lora_target_modules": ["q_proj", "v_proj"],
         "vllm_lora_target_modules": ["qkv_proj"],
-        "max_lora_rank": 4,
+        "peft_lora_rank": 4,
+        "vllm_max_lora_rank_capacity": 8,
         "base_lora_common_logprob_tokens": len(common),
         "max_common_logprob_delta": max_delta,
         "tiny_rollout_token_ids": token_ids,
