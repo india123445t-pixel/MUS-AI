@@ -16,12 +16,6 @@ function client(token){
 
 function providerFlags(){
   return {
-    openrouter:!!process.env.OPENROUTER_API_KEY,
-    groq:!!process.env.GROQ_API_KEY,
-    gemini:!!(process.env.GEMINI_API_KEY||process.env.GOOGLE_API_KEY),
-    mistral:!!process.env.MISTRAL_API_KEY,
-    cerebras:!!process.env.CEREBRAS_API_KEY,
-    huggingface:!!process.env.HF_TOKEN&&process.env.HF_FREE_FALLBACK_ENABLED==='true',
     self_hosted:!!(process.env.AQLEVON_MODEL_URL||process.env.LOCAL_MODEL_URL)
   };
 }
@@ -46,7 +40,7 @@ export async function POST(req){
 
     const providers=providerFlags();
     if(!Object.values(providers).some(Boolean)){
-      return NextResponse.json({message:'لا يوجد inference provider مجاني/محلي مُهيأ حاليًا.',blocker:'no_zero_cost_provider'},{status:503});
+      return NextResponse.json({message:'نموذج AQLEVON السيادي غير مهيأ حاليًا.',blocker:'aqlevon_runtime_unavailable'},{status:503});
     }
 
     const skillResult=await sb.from('skill_state').select('domain,score,attempts,wins').order('score',{ascending:true}).order('attempts',{ascending:true});
