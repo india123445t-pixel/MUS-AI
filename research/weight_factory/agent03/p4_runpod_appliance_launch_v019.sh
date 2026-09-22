@@ -17,8 +17,8 @@ echo "AQLEVON_APPLIANCE_LAUNCH_START $(date -u +%FT%TZ)"
 echo "AQLEVON_EXPECTED_IMAGE_DIGEST=$EXPECTED_IMAGE_DIGEST"
 
 test -d "$SDPO_IMAGE/.git" || { echo "FAIL_CLOSED_APPLIANCE_SDPO_MISSING"; exit 40; }
-python /opt/aqlevon/runtime/smoke_runtime_v019.py --build-check
-python - <<'PY'
+python3 /opt/aqlevon/runtime/smoke_runtime_v019.py --build-check
+python3 - <<'PY'
 import torch
 assert torch.cuda.is_available(), "AQLEVON_V019_CUDA_UNAVAILABLE"
 p=torch.cuda.get_device_properties(0)
@@ -49,7 +49,7 @@ RUN="$AGENT/p4_a1_seed1701_run_manifest_v1.json"
 LOCK="$AGENT/p4_a1_seed1701_command_lock_v1.json"
 PLAN="$AGENT/p4_frozen_training_plan_v1.json"
 
-RESOLVED_RUNTIME_FILES="$(python - <<'PY'
+RESOLVED_RUNTIME_FILES="$(python3 - <<'PY'
 import json, os, sys
 from pathlib import Path
 repo=Path("/workspace/MUS-AI")
@@ -88,7 +88,7 @@ ln -s "$SDPO_IMAGE" "$SDPO"
 test "$(git -C "$SDPO_IMAGE" rev-parse HEAD)" = "7c457fc1b1f636ae794eb0362ba37d4743b06fbc" || { echo "FAIL_CLOSED_SDPO_COMMIT_MISMATCH"; exit 46; }
 grep -q "AQLEVON_TF5_VISION_ALIAS" "$SDPO_IMAGE/verl/utils/model.py" || { echo "FAIL_CLOSED_TF5_MODEL_ALIAS_MISSING"; exit 47; }
 grep -q "AQLEVON_TF5_VISION_ALIAS" "$SDPO_IMAGE/verl/workers/fsdp_workers.py" || { echo "FAIL_CLOSED_TF5_FSDP_ALIAS_MISSING"; exit 48; }
-python - <<'PY'
+python3 - <<'PY'
 import importlib, vllm
 assert vllm.__version__.split("+")[0] == "0.19.1", vllm.__version__
 q=importlib.import_module("vllm.model_executor.models.qwen3_5")
@@ -100,7 +100,7 @@ PY
 rm -rf "$ROOT/aqlevon_p4"
 mkdir -p "$DATA" "$MODEL" /tmp/p4inputs
 
-python - <<'PY'
+python3 - <<'PY'
 import json, os, sys
 from pathlib import Path
 agent=Path("/workspace/MUS-AI/research/weight_factory/agent03")
@@ -122,7 +122,7 @@ print("APPLIANCE_BINDING_PASS",binding["binding_sha256"],binding["runtime_applia
 print("APPLIANCE_RUNTIME_SOURCE_COMMIT",binding["worker03_runtime_source_commit"])
 PY
 
-RUNTIME_SOURCE="$(python - <<'PY'
+RUNTIME_SOURCE="$(python3 - <<'PY'
 import json, os
 from pathlib import Path
 agent=Path("/workspace/MUS-AI/research/weight_factory/agent03")
@@ -148,7 +148,7 @@ git -C "$REPO" show abb94ef134e2e97036b6959dbc9db4278d3736b6:research/weight_fac
 git -C "$REPO" show abb94ef134e2e97036b6959dbc9db4278d3736b6:research/weight_factory/agent02/gene1_split_commitment_v1.json > /tmp/p4inputs/split.json
 
 cd "$AGENT"
-python p4_gene1_trainer.py freeze-plan \
+python3 p4_gene1_trainer.py freeze-plan \
   --method-spec /tmp/p4inputs/w01.json \
   --training-shard-manifest /tmp/p4inputs/shard_manifest.json \
   --training-shard /tmp/p4inputs/shard.jsonl \
@@ -160,12 +160,12 @@ python p4_gene1_trainer.py freeze-plan \
 
 diff -u "$PLAN" /tmp/p4inputs/generated_plan.json
 
-python p4_surrogate_tournament.py prepare-data \
+python3 p4_surrogate_tournament.py prepare-data \
   --training-shard /tmp/p4inputs/shard.jsonl \
   --training-pack /tmp/p4inputs/pack.json \
   --output-dir "$DATA"
 
-python - <<'PY'
+python3 - <<'PY'
 from huggingface_hub import snapshot_download
 snapshot_download(
  repo_id="Qwen/Qwen3.5-4B-Base",
@@ -175,7 +175,7 @@ snapshot_download(
 print("MODEL_STAGE_PASS")
 PY
 
-python - <<'PY'
+python3 - <<'PY'
 import json, os
 from pathlib import Path
 import p4_gene1_trainer as c
@@ -213,7 +213,7 @@ PY
 echo "AQLEVON_V019_LORA_SMOKE_START elapsed=$(( $(date +%s) - START_TS ))"
 nvidia-smi --query-gpu=name,memory.total,memory.free,utilization.gpu --format=csv
 timeout --signal=TERM --kill-after=20s 2400s \
-  python "$AGENT/p4_v019_gpu_lora_smoke.py" \
+  python3 "$AGENT/p4_v019_gpu_lora_smoke.py" \
     --model-path "$MODEL" \
     --evidence "$ROOT/aqlevon_p4/v019_lora_smoke.json"
 echo "AQLEVON_V019_LORA_SMOKE_PASS"
@@ -229,7 +229,7 @@ echo "A1_LOCKED_TRAINING_START elapsed=${ELAPSED}s"
 
 set +e
 timeout --signal=TERM --kill-after=20s 900s \
-python - <<'PY' 2>&1 | tee "$ROOT/aqlevon_p4/P4_A1_seed1701_appliance.log"
+python3 - <<'PY' 2>&1 | tee "$ROOT/aqlevon_p4/P4_A1_seed1701_appliance.log"
 import json, os
 from pathlib import Path
 import p4_gene1_trainer as c
