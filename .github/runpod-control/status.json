@@ -1,9 +1,17 @@
 {
   "action": "status",
-  "checked_at_utc": "2026-09-22T04:18:07.080801+00:00",
+  "api": "v1",
+  "checked_at_utc": "2026-09-22T04:20:03.233975+00:00",
   "ok": true,
-  "pod_count": 9,
+  "pod_count": 10,
   "pods": [
+    {
+      "cost_per_hr": 0.74,
+      "created_at": "2026-09-22 04:18:09.359 +0000 UTC",
+      "fingerprint": "b10f340aa0f4",
+      "gpu": "unknown",
+      "status": "RUNNING"
+    },
     {
       "cost_per_hr": 0.74,
       "created_at": "2026-09-21 00:46:45.345 +0000 UTC",
