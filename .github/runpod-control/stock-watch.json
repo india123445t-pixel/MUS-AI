@@ -1,0 +1,105 @@
+{
+  "max_hourly_rate_usd": 0.8,
+  "ok": true,
+  "ready_for_allocation_attempt": false,
+  "reason": "no_strong_capacity_signal",
+  "samples": [
+    {
+      "attempt": 1,
+      "available_gpu_counts": [],
+      "checked_at_utc": "2026-09-22T05:17:41.171214+00:00",
+      "curl_rc": 0,
+      "price_usd_per_hr": 0.74,
+      "stock_status": "Low"
+    },
+    {
+      "attempt": 2,
+      "available_gpu_counts": [],
+      "checked_at_utc": "2026-09-22T05:17:56.374686+00:00",
+      "curl_rc": 0,
+      "price_usd_per_hr": 0.74,
+      "stock_status": "Low"
+    },
+    {
+      "attempt": 3,
+      "available_gpu_counts": [],
+      "checked_at_utc": "2026-09-22T05:18:11.608792+00:00",
+      "curl_rc": 0,
+      "price_usd_per_hr": 0.74,
+      "stock_status": "Low"
+    },
+    {
+      "attempt": 4,
+      "available_gpu_counts": [],
+      "checked_at_utc": "2026-09-22T05:18:26.841379+00:00",
+      "curl_rc": 0,
+      "price_usd_per_hr": 0.74,
+      "stock_status": "Low"
+    },
+    {
+      "attempt": 5,
+      "available_gpu_counts": [],
+      "checked_at_utc": "2026-09-22T05:18:42.063001+00:00",
+      "curl_rc": 0,
+      "price_usd_per_hr": 0.74,
+      "stock_status": "Low"
+    },
+    {
+      "attempt": 6,
+      "available_gpu_counts": [],
+      "checked_at_utc": "2026-09-22T05:18:57.275238+00:00",
+      "curl_rc": 0,
+      "price_usd_per_hr": 0.74,
+      "stock_status": "Low"
+    },
+    {
+      "attempt": 7,
+      "available_gpu_counts": [],
+      "checked_at_utc": "2026-09-22T05:19:12.484355+00:00",
+      "curl_rc": 0,
+      "price_usd_per_hr": 0.74,
+      "stock_status": "Low"
+    },
+    {
+      "attempt": 8,
+      "available_gpu_counts": [],
+      "checked_at_utc": "2026-09-22T05:19:27.697458+00:00",
+      "curl_rc": 0,
+      "price_usd_per_hr": 0.74,
+      "stock_status": "Low"
+    },
+    {
+      "attempt": 9,
+      "available_gpu_counts": [],
+      "checked_at_utc": "2026-09-22T05:19:42.948895+00:00",
+      "curl_rc": 0,
+      "price_usd_per_hr": 0.74,
+      "stock_status": "Low"
+    },
+    {
+      "attempt": 10,
+      "available_gpu_counts": [],
+      "checked_at_utc": "2026-09-22T05:19:58.170379+00:00",
+      "curl_rc": 0,
+      "price_usd_per_hr": 0.74,
+      "stock_status": "Low"
+    },
+    {
+      "attempt": 11,
+      "available_gpu_counts": [],
+      "checked_at_utc": "2026-09-22T05:20:13.372428+00:00",
+      "curl_rc": 0,
+      "price_usd_per_hr": 0.74,
+      "stock_status": "Low"
+    },
+    {
+      "attempt": 12,
+      "available_gpu_counts": [],
+      "checked_at_utc": "2026-09-22T05:20:28.621455+00:00",
+      "curl_rc": 0,
+      "price_usd_per_hr": 0.74,
+      "stock_status": "Low"
+    }
+  ],
+  "target": "NVIDIA GeForce RTX 4090"
+}
