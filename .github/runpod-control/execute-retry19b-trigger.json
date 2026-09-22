@@ -1,0 +1,13 @@
+{
+  "authorization_id": "P4-A1-RUNPOD-A6000-20260922-19B-VLLM-LORA-GUARD",
+  "authorization_sha256": "560c382e95a2e36b8eae6ac90ccd1d56e8515262c694462896285b5f3917114a",
+  "expected_head": "59818788190853183612c0871bf25dacaa409def",
+  "gpu_type": "NVIDIA RTX A6000",
+  "data_center_id": "EU-SE-1",
+  "request_schema": "rest_v1_no_min_memory",
+  "max_total_cost_usd": "0.40",
+  "max_hourly_rate_usd": "0.55",
+  "max_billed_seconds": 1800,
+  "single_use": true,
+  "reason": "Owner authorized one paid GPU attempt; CPU Gate and Exact Contract PASS on final Retry19B binding head; fresh capacity scan shows RTX A6000 48GB at EU-SE-1 under cost ceiling"
+}
