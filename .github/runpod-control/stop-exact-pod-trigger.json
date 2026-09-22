@@ -1,4 +1,4 @@
 {
-  "pod_id": "orprrzc6hsfwa4",
-  "reason": "Stop duplicate Retry18W run #2; single-use authorization already consumed by run #1"
+  "pod_id": "f1ry7ce3bfxk73",
+  "reason": "Retry19K idle telemetry: gpu_util_percent=0 memory_util_percent=0 after 658s"
 }
