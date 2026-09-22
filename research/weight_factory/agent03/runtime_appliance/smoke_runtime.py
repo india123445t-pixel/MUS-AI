@@ -26,6 +26,8 @@ def build_check() -> dict:
     import flash_attn
     import verl
     import verl.workers.fsdp_workers
+    import vllm
+    from vllm.engine.arg_utils import AsyncEngineArgs
 
     assert sys.version_info[:2] == (3, 12), sys.version
     assert torch.__version__.split("+")[0] == "2.8.0", torch.__version__
@@ -35,7 +37,15 @@ def build_check() -> dict:
     assert peft.__version__ == "0.21.0", peft.__version__
     assert accelerate.__version__ == "1.15.0", accelerate.__version__
     assert flash_attn.__version__ == "2.8.3", flash_attn.__version__
+    assert vllm.__version__ == "0.10.2", vllm.__version__
+    assert "model_impl" in AsyncEngineArgs.__dataclass_fields__, AsyncEngineArgs.__dataclass_fields__.keys()
     assert str(Path(verl.__file__).resolve()).startswith(str(SDPO)), verl.__file__
+
+    qwen_backend = SDPO / "verl/workers/rollout/vllm_rollout/vllm_async_server.py"
+    qwen_text = qwen_backend.read_text(encoding="utf-8")
+    assert 'getattr(self.model_config.hf_config, "model_type", None) == "qwen3_5"' in qwen_text
+    assert 'engine_kwargs["model_impl"] = "transformers"' in qwen_text
+    assert "AQLEVON_QWEN35_VLLM_TRANSFORMERS_BACKEND_PASS" in qwen_text
 
     for path, expected in EXPECTED_PATCH.items():
         got = sha256(path)
@@ -52,6 +62,8 @@ def build_check() -> dict:
         "peft": peft.__version__,
         "accelerate": accelerate.__version__,
         "flash_attn": flash_attn.__version__,
+        "vllm": vllm.__version__,
+        "qwen35_model_impl": "transformers",
         "verl": str(Path(verl.__file__).resolve()),
         "gpu_required": False,
     }
