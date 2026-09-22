@@ -37,7 +37,7 @@ jobs:
           REG_CODE="$(curl --silent --show-error             --output /tmp/registry.json             --write-out "%{http_code}"             --url "https://rest.runpod.io/v1/containerregistryauth"             --header "Authorization: Bearer ${RUNPOD_API_KEY}")"
 
           cat > /tmp/gpu-query.json <<'JSON'
-          {"query":"query { gpuTypes(input: {id: \"NVIDIA GeForce RTX 4090\"}) { id displayName memoryInGb secureCloud communityCloud lowestPrice(input: {gpuCount: 1, secureCloud: true}) { stockStatus uninterruptablePrice availableGpuCounts } } }"}
+          {"query":"query { gpuTypes(input: {id: \"NVIDIA GeForce RTX 4090\"}) { id displayName memoryInGb secureCloud communityCloud lowestPrice(input: {gpuCount: 1, secureCloud: true}) { stockStatus uninterruptablePrice availableGpuCounts maxUnreservedGpuCount maxGpuCount totalCount rentedCount } } }"}
           JSON
 
           GPU_CODE="$(curl --silent --show-error             --output /tmp/gpu.json             --write-out "%{http_code}"             --request POST             --url "https://api.runpod.io/graphql"             --header "Authorization: Bearer ${RUNPOD_API_KEY}"             --header "Content-Type: application/json"             --data-binary @/tmp/gpu-query.json)"
@@ -87,7 +87,7 @@ jobs:
               lp=g.get('lowestPrice') or {}
               price=lp.get('uninterruptablePrice')
               stock=lp.get('stockStatus')
-              counts=lp.get('availableGpuCounts') or []
+              counts=lp.get('availableGpuCounts') or []\n              max_unreserved=lp.get('maxUnreservedGpuCount')\n              max_gpu_count=lp.get('maxGpuCount')\n              total_count=lp.get('totalCount')\n              rented_count=lp.get('rentedCount')
 
               plist=pods.get('pods', pods.get('items', pods.get('data', []))) if isinstance(pods,dict) else pods
               if not isinstance(plist,list):
