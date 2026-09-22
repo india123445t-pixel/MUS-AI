@@ -10,5 +10,5 @@
   "max_billed_seconds": 1800,
   "single_use": true,
   "reason": "Owner authorized one paid GPU attempt; L4 create returned no-capacity before any Pod existed; use scanned A40 EU-SE-1 capacity within same <=0.55 USD/hr ceiling",
-  "attempt_nonce": "a40-eu-se1-capacity-1"
+  "attempt_nonce": "a40-eu-se1-capacity-2"
 }
