@@ -1,0 +1,64 @@
+name: AQLEVON Retry19T Live Probe
+
+on:
+  push:
+    branches: [ops/runpod-control-v1]
+    paths:
+      - ".github/runpod-control/retry19t-live-probe-trigger.json"
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/runpod-control-v1
+      - name: Capture Retry19T runtime state
+        shell: bash
+        run: |
+          set -euo pipefail
+          trigger=.github/runpod-control/retry19t-live-probe-trigger.json
+          pod="$(jq -r '.pod_id' "$trigger")"
+          test -n "$pod"
+          curl -sS -f "https://rest.runpod.io/v1/pods/$pod" -H "Authorization: Bearer $RUNPOD_API_KEY" > /tmp/pod.json
+          curl -sSL https://cli.runpod.net | sudo bash
+          set +e
+          runpodctl pod get "$pod" --output json > /tmp/pod-get.json 2>/tmp/pod-get.err
+          runpodctl pod logs "$pod" --tail 120 --source container --max-wait 10s > /tmp/live.jsonl 2>/tmp/live.err
+          set -e
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          rest=json.loads(Path('/tmp/pod.json').read_text())
+          try: pod_get=json.loads(Path('/tmp/pod-get.json').read_text())
+          except Exception: pod_get={'error':Path('/tmp/pod-get.err').read_text(errors='replace')[-1200:] if Path('/tmp/pod-get.err').exists() else 'unavailable'}
+          rows=[]
+          for line in Path('/tmp/live.jsonl').read_text(errors='replace').splitlines() if Path('/tmp/live.jsonl').exists() else []:
+              try:
+                  x=json.loads(line); rows.append({'ts':x.get('ts'),'source':x.get('source'),'line':str(x.get('line',''))[-1800:]})
+              except Exception:
+                  pass
+          out={
+            'rest':{
+              'id':rest.get('id'),'name':rest.get('name'),'desiredStatus':rest.get('desiredStatus'),
+              'costPerHr':rest.get('costPerHr'),'publicIp':bool(rest.get('publicIp')),
+              'portMappings':rest.get('portMappings')
+            },
+            'runpodctl':pod_get,
+            'container_logs':rows,
+            'stderr':Path('/tmp/live.err').read_text(errors='replace')[-1500:] if Path('/tmp/live.err').exists() else ''
+          }
+          Path('.github/runpod-control/retry19t-live-probe-result.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
+          PY
+          git config user.name aqlevon-runpod-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/runpod-control/retry19t-live-probe-result.json
+          git commit -m "ops: record Retry19T live probe [skip ci]" || true
+          git pull --rebase origin ops/runpod-control-v1
+          git push origin HEAD:ops/runpod-control-v1
