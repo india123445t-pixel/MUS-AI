@@ -74,6 +74,17 @@ test('public work surface only advertises the format it actually renders',()=>{
   assert.match(work,/work\.browserOnly/);
 });
 
+test('chat text-file attachment sends real content and multimodal stays fail-closed',()=>{
+  assert.match(chat,/const text = await f\.text\(\)/);
+  assert.match(chat,/100 \* 1024/);
+  assert.match(chat,/chat\.fileUnsupported/);
+  assert.match(chat,/chat\.imageUnavailable/);
+  assert.doesNotMatch(chat,/imgRef/);
+  assert.doesNotMatch(chat,/\[\$\{t\('chat\.attached'\)\}: \$\{file\.name\}\]/);
+  assert.match(en,/Summarize a text file/);
+  assert.match(ar,/تلخيص ملف نصي/);
+});
+
 test('Work fails closed when inference is unavailable and Library stays browser-local',()=>{
   assert.match(work,/runtime\?\.inferenceReady !== true/);
   assert.match(work,/work\.runtimeUnavailable/);
