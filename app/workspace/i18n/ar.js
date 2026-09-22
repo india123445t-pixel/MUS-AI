@@ -23,7 +23,7 @@ export default {
   'chat.add': 'إضافة', 'chat.attachFile': 'إرفاق ملف نصي', 'chat.addImage': 'إضافة صورة', 'chat.pasteCode': 'لصق كود',
   'chat.webSearch': 'بحث الويب', 'chat.deepResearch': 'بحث معمّق',
   'chat.researchHint': 'ينفّذ مهمة بحث متعددة الخطوات مع مصادر.',
-  'chat.dictate': 'إملاء', 'chat.thinkLonger': 'تفكير أعمق تلقائي', 'chat.thinkLongerAutomatic': 'التفكير العميق يختاره AQLEVON تلقائيًا حسب صعوبة المهمة؛ التحكم اليدوي غير موصول حاليًا.',
+  'chat.dictate': 'إملاء', 'chat.dictateUnavailable': 'الإملاء الصوتي غير مدعوم في هذا المتصفح.', 'chat.thinkLonger': 'تفكير أعمق تلقائي', 'chat.thinkLongerAutomatic': 'التفكير العميق يختاره AQLEVON تلقائيًا حسب صعوبة المهمة؛ التحكم اليدوي غير موصول حاليًا.',
   'chat.errorStrip': 'تعذّر على AQLEVON إكمال الطلب.',
   'chat.starter.summarize': 'تلخيص ملف نصي', 'chat.starter.summarize.d': 'يُرسل محتوى ملف نصي صغير فعليًا إلى محرك الاستدلال.',
   'chat.starter.plan': 'تخطيط مشروع', 'chat.starter.plan.d': 'قسّم هدفًا إلى مراحل ومهام',
