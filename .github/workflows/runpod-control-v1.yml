@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   runpod-control:
@@ -17,9 +17,10 @@ jobs:
     timeout-minutes: 3
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ops/runpod-control-v1
 
       - name: Read command
-        id: cmd
         shell: bash
         run: |
           set -euo pipefail
@@ -28,7 +29,6 @@ jobs:
             echo "::error::Unsupported action in V1: $ACTION"
             exit 1
           fi
-          echo "action=$ACTION" >> "$GITHUB_OUTPUT"
 
       - name: Verify RunPod secret exists
         shell: bash
@@ -39,7 +39,7 @@ jobs:
           test -n "${RUNPOD_API_KEY:-}" || { echo "::error::RUNPOD_API_KEY missing"; exit 1; }
           echo "RunPod secret present; value not printed."
 
-      - name: Read RunPod pod status
+      - name: Read RunPod pod status and write sanitized result
         shell: bash
         env:
           RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
@@ -52,8 +52,9 @@ jobs:
             exit 1
           fi
 
+          mkdir -p .github/runpod-control
           python - <<'PY'
-          import json
+          import json, datetime
           with open('/tmp/pods.json','r',encoding='utf-8') as f:
               data=json.load(f)
 
@@ -69,14 +70,44 @@ jobs:
           if not isinstance(pods, list):
               pods=[]
 
-          print(f"RUNPOD_STATUS_PASS pod_count={len(pods)}")
-          for i,p in enumerate(pods,1):
+          out={
+              "ok": True,
+              "action": "status",
+              "checked_at_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+              "pod_count": len(pods),
+              "pods": []
+          }
+
+          for p in pods:
               if not isinstance(p,dict):
                   continue
               status=p.get('desiredStatus') or p.get('status') or p.get('runtimeStatus') or 'UNKNOWN'
               gpu=p.get('gpu',{})
               gpu_name=(gpu.get('displayName') if isinstance(gpu,dict) else None) or p.get('gpuTypeId') or p.get('gpuType') or 'unknown'
               cost=p.get('costPerHr') or p.get('costPerHour') or p.get('pricePerHr')
-              cost_txt=f" cost_per_hr={cost}" if cost is not None else ""
-              print(f"pod_{i}: status={status} gpu={gpu_name}{cost_txt}")
+              out["pods"].append({
+                  "status": status,
+                  "gpu": gpu_name,
+                  "cost_per_hr": cost
+              })
+
+          with open('.github/runpod-control/status.json','w',encoding='utf-8') as f:
+              json.dump(out,f,indent=2,sort_keys=True)
+              f.write("\n")
+
+          print(f"RUNPOD_STATUS_PASS pod_count={len(pods)}")
           PY
+
+      - name: Commit sanitized status back to control branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "aqlevon-runpod-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add .github/runpod-control/status.json
+          if git diff --cached --quiet; then
+            echo "No status change to commit."
+            exit 0
+          fi
+          git commit -m "ops: record sanitized RunPod status [skip ci]"
+          git push origin HEAD:ops/runpod-control-v1
