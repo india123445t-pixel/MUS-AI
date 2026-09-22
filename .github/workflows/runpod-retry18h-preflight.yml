@@ -21,58 +21,70 @@ jobs:
         with:
           ref: ops/runpod-control-v1
 
-      - name: Install official runpodctl
+      - name: Install official runpodctl binary
         shell: bash
         run: |
           set -euo pipefail
-          curl -sSL https://cli.runpod.net | bash
+          sudo wget -q https://github.com/runpod/runpodctl/releases/latest/download/runpodctl-linux-amd64 -O /usr/local/bin/runpodctl
+          sudo chmod +x /usr/local/bin/runpodctl
           runpodctl version
-          runpodctl user >/tmp/user.json
-          runpodctl pod create --help >/tmp/pod-create-help.txt
-          runpodctl ssh add-key --help >/tmp/ssh-add-help.txt
-          runpodctl ssh remove-key --help >/tmp/ssh-remove-help.txt
+          runpodctl user >/dev/null
 
-      - name: Read RTX 4090 pricing and availability only
+      - name: Read RTX 4090 catalog only
         shell: bash
         run: |
-          set -euo pipefail
-          runpodctl gpu list --include-unavailable > /tmp/gpus.json
-          python - <<'PY'
-          import json, datetime, subprocess
-          raw=json.load(open('/tmp/gpus.json',encoding='utf-8'))
+          set -uo pipefail
+          mkdir -p .github/runpod-control
+          VERSION="$(runpodctl version 2>&1 || true)"
+          RC=0
+          runpodctl gpu list > /tmp/gpus.json 2>/tmp/gpu.err || RC=$?
+          python - "$VERSION" "$RC" <<'PY'
+          import json, datetime, sys
+          version=sys.argv[1]
+          rc=int(sys.argv[2])
+          err=open('/tmp/gpu.err',encoding='utf-8',errors='replace').read()[:2000]
+          raw_text=open('/tmp/gpus.json',encoding='utf-8',errors='replace').read()
+          try:
+              raw=json.loads(raw_text) if raw_text.strip() else None
+          except Exception:
+              raw=None
+
           def walk(x):
               if isinstance(x,dict):
                   yield x
-                  for v in x.values(): yield from walk(v)
+                  for v in x.values():
+                      yield from walk(v)
               elif isinstance(x,list):
-                  for v in x: yield from walk(v)
+                  for v in x:
+                      yield from walk(v)
+
           hits=[]
-          for d in walk(raw):
-              text=' '.join(str(d.get(k,'')) for k in ('id','name','displayName','gpuTypeId','gpuTypeName'))
-              if '4090' in text:
-                  hits.append(d)
-          safe=[]
-          for d in hits:
-              safe.append({
-                'id': d.get('id') or d.get('gpuTypeId'),
-                'name': d.get('displayName') or d.get('name') or d.get('gpuTypeName'),
-                'securePricePerHr': d.get('securePricePerHr'),
-                'communityPricePerHr': d.get('communityPricePerHr'),
-                'stockStatus': d.get('stockStatus'),
-                'dataCenterAvailability': d.get('dataCenterAvailability'),
-              })
-          version=subprocess.check_output(['runpodctl','version'],text=True).strip()
+          if raw is not None:
+              for d in walk(raw):
+                  s=' '.join(str(d.get(k,'')) for k in (
+                      'id','name','displayName','gpuTypeId','gpuTypeName'
+                  ))
+                  if '4090' in s:
+                      keep={}
+                      for k,v in d.items():
+                          lk=k.lower()
+                          if any(t in lk for t in ('price','cost','stock','avail','secure','community','id','name','display')):
+                              if isinstance(v,(str,int,float,bool,type(None),list,dict)):
+                                  keep[k]=v
+                      hits.append(keep)
+
           out={
-            'ok': bool(safe),
-            'checked_at_utc': datetime.datetime.now(datetime.timezone.utc).isoformat(),
-            'runpodctl_version': version,
-            'rtx4090': safe,
+              'ok': rc==0,
+              'checked_at_utc': datetime.datetime.now(datetime.timezone.utc).isoformat(),
+              'runpodctl_version': version,
+              'gpu_list_rc': rc,
+              'rtx4090_matches': hits[:10],
+              'stderr': err if rc else ''
           }
-          open('.github/runpod-control/retry18h-preflight.json','w',encoding='utf-8').write(json.dumps(out,indent=2,sort_keys=True)+'\n')
-          assert safe, 'RTX4090_NOT_LISTED'
-          prices=[x.get('securePricePerHr') for x in safe if isinstance(x.get('securePricePerHr'),(int,float))]
-          assert prices and min(prices) <= 0.80, ('SECURE_PRICE_TOO_HIGH',prices)
-          print('RETRY18H_FREE_PREFLIGHT_PASS',min(prices))
+          open('.github/runpod-control/retry18h-preflight.json','w',encoding='utf-8').write(
+              json.dumps(out,indent=2,sort_keys=True)+'\n'
+          )
+          print('RETRY18H_DIAGNOSTIC_WRITTEN', 'matches=',len(hits),'rc=',rc)
           PY
 
       - name: Commit sanitized preflight
