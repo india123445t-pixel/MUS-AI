@@ -53,6 +53,11 @@ jobs:
               assert x in req,x
           assert "Qwen3_5ForConditionalGeneration" in smoke
           assert "AQLEVON_SDPO_TF5_NATIVE_VLLM019_PATCH_PASS" in patch
+          assert "AQLEVON_VLLM019_WORKER_DISPATCH" in patch
+          assert "from vllm.v1.serial_utils import run_method" in patch
+          assert "AQLEVON_VLLM019_PRESERVE_MAX_MODEL_LEN" in patch
+          assert "sdpo_vllm019_worker_dispatch" in smoke
+          assert "sdpo_preserves_explicit_max_model_len" in smoke
           assert "model_impl" not in patch
           assert "TransformersForMultimodalLM" not in patch
           print("AQLEVON_V019_STATIC_CONTRACT_PASS")
