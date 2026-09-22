@@ -1,0 +1,11 @@
+{
+  "authorization_id": "P4-A1-RUNPOD-4090-20260922-18Q-QWEN35-HF-BACKEND",
+  "authorization_sha256": "66b68d19e4e2d45f8892b642291ffc502ac8585606ed8702b9a71f2cde3881c4",
+  "max_billed_seconds": 1800,
+  "max_total_cost_usd": "0.40",
+  "single_use": true,
+  "expected_head": "5c22ac0f095f150bb4dea9e5aa7e0cae4b2e762f",
+  "runtime_appliance_digest": "sha256:503673abc4da84902a8e6a7c5223ac1a8f5da989f6aefd4ee37197ac2ac2449c",
+  "requested_by": "AQLEVON_MANAGER",
+  "nonce": "2026-09-22T08:14Z"
+}
