@@ -1,6 +1,6 @@
 {
   "phase": "create_failed",
-  "http_code": 400,
-  "error": "non_json_response",
-  "checked_at_utc": "2026-09-22T14:24:12.587291+00:00"
+  "create_rc": 1,
+  "error": "{\"error\":\"failed to create pod: graphql error: There are no longer any instances available with the requested specifications. Please refresh and try again.\",\"code\":\"graphql_error\"}\n",
+  "checked_at_utc": "2026-09-22T14:29:47.438994+00:00"
 }
