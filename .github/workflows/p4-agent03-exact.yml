@@ -47,7 +47,8 @@ jobs:
         working-directory: research/weight_factory/agent03
         run: |
           set -euo pipefail
-          python -m py_compile p4_gene1_trainer.py p4_sft_surrogate.py p4_aqlevon_reward.py p4_surrogate_tournament.py p4_v019_gpu_lora_smoke.py test_p4_gene1_trainer.py\n          bash -n p4_runpod_appliance_launch_v019.sh
+          python -m py_compile p4_gene1_trainer.py p4_sft_surrogate.py p4_aqlevon_reward.py p4_surrogate_tournament.py p4_v019_gpu_lora_smoke.py test_p4_gene1_trainer.py
+          bash -n p4_runpod_appliance_launch_v019.sh
           python -m unittest -v test_p4_gene1_trainer.py
 
       - name: Rebuild frozen plan from real cross-worker inputs
