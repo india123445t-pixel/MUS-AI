@@ -175,14 +175,14 @@ function WebResearch({ t, s, save }) {
   return (
     <div className="set-card">
       <h2>{t('set.web')}</h2>
+      <p className="muted small">{t('set.webUnavailable')}</p>
       <Row label={t('set.searchDefault')}>
-        <button className={'switch' + (s.search_default === 'on' ? ' on' : '')} role="switch" aria-checked={s.search_default === 'on'}
-          onClick={() => save({ search_default: s.search_default === 'on' ? '' : 'on' })} />
+        <button className={'switch' + (s.search_default === 'on' ? ' on' : '')} role="switch" aria-checked={false} disabled />
       </Row>
       <Row label={t('set.researchDepth')}>
         <div className="seg">
           {['quick', 'standard', 'thorough'].map(d => (
-            <button key={d} className={depth === d ? 'on' : ''} onClick={() => save({ research_depth: d })}>{t('set.depth.' + d)}</button>
+            <button key={d} className={depth === d ? 'on' : ''} disabled>{t('set.depth.' + d)}</button>
           ))}
         </div>
       </Row>

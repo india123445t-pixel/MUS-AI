@@ -47,6 +47,7 @@ export default function PluginsPage({ onMenu }) {
         <input className="input" style={{ maxWidth: 220 }} placeholder={t('apps.search')} value={q} onChange={e => setQ(e.target.value)} />
       </div>
       <div className="content narrow" style={{ maxWidth: 860 }}>
+        <div className="card" style={{ marginBottom: 14 }}><b>{t('apps.browserNoticeTitle')}</b><p className="muted small" style={{ margin: '6px 0 0' }}>{t('apps.browserNotice')}</p></div>
         {tools.length > 0 && <>
           <div className="sec-title">{t('apps.builtin')}</div>
           <p className="muted small" style={{ marginTop: -4 }}>{t('apps.builtinHint')}</p>
@@ -58,8 +59,7 @@ export default function PluginsPage({ onMenu }) {
                   <span className="tname">{t('apps.n.' + p.id)}</span>
                   <span className="tdesc">{t(descKey(p))}</span>
                 </span>
-                <button className={'switch' + (p.enabled ? ' on' : '')} role="switch" aria-checked={!!p.enabled}
-                  onClick={() => setP(p.id, { installed: true, enabled: !p.enabled })} />
+                <button className={'switch' + (p.enabled ? ' on' : '')} role="switch" aria-checked={false} disabled title={t('apps.adapterRequired')} />
               </div>
             ))}
           </div>
@@ -88,7 +88,7 @@ export default function PluginsPage({ onMenu }) {
                   )}
                   <div className="row">
                     {st !== 'connected'
-                      ? <button className="btn sm" onClick={() => { setConnecting(p); setScopes(p.availableScopes.slice(0, 1)); setNote(null); setToken(''); }}>{t('apps.connect')}…</button>
+                      ? <button className="btn sm" disabled title={t('apps.browserNotice')}>{t('apps.adapterRequired')}</button>
                       : <button className="btn sm ghost" onClick={() => api.post(`/plugins/${p.id}/disconnect`).then(load)}>{t('apps.disconnect')}</button>}
                     {st === 'error' && (
                       <button className="btn sm ghost" onClick={() => { setConnecting(p); setScopes(p.connection.scopes || []); setNote(null); setToken(''); }}>{t('apps.reconnect')}</button>

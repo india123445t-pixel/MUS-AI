@@ -26,6 +26,7 @@ export default function ChatPage({ onChatsChanged, newChat, onMenu }) {
   const [addMenu, setAddMenu] = useState(false);
   const [codeSheet, setCodeSheet] = useState(false);
   const [lastError, setLastError] = useState(null);
+  const [runtime, setRuntime] = useState(null);
   const [titleEdit, setTitleEdit] = useState(null);
   const scrollRef = useRef();
   const fileRef = useRef();
@@ -37,6 +38,10 @@ export default function ChatPage({ onChatsChanged, newChat, onMenu }) {
   const streamChatIdRef = useRef(null);
 
   const isTemp = params.get('temp') === '1' || chat?.temporary === 1;
+
+  useEffect(() => {
+    api.get('/bootstrap').then(setRuntime).catch(() => setRuntime({ inferenceReady:false, inferenceError:'HEALTH_CHECK_FAILED', webSearchAvailable:false }));
+  }, []);
 
   useEffect(() => {
     setEditing(null); setLastError(null); setTitleEdit(null);
@@ -62,6 +67,11 @@ export default function ChatPage({ onChatsChanged, newChat, onMenu }) {
   const send = async (text, extra = {}) => {
     const content = (text ?? input).trim();
     if (!content && !extra.regenerate && !extra.editMessageId) return;
+    if (!runtime) { setLastError(t('chat.runtimeChecking')); return; }
+    if (runtime.inferenceReady !== true) {
+      setLastError(runtime.inferenceError === 'AUTH_ERROR' ? t('chat.runtimeAuthError') : t('chat.runtimeUnavailable'));
+      return;
+    }
     setBusy(true); busyRef.current = true;
     setInput(''); setEditing(null); setLastError(null);
     if (taRef.current) taRef.current.style.height = 'auto';
@@ -125,7 +135,7 @@ export default function ChatPage({ onChatsChanged, newChat, onMenu }) {
         // best-effort so nothing visible is lost.
         try { const fresh = await api.get('/chats/' + chatId); setChat(fresh); onChatsChanged(); } catch { /* offline */ }
       } else {
-        setLastError(e.message);
+        setLastError(e.errorClass ? `${e.message} (${e.errorClass})` : e.message);
         try { const fresh = await api.get('/chats/' + chatId); setChat(fresh); } catch { /* offline */ }
       }
     } finally {
@@ -292,7 +302,7 @@ export default function ChatPage({ onChatsChanged, newChat, onMenu }) {
             {lastError && (
               <div className="error-strip">
                 <Icon name="warn" size={16} />
-                <span style={{ flex: 1 }}>{t('chat.errorStrip')}</span>
+                <span style={{ flex: 1 }}>{lastError || t('chat.errorStrip')}</span>
                 <button className="btn sm ghost" onClick={regenerate}>{t('chat.retry')}</button>
               </div>
             )}
@@ -304,6 +314,12 @@ export default function ChatPage({ onChatsChanged, newChat, onMenu }) {
       )}
 
       <div className="composer-wrap">
+        {runtime?.inferenceReady === false && (
+          <div className="error-strip" style={{ marginBottom: 8 }}>
+            <Icon name="warn" size={16} />
+            <span>{runtime?.inferenceError === 'AUTH_ERROR' ? t('chat.runtimeAuthError') : t('chat.runtimeUnavailable')}</span>
+          </div>
+        )}
         <div className="composer">
           <textarea
             ref={taRef}
@@ -334,10 +350,10 @@ export default function ChatPage({ onChatsChanged, newChat, onMenu }) {
             }} />
             <input type="file" accept="image/*" hidden ref={imgRef} onChange={e => { const f = e.target.files[0]; e.target.value = ''; if (f) uploadFile(f); }} />
 
-            <button className={'chip' + (webSearch ? ' on' : '')} onClick={() => setWebSearch(v => !v)}>
+            <button className={'chip' + (webSearch ? ' on' : '')} disabled={runtime?.webSearchAvailable !== true} title={runtime?.webSearchAvailable !== true ? t('chat.webUnavailable') : undefined} onClick={() => setWebSearch(v => !v)}>
               <Icon name="globe" size={15} /><span className="chip-label">{t('chat.webSearch')}</span>
             </button>
-            <button className={'chip' + (deepResearch ? ' on' : '')} title={t('chat.researchHint')} onClick={() => setDeepResearch(v => !v)}>
+            <button className={'chip' + (deepResearch ? ' on' : '')} disabled={runtime?.webSearchAvailable !== true} title={runtime?.webSearchAvailable !== true ? t('chat.webUnavailable') : t('chat.researchHint')} onClick={() => setDeepResearch(v => !v)}>
               <Icon name="flask" size={15} /><span className="chip-label">{t('chat.deepResearch')}</span>
             </button>
 
@@ -357,7 +373,7 @@ export default function ChatPage({ onChatsChanged, newChat, onMenu }) {
             </button>
             {busy
               ? <button className="send-btn stop" onClick={stop} title={t('chat.stop')}><Icon name="stop" size={15} /></button>
-              : <button className="send-btn" onClick={() => send()} disabled={!input.trim()} title={t('chat.send')}><Icon name="send" size={16} flip /></button>}
+              : <button className="send-btn" onClick={() => send()} disabled={!input.trim() || runtime?.inferenceReady !== true} title={t('chat.send')}><Icon name="send" size={16} flip /></button>}
           </div>
         </div>
       </div>

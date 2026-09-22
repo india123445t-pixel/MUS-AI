@@ -6,11 +6,7 @@ import Icon from '../components/Icon.jsx';
 
 // User-facing task types → wire contract (kind/format). Internal ids never shown.
 const TYPES = [
-  { id: 'doc', kind: 'work.deliverable', format: 'pdf', tKey: 'work.type.doc' },
-  { id: 'sheet', kind: 'work.deliverable', format: 'xlsx', tKey: 'work.type.sheet' },
-  { id: 'deck', kind: 'work.deliverable', format: 'pptx', tKey: 'work.type.deck' },
-  { id: 'md', kind: 'work.deliverable', format: 'md', tKey: 'work.type.md' },
-  { id: 'research', kind: 'research.deep', format: 'md', tKey: 'work.type.research' }
+  { id: 'md', kind: 'work.deliverable', format: 'md', tKey: 'work.type.md' }
 ];
 
 const STEP_KEY = name => {
@@ -35,7 +31,7 @@ export default function WorkPage({ onMenu }) {
   const [jobs, setJobs] = useState([]);
   const [detail, setDetail] = useState(null);
   const [show, setShow] = useState(false);
-  const [form, setForm] = useState({ prompt: '', type: 'doc' });
+  const [form, setForm] = useState({ prompt: '', type: 'md' });
 
   const load = useCallback(() => {
     api.get('/jobs').then(setJobs).catch(() => {});
@@ -56,7 +52,7 @@ export default function WorkPage({ onMenu }) {
       title, kind: tp.kind, format: tp.format,
       prompt: form.prompt, question: form.prompt, goal: form.prompt, iterations: 3
     });
-    setShow(false); setForm({ prompt: '', type: 'doc' });
+    setShow(false); setForm({ prompt: '', type: 'md' });
     nav('/work/' + j.id);
   };
 
@@ -75,6 +71,7 @@ export default function WorkPage({ onMenu }) {
           <button className="iconbtn hamburger" aria-label="Menu" onClick={onMenu}><Icon name="menu" /></button>
           <button className="iconbtn" onClick={() => nav('/work')}><Icon name="chevR" size={16} flip /></button>
           <h1>{detail.title}</h1>
+          <span className="tag warn">{t('work.browserOnly')}</span>
           <StatusTag status={detail.status} t={t} />
           {running && <button className="btn sm ghost" onClick={async () => { await api.post(`/jobs/${detail.id}/cancel`); load(); }}>{t('work.cancel')}</button>}
           {(detail.status === 'failed' || detail.status === 'cancelled') && (
@@ -145,6 +142,7 @@ export default function WorkPage({ onMenu }) {
       <div className="topbar">
         <button className="iconbtn hamburger" aria-label="Menu" onClick={onMenu}><Icon name="menu" /></button>
         <h1>{t('work.title')}</h1>
+        <span className="tag warn">{t('work.browserOnly')}</span>
         <button className="btn" onClick={() => setShow(true)}><Icon name="plus" size={15} /> {t('work.newTask')}</button>
       </div>
       <div className="content narrow" style={{ maxWidth: 760 }}>

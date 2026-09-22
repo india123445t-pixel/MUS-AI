@@ -75,10 +75,12 @@ export default function LibraryPage({ onMenu }) {
       <div className="topbar">
         <button className="iconbtn hamburger" aria-label="Menu" onClick={onMenu}><Icon name="menu" /></button>
         <h1>{t('lib.title')}</h1>
+        <span className="tag warn">{t('lib.browserOnly')}</span>
         <button className="btn" onClick={() => fileRef.current.click()}><Icon name="plus" size={15} /> {t('lib.upload')}</button>
         <input hidden type="file" ref={fileRef} onChange={e => e.target.files[0] && upload(e.target.files[0])} />
       </div>
       <div className="content narrow">
+        <div className="card" style={{ marginBottom: 14 }}><p className="muted small" style={{ margin: 0 }}>{t('lib.browserNotice')}</p></div>
         <div className="lib-toolbar">
           <input className="input" style={{ maxWidth: 260 }} placeholder={t('lib.search')} value={q} onChange={e => setQ(e.target.value)} />
           {FILTERS.map(f => (
