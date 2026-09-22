@@ -1,0 +1,11 @@
+{
+  "authorization_id": "P4-A1-RUNPOD-4090-20260922-18R-IMMUTABLE-HF-BACKEND",
+  "authorization_sha256": "88c607313b86c9118444c90f3f8aa0f74db047141c9af8b02726a655c94d050b",
+  "max_billed_seconds": 1800,
+  "max_total_cost_usd": "0.40",
+  "single_use": true,
+  "expected_head": "a11d8187e18cbc7d67ea02ebd8351a552df271a2",
+  "runtime_appliance_digest": "sha256:503673abc4da84902a8e6a7c5223ac1a8f5da989f6aefd4ee37197ac2ac2449c",
+  "requested_by": "AQLEVON_MANAGER",
+  "nonce": "2026-09-22T08:39Z"
+}
