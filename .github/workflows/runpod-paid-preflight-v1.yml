@@ -19,20 +19,14 @@ jobs:
         with:
           ref: ops/runpod-control-v1
 
-      - name: Run read-only RunPod preflight and persist diagnostic
-        id: probe
-        continue-on-error: true
+      - name: Run read-only RunPod preflight
         shell: bash
         env:
           RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
         run: |
-          set +e
+          set -euo pipefail
           mkdir -p .github/runpod-control
-
-          if [ -z "${RUNPOD_API_KEY:-}" ]; then
-            printf '{"ok":false,"error":"missing_runpod_api_key"}\n' > .github/runpod-control/preflight.json
-            exit 10
-          fi
+          test -n "${RUNPOD_API_KEY:-}" || { echo "::error::RUNPOD_API_KEY missing"; exit 10; }
 
           REG_CODE="$(curl --silent --show-error             --output /tmp/registry.json             --write-out "%{http_code}"             --url "https://rest.runpod.io/v1/containerregistryauth"             --header "Authorization: Bearer ${RUNPOD_API_KEY}")"
 
@@ -45,88 +39,126 @@ jobs:
           POD_CODE="$(curl --silent --show-error             --output /tmp/pods.json             --write-out "%{http_code}"             --url "https://rest.runpod.io/v1/pods"             --header "Authorization: Bearer ${RUNPOD_API_KEY}")"
 
           export REG_CODE GPU_CODE POD_CODE
-          python - <<'PY'
-          import json, datetime, os
 
-          out={
+          python - <<'PY'
+          import datetime
+          import json
+          import os
+          import sys
+
+          out = {
               "checked_at_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
               "ok": False,
               "error": None,
               "http": {
-                  "registry": os.environ.get("REG_CODE"),
-                  "gpu_query": os.environ.get("GPU_CODE"),
-                  "pods": os.environ.get("POD_CODE"),
-              }
+                  "registry": os.environ["REG_CODE"],
+                  "gpu_query": os.environ["GPU_CODE"],
+                  "pods": os.environ["POD_CODE"],
+              },
           }
 
           try:
-              if out["http"] != {"registry":"200","gpu_query":"200","pods":"200"}:
-                  out["error"]="http_failure"
-                  raise RuntimeError("http_failure")
+              if any(v != "200" for v in out["http"].values()):
+                  out["error"] = "http_failure"
+                  raise ValueError("http_failure")
 
-              registry=json.load(open('/tmp/registry.json',encoding='utf-8'))
-              gpu=json.load(open('/tmp/gpu.json',encoding='utf-8'))
-              pods=json.load(open('/tmp/pods.json',encoding='utf-8'))
+              with open("/tmp/registry.json", encoding="utf-8") as f:
+                  registry = json.load(f)
+              with open("/tmp/gpu.json", encoding="utf-8") as f:
+                  gpu = json.load(f)
+              with open("/tmp/pods.json", encoding="utf-8") as f:
+                  pods = json.load(f)
 
-              if gpu.get('errors'):
-                  out["error"]="graphql_error"
-                  raise RuntimeError("graphql_error")
+              if gpu.get("errors"):
+                  out["error"] = "graphql_error"
+                  raise ValueError("graphql_error")
 
-              regs=registry if isinstance(registry,list) else []
-              matches=[r for r in regs if isinstance(r,dict) and r.get('name')=='ghcr-mus-ai']
-              if len(matches)!=1:
-                  out["error"]=f"registry_auth_count_{len(matches)}"
-                  raise RuntimeError("registry_auth")
+              regs = registry if isinstance(registry, list) else []
+              matches = [
+                  r for r in regs
+                  if isinstance(r, dict) and r.get("name") == "ghcr-mus-ai"
+              ]
+              if len(matches) != 1:
+                  out["error"] = f"registry_auth_count_{len(matches)}"
+                  raise ValueError("registry_auth")
 
-              gpus=((gpu.get('data') or {}).get('gpuTypes') or [])
-              if len(gpus)!=1:
-                  out["error"]=f"gpu_type_count_{len(gpus)}"
-                  raise RuntimeError("gpu_type")
+              gpus = ((gpu.get("data") or {}).get("gpuTypes") or [])
+              if len(gpus) != 1:
+                  out["error"] = f"gpu_type_count_{len(gpus)}"
+                  raise ValueError("gpu_type")
 
-              g=gpus[0]
-              lp=g.get('lowestPrice') or {}
-              price=lp.get('uninterruptablePrice')
-              stock=lp.get('stockStatus')
-              counts=lp.get('availableGpuCounts') or []\n              max_unreserved=lp.get('maxUnreservedGpuCount')\n              max_gpu_count=lp.get('maxGpuCount')\n              total_count=lp.get('totalCount')\n              rented_count=lp.get('rentedCount')
+              g = gpus[0]
+              lp = g.get("lowestPrice") or {}
+              price = lp.get("uninterruptablePrice")
+              stock = lp.get("stockStatus")
+              counts = lp.get("availableGpuCounts") or []
+              max_unreserved = lp.get("maxUnreservedGpuCount")
+              max_gpu_count = lp.get("maxGpuCount")
+              total_count = lp.get("totalCount")
+              rented_count = lp.get("rentedCount")
 
-              plist=pods.get('pods', pods.get('items', pods.get('data', []))) if isinstance(pods,dict) else pods
-              if not isinstance(plist,list):
-                  plist=[]
-              running=[p for p in plist if isinstance(p,dict) and (p.get('desiredStatus') or p.get('status'))=='RUNNING']
+              if isinstance(pods, dict):
+                  plist = pods.get("pods", pods.get("items", pods.get("data", [])))
+              else:
+                  plist = pods
+              if not isinstance(plist, list):
+                  plist = []
+              running = [
+                  p for p in plist
+                  if isinstance(p, dict)
+                  and (p.get("desiredStatus") or p.get("status")) == "RUNNING"
+              ]
+
+              has_capacity = (
+                  1 in counts
+                  or (
+                      isinstance(max_unreserved, int)
+                      and not isinstance(max_unreserved, bool)
+                      and max_unreserved >= 1
+                  )
+              )
 
               out.update({
-                  "registry_auth_name":"ghcr-mus-ai",
-                  "registry_auth_id":matches[0].get('id'),
-                  "gpu_type_id":g.get('id'),
-                  "gpu_display_name":g.get('displayName'),
-                  "memory_in_gb":g.get('memoryInGb'),
-                  "secure_cloud":g.get('secureCloud'),
-                  "stock_status":stock,
-                  "available_gpu_counts":counts,
-                  "on_demand_price_usd_per_hr":price,
-                  "running_pod_count":len(running),
+                  "registry_auth_name": "ghcr-mus-ai",
+                  "registry_auth_id": matches[0].get("id"),
+                  "gpu_type_id": g.get("id"),
+                  "gpu_display_name": g.get("displayName"),
+                  "memory_in_gb": g.get("memoryInGb"),
+                  "secure_cloud": g.get("secureCloud"),
+                  "stock_status": stock,
+                  "available_gpu_counts": counts,
+                  "max_unreserved_gpu_count": max_unreserved,
+                  "max_gpu_count": max_gpu_count,
+                  "total_count": total_count,
+                  "rented_count": rented_count,
+                  "on_demand_price_usd_per_hr": price,
+                  "running_pod_count": len(running),
+                  "has_single_gpu_capacity": has_capacity,
               })
 
-              out["ok"]=(
-                  g.get('id')=='NVIDIA GeForce RTX 4090'
-                  and g.get('memoryInGb')==24
-                  and g.get('secureCloud') is True
-                  and isinstance(price,(int,float))
+              out["ok"] = (
+                  g.get("id") == "NVIDIA GeForce RTX 4090"
+                  and g.get("memoryInGb") == 24
+                  and g.get("secureCloud") is True
+                  and isinstance(price, (int, float))
+                  and not isinstance(price, bool)
                   and price <= 0.80
-                  and stock not in (None,'None')
-                  and 1 in counts
-                  and len(running)==0
+                  and stock not in (None, "None")
+                  and has_capacity
+                  and len(running) == 0
               )
-              if not out["ok"] and not out["error"]:
-                  out["error"]="policy_gate_failed"
-          except Exception:
-              pass
+              if not out["ok"]:
+                  out["error"] = "policy_gate_failed"
+          except Exception as exc:
+              if out["error"] is None:
+                  out["error"] = type(exc).__name__
 
-          with open('.github/runpod-control/preflight.json','w',encoding='utf-8') as f:
-              json.dump(out,f,indent=2,sort_keys=True)
+          with open(".github/runpod-control/preflight.json", "w", encoding="utf-8") as f:
+              json.dump(out, f, indent=2, sort_keys=True)
               f.write("\n")
-          print(json.dumps(out,sort_keys=True))
-          raise SystemExit(0 if out["ok"] else 20)
+
+          print(json.dumps(out, sort_keys=True))
+          sys.exit(0 if out["ok"] else 20)
           PY
 
       - name: Commit sanitized preflight diagnostic
@@ -147,8 +179,9 @@ jobs:
           set -euo pipefail
           python - <<'PY'
           import json
-          d=json.load(open('.github/runpod-control/preflight.json',encoding='utf-8'))
-          if d.get('ok') is not True:
+          with open(".github/runpod-control/preflight.json", encoding="utf-8") as f:
+              d = json.load(f)
+          if d.get("ok") is not True:
               raise SystemExit(f"RunPod paid preflight blocked: {d.get('error')}")
           print("RUNPOD_PAID_PREFLIGHT_PASS")
           PY
