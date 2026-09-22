@@ -1,0 +1,87 @@
+name: RunPod Retry18H Free Preflight
+
+on:
+  push:
+    branches:
+      - ops/runpod-control-v1
+    paths:
+      - ".github/runpod-control/retry18h-preflight-trigger-*.json"
+
+permissions:
+  contents: write
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/runpod-control-v1
+
+      - name: Install official runpodctl
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -sSL https://cli.runpod.net | bash
+          runpodctl version
+          runpodctl user >/tmp/user.json
+          runpodctl pod create --help >/tmp/pod-create-help.txt
+          runpodctl ssh add-key --help >/tmp/ssh-add-help.txt
+          runpodctl ssh remove-key --help >/tmp/ssh-remove-help.txt
+
+      - name: Read RTX 4090 pricing and availability only
+        shell: bash
+        run: |
+          set -euo pipefail
+          runpodctl gpu list --include-unavailable > /tmp/gpus.json
+          python - <<'PY'
+          import json, datetime, subprocess
+          raw=json.load(open('/tmp/gpus.json',encoding='utf-8'))
+          def walk(x):
+              if isinstance(x,dict):
+                  yield x
+                  for v in x.values(): yield from walk(v)
+              elif isinstance(x,list):
+                  for v in x: yield from walk(v)
+          hits=[]
+          for d in walk(raw):
+              text=' '.join(str(d.get(k,'')) for k in ('id','name','displayName','gpuTypeId','gpuTypeName'))
+              if '4090' in text:
+                  hits.append(d)
+          safe=[]
+          for d in hits:
+              safe.append({
+                'id': d.get('id') or d.get('gpuTypeId'),
+                'name': d.get('displayName') or d.get('name') or d.get('gpuTypeName'),
+                'securePricePerHr': d.get('securePricePerHr'),
+                'communityPricePerHr': d.get('communityPricePerHr'),
+                'stockStatus': d.get('stockStatus'),
+                'dataCenterAvailability': d.get('dataCenterAvailability'),
+              })
+          version=subprocess.check_output(['runpodctl','version'],text=True).strip()
+          out={
+            'ok': bool(safe),
+            'checked_at_utc': datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            'runpodctl_version': version,
+            'rtx4090': safe,
+          }
+          open('.github/runpod-control/retry18h-preflight.json','w',encoding='utf-8').write(json.dumps(out,indent=2,sort_keys=True)+'\n')
+          assert safe, 'RTX4090_NOT_LISTED'
+          prices=[x.get('securePricePerHr') for x in safe if isinstance(x.get('securePricePerHr'),(int,float))]
+          assert prices and min(prices) <= 0.80, ('SECURE_PRICE_TOO_HIGH',prices)
+          print('RETRY18H_FREE_PREFLIGHT_PASS',min(prices))
+          PY
+
+      - name: Commit sanitized preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "aqlevon-runpod-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add .github/runpod-control/retry18h-preflight.json
+          git commit -m "ops: record Retry18H free RunPod preflight [skip ci]" || exit 0
+          git pull --rebase origin ops/runpod-control-v1
+          git push origin HEAD:ops/runpod-control-v1
