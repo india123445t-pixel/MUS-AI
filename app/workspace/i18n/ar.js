@@ -40,6 +40,7 @@ export default {
   'work.queued': 'في الانتظار', 'work.cancelled': 'أُلغيت', 'work.cancel': 'إلغاء', 'work.retryTask': 'إعادة المحاولة',
   'work.activity': 'النشاط', 'work.result': 'النتيجة', 'work.details': 'التفاصيل',
   'work.empty': 'لا مهام بعد. نسخة المتصفح تنشئ مسودة Markdown فقط؛ محولات PDF وExcel وPowerPoint غير متصلة.',
+  'work.runtimeUnavailable': 'لا يمكن بدء مهمة الآن لأن محرك الاستدلال غير جاهز.',
   'work.openResult': 'فتح النتيجة', 'work.sources': 'المصادر',
   'step.persist': 'حفظ المهمة', 'step.plan': 'التخطيط', 'step.search': 'البحث في المصادر',
   'step.generate': 'توليد المحتوى', 'step.render': 'إنشاء الملف', 'step.verify': 'التحقق من النتيجة',
