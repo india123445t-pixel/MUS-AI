@@ -68,13 +68,20 @@ jobs:
           code="$(curl -sS -o /tmp/create-response.json -w '%{http_code}' -X POST https://rest.runpod.io/v1/pods -H "Authorization: Bearer $RUNPOD_API_KEY" -H 'Content-Type: application/json' --data-binary @/tmp/create.json)"
           if [ "$code" != "201" ]; then
             python - <<'PY'
-          import json
+          import json,datetime
           try:
               p=json.load(open('/tmp/create-response.json'))
-              print("CREATE_FAILED", p.get('error') or p.get('message') or p.get('status') or 'unknown')
+              err=p.get('error') or p.get('message') or p.get('status') or 'unknown'
           except Exception:
-              print("CREATE_FAILED_NON_JSON")
+              err='non_json_response'
+          json.dump({'phase':'create_failed','http_code':int('''$code'''),'error':str(err)[:500],'checked_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat()},open('.github/runpod-control/retry18h-create-diagnostic.json','w'),indent=2)
+          open('.github/runpod-control/retry18h-create-diagnostic.json','a').write('\n')
           PY
+            git config user.name aqlevon-runpod-bot
+            git config user.email actions@users.noreply.github.com
+            git add .github/runpod-control/retry18h-create-diagnostic.json
+            git commit -m "ops: record Retry18H create diagnostic [skip ci]" || true
+            git push origin HEAD:ops/runpod-control-v1 || true
             exit 1
           fi
           python - <<'PY'
