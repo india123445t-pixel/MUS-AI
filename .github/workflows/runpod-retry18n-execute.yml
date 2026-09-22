@@ -223,7 +223,7 @@ jobs:
           test -n "$IP" -a -n "$PORT" || { echo "::error::SSH not ready within 240s"; exit 36; }
           echo "SSH_READY"
 
-          SSH_OPTS=(-i /tmp/aqlevon_retry18n_key -p "$PORT" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=4)
+          SSH_OPTS=(-i /tmp/aqlevon_retry18n_key -p "$PORT" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=4)\n          SCP_OPTS=(-i /tmp/aqlevon_retry18n_key -P "$PORT" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=15)
 
           # Exact current P4 head only. The launcher independently verifies the same head,
           # binding, image digest, run manifest, command lock, GPU identity, and authorization.
@@ -265,7 +265,7 @@ jobs:
           if [ "$pack_rc" = "0" ]; then
             size="$(tail -n1 /tmp/retry18n-evidence-size.txt | tr -dc '0-9')"
             if [ -n "$size" ] && [ "$size" -le 5368709120 ]; then
-              scp "${SSH_OPTS[@]}" root@"$IP":/workspace/retry18n-evidence.tgz "$GITHUB_WORKSPACE/retry18n-artifact/"
+              scp "${SCP_OPTS[@]}" root@"$IP":/workspace/retry18n-evidence.tgz "$GITHUB_WORKSPACE/retry18n-artifact/"
               echo "$size" > "$GITHUB_WORKSPACE/retry18n-artifact/evidence-bytes.txt"
               echo "EVIDENCE_EGRESS_PASS bytes=$size"
             else
