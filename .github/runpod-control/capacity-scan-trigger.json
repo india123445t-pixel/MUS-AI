@@ -1,4 +1,5 @@
 {
   "action": "scan_secure_gpu_capacity",
-  "reason": "Retry18X RTX4090 create returned no instances; find compatible available GPU without changing frozen training recipe"
+  "reason": "Retry19A pre-spend capacity refresh for one authorized A40-class attempt",
+  "nonce": "20260922T1439Z"
 }
