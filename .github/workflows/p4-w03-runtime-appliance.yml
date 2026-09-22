@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - agent/03-p4-gene1-physical-trainer
+      - agent/03-p4-gene1-runtime-ssh-repair-20260922
     paths:
       - 'research/weight_factory/agent03/runtime_appliance/**'
       - 'research/weight_factory/agent03/p4_patch_sdpo_transformers5_compat.py'
