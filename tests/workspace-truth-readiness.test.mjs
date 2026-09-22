@@ -8,6 +8,7 @@ const read=p=>fs.readFileSync(path.join(root,p),'utf8');
 const api=read('app/workspace/api.js');
 const chat=read('app/workspace/pages/ChatPage.jsx');
 const work=read('app/workspace/pages/WorkPage.jsx');
+const library=read('app/workspace/pages/LibraryPage.jsx');
 const dev=read('app/workspace/pages/DeveloperPage.jsx');
 const scheduled=read('app/workspace/pages/ScheduledPage.jsx');
 const plugins=read('app/workspace/pages/PluginsPage.jsx');
@@ -71,6 +72,14 @@ test('public work surface only advertises the format it actually renders',()=>{
   assert.doesNotMatch(work,/format: 'xlsx'/);
   assert.doesNotMatch(work,/format: 'pptx'/);
   assert.match(work,/work\.browserOnly/);
+});
+
+test('Work fails closed when inference is unavailable and Library stays browser-local',()=>{
+  assert.match(work,/runtime\?\.inferenceReady !== true/);
+  assert.match(work,/work\.runtimeUnavailable/);
+  assert.match(work,/disabled=\{!form\.prompt\.trim\(\) \|\| runtime\?\.inferenceReady !== true\}/);
+  assert.match(library,/api\.fileUrl\(preview\.file\.id\)/);
+  assert.doesNotMatch(library,/\/api\/files\/\$\{preview\.file\.id\}\/content/);
 });
 
 test('new users default to Arabic and persistence claims are truthful',()=>{
