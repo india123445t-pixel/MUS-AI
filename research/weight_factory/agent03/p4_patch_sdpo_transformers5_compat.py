@@ -24,7 +24,7 @@ FSDP = SDPO / "verl/workers/fsdp_workers.py"
 VLLM_ASYNC = SDPO / "verl/workers/rollout/vllm_rollout/vllm_async_server.py"
 VLLM_LORA_MODELS = Path(os.environ.get("AQLEVON_VLLM_LORA_MODELS_PATH", str(Path(sysconfig.get_paths()["purelib"]) / "vllm/lora/models.py")))
 REQUIRED_ROLLOUT_LORA_SUFFIXES = (".self_attn.q_proj", ".self_attn.v_proj")
-EXPECTED_REQUIRED_ROLLOUT_LORA_MODULES = 32
+EXPECTED_REQUIRED_ROLLOUT_LORA_MODULES = 16
 
 
 def sha256(path: Path) -> str:
@@ -45,7 +45,7 @@ def patch_vllm_lora_manager(text: str) -> str:
     true. The forced Qwen3.5 Transformers backend can expose mixed module
     types while supports_mm is false, causing an assertion before rollout.
     We may skip only unsupported non-target modules. Frozen self_attn q/v
-    targets must all be LoRA-capable, and exactly 32 must be registered.
+    targets must all be LoRA-capable. Qwen3.5-4B has 8 full-attention layers\n    in its frozen 3:1 hybrid stack, so q_proj + v_proj yields exactly 16\n    rollout LoRA modules.
     """
     old = """            if self.supports_mm and not isinstance(new_module,
                                                    BaseLayerWithLoRA):
@@ -74,7 +74,7 @@ def patch_vllm_lora_manager(text: str) -> str:
             name for name in self.modules
             if name.endswith((\".self_attn.q_proj\", \".self_attn.v_proj\"))
         ]
-        if len(aqlevon_required) != 32:
+        if len(aqlevon_required) != 16:
             raise RuntimeError(
                 \"AQLEVON_REQUIRED_ROLLOUT_LORA_MODULE_COUNT:\"
                 + str(len(aqlevon_required)) + \":expected_32\"
