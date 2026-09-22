@@ -1,0 +1,10 @@
+{
+  "authorization_id": "P4-A1-RUNPOD-4090-20260922-18J-API-AUTOMATED",
+  "authorization_sha256": "fbdc7642dc0749caef0db2680f162d3790afb78f24a72a0944d6622d1efe5efe",
+  "binding_sha256": "7c2268c29cb374f3137e4b775064207ba02fcdd3a42aa762bd24697389ff7bca",
+  "expected_head": "5a0a3694e0c60f9d2577358b1f62a1af1ec0b6cb",
+  "max_billed_seconds": 1800,
+  "max_total_cost_usd": "0.40",
+  "requested_by": "AQLEVON_MANAGER",
+  "single_use": true
+}
