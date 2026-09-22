@@ -1,5 +1,5 @@
 {
   "action": "scan_secure_gpu_capacity",
-  "reason": "Pre-spend refresh for AQLEVON native Qwen3.5 vLLM 0.19.1; prefer A40 48GB, fallback RTX A6000 48GB",
-  "nonce": "20260922-v019-48gb-refresh-1"
+  "reason": "Pre-spend refresh after v019 qkv/tensor-LoRA gates; prefer exact A40 48GB under Retry19M ceiling",
+  "nonce": "20260922-v019-48gb-refresh-2"
 }
