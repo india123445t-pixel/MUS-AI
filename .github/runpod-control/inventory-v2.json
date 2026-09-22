@@ -20,7 +20,7 @@
         },
         {
           "dataCenterId": "EU-RO-1",
-          "stockStatus": "none"
+          "stockStatus": "Low"
         },
         {
           "dataCenterId": "EUR-IS-1",
@@ -40,7 +40,7 @@
         },
         {
           "dataCenterId": "US-IL-1",
-          "stockStatus": "Low"
+          "stockStatus": "none"
         },
         {
           "dataCenterId": "US-NC-1",
@@ -60,6 +60,55 @@
     }
   ],
   "pods": [
+    {
+      "id": "5118pkxukizhkp",
+      "name": "AQLEVON-P4-A1-Retry18V",
+      "status": "EXITED",
+      "gpuId": null,
+      "costPerHr": 0.74
+    },
+    {
+      "id": "ryhirrlimvjtda",
+      "name": "AQLEVON-P4-A1-Retry18T",
+      "status": "EXITED",
+      "gpuId": null,
+      "costPerHr": 0.74
+    },
+    {
+      "id": "in0gd5r4ktqqn0",
+      "name": "AQLEVON-P4-A1-Retry18S",
+      "status": "EXITED",
+      "gpuId": null,
+      "costPerHr": 0.74
+    },
+    {
+      "id": "e31dfh55lglbfy",
+      "name": "AQLEVON-P4-A1-Retry18R",
+      "status": "EXITED",
+      "gpuId": null,
+      "costPerHr": 0.74
+    },
+    {
+      "id": "c63iyzqr97hmkn",
+      "name": "AQLEVON-P4-A1-Retry18Q",
+      "status": "EXITED",
+      "gpuId": null,
+      "costPerHr": 0.74
+    },
+    {
+      "id": "0hcolv95fnvw8t",
+      "name": "AQLEVON-P4-A1-Retry18P",
+      "status": "EXITED",
+      "gpuId": null,
+      "costPerHr": 0.74
+    },
+    {
+      "id": "0iouokn7f9vfnr",
+      "name": "AQLEVON-P4-A1-Retry18N",
+      "status": "EXITED",
+      "gpuId": null,
+      "costPerHr": 0.74
+    },
     {
       "id": "18tziw1qp18rwy",
       "name": "AQLEVON-P4-A1-R18I",
