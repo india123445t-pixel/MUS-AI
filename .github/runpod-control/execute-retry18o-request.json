@@ -1,0 +1,14 @@
+{
+  "authorization_id": "P4-A1-RUNPOD-4090-20260922-18O-APPLIANCE-DIGEST-BIND",
+  "authorization_sha256": "fd34267a5c4e2606f2c5c960d3d526ea71e4108b89f2d15332c384e2a669698b",
+  "binding_sha256": "9c36395cf8d85a74a3215aeec479ecd104b48695ab708c55ab90e67ec7e6305b",
+  "worker03_head": "de78f361665a7e903debd679b5fce49de25c0fbe",
+  "runtime_image": "ghcr.io/india123445t-pixel/mus-ai@sha256:83d8074523c0a5535fc2718956f5bf430de400cd1e900030e83c1e4c974e8714",
+  "gpu_id": "NVIDIA GeForce RTX 4090",
+  "gpu_count": 1,
+  "cloud_type": "SECURE",
+  "max_hourly_rate_usd": "0.80",
+  "max_billed_seconds": 1800,
+  "max_total_cost_usd": "0.40",
+  "single_use": true
+}
