@@ -62,7 +62,7 @@ jobs:
               g=detail.get('gpu') if isinstance(detail.get('gpu'),dict) else {}
               gpu_fields=[detail.get('gpuTypeId'),detail.get('gpuTypeName'),m.get('gpuTypeId'),m.get('gpuDisplayName'),gt.get('id'),gt.get('displayName'),g.get('displayName'),g.get('name')]
               gpu_fields=[str(x) for x in gpu_fields if x]
-              out['pods'].append({'fingerprint':hashlib.sha256(pid.encode()).hexdigest()[:12] if pid else None,'status':p.get('desiredStatus') or p.get('status'),'cost_per_hr':p.get('costPerHr'),'created_at':p.get('createdAt'),'gpu_fields':gpu_fields})
+              out['pods'].append({'fingerprint':hashlib.sha256(pid.encode()).hexdigest()[:12] if pid else None,'name':p.get('name'),'status':p.get('desiredStatus') or p.get('status'),'cost_per_hr':p.get('costPerHr'),'created_at':p.get('createdAt'),'volume_in_gb':p.get('volumeInGb'),'gpu_fields':gpu_fields})
           json.dump(out,open('.github/runpod-control/status.json','w'),indent=2,sort_keys=True);open('.github/runpod-control/status.json','a').write('\n')
           PY
       - name: Commit status
