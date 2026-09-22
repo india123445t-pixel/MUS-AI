@@ -1,0 +1,11 @@
+{
+  "action": "execute_retry18w",
+  "requested_by": "AQLEVON_MANAGER",
+  "expected_head": "88579cd9680c6e7e41ca3ea6afae7fb30509cbf6",
+  "authorization_id": "P4-A1-RUNPOD-4090-20260922-18W-BF16-ACTOR-INIT",
+  "authorization_sha256": "fca4422ef3a14b1b4d25e7bf08b35ac25bd8bffe33d5758a0054b758e1a115f1",
+  "max_total_cost_usd": "0.40",
+  "max_billed_seconds": 1800,
+  "single_use": true,
+  "reason": "Retry18W one-shot after free-validated BF16 actor initialization repair for Retry18V host RAM OOM"
+}
