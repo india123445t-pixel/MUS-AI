@@ -77,7 +77,7 @@ def patch_vllm_lora_manager(text: str) -> str:
         if len(aqlevon_required) != 16:
             raise RuntimeError(
                 \"AQLEVON_REQUIRED_ROLLOUT_LORA_MODULE_COUNT:\"
-                + str(len(aqlevon_required)) + \":expected_32\"
+                + str(len(aqlevon_required)) + \":expected_16\"
             )
 """
     if "AQLEVON_QWEN35_VLLM_LORA_GUARD" in text:
