@@ -35,7 +35,11 @@ def build_check():
     import verl
     import verl.workers.fsdp_workers
     import verl.workers.rollout.vllm_rollout.vllm_rollout
-    import verl.workers.rollout.vllm_rollout.vllm_async_server
+    import verl.workers.rollout.vllm_rollout.vllm_async_server as vllm_async_server
+    async_src=inspect.getsource(vllm_async_server.vLLMHttpServer.__init__)
+    assert "AQLEVON_VLLM019_PRESERVE_MAX_MODEL_LEN" in async_src
+    assert "if self.config.max_model_len is None:" in async_src
+    assert "self.config.max_model_len = get_max_position_embeddings(self.model_config.hf_config)" not in async_src
     from vllm.lora.lora_model import LoRAModel
     from vllm.lora.worker_manager import LRUCacheWorkerLoRAManager
     from verl.utils.vllm import TensorLoRARequest, VLLMHijack
@@ -91,6 +95,7 @@ def build_check():
       "sdpo_imports":"pass",
       "sdpo_tensor_lora_v019_contract":"pass",
       "sdpo_vllm019_worker_dispatch":"pass",
+      "sdpo_preserves_explicit_max_model_len":"pass",
     }
 
 def main():
