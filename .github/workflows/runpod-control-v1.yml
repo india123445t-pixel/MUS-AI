@@ -6,6 +6,7 @@ on:
       - ops/runpod-control-v1
     paths:
       - ".github/runpod-control/command.json"
+      - ".github/runpod-control/trigger-*.json"
   workflow_dispatch:
 
 permissions:
