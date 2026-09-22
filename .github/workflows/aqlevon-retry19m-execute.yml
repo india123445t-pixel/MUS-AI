@@ -233,25 +233,40 @@ jobs:
           PORT: ${{ steps.ssh.outputs.port }}
         run: |
           set -euo pipefail
+          cat > /tmp/aqlevon_hw_gate.py <<'PY'
+          import subprocess
+
+          name = subprocess.check_output(
+              ["nvidia-smi", "--query-gpu=name", "--format=csv,noheader"],
+              text=True,
+          ).splitlines()[0].strip()
+          mem = float(subprocess.check_output(
+              ["nvidia-smi", "--query-gpu=memory.free", "--format=csv,noheader,nounits"],
+              text=True,
+          ).splitlines()[0])
+          available_kib = 0
+          for line in open("/proc/meminfo"):
+              if line.startswith("MemAvailable:"):
+                  available_kib = int(line.split()[1])
+                  break
+          available_gib = available_kib / 1024 / 1024
+          print("AQLEVON_POST_CREATE_HW", {
+              "gpu": name,
+              "free_vram_mib": mem,
+              "host_mem_available_gib": round(available_gib, 2),
+          })
+          if name != "NVIDIA A40":
+              raise SystemExit("FAIL_CLOSED_GPU_IDENTITY:" + name)
+          if mem < 44000:
+              raise SystemExit("FAIL_CLOSED_GPU_FREE_MEMORY:" + str(mem))
+          if available_gib < 32:
+              raise SystemExit("FAIL_CLOSED_HOST_RAM:" + str(available_gib))
+          print("AQLEVON_POST_CREATE_HW_PASS")
+          PY
           ssh_opts=(-i /tmp/aqlevon_key -p "$PORT" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10)
-          ssh "${ssh_opts[@]}" root@"$HOST" 'python3 - <<'"'"'PY'"'"'
-import subprocess,sys
-name=subprocess.check_output(["nvidia-smi","--query-gpu=name","--format=csv,noheader"],text=True).splitlines()[0].strip()
-mem=float(subprocess.check_output(["nvidia-smi","--query-gpu=memory.free","--format=csv,noheader,nounits"],text=True).splitlines()[0])
-available_kib=0
-for line in open("/proc/meminfo"):
-    if line.startswith("MemAvailable:"):
-        available_kib=int(line.split()[1]); break
-available_gib=available_kib/1024/1024
-print("AQLEVON_POST_CREATE_HW",{"gpu":name,"free_vram_mib":mem,"host_mem_available_gib":round(available_gib,2)})
-if name!="NVIDIA A40":
-    raise SystemExit("FAIL_CLOSED_GPU_IDENTITY:"+name)
-if mem < 44000:
-    raise SystemExit("FAIL_CLOSED_GPU_FREE_MEMORY:"+str(mem))
-if available_gib < 32:
-    raise SystemExit("FAIL_CLOSED_HOST_RAM:"+str(available_gib))
-print("AQLEVON_POST_CREATE_HW_PASS")
-PY'
+          scp_opts=(-i /tmp/aqlevon_key -P "$PORT" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10)
+          scp -q "${scp_opts[@]}" /tmp/aqlevon_hw_gate.py root@"$HOST":/tmp/aqlevon_hw_gate.py
+          ssh "${ssh_opts[@]}" root@"$HOST" python3 /tmp/aqlevon_hw_gate.py
 
       - name: Execute v019 smoke then frozen training and retrieve evidence
         id: train
