@@ -1,6 +1,12 @@
 name: AQLEVON Retry18M Paid Execute
 
 on:
+  push:
+    branches:
+      - ops/runpod-retry18m-execute-20260922
+    paths:
+      - '.github/workflows/runpod-retry18m-execute.yml'
+      - 'ops/runpod-control/retry18m.request.json'
   pull_request:
     branches:
       - ops/runpod-control-base-20260922
@@ -8,7 +14,7 @@ on:
       - 'ops/runpod-control/retry18m.request.json'
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: aqlevon-retry18m-single-use
@@ -191,3 +197,39 @@ REMOTE
           path: retry18m-artifact/
           if-no-files-found: ignore
           retention-days: 7
+
+      - name: Commit sanitized Retry18M result
+        if: always() && github.event_name == 'push'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .github/runpod-control
+          rc=null
+          if [ -f retry18m-artifact/launcher-exit-code.txt ]; then rc="$(cat retry18m-artifact/launcher-exit-code.txt)"; fi
+          python - "$rc" <<'PY'
+          import json,sys,re,hashlib,datetime,pathlib
+          rc=sys.argv[1]
+          logp=pathlib.Path("retry18m-artifact/retry18m-console.log")
+          log=logp.read_text(errors="replace") if logp.exists() else ""
+          out={
+            "schema_version":1,
+            "run":"Retry18M",
+            "authorization_id":"P4-A1-RUNPOD-4090-20260922-18M-QWEN35-VLLM-TF-BACKEND",
+            "authorization_sha256":"8fc3f9467250ed4ecfa125098ea7e5645b918b76dba3e07f90a43106313cafdf",
+            "binding_sha256":"0fa5701bdc00b831052a5f9184c136cf9668678a74172107e3fd5916ffadca66",
+            "worker03_head":"74deae5637771d06a7bdf3b0bd271e614a617fea",
+            "checked_at_utc":datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "launcher_exit_code": None if rc=="null" else int(rc),
+            "training_start_seen":"A1_LOCKED_TRAINING_START" in log,
+            "exit_marker_seen":"AQLEVON_A1_EXIT_CODE=" in log,
+            "candidate_manifest_seen":"candidate" in log.lower() and "manifest" in log.lower(),
+            "log_sha256":hashlib.sha256(log.encode()).hexdigest() if log else None,
+          }
+          pathlib.Path(".github/runpod-control/retry18m-result.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          PY
+          git config user.name aqlevon-runpod-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/runpod-control/retry18m-result.json
+          git commit -m "ops: record Retry18M result [skip ci]" || exit 0
+          git pull --rebase origin ops/runpod-retry18m-execute-20260922 || true
+          git push origin HEAD:ops/runpod-retry18m-execute-20260922 || true
