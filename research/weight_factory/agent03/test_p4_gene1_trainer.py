@@ -733,5 +733,28 @@ class RunnerTests(unittest.TestCase):
         self.assertTrue(callable(tour.write_parquet_records))
 
 
+    def test_qwen35_vllm_linear_shape_restore_is_scoped_and_idempotent(self):
+        source = """        mixed_qkv = self.in_proj_qkv(hidden_states)
+        mixed_qkv = mixed_qkv.transpose(1, 2)
+
+        z = self.in_proj_z(hidden_states)
+        z = z.reshape(batch_size, seq_len, -1, self.head_v_dim)
+
+        b = self.in_proj_b(hidden_states)
+        a = self.in_proj_a(hidden_states)
+
+        output = self.out_proj(core_attn_out)
+        return output
+"""
+        once = compat.patch_transformers_qwen35_vllm_linear_shapes(source)
+        self.assertIn("AQLEVON_QWEN35_VLLM_LINEAR_SHAPE_RESTORE", once)
+        self.assertIn("mixed_qkv.reshape(batch_size, seq_len, -1)", once)
+        self.assertIn("b = b.reshape(batch_size, seq_len, -1)", once)
+        self.assertIn("a = a.reshape(batch_size, seq_len, -1)", once)
+        self.assertIn("output = output.reshape(batch_size, seq_len, -1)", once)
+        twice = compat.patch_transformers_qwen35_vllm_linear_shapes(once)
+        self.assertEqual(once, twice)
+
+
 if __name__ == "__main__":
     unittest.main()
