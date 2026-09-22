@@ -1,0 +1,22 @@
+{
+  "authorization_id": "P4-A1-RUNPOD-A40-20260922-19N-VLLM019-PYTHON3-REPAIR",
+  "checked_at_utc": "2026-09-22T20:15:19.187193+00:00",
+  "evidence_archive_present": true,
+  "expected_head": "7eea52ec06388631657e2bc937122483fce1555b",
+  "image_digest": "sha256:ac70a74115046be4a866195344c0600ef0b1bb5ec5e897ec02ae8bd1f6c6f555",
+  "log_sha256": "cb3bb98ea12ad0c162906d4cb4c21620e42c1214ca44051ae3c8a3ce1b072f44",
+  "markers": {
+    "A1_LOCKED_TRAINING_START": false,
+    "APPLIANCE_BINDING_PASS": false,
+    "APPLIANCE_EXACT_AUTHORIZATION_PASS": false,
+    "APPLIANCE_NATIVE_QWEN35_VLLM019_PASS": false,
+    "APPLIANCE_SEED1701_BINDING_PASS": false,
+    "APPLIANCE_SOURCE_DELTA_PASS": false,
+    "AQLEVON_A1_EXIT_CODE": false,
+    "AQLEVON_V019_LORA_SMOKE_PASS": false,
+    "AQLEVON_V019_NATIVE_LORA_FUNCTIONAL_SMOKE_PASS": false,
+    "MODEL_STAGE_PASS": false
+  },
+  "stop_status": "exited",
+  "training_exit_code": 1
+}
