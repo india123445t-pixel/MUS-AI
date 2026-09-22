@@ -1,5 +1,5 @@
 {
   "pod_id": "cbymrg61ro1rcp",
-  "reason": "Retry19P live startup probe; diagnose SSH wait without intervention",
-  "nonce": "19p-live-startup-1"
+  "reason": "Retry19P live startup probe 2; verify image extraction continues",
+  "nonce": "19p-live-startup-2"
 }
