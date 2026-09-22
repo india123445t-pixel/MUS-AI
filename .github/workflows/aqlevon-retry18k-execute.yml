@@ -1,11 +1,11 @@
-name: AQLEVON Retry18K Execute
+name: AQLEVON Retry18L Execute
 
 on:
   push:
     branches:
       - ops/runpod-control-v1
     paths:
-      - ".github/runpod-control/paid-trigger-retry18k.json"
+      - ".github/runpod-control/paid-trigger-retry18l.json"
 
 permissions:
   contents: write
@@ -15,10 +15,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     env:
-      EXPECTED_HEAD: c5ef8f0123c0249eb03d7d8af7b3517b786cb240
+      EXPECTED_HEAD: 775306825766947943d4f91522ae0c5e650e321e
       IMAGE: ghcr.io/india123445t-pixel/mus-ai@sha256:62576b7892e2ccc7caeaf1de4e70f2a185294c00113571a32dbbd0656cbd0a61
-      AUTH_ID: P4-A1-RUNPOD-4090-20260922-18K-STARTUP-REPAIRED
-      AUTH_SHA: e49e05f365e182ea11367452e6dbdd8188c44bfddf7eee9464e71f954d01a508
+      AUTH_ID: P4-A1-RUNPOD-4090-20260922-18L-SSH-READINESS
+      AUTH_SHA: 95c4e9a561c0c590d1510b7160ba3eaa1fa42a5783937cc1f6a1aaca5cb58861
       MAX_RATE: "0.80"
       MAX_EGRESS: "5368709120"
     steps:
@@ -41,7 +41,7 @@ jobs:
             .max_billed_seconds==1800 and
             .single_use==true and
             .approved_by_owner==true
-          ' .github/runpod-control/paid-trigger-retry18k.json >/dev/null
+          ' .github/runpod-control/paid-trigger-retry18l.json >/dev/null
 
       - name: Install runpodctl
         shell: bash
@@ -50,7 +50,7 @@ jobs:
           curl -sSL https://cli.runpod.net | bash
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
-      - name: Execute guarded Retry18K
+      - name: Execute guarded Retry18L
         shell: bash
         env:
           RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
@@ -59,7 +59,7 @@ jobs:
           test -n "${RUNPOD_API_KEY:-}" || exit 60
           export PATH="$HOME/.local/bin:$PATH"
           runpodctl config --apiKey "$RUNPOD_API_KEY" >/dev/null
-          mkdir -p /tmp/retry18k .github/runpod-control
+          mkdir -p /tmp/retry18l .github/runpod-control
           POD_ID=""
           KEY_FP=""
           COST_PER_HR=""
@@ -76,9 +76,9 @@ jobs:
               try:return float(x)
               except:return None
           out={
-            "authorization_id":"P4-A1-RUNPOD-4090-20260922-18K-STARTUP-REPAIRED",
-            "authorization_sha256":"e49e05f365e182ea11367452e6dbdd8188c44bfddf7eee9464e71f954d01a508",
-            "worker03_head":"c5ef8f0123c0249eb03d7d8af7b3517b786cb240",
+            "authorization_id":"P4-A1-RUNPOD-4090-20260922-18L-SSH-READINESS",
+            "authorization_sha256":"95c4e9a561c0c590d1510b7160ba3eaa1fa42a5783937cc1f6a1aaca5cb58861",
+            "worker03_head":"775306825766947943d4f91522ae0c5e650e321e",
             "image_digest":"sha256:62576b7892e2ccc7caeaf1de4e70f2a185294c00113571a32dbbd0656cbd0a61",
             "github_run_id":os.getenv("GITHUB_RUN_ID"),
             "checked_at_utc":datetime.datetime.now(datetime.timezone.utc).isoformat(),
@@ -90,7 +90,7 @@ jobs:
             "egress_bytes":int(os.getenv("EGRESS_BYTES","0")),
             "cleanup_status":os.getenv("CLEANUP_STATUS")
           }
-          open(".github/runpod-control/retry18k-result.json","w").write(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          open(".github/runpod-control/retry18l-result.json","w").write(json.dumps(out,indent=2,sort_keys=True)+"\n")
           PY
           }
 
@@ -148,7 +148,7 @@ jobs:
 
           # Create first, capture ID immediately; do not use create --wait.
           set +e
-          runpodctl pod create             --name "AQLEVON-P4-A1-R18K"             --image "$IMAGE"             --gpu-id "$GPU_ID"             --gpu-count 1             --compute-type GPU             --cloud-type SECURE             --container-disk-in-gb 40             --volume-in-gb 0             --ports "22/tcp"             --env "$ENV_JSON"             --registry-auth-id "$REGISTRY_ID"             --stop-after 30m             --terminate-after 35m             --output json > /tmp/pod-create.json 2>/tmp/pod-create.err
+          runpodctl pod create             --name "AQLEVON-P4-A1-R18L"             --image "$IMAGE"             --gpu-id "$GPU_ID"             --gpu-count 1             --compute-type GPU             --cloud-type SECURE             --container-disk-in-gb 40             --volume-in-gb 0             --ports "22/tcp"             --env "$ENV_JSON"             --registry-auth-id "$REGISTRY_ID"             --stop-after 30m             --terminate-after 35m             --output json > /tmp/pod-create.json 2>/tmp/pod-create.err
           CREATE_RC=$?
           set -e
           if [ "$CREATE_RC" -ne 0 ]; then REMOTE_RC=998; exit 68; fi
@@ -194,21 +194,21 @@ jobs:
           set +e
           "${SSH[@]}" "grep -q 'A1_LOCKED_TRAINING_START' /workspace/aqlevon_p4/P4_A1_seed1701_appliance.log 2>/dev/null"
           [ "$?" -eq 0 ] && TRAINING_START_SEEN=true
-          "${SSH[@]}" "cd /workspace && tar -czf /tmp/aqlevon_retry18k_egress.tgz aqlevon_p4 2>/dev/null || true; stat -c %s /tmp/aqlevon_retry18k_egress.tgz 2>/dev/null || echo 0" > /tmp/egress-size.txt
+          "${SSH[@]}" "cd /workspace && tar -czf /tmp/aqlevon_retry18l_egress.tgz aqlevon_p4 2>/dev/null || true; stat -c %s /tmp/aqlevon_retry18l_egress.tgz 2>/dev/null || echo 0" > /tmp/egress-size.txt
           EGRESS_BYTES="$(tail -n1 /tmp/egress-size.txt | tr -dc '0-9')"; [ -z "$EGRESS_BYTES" ] && EGRESS_BYTES=0
           if [ "$EGRESS_BYTES" -gt 0 ] && [ "$EGRESS_BYTES" -le "$MAX_EGRESS" ]; then
-            "${SCP[@]}" root@"$SSH_IP":/tmp/aqlevon_retry18k_egress.tgz /tmp/retry18k/aqlevon_retry18k_egress.tgz
+            "${SCP[@]}" root@"$SSH_IP":/tmp/aqlevon_retry18l_egress.tgz /tmp/retry18l/aqlevon_retry18l_egress.tgz
           fi
           set -e
           write_result
           exit "$REMOTE_RC"
 
-      - name: Upload Retry18K evidence
+      - name: Upload Retry18L evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: aqlevon-retry18k-evidence
-          path: /tmp/retry18k/
+          name: aqlevon-retry18l-evidence
+          path: /tmp/retry18l/
           if-no-files-found: ignore
           retention-days: 7
 
@@ -219,8 +219,8 @@ jobs:
           set -euo pipefail
           git config user.name aqlevon-runpod-bot
           git config user.email actions@users.noreply.github.com
-          git add .github/runpod-control/retry18k-result.json 2>/dev/null || true
+          git add .github/runpod-control/retry18l-result.json 2>/dev/null || true
           if ! git diff --cached --quiet; then
-            git commit -m "ops: record Retry18K result [skip ci]"
+            git commit -m "ops: record Retry18L result [skip ci]"
             git push origin HEAD:ops/runpod-control-v1
           fi
