@@ -44,6 +44,33 @@ jobs:
           test "$expected_head" != "ac3a3f3476e240e62f16aa8864026e8506e6a422"
           echo "expected_head=$expected_head" >> "$GITHUB_OUTPUT"
 
+      - name: Confirm Retry18V Pod is EXITED before new spend
+        shell: bash
+        run: |
+          set -euo pipefail
+          old_pod="5118pkxukizhkp"
+          code="$(curl -sS -o /tmp/old-pod.json -w '%{http_code}' "https://rest.runpod.io/v1/pods/$old_pod" -H "Authorization: Bearer $RUNPOD_API_KEY")"
+          if [ "$code" = "404" ]; then
+            echo "RETRY18V_OLD_POD_ABSENT"
+            exit 0
+          fi
+          test "$code" = "200"
+          status="$(jq -r '.desiredStatus // .status // "UNKNOWN"' /tmp/old-pod.json)"
+          if [ "$status" != "EXITED" ]; then
+            curl -sS -f -X POST "https://rest.runpod.io/v1/pods/$old_pod/stop"               -H "Authorization: Bearer $RUNPOD_API_KEY"               -H 'Content-Type: application/json' -d '{}' >/tmp/old-pod-stop.json
+            for i in $(seq 1 8); do
+              sleep 2
+              curl -sS -f "https://rest.runpod.io/v1/pods/$old_pod"                 -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/old-pod-probe.json
+              status="$(jq -r '.desiredStatus // .status // "UNKNOWN"' /tmp/old-pod-probe.json)"
+              [ "$status" = "EXITED" ] && break
+            done
+          fi
+          if [ "$status" != "EXITED" ]; then
+            echo "::error::Retry18V old Pod is not verified EXITED: $status"
+            exit 94
+          fi
+          echo "RETRY18V_OLD_POD_VERIFIED_EXITED"
+
       - name: Generate ephemeral SSH key
         shell: bash
         run: |
