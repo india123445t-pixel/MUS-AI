@@ -1,0 +1,8 @@
+{
+  "action": "preflight",
+  "target": "P4-A1-RUNPOD-4090-20260922-18H-API-AUTOMATED",
+  "w03_head": "d3ded5159ea66c4364e283fdef355ced46ad20bb",
+  "max_hourly_rate_usd": 0.8,
+  "mode": "read_only",
+  "nonce": "2026-09-22T05:08Z"
+}
