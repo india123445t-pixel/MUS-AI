@@ -1,0 +1,12 @@
+{
+  "authorization_id": "P4-A1-RUNPOD-4090-20260922-18V-FSDP-CPU-OFFLOAD",
+  "authorization_sha256": "778cd0add7b4623abf47cf296c224e65a6a979f72d5f5f0c454f637dbb34018f",
+  "max_billed_seconds": 1800,
+  "max_total_cost_usd": "0.40",
+  "single_use": true,
+  "expected_head": "ac3a3f3476e240e62f16aa8864026e8506e6a422",
+  "runtime_appliance_digest": "sha256:ac5c13b4ded6a529c03d334632fe2f2bd51205630b5b3950be8b0f4f061bf3c8",
+  "requested_by": "AQLEVON_MANAGER",
+  "repair": "fsdp_actor_param_and_optimizer_cpu_offload_before_vllm_startup",
+  "nonce": "2026-09-22T11:25:15Z"
+}
