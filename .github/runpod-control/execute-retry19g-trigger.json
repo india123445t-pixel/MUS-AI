@@ -1,0 +1,14 @@
+{
+  "authorization_id": "P4-A1-RUNPOD-4090-20260922-19G-QWEN35-MM-LORA-MAPPING",
+  "authorization_sha256": "f8a8ba5c5d2e7a40ba5cceaef5f967fc8b40b1b7637e069fb915501a096ebc67",
+  "expected_head": "4ce63a0331743d85a7e28a1b695668bbf435b826",
+  "selection_mode": "dynamic_datacenter",
+  "gpu_type": "NVIDIA GeForce RTX 4090",
+  "min_memory_gb": 24,
+  "request_schema": "runpodctl_graphql_dynamic_dc",
+  "max_total_cost_usd": "0.60",
+  "max_hourly_rate_usd": "0.80",
+  "max_billed_seconds": 1800,
+  "single_use": true,
+  "reason": "Fresh single-use Retry19G after CPU and Exact Contract PASS on Qwen3.5 multimodal LoRA mapping fix"
+}
