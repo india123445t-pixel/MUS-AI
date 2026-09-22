@@ -39,16 +39,16 @@ jobs:
           test -n "${RUNPOD_API_KEY:-}" || { echo "::error::RUNPOD_API_KEY missing"; exit 1; }
           echo "RunPod secret present; value not printed."
 
-      - name: Read RunPod pod status and write sanitized result
+      - name: Read RunPod pod status via API v2 and write sanitized result
         shell: bash
         env:
           RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
         run: |
           set -euo pipefail
-          CODE="$(curl --silent --show-error             --output /tmp/pods.json             --write-out "%{http_code}"             --request GET             --url "https://rest.runpod.io/v1/pods"             --header "Authorization: Bearer ${RUNPOD_API_KEY}")"
+          CODE="$(curl --silent --show-error             --output /tmp/pods.json             --write-out "%{http_code}"             --request GET             --url "https://rest.runpod.io/v2/pods"             --header "Authorization: Bearer ${RUNPOD_API_KEY}")"
 
           if [ "$CODE" != "200" ]; then
-            echo "::error::RunPod status query failed with HTTP $CODE"
+            echo "::error::RunPod v2 status query failed with HTTP $CODE"
             exit 1
           fi
 
@@ -58,25 +58,9 @@ jobs:
           with open('/tmp/pods.json','r',encoding='utf-8') as f:
               data=json.load(f)
 
-          if isinstance(data, dict):
-              pods=data.get('pods', data.get('items', data.get('data', [])))
-              if isinstance(pods, dict):
-                  pods=list(pods.values())
-          elif isinstance(data, list):
-              pods=data
-          else:
+          pods=data.get('pods', []) if isinstance(data,dict) else (data if isinstance(data,list) else [])
+          if not isinstance(pods,list):
               pods=[]
-
-          if not isinstance(pods, list):
-              pods=[]
-
-          out={
-              "ok": True,
-              "action": "status",
-              "checked_at_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-              "pod_count": len(pods),
-              "pods": []
-          }
 
           def first(*vals):
               for v in vals:
@@ -84,26 +68,35 @@ jobs:
                       return v
               return None
 
+          out={
+              "ok": True,
+              "api": "v2",
+              "action": "status",
+              "checked_at_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+              "pod_count": len(pods),
+              "pods": []
+          }
+
           for p in pods:
               if not isinstance(p,dict):
                   continue
               pid=str(p.get('id') or '')
               fp=hashlib.sha256(pid.encode()).hexdigest()[:12] if pid else None
               machine=p.get('machine') if isinstance(p.get('machine'),dict) else {}
-              gpu_obj=p.get('gpu') if isinstance(p.get('gpu'),dict) else {}
+              gpu_type=p.get('gpuType') if isinstance(p.get('gpuType'),dict) else {}
+              machine_gpu_type=machine.get('gpuType') if isinstance(machine.get('gpuType'),dict) else {}
               gpu=first(
                   p.get('gpuTypeId'),
-                  p.get('gpuType'),
                   p.get('gpuTypeName'),
-                  gpu_obj.get('displayName'),
-                  gpu_obj.get('name'),
-                  machine.get('gpuDisplayName'),
+                  gpu_type.get('displayName'),
+                  gpu_type.get('id'),
                   machine.get('gpuTypeId'),
-                  machine.get('gpuType'),
-                  machine.get('gpuTypeName')
+                  machine.get('gpuDisplayName'),
+                  machine_gpu_type.get('displayName'),
+                  machine_gpu_type.get('id')
               ) or "unknown"
               status=first(p.get('desiredStatus'),p.get('status'),p.get('runtimeStatus')) or "UNKNOWN"
-              cost=first(p.get('costPerHr'),p.get('costPerHour'),p.get('pricePerHr'))
+              cost=first(p.get('costPerHr'),p.get('costPerHour'),p.get('pricePerHr'),machine.get('costPerHr'))
               created=first(p.get('createdAt'),p.get('created_at'),p.get('lastStartedAt'))
               out["pods"].append({
                   "fingerprint": fp,
@@ -116,7 +109,6 @@ jobs:
           with open('.github/runpod-control/status.json','w',encoding='utf-8') as f:
               json.dump(out,f,indent=2,sort_keys=True)
               f.write("\n")
-
           print(f"RUNPOD_STATUS_PASS pod_count={len(pods)}")
           PY
 
@@ -131,5 +123,5 @@ jobs:
             echo "No status change to commit."
             exit 0
           fi
-          git commit -m "ops: record sanitized RunPod status [skip ci]"
+          git commit -m "ops: record sanitized RunPod v2 status [skip ci]"
           git push origin HEAD:ops/runpod-control-v1
