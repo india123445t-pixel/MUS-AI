@@ -2,5 +2,6 @@
   "action": "status",
   "requested_by": "AQLEVON_MANAGER",
   "mode": "read_only",
-  "note": "Initial safe RunPod control-channel status probe"
+  "nonce": "2026-09-22T03:50Z",
+  "note": "Trigger closed-loop RunPod status probe"
 }
