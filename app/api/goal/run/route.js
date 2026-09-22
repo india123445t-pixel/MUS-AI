@@ -30,10 +30,10 @@ export async function POST(req){
 
   const prompt=String(selected.prompt||'').trim();if(!prompt)return NextResponse.json({message:'Benchmark غير صالح.'},{status:422});
   const origin=new URL(req.url).origin,sessionId=randomUUID(),conversationId=randomUUID(),started=Date.now();
-  // /api/chat owns the free-provider rotation: OpenRouter -> Groq -> Gemini -> Mistral -> other explicitly-free/local fallbacks.
+  // /api/chat is locked to the owned AQLEVON self-hosted runtime under the sovereign connection contract.
   const r=await fetch(origin+'/api/chat',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({input:prompt+'\n\nاختم إجابتك بسطر مستقل بالشكل FINAL: <number>.',history:[],webSearch:false,sessionId,conversationId}),cache:'no-store',signal:AbortSignal.timeout(90000)});
   const d=await r.json().catch(()=>({}));
-  if(!r.ok||!d?.text)return NextResponse.json({message:d?.message||'تعذر تشغيل AQLEVON AI عبر جميع مزودي inference المجانيين المتاحين.',blocker:'free_inference_failed'},{status:r.status||503});
+  if(!r.ok||!d?.text)return NextResponse.json({message:d?.message||'تعذر تشغيل نموذج AQLEVON السيادي.',blocker:'aqlevon_runtime_unavailable'},{status:r.status||503});
 
   const got=parseFinalInteger(d.text),expected=Number(selected.rubric.exact_value),score=got===expected?100:0,latency=Date.now()-started;
   const ins=await sb.from('benchmark_results').insert({owner_id:u.id,benchmark_case_id:selected.id,model_label:'AQLEVON AI public runtime',answer:d.text,score,judge:'exact_integer_oracle',metadata:{held_out:true,teacher_generated:false,first_exposure:true,objective_verification:true,verification_method:'exact_integer_oracle',expected,observed:got,run_id:d.run_id||null,public_chat_log_id:d.chat_log_id||null,latency_ms:latency,cost_usd:0,student_provider:d.provider||null,student_model:d.model||null}}).select('id').single();if(ins.error)throw ins.error;
