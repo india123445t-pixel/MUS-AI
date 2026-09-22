@@ -1,4 +1,5 @@
 {
   "pod_id": "2c0ol2ivymch3n",
-  "reason": "Retry19M live A40 system-log probe while primary workflow waits for SSH"
+  "reason": "Retry19M second live startup probe after image extraction progressed",
+  "nonce": "probe-2"
 }
