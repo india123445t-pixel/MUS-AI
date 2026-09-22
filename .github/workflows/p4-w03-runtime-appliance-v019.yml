@@ -38,7 +38,7 @@ jobs:
           smoke=Path("research/weight_factory/agent03/runtime_appliance_v019/smoke_runtime_v019.py").read_text()
           patch=Path("research/weight_factory/agent03/p4_patch_sdpo_transformers5_native_vllm019.py").read_text()
           for x in (
-              "vllm/vllm-openai:v0.19.0",
+              "vllm/vllm-openai:v0.19.1",
               "7c457fc1b1f636ae794eb0362ba37d4743b06fbc",
               "flash-attn==2.8.3",
               'ENTRYPOINT []',
