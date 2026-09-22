@@ -1,0 +1,241 @@
+name: Retry18H Execute V2
+
+on:
+  push:
+    branches:
+      - ops/runpod-control-v1
+    paths:
+      - ".github/runpod-control/execute-v2-trigger.json"
+
+permissions:
+  contents: write
+  actions: write
+
+env:
+  POD_NAME: AQLEVON-P4-A1-R18H-V2
+  EXPECTED_HEAD: d3ded5159ea66c4364e283fdef355ced46ad20bb
+  AUTH_SHA: 15393f4a9061e28b08e2fe9d0c27eeb55a83ea26a76fff04bdae259f3df2b937
+  IMAGE: ghcr.io/india123445t-pixel/mus-ai@sha256:ecfe9d199a56333da7655a63a750fc6466d27fd1ed91d60aaa3e2c4b0a3dd69d
+  GPU_ID: NVIDIA GeForce RTX 4090
+  REGISTRY_ID: cmua94x9g00fq13znucbukmvc
+
+jobs:
+  execute:
+    runs-on: ubuntu-latest
+    timeout-minutes: 31
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/runpod-control-v1
+
+      - name: Install runpodctl
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -sSL https://cli.runpod.net | sudo bash
+
+      - name: Execute Retry18H
+        shell: bash
+        env:
+          RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+        run: |
+          set -uo pipefail
+          mkdir -p /tmp/retry18h-v2 .github/runpod-control "$HOME/.ssh"
+
+          POD_ID=""
+          KEY_FP=""
+          COST=""
+          PHASE="preflight"
+          REMOTE_RC=999
+          TRAINING_START=false
+          EGRESS_BYTES=0
+
+          write_result() {
+            jq -n \
+              --arg phase "$PHASE" \
+              --arg pod_id "$POD_ID" \
+              --arg cost "$COST" \
+              --argjson remote_rc "$REMOTE_RC" \
+              --argjson training_start "$TRAINING_START" \
+              --argjson egress_bytes "$EGRESS_BYTES" \
+              --arg run_id "$GITHUB_RUN_ID" \
+              --arg auth "$AUTH_SHA" \
+              --arg head "$EXPECTED_HEAD" \
+              '{
+                schema_version:1,
+                run:"Retry18H-V2",
+                phase:$phase,
+                github_run_id:$run_id,
+                authorization_sha256:$auth,
+                worker03_head:$head,
+                pod_id:(if $pod_id=="" then null else $pod_id end),
+                actual_rate_usd_per_hr:(if $cost=="" then null else ($cost|tonumber) end),
+                training_start_seen:$training_start,
+                training_exit_code:$remote_rc,
+                egress_bytes:$egress_bytes
+              }' > .github/runpod-control/retry18h-v2-result.json
+          }
+
+          cleanup() {
+            set +e
+            PHASE="$PHASE-cleanup"
+            if [ -n "$POD_ID" ]; then
+              runpodctl pod stop "$POD_ID" >/dev/null 2>&1 || true
+              sleep 2
+              runpodctl pod delete "$POD_ID" >/dev/null 2>&1 || true
+            fi
+            if [ -n "$KEY_FP" ]; then
+              runpodctl ssh remove-key --fingerprint "$KEY_FP" >/dev/null 2>&1 || true
+            fi
+            write_result
+          }
+          trap cleanup EXIT
+
+          test -n "$RUNPOD_API_KEY" || { PHASE="missing_secret"; exit 60; }
+
+          runpodctl pod list --output json > /tmp/running.json || { PHASE="list_failed"; exit 61; }
+          RUNNING_COUNT="$(jq 'length' /tmp/running.json)"
+          if [ "$RUNNING_COUNT" -ne 0 ]; then
+            PHASE="existing_running_pod"
+            exit 62
+          fi
+
+          runpodctl registry list --output json > /tmp/registry.json || { PHASE="registry_query_failed"; exit 63; }
+          jq -e --arg id "$REGISTRY_ID" 'any(.[]; .id==$id and .name=="ghcr-mus-ai")' /tmp/registry.json >/dev/null || { PHASE="registry_missing"; exit 64; }
+
+          runpodctl gpu list --output json > /tmp/gpus.json || { PHASE="gpu_query_failed"; exit 65; }
+          PRICE="$(jq -r --arg id "$GPU_ID" '[.[] | select(.gpuId==$id and .available==true and .secureCloud==true and .memoryInGb==24)] | if length>0 then .[0].securePricePerHr else empty end' /tmp/gpus.json)"
+          test -n "$PRICE" || { PHASE="gpu_unavailable"; exit 66; }
+          python - "$PRICE" <<'PY'
+          import sys
+          assert float(sys.argv[1]) <= 0.80
+          PY
+          test $? -eq 0 || { PHASE="rate_ceiling_failed"; exit 67; }
+
+          ssh-keygen -q -t ed25519 -N "" -C "aqlevon-retry18h-v2-$GITHUB_RUN_ID" -f "$HOME/.ssh/aqlevon_retry18h_v2"
+          KEY_FP="$(ssh-keygen -lf "$HOME/.ssh/aqlevon_retry18h_v2.pub" -E sha256 | awk '{print $2}')"
+          runpodctl ssh add-key --key-file "$HOME/.ssh/aqlevon_retry18h_v2.pub" --output json >/tmp/key-add.json || { PHASE="ssh_key_add_failed"; exit 68; }
+          PUBKEY="$(cat "$HOME/.ssh/aqlevon_retry18h_v2.pub")"
+          ENV_JSON="$(jq -nc --arg h "$EXPECTED_HEAD" --arg k "$PUBKEY" '{AQLEVON_EXPECTED_W03_HEAD:$h,PUBLIC_KEY:$k}')"
+
+          PHASE="creating"
+          set +e
+          runpodctl pod create \
+            --name "$POD_NAME" \
+            --image "$IMAGE" \
+            --gpu-id "$GPU_ID" \
+            --gpu-count 1 \
+            --compute-type GPU \
+            --cloud-type SECURE \
+            --container-disk-in-gb 40 \
+            --ports "22/tcp" \
+            --env "$ENV_JSON" \
+            --registry-auth-id "$REGISTRY_ID" \
+            --wait \
+            --wait-timeout 2m \
+            --output json > /tmp/create.json 2>/tmp/create.err
+          CREATE_RC=$?
+          set -e
+          if [ "$CREATE_RC" -ne 0 ]; then
+            PHASE="create_failed"
+            cp /tmp/create.err /tmp/retry18h-v2/create-error.txt || true
+            exit 69
+          fi
+
+          POD_ID="$(jq -r '.id // empty' /tmp/create.json)"
+          test -n "$POD_ID" || { PHASE="create_missing_id"; exit 70; }
+
+          PHASE="pod_ready"
+          runpodctl pod get "$POD_ID" --output json > /tmp/pod.json || { PHASE="pod_get_failed"; exit 71; }
+          COST="$(jq -r '.costPerHr // empty' /tmp/pod.json)"
+          ACTUAL_GPU="$(jq -r '.gpuId // .gpuTypeId // empty' /tmp/pod.json)"
+          ACTUAL_COUNT="$(jq -r '.gpuCount // empty' /tmp/pod.json)"
+          python - "$COST" "$ACTUAL_GPU" "$ACTUAL_COUNT" <<'PY'
+          import sys
+          assert float(sys.argv[1]) <= 0.80
+          assert "4090" in sys.argv[2]
+          assert int(sys.argv[3]) == 1
+          PY
+          test $? -eq 0 || { PHASE="live_identity_failed"; exit 72; }
+
+          runpodctl ssh info "$POD_ID" --output json > /tmp/ssh.json || { PHASE="ssh_info_failed"; exit 73; }
+          IP="$(jq -r '.ip // empty' /tmp/ssh.json)"
+          PORT="$(jq -r '.port // empty' /tmp/ssh.json)"
+          test -n "$IP" -a -n "$PORT" || { PHASE="ssh_endpoint_missing"; exit 74; }
+
+          SSH=(ssh -i "$HOME/.ssh/aqlevon_retry18h_v2" -p "$PORT" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=15 root@"$IP")
+          SCP=(scp -i "$HOME/.ssh/aqlevon_retry18h_v2" -P "$PORT" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null)
+
+          PHASE="training"
+          set +e
+          timeout --signal=TERM --kill-after=20s 1660s "${SSH[@]}" \
+            "export AQLEVON_EXPECTED_W03_HEAD='$EXPECTED_HEAD'; \
+             if [ ! -d /workspace/MUS-AI/.git ]; then git clone -q --branch agent/03-p4-gene1-physical-trainer --single-branch https://github.com/india123445t-pixel/MUS-AI.git /workspace/MUS-AI; fi; \
+             git -C /workspace/MUS-AI fetch -q origin agent/03-p4-gene1-physical-trainer; \
+             git -C /workspace/MUS-AI checkout -q agent/03-p4-gene1-physical-trainer; \
+             git -C /workspace/MUS-AI reset -q --hard origin/agent/03-p4-gene1-physical-trainer; \
+             bash /workspace/MUS-AI/research/weight_factory/agent03/p4_runpod_appliance_launch.sh; \
+             RC=\$?; mkdir -p /workspace/aqlevon_p4; echo \$RC > /workspace/aqlevon_p4/manager_remote_rc.txt; exit \$RC"
+          REMOTE_RC=$?
+          set -e
+
+          set +e
+          "${SSH[@]}" "grep -q 'A1_LOCKED_TRAINING_START' /workspace/aqlevon_p4/P4_A1_seed1701_appliance.log 2>/dev/null"
+          if [ "$?" -eq 0 ]; then TRAINING_START=true; fi
+
+          "${SSH[@]}" "cd /workspace && tar -czf /tmp/aqlevon_retry18h_v2.tgz aqlevon_p4 2>/dev/null || true; stat -c %s /tmp/aqlevon_retry18h_v2.tgz 2>/dev/null || echo 0" > /tmp/size.txt
+          EGRESS_BYTES="$(tail -n1 /tmp/size.txt | tr -dc '0-9')"
+          test -n "$EGRESS_BYTES" || EGRESS_BYTES=0
+          if [ "$EGRESS_BYTES" -gt 0 ] && [ "$EGRESS_BYTES" -le 5368709120 ]; then
+            "${SCP[@]}" root@"$IP":/tmp/aqlevon_retry18h_v2.tgz /tmp/retry18h-v2/aqlevon_retry18h_v2.tgz
+          fi
+          set -e
+
+          if [ "$REMOTE_RC" -eq 0 ]; then PHASE="training_completed"; else PHASE="training_failed"; fi
+          write_result
+          exit "$REMOTE_RC"
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aqlevon-retry18h-v2-evidence
+          path: /tmp/retry18h-v2/
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Commit sanitized result
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -f .github/runpod-control/retry18h-v2-result.json ]; then exit 0; fi
+          git config user.name "aqlevon-runpod-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add .github/runpod-control/retry18h-v2-result.json
+          git commit -m "ops: record Retry18H V2 result [skip ci]" || exit 0
+          git push origin HEAD:ops/runpod-control-v1
+
+  watchdog:
+    runs-on: ubuntu-latest
+    timeout-minutes: 31
+    steps:
+      - name: Wait for authorization ceiling guard
+        run: sleep 1760
+
+      - name: Install runpodctl
+        run: curl -sSL https://cli.runpod.net | sudo bash
+
+      - name: Force cleanup matching pod
+        env:
+          RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+        shell: bash
+        run: |
+          set +e
+          runpodctl pod list --all --output json > /tmp/pods.json
+          IDS="$(jq -r --arg n "$POD_NAME" '.[] | select(.name==$n) | .id' /tmp/pods.json)"
+          for ID in $IDS; do
+            runpodctl pod stop "$ID" >/dev/null 2>&1 || true
+            sleep 2
+            runpodctl pod delete "$ID" >/dev/null 2>&1 || true
+          done
