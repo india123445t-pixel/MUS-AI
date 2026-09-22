@@ -19,26 +19,20 @@ jobs:
           RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
         run: |
           set -euo pipefail
-          if [ -z "${RUNPOD_API_KEY:-}" ]; then
-            echo "::error::RUNPOD_API_KEY is missing"
-            exit 1
-          fi
+          test -n "${RUNPOD_API_KEY:-}" || { echo "::error::RUNPOD_API_KEY missing"; exit 1; }
           echo "RUNPOD_API_KEY is present (value not printed)."
 
-      - name: Read sanitized RunPod status
+      - name: Read sanitized RunPod status and active pod details
         shell: bash
         env:
           RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
         run: |
           set -euo pipefail
-          http_code="$(curl --silent --show-error             --output /tmp/runpod-response.json             --write-out "%{http_code}"             --request GET             --url "https://rest.runpod.io/v1/pods"             --header "Authorization: Bearer ${RUNPOD_API_KEY}")"
 
-          if [ "${http_code}" != "200" ]; then
-            echo "::error::RunPod read-only auth check failed with HTTP ${http_code}"
-            exit 1
-          fi
+          list_code="$(curl --silent --show-error             --output /tmp/pods.json             --write-out "%{http_code}"             --request GET             --url "https://rest.runpod.io/v1/pods"             --header "Authorization: Bearer ${RUNPOD_API_KEY}")"
 
-          echo "RunPod authentication PASS: HTTP 200."
+          test "$list_code" = "200" || { echo "::error::List Pods failed HTTP $list_code"; exit 1; }
+
           echo "SANITIZED_POD_STATUS_BEGIN"
           jq '
             def pods:
@@ -48,14 +42,48 @@ jobs:
               else [] end;
             {
               pod_count:(pods|length),
-              pods:(pods | map({
+              running:(pods | map(select((.status // .desiredStatus // "") == "RUNNING")) | map({
                 id:(.id // null),
                 name:(.name // null),
                 status:(.status // .desiredStatus // null),
                 desired_status:(.desiredStatus // null),
-                gpu_type:(.gpu?.displayName // .gpuTypeId // .machine?.gpuDisplayName // null),
                 gpu_count:(.gpuCount // .gpu?.count // null),
-                cost_per_hr:(.costPerHr // .costPerHour // null)
+                cost_per_hr:(.costPerHr // .costPerHour // null),
+                image:(.imageName // .image // null),
+                last_started_at:(.lastStartedAt // .lastStart // null),
+                created_at:(.createdAt // null)
               }))
-            }' /tmp/runpod-response.json
+            }' /tmp/pods.json
           echo "SANITIZED_POD_STATUS_END"
+
+          active_id="$(jq -r '
+            def pods:
+              if type == "array" then .
+              elif (.pods? | type) == "array" then .pods
+              elif (.data? | type) == "array" then .data
+              else [] end;
+            [pods[] | select((.status // .desiredStatus // "") == "RUNNING")][0].id // empty
+          ' /tmp/pods.json)"
+
+          if [ -n "$active_id" ]; then
+            detail_code="$(curl --silent --show-error               --output /tmp/pod-detail.json               --write-out "%{http_code}"               --request GET               --url "https://rest.runpod.io/v1/pods/$active_id"               --header "Authorization: Bearer ${RUNPOD_API_KEY}")"
+
+            echo "ACTIVE_POD_DETAIL_HTTP=$detail_code"
+            if [ "$detail_code" = "200" ]; then
+              echo "ACTIVE_POD_DETAIL_BEGIN"
+              jq '{
+                id:(.id // null),
+                name:(.name // null),
+                status:(.status // .desiredStatus // null),
+                desired_status:(.desiredStatus // null),
+                cost_per_hr:(.costPerHr // .costPerHour // null),
+                gpu_count:(.gpuCount // .gpu?.count // null),
+                image:(.imageName // .image // null),
+                created_at:(.createdAt // null),
+                last_started_at:(.lastStartedAt // .lastStart // null),
+                container_disk_gb:(.containerDiskInGb // .containerDiskGb // null),
+                volume_gb:(.volumeInGb // .volumeGb // null)
+              }' /tmp/pod-detail.json
+              echo "ACTIVE_POD_DETAIL_END"
+            fi
+          fi
