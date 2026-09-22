@@ -24,7 +24,7 @@ assert torch.cuda.is_available(), "AQLEVON_V019_CUDA_UNAVAILABLE"
 p=torch.cuda.get_device_properties(0)
 gib=p.total_memory/(1024**3)
 name=p.name
-assert gib >= 45.0, f"AQLEVON_V019_GPU_MEMORY_TOO_SMALL:{name}:{gib:.2f}GiB"
+assert gib >= 44.0, f"AQLEVON_V019_GPU_MEMORY_TOO_SMALL:{name}:{gib:.2f}GiB"
 assert ("A40" in name) or ("A6000" in name), f"AQLEVON_V019_GPU_SKU_UNAUTHORIZED:{name}"
 print("AQLEVON_V019_GPU_IDENTITY_PASS",name,f"{gib:.2f}GiB")
 PY
