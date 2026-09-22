@@ -1,10 +1,19 @@
 {
   "action": "status",
   "api": "v1",
-  "checked_at_utc": "2026-09-22T07:24:58.686997+00:00",
+  "checked_at_utc": "2026-09-22T07:27:45.922768+00:00",
   "ok": true,
-  "pod_count": 1,
+  "pod_count": 2,
   "pods": [
+    {
+      "cost_per_hr": 0.74,
+      "created_at": "2026-09-22 07:27:45.232 +0000 UTC",
+      "fingerprint": "46f761f68fd2",
+      "gpu_fields": [],
+      "name": "AQLEVON-P4-A1-Retry18N",
+      "status": "RUNNING",
+      "volume_in_gb": 20
+    },
     {
       "cost_per_hr": 0.74,
       "created_at": "2026-09-22 04:39:10.708 +0000 UTC",
