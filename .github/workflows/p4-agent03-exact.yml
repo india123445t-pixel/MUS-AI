@@ -218,6 +218,7 @@ jobs:
           set -euo pipefail
           cd /workspace/MUS-AI
           python research/weight_factory/agent03/p4_patch_sdpo_transformers5_compat.py
+          python research/weight_factory/agent03/p4_patch_vllm_qwen35_transformers_backend.py
           python - <<'PY'
           import hashlib
           from pathlib import Path
@@ -229,6 +230,11 @@ jobs:
               got=hashlib.sha256(Path(p).read_bytes()).hexdigest()
               assert got==want,(p,got,want)
               print("PATCH_SHA_PASS",p,got)
+          qwen=Path("/workspace/SDPO/verl/workers/rollout/vllm_rollout/vllm_async_server.py").read_text()
+          assert 'getattr(self.model_config.hf_config, "model_type", None) == "qwen3_5"' in qwen
+          assert 'engine_kwargs["model_impl"] = "transformers"' in qwen
+          assert "AQLEVON_QWEN35_VLLM_TRANSFORMERS_BACKEND_PASS" in qwen
+          print("QWEN35_VLLM_TRANSFORMERS_BACKEND_PATCH_PASS")
           PY
 
       - name: Full pre-GPU CPU runtime preflight
