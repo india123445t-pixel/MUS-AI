@@ -1,4 +1,14 @@
 {
+  "details": {
+    "container": {
+      "cpu_percent": null,
+      "memory_percent": null
+    },
+    "desired_status": "EXITED",
+    "gpus": [],
+    "runtime_status": "stopped",
+    "uptime_seconds": null
+  },
   "lines": [
     {
       "line": "==========",
