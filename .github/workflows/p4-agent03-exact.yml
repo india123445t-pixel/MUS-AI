@@ -217,7 +217,9 @@ jobs:
         run: |
           set -euo pipefail
           cd /workspace/MUS-AI
-          python research/weight_factory/agent03/p4_patch_sdpo_transformers5_compat.py
+          curl -fsSL https://raw.githubusercontent.com/vllm-project/vllm/v0.10.2/vllm/lora/models.py -o /tmp/vllm-0.10.2-lora-models.py
+          AQLEVON_VLLM_LORA_MODELS_PATH=/tmp/vllm-0.10.2-lora-models.py \
+            python research/weight_factory/agent03/p4_patch_sdpo_transformers5_compat.py
           python research/weight_factory/agent03/p4_patch_vllm_qwen35_transformers_backend.py
           python - <<'PY'
           import hashlib
@@ -230,6 +232,12 @@ jobs:
               got=hashlib.sha256(Path(p).read_bytes()).hexdigest()
               assert got==want,(p,got,want)
               print("PATCH_SHA_PASS",p,got)
+          vllm_lora=Path("/tmp/vllm-0.10.2-lora-models.py").read_text()
+          assert "AQLEVON_QWEN35_VLLM_LORA_GUARD" in vllm_lora
+          assert "AQLEVON_REQUIRED_ROLLOUT_LORA_MODULE_UNSUPPORTED" in vllm_lora
+          assert "AQLEVON_REQUIRED_ROLLOUT_LORA_MODULE_COUNT" in vllm_lora
+          assert "expected_32" in vllm_lora
+          print("QWEN35_VLLM_LORA_GUARD_PATCH_PASS")
           qwen=Path("/workspace/SDPO/verl/workers/rollout/vllm_rollout/vllm_async_server.py").read_text()
           assert 'getattr(self.model_config.hf_config, "model_type", None) == "qwen3_5"' in qwen
           assert 'engine_kwargs["model_impl"] = "transformers"' in qwen
