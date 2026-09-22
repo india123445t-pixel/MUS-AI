@@ -65,8 +65,18 @@ jobs:
             }
           }))
           PY
-          code="$(curl -sS -o /tmp/create-response.json -w '%{http_code}' -X POST https://rest.runpod.io/v1/pods             -H "Authorization: Bearer $RUNPOD_API_KEY" -H 'Content-Type: application/json' --data-binary @/tmp/create.json)"
-          test "$code" = "201" || { cat /tmp/create-response.json; exit 1; }
+          code="$(curl -sS -o /tmp/create-response.json -w '%{http_code}' -X POST https://rest.runpod.io/v1/pods -H "Authorization: Bearer $RUNPOD_API_KEY" -H 'Content-Type: application/json' --data-binary @/tmp/create.json)"
+          if [ "$code" != "201" ]; then
+            python - <<'PY'
+          import json
+          try:
+              p=json.load(open('/tmp/create-response.json'))
+              print("CREATE_FAILED", p.get('error') or p.get('message') or p.get('status') or 'unknown')
+          except Exception:
+              print("CREATE_FAILED_NON_JSON")
+          PY
+            exit 1
+          fi
           python - <<'PY'
           import json, os, sys
           p=json.load(open('/tmp/create-response.json'))
