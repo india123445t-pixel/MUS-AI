@@ -21,7 +21,7 @@ jobs:
       RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
       IMAGE: ghcr.io/india123445t-pixel/mus-ai@sha256:ac5c13b4ded6a529c03d334632fe2f2bd51205630b5b3950be8b0f4f061bf3c8
       IMAGE_DIGEST: sha256:ac5c13b4ded6a529c03d334632fe2f2bd51205630b5b3950be8b0f4f061bf3c8
-      GPU_TYPE: NVIDIA L4
+      GPU_TYPE: NVIDIA A40
       AUTH_ID: P4-A1-RUNPOD-L4-20260922-18Z-VLLM-LORA-GUARD
       AUTH_SHA: 80b8eb0be425e13c01d80b0d317a3291bb3e62b8b368cfc3b693d8ba58bdfb89
     steps:
@@ -81,7 +81,7 @@ jobs:
           ssh-keygen -q -t ed25519 -N '' -f /tmp/aqlevon_key
           echo "PUBKEY=$(cat /tmp/aqlevon_key.pub)" >> "$GITHUB_ENV"
 
-      - name: Create exactly one authorized NVIDIA L4 Pod
+      - name: Create exactly one authorized NVIDIA A40 Pod
         id: create
         shell: bash
         env:
@@ -104,7 +104,7 @@ jobs:
             --gpu-id "$GPU_TYPE" \
             --gpu-count 1 \
             --cloud-type SECURE \
-            --data-center-ids US-MO-2 \
+            --data-center-ids EU-SE-1 \
             --container-disk-in-gb 40 \
             --volume-in-gb 20 \
             --volume-mount-path /workspace \
@@ -180,7 +180,7 @@ jobs:
 
           ready=0
           for i in $(seq 1 36); do
-            ssh "${ssh_opts[@]}" root@$host 'nvidia-smi --query-gpu=name --format=csv,noheader | grep -F "NVIDIA L4"' && { ready=1; break; }
+            ssh "${ssh_opts[@]}" root@$host 'nvidia-smi --query-gpu=name --format=csv,noheader | grep -F "NVIDIA A40"' && { ready=1; break; }
             sleep 5
           done
           if [ "$ready" -ne 1 ]; then
