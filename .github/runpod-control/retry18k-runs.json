@@ -1,0 +1,15 @@
+{
+  "checked_at_utc": "2026-09-22T06:10:52.763540+00:00",
+  "runs": [
+    {
+      "conclusion": "failure",
+      "created_at": "2026-09-22T06:04:01Z",
+      "event": "push",
+      "head_sha": "17608826fe9ca0407fb7935824e8ccdee0e5cb9f",
+      "id": 35693201331,
+      "run_number": 1,
+      "status": "completed",
+      "updated_at": "2026-09-22T06:04:46Z"
+    }
+  ]
+}
