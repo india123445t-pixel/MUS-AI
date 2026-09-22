@@ -1,0 +1,5 @@
+{
+  "action": "stop_newest_duplicate_retry18w",
+  "reason": "Prevent duplicate paid Retry18W execution; preserve oldest active Retry18W pod only",
+  "requested_by": "AQLEVON_MANAGER"
+}
