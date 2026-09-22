@@ -1,1 +1,4 @@
-{"pod_id":"torm3xpgaw47ao","reason":"Retry19G SSH mapping never appeared before fail-closed stop"}
+{
+  "pod_id": "2c0ol2ivymch3n",
+  "reason": "Retry19M live A40 system-log probe while primary workflow waits for SSH"
+}
