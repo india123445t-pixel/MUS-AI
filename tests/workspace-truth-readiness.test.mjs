@@ -23,6 +23,7 @@ const benchmarkRoute=read('app/api/benchmark/run/route.js');
 const goalRoute=read('app/api/goal/run/route.js');
 const evalRoute=read('app/api/internal/eval-snapshot/route.js');
 const providerTestRoute=read('app/api/provider-test/route.js');
+const ownerCoreChat=read('app/api/admin/owner-core/chat/route.js');
 const providers=read('lib/aqlevon/providers.js');
 
 test('browser workspace fails closed for unavailable adapters',()=>{
@@ -126,12 +127,31 @@ test('new users default to Arabic and persistence claims are truthful',()=>{
 
 test('AQLEVON public chat cannot silently reactivate external-key routing',()=>{
   assert.doesNotMatch(health,/OPENROUTER_API_KEY|GROQ_API_KEY|GEMINI_API_KEY|MISTRAL_API_KEY|CEREBRAS_API_KEY|HF_TOKEN/);
+  assert.doesNotMatch(statusRoute,/OPENROUTER_API_KEY|GROQ_API_KEY|GEMINI_API_KEY|MISTRAL_API_KEY|CEREBRAS_API_KEY|HF_TOKEN/);
+  assert.doesNotMatch(statusRoute,/openrouter_configured|openrouter_model|free_provider_count/);
   assert.match(statusRoute,/sovereign_runtime:true/);
   assert.match(statusRoute,/inference_target:'aqlevon-engine'/);
   assert.match(chatRoute,/runtime_mode:'self_hosted_only'/);
+  assert.match(ownerCoreChat,/runtime_mode:'self_hosted_only'/);
+  assert.match(providerTestRoute,/external provider tests are disabled/);
+  assert.match(providerTestRoute,/runtime_mode:'self_hosted_only'/);
+  assert.doesNotMatch(providerTestRoute,/api\.groq\.com|generativelanguage\.googleapis\.com|api\.mistral\.ai/);
   assert.match(providers,/Sovereign guarantee: self_hosted_only never evaluates tryExternal/);
 });
 
+
+
+
+test('benchmark evaluation and owner core stay bound to AQLEVON runtime',()=>{
+  assert.doesNotMatch(benchmarkRoute,/OPENROUTER_API_KEY|GROQ_API_KEY|GEMINI_API_KEY|MISTRAL_API_KEY|CEREBRAS_API_KEY|HF_TOKEN/);
+  assert.match(benchmarkRoute,/self_hosted:!!\(process\.env\.AQLEVON_MODEL_URL\|\|process\.env\.LOCAL_MODEL_URL\)/);
+  assert.doesNotMatch(evalRoute,/OPENROUTER_API_KEY|GROQ_API_KEY|GEMINI_API_KEY|MISTRAL_API_KEY|CEREBRAS_API_KEY|HF_TOKEN/);
+  assert.match(evalRoute,/runtime_mode:'self_hosted_only'/);
+  assert.match(ownerCoreChat,/allow_paid_external:false/);
+  assert.match(ownerCoreChat,/public_web_search_enabled:false/);
+  assert.match(en,/no external AI provider is required/);
+  assert.match(ar,/وليس إضافة مزود خارجي/);
+});
 test('public runtime never silently falls back to the legacy Supabase project',()=>{
   const guarded=[chatRoute,statusRoute,benchmarkRoute,goalRoute,evalRoute,providerTestRoute];
   for(const src of guarded){
