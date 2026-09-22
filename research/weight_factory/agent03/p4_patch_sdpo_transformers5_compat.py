@@ -23,6 +23,7 @@ MODEL = SDPO / "verl/utils/model.py"
 FSDP = SDPO / "verl/workers/fsdp_workers.py"
 VLLM_ASYNC = SDPO / "verl/workers/rollout/vllm_rollout/vllm_async_server.py"
 VLLM_LORA_MODELS = Path(os.environ.get("AQLEVON_VLLM_LORA_MODELS_PATH", str(Path(sysconfig.get_paths()["purelib"]) / "vllm/lora/models.py")))
+VLLM_TRANSFORMERS_MODELS = Path(os.environ.get("AQLEVON_VLLM_TRANSFORMERS_MODELS_PATH", str(Path(sysconfig.get_paths()["purelib"]) / "vllm/model_executor/models/transformers.py")))
 REQUIRED_ROLLOUT_LORA_SUFFIXES = (".self_attn.q_proj", ".self_attn.v_proj")
 EXPECTED_REQUIRED_ROLLOUT_LORA_MODULES = 16
 
@@ -85,6 +86,61 @@ def patch_vllm_lora_manager(text: str) -> str:
     return replace_once(text, old, new, "vllm_lora_guard")
 
 
+
+def patch_vllm_transformers_mm_mapping(text: str) -> str:
+    """Backport multimodal module mapping for Qwen3.5 Transformers backend.
+
+    vLLM only filters vision-tower modules from LoRA when the multimodal model
+    exposes get_mm_mapping(). The generic TransformersForMultimodalLM wrapper in
+    v0.10.2 lacks that mapping, so its dummy multimodal profile run can wrap
+    Qwen3.5 visual qkv/proj layers with LoRA and hit token mapping shape asserts.
+    This mirrors the upstream vLLM fix pattern: explicitly separate the language
+    model from the vision tower, while failing closed for any other model type.
+    """
+    if "AQLEVON_QWEN35_MM_LORA_MAPPING" in text:
+        return text
+
+    text = replace_once(
+        text,
+        "from .interfaces import (SupportsLoRA, SupportsMultiModal, SupportsPP,\n"
+        "                         SupportsQuant)\n"
+        "from .utils import (AutoWeightsLoader, PPMissingLayer, WeightsMapper,\n",
+        "from .interfaces import (SupportsLoRA, SupportsMultiModal, SupportsPP,\n"
+        "                         SupportsQuant)\n"
+        "from .module_mapping import MultiModelKeys\n"
+        "from .utils import (AutoWeightsLoader, PPMissingLayer, WeightsMapper,\n",
+        "vllm_transformers_mm_mapping_import",
+    )
+
+    old = """    def __init__(self, *, vllm_config: VllmConfig, prefix: str = ""):
+        super().__init__(vllm_config=vllm_config, prefix=prefix)
+
+        self.dtype = vllm_config.model_config.dtype
+"""
+    new = """    # AQLEVON_QWEN35_MM_LORA_MAPPING: vLLM 0.10.2 generic Transformers
+    # multimodal wrapper must expose language-vs-vision prefixes so LoRA never
+    # wraps Qwen3.5 visual modules during startup profiling.
+    def get_mm_mapping(self) -> MultiModelKeys:
+        if getattr(self.config, "model_type", None) != "qwen3_5":
+            raise RuntimeError(
+                "AQLEVON_TRANSFORMERS_MM_MAPPING_UNSUPPORTED_MODEL:"
+                + str(getattr(self.config, "model_type", None))
+            )
+        if not hasattr(self.model, "language_model") or not hasattr(self.model, "visual"):
+            raise RuntimeError("AQLEVON_QWEN35_MM_MAPPING_STRUCTURE_MISMATCH")
+        return MultiModelKeys.from_string_field(
+            language_model="model.language_model",
+            tower_model="model.visual",
+        )
+
+    def __init__(self, *, vllm_config: VllmConfig, prefix: str = ""):
+        super().__init__(vllm_config=vllm_config, prefix=prefix)
+
+        self.dtype = vllm_config.model_config.dtype
+"""
+    return replace_once(text, old, new, "vllm_transformers_mm_mapping_method")
+
+
 def main() -> int:
     head = subprocess.check_output(
         ["git", "-C", str(SDPO), "rev-parse", "HEAD"], text=True
@@ -96,6 +152,7 @@ def main() -> int:
     fsdp = FSDP.read_text(encoding="utf-8")
     vllm_async = VLLM_ASYNC.read_text(encoding="utf-8")
     vllm_lora_models = VLLM_LORA_MODELS.read_text(encoding="utf-8")
+    vllm_transformers_models = VLLM_TRANSFORMERS_MODELS.read_text(encoding="utf-8")
 
     if "# AQLEVON_TF5_VISION_ALIAS" not in model:
         model = replace_once(
@@ -155,14 +212,16 @@ def main() -> int:
         )
 
     vllm_lora_models = patch_vllm_lora_manager(vllm_lora_models)
+    vllm_transformers_models = patch_vllm_transformers_mm_mapping(vllm_transformers_models)
 
     MODEL.write_text(model, encoding="utf-8")
     FSDP.write_text(fsdp, encoding="utf-8")
     VLLM_ASYNC.write_text(vllm_async, encoding="utf-8")
     VLLM_LORA_MODELS.write_text(vllm_lora_models, encoding="utf-8")
+    VLLM_TRANSFORMERS_MODELS.write_text(vllm_transformers_models, encoding="utf-8")
 
     subprocess.run(
-        ["python", "-m", "py_compile", str(MODEL), str(FSDP), str(VLLM_ASYNC), str(VLLM_LORA_MODELS)],
+        ["python", "-m", "py_compile", str(MODEL), str(FSDP), str(VLLM_ASYNC), str(VLLM_LORA_MODELS), str(VLLM_TRANSFORMERS_MODELS)],
         check=True,
     )
 
@@ -179,12 +238,15 @@ def main() -> int:
         raise SystemExit("compat_patch_produced_no_diff")
     if "AQLEVON_QWEN35_VLLM_LORA_GUARD" not in vllm_lora_models:
         raise SystemExit("vllm_lora_guard_missing_after_patch")
+    if "AQLEVON_QWEN35_MM_LORA_MAPPING" not in vllm_transformers_models:
+        raise SystemExit("vllm_transformers_mm_mapping_missing_after_patch")
 
     print("AQLEVON_SDPO_TF5_COMPAT_PATCH_PASS")
     print("MODEL_SHA256:", sha256(MODEL))
     print("FSDP_SHA256:", sha256(FSDP))
     print("VLLM_ASYNC_SHA256:", sha256(VLLM_ASYNC))
     print("VLLM_LORA_MODELS_SHA256:", sha256(VLLM_LORA_MODELS))
+    print("VLLM_TRANSFORMERS_MODELS_SHA256:", sha256(VLLM_TRANSFORMERS_MODELS))
     print("=== PATCH DIFF ===")
     print(diff)
     return 0
