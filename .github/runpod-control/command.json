@@ -2,6 +2,6 @@
   "action": "status",
   "requested_by": "AQLEVON_MANAGER",
   "mode": "read_only",
-  "nonce": "2026-09-22T04:24Z",
-  "note": "Probe RunPod API v2 for GPU type"
+  "nonce": "2026-09-22T05:03Z",
+  "note": "Final pre-paid live RunPod reconciliation for latest W03 authorization"
 }
