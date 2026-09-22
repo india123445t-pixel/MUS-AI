@@ -1,0 +1,14 @@
+{
+  "authorization_id": "P4-A1-RUNPOD-4090-20260922-19F-QWEN35-16-LORA-GUARD",
+  "authorization_sha256": "bc319ea6026433185fd6e00a22e589824d48c8c69e2286fda9ac19221c5e7cf8",
+  "expected_head": "23a926c171c049d724bbc8b199340279d960b7d1",
+  "selection_mode": "dynamic_datacenter",
+  "gpu_type": "NVIDIA GeForce RTX 4090",
+  "min_memory_gb": 24,
+  "request_schema": "runpodctl_graphql_dynamic_dc",
+  "max_total_cost_usd": "0.60",
+  "max_hourly_rate_usd": "0.80",
+  "max_billed_seconds": 1800,
+  "single_use": true,
+  "reason": "Owner authorized autonomous completion; final CPU Gate and Exact Contract PASS; Qwen3.5 rollout LoRA guard corrected to architecture-exact 16 q/v modules"
+}
