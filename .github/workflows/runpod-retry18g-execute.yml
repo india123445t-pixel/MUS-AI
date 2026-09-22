@@ -75,7 +75,7 @@ jobs:
             "single_use":True,
           }
           assert p==expected,(p,expected)
-          print("RETRY18F_REQUEST_EXACT_PASS")
+          print("RETRY18G_REQUEST_EXACT_PASS")
           PY
 
           remote_head="$(git ls-remote https://github.com/india123445t-pixel/MUS-AI.git refs/heads/agent/03-p4-gene1-physical-trainer | awk '{print $1}')"
@@ -100,7 +100,7 @@ jobs:
           assert lock["lock_sha256"]=="b07441e07d0f26191fc5bd20ebf61e61c88003c542205687a2679243d90623c2"
           errors=c.validate_manager_authorization(auth,lock=lock,run_manifest_sha256=run["manifest_sha256"])
           assert not errors,errors
-          print("RETRY18F_AUTH_BINDING_PASS")
+          print("RETRY18G_AUTH_BINDING_PASS")
           PY
 
       - name: Execute one bounded RTX 4090 attempt
@@ -243,7 +243,7 @@ jobs:
           run_rc=${PIPESTATUS[0]}
           set -e
           echo "$run_rc" > "$GITHUB_WORKSPACE/retry18g-artifact/launcher-exit-code.txt"
-          echo "RETRY18F_LAUNCHER_EXIT=$run_rc"
+          echo "RETRY18G_LAUNCHER_EXIT=$run_rc"
 
           # Package only AQLEVON run evidence; never egress the staged base model.
           set +e
