@@ -6,7 +6,7 @@ const SUPABASE_URL=process.env.NEXT_PUBLIC_SUPABASE_URL||'';
 const SUPABASE_KEY=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||'';
 
 function sb(){if(!SUPABASE_URL||!SUPABASE_KEY)return null;return createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:false}})}
-const defaultSettings={runtime_mode:'openrouter_primary',openrouter_model:process.env.OPENROUTER_MODEL||'openrouter/free',web_search_default:false,temperature:0.6,max_history:16,save_training_candidates:true,allow_paid_external:false,daily_budget_usd:0,public_chat_enabled:true,public_training_enabled:true,public_web_search_enabled:false,public_rate_limit_per_hour:30,public_daily_limit:120,install_enabled:true};
+const defaultSettings={runtime_mode:'self_hosted_only',openrouter_model:process.env.OPENROUTER_MODEL||'openrouter/free',web_search_default:false,temperature:0.6,max_history:16,save_training_candidates:true,allow_paid_external:false,daily_budget_usd:0,public_chat_enabled:true,public_training_enabled:true,public_web_search_enabled:false,public_rate_limit_per_hour:30,public_daily_limit:120,install_enabled:true};
 
 function manifestResponse(){
   const icons=[{src:'/icon.svg',sizes:'192x192',type:'image/svg+xml',purpose:'any'},{src:'/icon.svg',sizes:'512x512',type:'image/svg+xml',purpose:'any maskable'}];
@@ -52,7 +52,7 @@ export async function GET(req){
     }catch(e){return NextResponse.json({message:e?.message||'تعذر تحميل ملخص الذكاء.'},{status:500})}
   }
   let settings=defaultSettings;
-  try{if(client){const r=await client.rpc('get_aqlevon_runtime_config');if(r.data)settings={...defaultSettings,...r.data}}}catch{}
+  try{if(client){const r=await client.rpc('get_aqlevon_runtime_config');if(r.data)settings={...defaultSettings,...r.data,runtime_mode:'self_hosted_only',allow_paid_external:false,public_web_search_enabled:false}}}catch{}
   const providers={
     openrouter:!!process.env.OPENROUTER_API_KEY,
     groq:!!process.env.GROQ_API_KEY,
@@ -62,7 +62,7 @@ export async function GET(req){
     huggingface:!!process.env.HF_TOKEN&&process.env.HF_FREE_FALLBACK_ENABLED==='true',
     self_hosted:!!(process.env.AQLEVON_MODEL_URL||process.env.LOCAL_MODEL_URL)
   };
-  return NextResponse.json({database_configured:!!client,openrouter_configured:providers.openrouter,self_hosted_configured:providers.self_hosted,providers,free_provider_count:Object.values(providers).filter(Boolean).length,settings},{headers:{'Cache-Control':'no-store'}});
+  return NextResponse.json({database_configured:!!client,sovereign_runtime:true,inference_target:'aqlevon-engine',external_provider_routing:false,openrouter_configured:providers.openrouter,self_hosted_configured:providers.self_hosted,providers,free_provider_count:Object.values(providers).filter(Boolean).length,settings},{headers:{'Cache-Control':'no-store'}});
 }
 
 export async function POST(req){
