@@ -1,0 +1,52 @@
+name: AQLEVON RunPod Pod Log Diagnostic
+
+on:
+  push:
+    branches: [ops/runpod-control-v1]
+    paths:
+      - ".github/runpod-control/pod-log-diagnostic-trigger.json"
+
+permissions:
+  contents: write
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/runpod-control-v1
+      - name: Read stopped pod system logs
+        shell: bash
+        run: |
+          set -euo pipefail
+          pod="$(jq -r '.pod_id' .github/runpod-control/pod-log-diagnostic-trigger.json)"
+          test -n "$pod"
+          curl -sSL https://cli.runpod.net | sudo bash
+          set +e
+          runpodctl pod logs "$pod" --tail 150 --source system --max-wait 15s > /tmp/pod-system.jsonl 2>/tmp/pod-system.err
+          rc=$?
+          set -e
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          rows=[]
+          p=Path('/tmp/pod-system.jsonl')
+          if p.exists():
+              for line in p.read_text(errors='replace').splitlines():
+                  try:
+                      x=json.loads(line)
+                      rows.append({'source':x.get('source'),'line':str(x.get('line',''))[:1000],'ts':x.get('ts')})
+                  except Exception:
+                      pass
+          out={'pod_id':json.loads(Path('.github/runpod-control/pod-log-diagnostic-trigger.json').read_text())['pod_id'],'system_logs':rows,'stderr':Path('/tmp/pod-system.err').read_text(errors='replace')[-1500:]}
+          Path('.github/runpod-control/pod-log-diagnostic-result.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
+          PY
+          git config user.name aqlevon-runpod-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/runpod-control/pod-log-diagnostic-result.json
+          git commit -m "ops: record stopped RunPod system logs [skip ci]" || true
+          git push origin HEAD:ops/runpod-control-v1
