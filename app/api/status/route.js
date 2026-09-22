@@ -54,15 +54,9 @@ export async function GET(req){
   let settings=defaultSettings;
   try{if(client){const r=await client.rpc('get_aqlevon_runtime_config');if(r.data)settings={...defaultSettings,...r.data,runtime_mode:'self_hosted_only',allow_paid_external:false,public_web_search_enabled:false}}}catch{}
   const providers={
-    openrouter:!!process.env.OPENROUTER_API_KEY,
-    groq:!!process.env.GROQ_API_KEY,
-    gemini:!!(process.env.GEMINI_API_KEY||process.env.GOOGLE_API_KEY),
-    mistral:!!process.env.MISTRAL_API_KEY,
-    cerebras:!!process.env.CEREBRAS_API_KEY,
-    huggingface:!!process.env.HF_TOKEN&&process.env.HF_FREE_FALLBACK_ENABLED==='true',
     self_hosted:!!(process.env.AQLEVON_MODEL_URL||process.env.LOCAL_MODEL_URL)
   };
-  return NextResponse.json({database_configured:!!client,sovereign_runtime:true,inference_target:'aqlevon-engine',external_provider_routing:false,openrouter_configured:providers.openrouter,self_hosted_configured:providers.self_hosted,providers,free_provider_count:Object.values(providers).filter(Boolean).length,settings},{headers:{'Cache-Control':'no-store'}});
+  return NextResponse.json({database_configured:!!client,sovereign_runtime:true,inference_target:'aqlevon-engine',external_provider_routing:false,self_hosted_configured:providers.self_hosted,providers,settings},{headers:{'Cache-Control':'no-store'}});
 }
 
 export async function POST(req){
