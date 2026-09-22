@@ -1,0 +1,11 @@
+{
+  "action": "launch_retry18h",
+  "authorized_by": "AQLEVON_MANAGER",
+  "authorization_sha256": "cc2d431dba8bf40c9dc25583ab7d0d99586296644810e2bba64c925156b3fa79",
+  "binding_sha256": "75c9a0070083d9a473a76fe1c30201a6c4c7aa9e379973eb78473201dfd39dd1",
+  "worker03_head": "6c8340ceb2c1a5d15652c62953fee5f5eb515c91",
+  "max_billed_seconds": 1800,
+  "max_hourly_rate_usd": "0.80",
+  "max_total_cost_usd": "0.40",
+  "single_use": true
+}
