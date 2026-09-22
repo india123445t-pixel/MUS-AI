@@ -1,0 +1,86 @@
+name: AQLEVON Stop Duplicate Retry18W Pod
+
+on:
+  push:
+    branches: [ops/runpod-control-v1]
+    paths:
+      - ".github/runpod-control/stop-duplicate-retry18w-trigger.json"
+
+permissions:
+  contents: write
+
+jobs:
+  stop-duplicate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/runpod-control-v1
+
+      - name: Identify and stop newest duplicate Retry18W Pod
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${RUNPOD_API_KEY:-}"
+          curl -sS -f "https://rest.runpod.io/v1/pods" -H "Authorization: Bearer $RUNPOD_API_KEY" > /tmp/pods.json
+          python - <<'PY' > /tmp/decision.json
+          import json,sys
+          data=json.load(open('/tmp/pods.json'))
+          pods=data if isinstance(data,list) else data.get('pods') or data.get('items') or []
+          rows=[]
+          for p in pods:
+              if p.get('name')!='AQLEVON-P4-A1-Retry18W':
+                  continue
+              status=p.get('desiredStatus') or p.get('status') or 'UNKNOWN'
+              if status=='EXITED':
+                  continue
+              created=p.get('createdAt') or p.get('created_at') or p.get('created') or ''
+              rows.append({'id':p.get('id'),'status':status,'created':created,'costPerHr':p.get('costPerHr')})
+          out={'active_retry18w':rows,'action':'none'}
+          if len(rows)>=2:
+              if not all(r['id'] and r['created'] for r in rows):
+                  out['action']='fail_closed_missing_createdAt'
+              else:
+                  rows.sort(key=lambda r:(r['created'],r['id']))
+                  out['action']='stop_newest'
+                  out['stop_id']=rows[-1]['id']
+                  out['keep_id']=rows[0]['id']
+          json.dump(out,sys.stdout,sort_keys=True)
+          PY
+          cat /tmp/decision.json
+          action="$(jq -r '.action' /tmp/decision.json)"
+          if [ "$action" = "fail_closed_missing_createdAt" ]; then
+            echo "::error::Cannot safely distinguish duplicate Retry18W pods"
+            exit 96
+          fi
+          if [ "$action" = "stop_newest" ]; then
+            stop_id="$(jq -r '.stop_id' /tmp/decision.json)"
+            curl -sS -f -X POST "https://rest.runpod.io/v1/pods/$stop_id/stop" -H "Authorization: Bearer $RUNPOD_API_KEY" -H 'Content-Type: application/json' -d '{}' >/tmp/stop.json
+            verified=0
+            for i in $(seq 1 8); do
+              sleep 2
+              curl -sS -f "https://rest.runpod.io/v1/pods/$stop_id" -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/probe.json
+              status="$(jq -r '.desiredStatus // .status // "UNKNOWN"' /tmp/probe.json)"
+              [ "$status" = "EXITED" ] && { verified=1; break; }
+            done
+            [ "$verified" -eq 1 ] || { echo "::error::Duplicate pod stop not verified"; exit 97; }
+            jq '. + {stop_verified:"EXITED"}' /tmp/decision.json > /tmp/final.json
+          else
+            cp /tmp/decision.json /tmp/final.json
+          fi
+          cp /tmp/final.json .github/runpod-control/stop-duplicate-retry18w-result.json
+
+      - name: Commit sanitized duplicate-stop result
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f .github/runpod-control/stop-duplicate-retry18w-result.json || exit 0
+          git config user.name aqlevon-runpod-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/runpod-control/stop-duplicate-retry18w-result.json
+          git commit -m "ops: record Retry18W duplicate-stop result [skip ci]" || exit 0
+          git push origin HEAD:ops/runpod-control-v1
