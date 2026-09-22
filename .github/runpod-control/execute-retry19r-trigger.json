@@ -1,0 +1,16 @@
+{
+  "authorization_id": "P4-A1-RUNPOD-A40-20260922-19R-VLLM019-PYTHON-FIX-SMOKE-THEN-TRAIN",
+  "authorization_sha256": "fe859b43849d15a167a8f9d0ab8f927b137486be7e8e06624203dae1ad3bb346",
+  "expected_head": "0c1f60b12f3d6ba1e5fbb27ab3ae688d68730df0",
+  "image_digest": "sha256:ac70a74115046be4a866195344c0600ef0b1bb5ec5e897ec02ae8bd1f6c6f555",
+  "gpu_type": "NVIDIA A40",
+  "min_memory_gb": 48,
+  "selection_mode": "dynamic_datacenter",
+  "request_schema": "runpodctl_graphql_dynamic_dc",
+  "max_billed_seconds": 3600,
+  "max_total_cost_usd": "0.55",
+  "max_hourly_rate_usd": "0.55",
+  "single_use": true,
+  "reason": "Retry19Q functional LoRA smoke passed; exact mechanical failure was missing python launcher. Retry19R adds fail-closed python->python3 runtime repair and mirrors SDPO native vLLM LoRA path.",
+  "attempt_nonce": "retry19r-launcher-fix-1"
+}
