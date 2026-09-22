@@ -1,0 +1,71 @@
+{
+  "ok": true,
+  "registry": {
+    "id": "cmua94x9g00fq13znucbukmvc",
+    "name": "ghcr-mus-ai"
+  },
+  "rtx4090": [
+    {
+      "available": true,
+      "communityCloud": true,
+      "communityPricePerHr": 0.34,
+      "dataCenterAvailability": [
+        {
+          "dataCenterId": "CA-MTL-3",
+          "stockStatus": "none"
+        },
+        {
+          "dataCenterId": "EU-CZ-1",
+          "stockStatus": "none"
+        },
+        {
+          "dataCenterId": "EU-RO-1",
+          "stockStatus": "none"
+        },
+        {
+          "dataCenterId": "EUR-IS-1",
+          "stockStatus": "none"
+        },
+        {
+          "dataCenterId": "EUR-IS-2",
+          "stockStatus": "Low"
+        },
+        {
+          "dataCenterId": "EUR-NO-1",
+          "stockStatus": "none"
+        },
+        {
+          "dataCenterId": "US-CA-2",
+          "stockStatus": "none"
+        },
+        {
+          "dataCenterId": "US-IL-1",
+          "stockStatus": "Low"
+        },
+        {
+          "dataCenterId": "US-NC-1",
+          "stockStatus": "none"
+        },
+        {
+          "dataCenterId": "US-TX-3",
+          "stockStatus": "none"
+        }
+      ],
+      "displayName": "RTX 4090",
+      "gpuId": "NVIDIA GeForce RTX 4090",
+      "memoryInGb": 24,
+      "secureCloud": true,
+      "securePricePerHr": 0.74,
+      "stockStatus": "Low"
+    }
+  ],
+  "pods": [
+    {
+      "id": "18tziw1qp18rwy",
+      "name": "AQLEVON-P4-A1-R18I",
+      "status": "EXITED",
+      "gpuId": null,
+      "costPerHr": 0.74
+    }
+  ]
+}
