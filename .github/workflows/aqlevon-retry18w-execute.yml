@@ -174,15 +174,49 @@ jobs:
           fi
           exit "$rc"
 
-      - name: Stop Pod immediately
+      - name: Stop Pod immediately and verify EXITED
         if: always()
+        id: stop
         shell: bash
         run: |
-          set +e
+          set -euo pipefail
           pod="${{ steps.create.outputs.pod_id }}"
-          if [ -n "$pod" ]; then
-            curl -sS -X POST "https://rest.runpod.io/v1/pods/$pod/stop" -H "Authorization: Bearer $RUNPOD_API_KEY" -H 'Content-Type: application/json' -d '{}' >/tmp/stop.json
+          if [ -z "$pod" ] && [ -s /tmp/pod_id ]; then
+            pod="$(cat /tmp/pod_id)"
           fi
+          if [ -z "$pod" ]; then
+            echo "No created Pod ID to stop"
+            echo "verified=no_pod_created" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          stopped=0
+          for i in $(seq 1 6); do
+            curl -sS -f -X POST "https://rest.runpod.io/v1/pods/$pod/stop" \
+              -H "Authorization: Bearer $RUNPOD_API_KEY" \
+              -H 'Content-Type: application/json' -d '{}' >/tmp/stop.json || true
+            sleep 2
+            curl -sS -f "https://rest.runpod.io/v1/pods/$pod" \
+              -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/stop-probe.json || true
+            if python - <<'PY'
+          import json,sys
+          try:
+              p=json.load(open('/tmp/stop-probe.json'))
+          except Exception:
+              sys.exit(1)
+          sys.exit(0 if p.get('desiredStatus')=='EXITED' else 1)
+          PY
+            then
+              stopped=1
+              break
+            fi
+            sleep 3
+          done
+          if [ "$stopped" -ne 1 ]; then
+            echo "::error::RunPod stop could not be verified EXITED"
+            exit 93
+          fi
+          echo "verified=exited" >> "$GITHUB_OUTPUT"
 
       - name: Write sanitized Retry18W result
         if: always()
