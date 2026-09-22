@@ -1,0 +1,393 @@
+name: AQLEVON Retry19E RunPod Execute
+
+on:
+  push:
+    branches: [ops/runpod-control-v1]
+    paths:
+      - ".github/runpod-control/execute-retry19e-trigger.json"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aqlevon-retry19e-paid-single-use
+  cancel-in-progress: false
+
+jobs:
+  execute:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      IMAGE: ghcr.io/india123445t-pixel/mus-ai@sha256:ac5c13b4ded6a529c03d334632fe2f2bd51205630b5b3950be8b0f4f061bf3c8
+      IMAGE_DIGEST: sha256:ac5c13b4ded6a529c03d334632fe2f2bd51205630b5b3950be8b0f4f061bf3c8
+      AUTH_ID: P4-A1-RUNPOD-4090-20260922-19E-LIVE-VLLM-LORA-PATCH
+      AUTH_SHA: 877def34fdbc0d0fe01f6a9cbd6001794c2f0ccd207628c3498ed4259c8b4918
+      GPU_TYPE: NVIDIA GeForce RTX 4090
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/runpod-control-v1
+
+      - name: Validate Retry19E trigger and secret
+        id: gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${RUNPOD_API_KEY:-}"
+          trigger=.github/runpod-control/execute-retry19e-trigger.json
+          test ! -f .github/runpod-control/retry19e-result.json || { echo "::error::Retry19E already consumed"; exit 90; }
+          jq -e --arg aid "$AUTH_ID" --arg asha "$AUTH_SHA" '
+            .authorization_id==$aid and
+            .authorization_sha256==$asha and
+            .max_total_cost_usd=="0.60" and
+            .max_hourly_rate_usd=="0.80" and
+            .selection_mode=="dynamic_datacenter" and
+            .gpu_type==env.GPU_TYPE and
+            .min_memory_gb==24 and
+            .request_schema=="runpodctl_graphql_dynamic_dc" and
+            .max_billed_seconds==1800 and
+            .single_use==true and
+            (.expected_head|test("^[0-9a-f]{40}$"))
+          ' "$trigger" >/dev/null
+          expected_head="$(jq -r '.expected_head' "$trigger")"
+          test "$expected_head" = "7dbedff17ca83a76ffc6a81f434443dc26656fd0"
+          echo "expected_head=$expected_head" >> "$GITHUB_OUTPUT"
+
+      - name: Confirm no active AQLEVON P4 A1 Pod before new spend
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -sS -f "https://rest.runpod.io/v1/pods" -H "Authorization: Bearer $RUNPOD_API_KEY" > /tmp/pods-preflight.json
+          python - <<'PY'
+          import json,sys
+          p=json.load(open('/tmp/pods-preflight.json'))
+          pods=p if isinstance(p,list) else p.get('pods') or p.get('items') or []
+          active=[]
+          for x in pods:
+              name=str(x.get('name') or '')
+              status=str(x.get('desiredStatus') or x.get('status') or 'UNKNOWN')
+              if name.startswith('AQLEVON-P4-A1-') and status!='EXITED':
+                  active.append({'id':x.get('id'),'name':name,'status':status})
+          if active:
+              print('FAIL_CLOSED_ACTIVE_AQLEVON_P4_A1_PODS',json.dumps(active,sort_keys=True))
+              sys.exit(95)
+          print('AQLEVON_NO_ACTIVE_P4_A1_PODS_PASS')
+          PY
+
+      - name: Generate ephemeral SSH key
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh-keygen -q -t ed25519 -N '' -f /tmp/aqlevon_key
+          echo "PUBKEY=$(cat /tmp/aqlevon_key.pub)" >> "$GITHUB_ENV"
+
+      - name: Select live RTX4090 datacenter inside authorization ceiling
+        id: capacity
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -sSL https://cli.runpod.net | sudo bash
+          runpodctl gpu list --output json > /tmp/gpus.json
+          python - <<'PY'
+          import json,sys,os
+          g=json.load(open('/tmp/gpus.json'))
+          target=os.environ['GPU_TYPE']
+          candidates=[]
+          for x in g:
+              try:
+                  secure=bool(x.get('secureCloud'))
+                  avail=bool(x.get('available'))
+                  mem=float(x.get('memoryInGb') or 0)
+                  price=float(x.get('securePricePerHr') or 999)
+              except Exception:
+                  continue
+              if x.get('gpuId') != target or not secure or not avail or mem < 24 or price > 0.80:
+                  continue
+              for dc in x.get('dataCenterAvailability') or []:
+                  if str(dc.get('stockStatus') or '').lower() == 'none':
+                      continue
+                  candidates.append({'dc':dc.get('dataCenterId'),'memory':mem,'price':price,'stock':dc.get('stockStatus')})
+          if not candidates:
+              print('FAIL_CLOSED_NO_4090_CAPACITY_UNDER_AUTH_CEILING')
+              sys.exit(94)
+          candidates.sort(key=lambda z:(z['price'],z['dc'] or ''))
+          c=candidates[0]
+          open('/tmp/selected_dc','w').write(str(c['dc']))
+          open('/tmp/selected_rate','w').write(str(c['price']))
+          print('SELECTED_4090_CAPACITY',json.dumps(c,sort_keys=True))
+          PY
+          echo "dc=$(cat /tmp/selected_dc)" >> "$GITHUB_OUTPUT"
+          echo "rate=$(cat /tmp/selected_rate)" >> "$GITHUB_OUTPUT"
+
+      - name: Create exactly one authorized RTX4090 Pod
+        id: create
+        shell: bash
+        env:
+          EXPECTED_HEAD: ${{ steps.gate.outputs.expected_head }}
+          DC: ${{ steps.capacity.outputs.dc }}
+          SELECTED_RATE: ${{ steps.capacity.outputs.rate }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import os,sys
+          rate=float(os.environ['SELECTED_RATE'])
+          if rate > 0.80:
+              print('FAIL_CLOSED_SELECTED_RATE',rate)
+              sys.exit(96)
+          print('SELECTED_RATE_PASS',rate)
+          PY
+          env_json="$(python - <<'PY'
+          import json,os
+          print(json.dumps({
+            "PUBLIC_KEY":os.environ["PUBKEY"],
+            "AQLEVON_EXPECTED_W03_HEAD":os.environ["EXPECTED_HEAD"]
+          },separators=(',',':')))
+          PY
+          )"
+          set +e
+          runpodctl pod create \
+            --name AQLEVON-P4-A1-Retry19E \
+            --image "$IMAGE" \
+            --gpu-id "$GPU_TYPE" \
+            --gpu-count 1 \
+            --cloud-type SECURE \
+            --data-center-ids "$DC" \
+            --container-disk-in-gb 40 \
+            --volume-in-gb 20 \
+            --volume-mount-path /workspace \
+            --ports 22/tcp \
+            --env "$env_json" \
+            --output json > /tmp/create-response.json 2>/tmp/create-stderr.txt
+          create_rc=$?
+          set -e
+          if [ "$create_rc" -ne 0 ]; then
+            export CREATE_RC="$create_rc"
+            python - <<'PY'
+          import json,datetime,os
+          err=open('/tmp/create-stderr.txt',errors='replace').read()[-1000:] if os.path.exists('/tmp/create-stderr.txt') else 'runpodctl_create_failed'
+          json.dump({'phase':'create_failed','create_rc':int(os.environ['CREATE_RC']),'error':err,'checked_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat()},open('.github/runpod-control/retry19e-create-diagnostic.json','w'),indent=2)
+          open('.github/runpod-control/retry19e-create-diagnostic.json','a').write('\n')
+          PY
+            git config user.name aqlevon-runpod-bot
+            git config user.email actions@users.noreply.github.com
+            git add .github/runpod-control/retry19e-create-diagnostic.json
+            git commit -m "ops: record Retry19E create diagnostic [skip ci]" || true
+            git push origin HEAD:ops/runpod-control-v1 || true
+            exit "$create_rc"
+          fi
+          python - <<'PY'
+          import json,sys
+          p=json.load(open('/tmp/create-response.json'))
+          pod_id=p.get('id') or p.get('podId')
+          if not pod_id:
+              print("FAIL_CLOSED_CREATE_NO_POD_ID",p)
+              sys.exit(2)
+          open('/tmp/pod_id','w').write(pod_id)
+          print("CREATE_PRECHECK_PASS pod_id=",pod_id)
+          PY
+          echo "pod_id=$(cat /tmp/pod_id)" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for SSH mapping
+        id: ssh
+        shell: bash
+        run: |
+          set -euo pipefail
+          pod="${{ steps.create.outputs.pod_id }}"
+          for i in $(seq 1 60); do
+            curl -sS https://rest.runpod.io/v1/pods/$pod -H "Authorization: Bearer $RUNPOD_API_KEY" > /tmp/pod.json
+            python - <<'PY' && break || true
+          import json,sys
+          p=json.load(open('/tmp/pod.json'))
+          ip=p.get('publicIp')
+          m=p.get('portMappings') or {}
+          port=m.get('22') or m.get(22)
+          if p.get('desiredStatus')=='RUNNING' and ip and port:
+              open('/tmp/ssh_target','w').write(f"{ip}|{port}")
+              sys.exit(0)
+          sys.exit(1)
+          PY
+            sleep 5
+          done
+          test -s /tmp/ssh_target
+          echo "host=$(cut -d'|' -f1 /tmp/ssh_target)" >> "$GITHUB_OUTPUT"
+          echo "port=$(cut -d'|' -f2 /tmp/ssh_target)" >> "$GITHUB_OUTPUT"
+
+      - name: Execute locked Retry19E and retrieve evidence
+        id: train
+        continue-on-error: true
+        shell: bash
+        env:
+          EXPECTED_HEAD: ${{ steps.gate.outputs.expected_head }}
+        run: |
+          set +e
+          host="${{ steps.ssh.outputs.host }}"
+          port="${{ steps.ssh.outputs.port }}"
+          ssh_opts=(-i /tmp/aqlevon_key -p "$port" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10)
+          scp_opts=(-i /tmp/aqlevon_key -P "$port" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10)
+
+          ready=0
+          for i in $(seq 1 36); do
+            ssh "${ssh_opts[@]}" root@$host "actual=\$(nvidia-smi --query-gpu=name --format=csv,noheader | head -n1); printf '%s\\n' \"\$actual\"; test \"\$actual\" = \"$GPU_TYPE\"" && { ready=1; break; }
+            sleep 5
+          done
+          if [ "$ready" -ne 1 ]; then
+            rc=91
+            echo "FAIL_CLOSED_GPU_SSH_READINESS"
+            : > /tmp/retry19e.log
+          else
+            ssh "${ssh_opts[@]}" root@$host "export AQLEVON_EXPECTED_W03_HEAD=$EXPECTED_HEAD AQLEVON_EXPECTED_IMAGE_DIGEST=$IMAGE_DIGEST; rm -rf /workspace/MUS-AI; git clone -q --branch agent/03-p4-gene1-physical-trainer --single-branch https://github.com/india123445t-pixel/MUS-AI.git /workspace/MUS-AI; git -C /workspace/MUS-AI reset -q --hard $EXPECTED_HEAD; bash /workspace/MUS-AI/research/weight_factory/agent03/p4_runpod_appliance_launch.sh" 2>&1 | tee /tmp/retry19e.log
+            rc=${PIPESTATUS[0]}
+          fi
+
+          checkpoint_valid=no
+          if [ "$ready" -eq 1 ] && [ "$rc" -eq 0 ]; then
+            if ssh "${ssh_opts[@]}" root@$host 'ck=/workspace/aqlevon_p4/runs/P4_A1_RLVR_CONTROL_seed1701/checkpoints; test -d "$ck"; n=$(find "$ck" -type f -size +0c | wc -l); test "$n" -ge 2; find "$ck" -type f -size +0c -print | head -n 50'; then
+              checkpoint_valid=yes
+            fi
+          fi
+          printf '%s\n' "$checkpoint_valid" > /tmp/checkpoint_valid
+          if [ "$rc" -eq 0 ] && [ "$checkpoint_valid" != "yes" ]; then
+            echo "FAIL_CLOSED_CHECKPOINT_VALIDATION"
+            rc=92
+          fi
+          printf '%s\n' "$rc" > /tmp/train_rc
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+
+          if [ "$ready" -eq 1 ]; then
+            ssh "${ssh_opts[@]}" root@$host 'cd /workspace && tar -czf /tmp/aqlevon-retry19e-evidence.tgz aqlevon_p4 2>/dev/null' || true
+            scp -q "${scp_opts[@]}" root@$host:/tmp/aqlevon-retry19e-evidence.tgz /tmp/aqlevon-retry19e-evidence.tgz || true
+          fi
+          exit "$rc"
+
+      - name: Stop Pod immediately and verify EXITED
+        if: always()
+        id: stop
+        shell: bash
+        run: |
+          set -euo pipefail
+          pod="${{ steps.create.outputs.pod_id }}"
+          if [ -z "$pod" ] && [ -s /tmp/pod_id ]; then
+            pod="$(cat /tmp/pod_id)"
+          fi
+          if [ -z "$pod" ]; then
+            echo "No created Pod ID to stop"
+            echo "verified=no_pod_created" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          stopped=0
+          for i in $(seq 1 6); do
+            curl -sS -f -X POST "https://rest.runpod.io/v1/pods/$pod/stop" \
+              -H "Authorization: Bearer $RUNPOD_API_KEY" \
+              -H 'Content-Type: application/json' -d '{}' >/tmp/stop.json || true
+            sleep 2
+            curl -sS -f "https://rest.runpod.io/v1/pods/$pod" \
+              -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/stop-probe.json || true
+            if python - <<'PY'
+          import json,sys
+          try:
+              p=json.load(open('/tmp/stop-probe.json'))
+          except Exception:
+              sys.exit(1)
+          sys.exit(0 if p.get('desiredStatus')=='EXITED' else 1)
+          PY
+            then
+              stopped=1
+              break
+            fi
+            sleep 3
+          done
+          if [ "$stopped" -ne 1 ]; then
+            echo "::error::RunPod stop could not be verified EXITED"
+            exit 93
+          fi
+          echo "verified=exited" >> "$GITHUB_OUTPUT"
+
+      - name: Write sanitized Retry19E result
+        if: always()
+        shell: bash
+        env:
+          STEP_RC: ${{ steps.train.outputs.rc }}
+          EXPECTED_HEAD: ${{ steps.gate.outputs.expected_head }}
+        run: |
+          mkdir -p .github/runpod-control
+          python - <<'PY'
+          import json,os,re,hashlib,datetime
+          log=''
+          if os.path.exists('/tmp/retry19e.log'):
+              log=open('/tmp/retry19e.log',errors='replace').read()
+          rc=None
+          candidates=[os.environ.get('STEP_RC','')]
+          if os.path.exists('/tmp/train_rc'):
+              candidates.append(open('/tmp/train_rc').read().strip())
+          m=re.findall(r'AQLEVON_A1_EXIT_CODE=(\d+)',log)
+          if m:
+              candidates.append(m[-1])
+          for value in candidates:
+              try:
+                  rc=int(value)
+                  break
+              except Exception:
+                  pass
+          if rc is None:
+              rc=255
+          markers={}
+          for k in ['AQLEVON_APPLIANCE_LAUNCH_START','APPLIANCE_BINDING_PASS','APPLIANCE_SOURCE_DELTA_PASS','APPLIANCE_SEED1701_BINDING_PASS','APPLIANCE_EXACT_AUTHORIZATION_PASS','MODEL_STAGE_PASS','A1_LOCKED_TRAINING_START','AQLEVON_A1_EXIT_CODE','AQLEVON_APPLIANCE_TOTAL_SCRIPT_SECONDS']:
+              markers[k]=k in log
+          out={
+            'authorization_id':os.environ['AUTH_ID'],
+            'expected_head':os.environ.get('EXPECTED_HEAD'),
+            'checked_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            'training_exit_code':rc,
+            'markers':markers,
+            'log_sha256':hashlib.sha256(log.encode()).hexdigest() if log else None,
+            'evidence_archive_present':os.path.exists('/tmp/aqlevon-retry19e-evidence.tgz'),
+            'checkpoint_valid':(open('/tmp/checkpoint_valid').read().strip()=='yes') if os.path.exists('/tmp/checkpoint_valid') else False
+          }
+          json.dump(out,open('.github/runpod-control/retry19e-result.json','w'),indent=2,sort_keys=True)
+          open('.github/runpod-control/retry19e-result.json','a').write('\n')
+          PY
+          git config user.name aqlevon-runpod-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/runpod-control/retry19e-result.json
+          git commit -m "ops: record Retry19E sanitized result [skip ci]" || true
+          git push origin HEAD:ops/runpod-control-v1 || true
+
+      - name: Upload Retry19E evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aqlevon-retry19e-evidence
+          path: |
+            /tmp/retry19e.log
+            /tmp/train_rc
+            /tmp/checkpoint_valid
+            /tmp/aqlevon-retry19e-evidence.tgz
+            /tmp/stop.json
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Fail job on true training exit code
+        if: always()
+        shell: bash
+        env:
+          STEP_RC: ${{ steps.train.outputs.rc }}
+        run: |
+          set -euo pipefail
+          rc="${STEP_RC:-}"
+          if ! [[ "$rc" =~ ^[0-9]+$ ]] && [ -s /tmp/train_rc ]; then
+            rc="$(cat /tmp/train_rc)"
+          fi
+          if ! [[ "$rc" =~ ^[0-9]+$ ]] && [ -s /tmp/retry19e.log ]; then
+            rc="$(grep -oE 'AQLEVON_A1_EXIT_CODE=[0-9]+' /tmp/retry19e.log | tail -n1 | cut -d= -f2 || true)"
+          fi
+          if ! [[ "$rc" =~ ^[0-9]+$ ]]; then
+            echo "::error::Retry19E training exit code missing"
+            exit 255
+          fi
+          echo "AQLEVON_RETRY19D_TRUE_EXIT_CODE=$rc"
+          if [ "$rc" -ne 0 ]; then
+            echo "::error::Retry19E training failed with exit code $rc"
+            exit "$rc"
+          fi
