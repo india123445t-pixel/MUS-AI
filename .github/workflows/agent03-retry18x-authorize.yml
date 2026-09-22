@@ -1,0 +1,142 @@
+name: Agent03 Retry18X Authorization Reconcile
+
+on:
+  push:
+    branches:
+      - agent/03-p4-gene1-physical-trainer
+    paths:
+      - "research/weight_factory/agent03/retry18x-authorize-trigger.json"
+
+permissions:
+  contents: write
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/03-p4-gene1-physical-trainer
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Reconcile provenance, manifest, lock and fresh authorization
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd research/weight_factory/agent03
+          python - <<'PY'
+          import json, subprocess, sys
+          from pathlib import Path
+          import p4_gene1_trainer as c
+          import p4_surrogate_tournament as t
+
+          def blob(path):
+              return subprocess.check_output(["git","hash-object",path], text=True).strip()
+
+          manifest_path=Path("p4_a1_seed1701_run_manifest_v1.json")
+          lock_path=Path("p4_a1_seed1701_command_lock_v1.json")
+          launcher_path=Path("p4_runpod_appliance_launch.sh")
+          plan_path=Path("p4_frozen_training_plan_v1.json")
+
+          manifest=json.loads(manifest_path.read_text())
+          old_manifest=manifest["manifest_sha256"]
+          sources=manifest["worker03_sources"]
+          sources["trainer_git_blob_sha1"]=blob("p4_gene1_trainer.py")
+          sources["tournament_git_blob_sha1"]=blob("p4_surrogate_tournament.py")
+          sources["reward_git_blob_sha1"]=blob("p4_aqlevon_reward.py")
+          sources["runtime_compat_sitecustomize_git_blob_sha1"]=blob("runtime_compat/sitecustomize.py")
+          sources["sdpo_tf5_patch_git_blob_sha1"]=blob("p4_patch_sdpo_transformers5_compat.py")
+          sources["vllm_qwen35_backend_patch_git_blob_sha1"]=blob("p4_patch_vllm_qwen35_transformers_backend.py")
+          manifest["manifest_sha256"]=""
+          manifest["manifest_sha256"]=c.canonical_sha256({k:v for k,v in manifest.items() if k!="manifest_sha256"})
+          manifest_path.write_text(json.dumps(manifest,indent=2,ensure_ascii=False)+"\n")
+
+          argv=t.build_a1_argv(plan_path,Path("/workspace"))
+          plan=json.loads(plan_path.read_text())
+          lock=c.build_command_lock(
+              argv,
+              plan_sha256=plan["plan_sha256"],
+              run_manifest_sha256=manifest["manifest_sha256"],
+              arm_id="P4_A1_RLVR_CONTROL",
+              seed=1701,
+          )
+          lock_path.write_text(json.dumps(lock,indent=2,ensure_ascii=False)+"\n")
+
+          auth=c.seal({
+              "schema_version":1,
+              "authorization_kind":c.AUTH_KIND,
+              "hash_profile":c.HASH_PROFILE,
+              "authorization_id":"P4-A1-RUNPOD-4090-20260922-18X-VLLM-LORA-GUARD",
+              "run_task_id":c.TASK_ID,
+              "run_manifest_sha256":manifest["manifest_sha256"],
+              "profile_id":c.PROFILE,
+              "compute_origin":"paid_manager_authorized",
+              "max_billed_seconds":1800,
+              "max_total_cost_usd":"0.40",
+              "max_hourly_rate_usd":"0.80",
+              "max_artifact_egress_bytes":5368709120,
+              "single_use":True,
+          },"authorization_sha256")
+          errors=c.validate_manager_authorization(auth,lock=lock,run_manifest_sha256=manifest["manifest_sha256"])
+          assert not errors, errors
+          auth_path=Path("p4_a1_runpod_manager_authorization_retry18x_vllm_lora_guard_v1.json")
+          auth_path.write_text(json.dumps(auth,indent=2,ensure_ascii=False)+"\n")
+
+          launcher=launcher_path.read_text()
+          old_lock=json.loads(Path("p4_a1_seed1701_command_lock_v1.json").read_text())["lock_sha256"]
+          # lock_path above is already new; find the literal old values from launcher instead.
+          import re
+          launcher,n1=re.subn(r'assert run\["manifest_sha256"\]=="[0-9a-f]{64}"',
+                              f'assert run["manifest_sha256"]=="{manifest["manifest_sha256"]}"',launcher,count=1)
+          launcher,n2=re.subn(r'assert lock\["lock_sha256"\]=="[0-9a-f]{64}"',
+                              f'assert lock["lock_sha256"]=="{lock["lock_sha256"]}"',launcher,count=1)
+          assert n1==1 and n2==1,(n1,n2)
+          launcher_path.write_text(launcher)
+
+          print("RETRY18X_MANIFEST_SHA="+manifest["manifest_sha256"])
+          print("RETRY18X_LOCK_SHA="+lock["lock_sha256"])
+          print("RETRY18X_AUTH_SHA="+auth["authorization_sha256"])
+          PY
+
+      - name: Verify regenerated contract before commit
+        shell: bash
+        working-directory: research/weight_factory/agent03
+        run: |
+          set -euo pipefail
+          python -m py_compile p4_gene1_trainer.py p4_surrogate_tournament.py p4_patch_sdpo_transformers5_compat.py
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          import p4_gene1_trainer as c
+          import p4_surrogate_tournament as t
+          run=json.loads(Path("p4_a1_seed1701_run_manifest_v1.json").read_text())
+          lock=json.loads(Path("p4_a1_seed1701_command_lock_v1.json").read_text())
+          auth=json.loads(Path("p4_a1_runpod_manager_authorization_retry18x_vllm_lora_guard_v1.json").read_text())
+          assert c.verify_self_digest(run,"manifest_sha256")
+          assert c.verify_self_digest(lock,"lock_sha256")
+          assert c.verify_self_digest(auth,"authorization_sha256")
+          argv=t.build_a1_argv(Path("p4_frozen_training_plan_v1.json"),Path("/workspace"))
+          assert argv==lock["argv"]
+          assert c.canonical_sha256(argv)==run["command_sha256"]==lock["command_sha256"]
+          assert lock["run_manifest_sha256"]==run["manifest_sha256"]
+          assert not c.validate_manager_authorization(auth,lock=lock,run_manifest_sha256=run["manifest_sha256"])
+          print("RETRY18X_RECONCILE_FREE_PASS")
+          PY
+
+      - name: Commit reconciled source authorization
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "aqlevon-manager-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add research/weight_factory/agent03/p4_a1_seed1701_run_manifest_v1.json \
+                  research/weight_factory/agent03/p4_a1_seed1701_command_lock_v1.json \
+                  research/weight_factory/agent03/p4_a1_runpod_manager_authorization_retry18x_vllm_lora_guard_v1.json \
+                  research/weight_factory/agent03/p4_runpod_appliance_launch.sh
+          git commit -m "p4(agent03): authorize Retry18X after vLLM LoRA guard [skip ci]"
+          git push origin HEAD:agent/03-p4-gene1-physical-trainer
