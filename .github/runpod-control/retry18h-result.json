@@ -1,17 +1,19 @@
 {
-  "actual_rate_usd_per_hr": null,
-  "artifact_retrieved": false,
-  "authorization_sha256": "cc2d431dba8bf40c9dc25583ab7d0d99586296644810e2bba64c925156b3fa79",
-  "command_lock_sha256": "b07441e07d0f26191fc5bd20ebf61e61c88003c542205687a2679243d90623c2",
-  "phase": "create_failed",
-  "pod_deleted": false,
-  "pod_fingerprint": null,
-  "pod_stopped": false,
-  "run": "Retry18H",
-  "run_manifest_sha256": "24e3d21155c3f1011ca92f90e6c622fe03f92bfd65656d31d87fa627886fad47",
-  "schema_version": 1,
-  "source_commit": "e1981e10ffd6629713108db7047c6cd3d7757771",
-  "started_at_utc": "2026-09-22T04:49:18Z",
-  "training_exit_code": 999,
-  "updated_at_utc": "2026-09-22T04:49:19.841294+00:00"
+  "authorization_id": "P4-A1-RUNPOD-4090-20260922-18H-API-AUTOMATED",
+  "checked_at_utc": "2026-09-22T05:27:01.949161+00:00",
+  "evidence_archive_present": false,
+  "expected_head": "d3ded5159ea66c4364e283fdef355ced46ad20bb",
+  "log_sha256": null,
+  "markers": {
+    "A1_LOCKED_TRAINING_START": false,
+    "APPLIANCE_BINDING_PASS": false,
+    "APPLIANCE_EXACT_AUTHORIZATION_PASS": false,
+    "APPLIANCE_SEED1701_BINDING_PASS": false,
+    "APPLIANCE_SOURCE_DELTA_PASS": false,
+    "AQLEVON_A1_EXIT_CODE": false,
+    "AQLEVON_APPLIANCE_LAUNCH_START": false,
+    "AQLEVON_APPLIANCE_TOTAL_SCRIPT_SECONDS": false,
+    "MODEL_STAGE_PASS": false
+  },
+  "training_exit_code": null
 }
