@@ -1,0 +1,7 @@
+{
+  "action": "diagnose_retry18h_stopped_pod",
+  "requested_by": "AQLEVON_MANAGER",
+  "mode": "read_only_no_spend",
+  "attempt": "Retry18H",
+  "revision": 2
+}
