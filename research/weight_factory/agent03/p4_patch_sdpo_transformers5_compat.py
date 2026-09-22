@@ -24,6 +24,7 @@ FSDP = SDPO / "verl/workers/fsdp_workers.py"
 VLLM_ASYNC = SDPO / "verl/workers/rollout/vllm_rollout/vllm_async_server.py"
 VLLM_LORA_MODELS = Path(os.environ.get("AQLEVON_VLLM_LORA_MODELS_PATH", str(Path(sysconfig.get_paths()["purelib"]) / "vllm/lora/models.py")))
 VLLM_TRANSFORMERS_MODELS = Path(os.environ.get("AQLEVON_VLLM_TRANSFORMERS_MODELS_PATH", str(Path(sysconfig.get_paths()["purelib"]) / "vllm/model_executor/models/transformers.py")))
+TRANSFORMERS_QWEN35_MODELING = Path(os.environ.get("AQLEVON_TRANSFORMERS_QWEN35_MODELING_PATH", str(Path(sysconfig.get_paths()["purelib"]) / "transformers/models/qwen3_5/modeling_qwen3_5.py")))
 REQUIRED_ROLLOUT_LORA_SUFFIXES = (".self_attn.q_proj", ".self_attn.v_proj")
 EXPECTED_REQUIRED_ROLLOUT_LORA_MODULES = 16
 
@@ -243,6 +244,64 @@ def patch_vllm_qwen35_text_rollout(text: str) -> str:
 """
     return replace_once(text, old, new, "vllm_qwen35_text_rollout_3d")
 
+def patch_transformers_qwen35_vllm_linear_shapes(text: str) -> str:
+    """Restore Qwen3.5 3D shapes after vLLM replaces nn.Linear modules.
+
+    vLLM 0.10.2's generic Transformers backend replaces Qwen3.5 linear
+    projections with vLLM linear modules that flatten leading dimensions.
+    Qwen3.5 Gated DeltaNet requires [batch, seq, hidden]/[batch, seq, heads].
+    Rebuild only those shapes from the already-known batch_size/seq_len and
+    fail closed by matching the exact Transformers 5.17.0 source anchors.
+    """
+    if "AQLEVON_QWEN35_VLLM_LINEAR_SHAPE_RESTORE" in text:
+        return text
+
+    text = replace_once(
+        text,
+        """        mixed_qkv = self.in_proj_qkv(hidden_states)
+        mixed_qkv = mixed_qkv.transpose(1, 2)
+""",
+        """        mixed_qkv = self.in_proj_qkv(hidden_states)
+        # AQLEVON_QWEN35_VLLM_LINEAR_SHAPE_RESTORE: vLLM LinearBase flattens
+        # leading dimensions in the Transformers backend. Restore the exact
+        # Qwen3.5 [batch, seq, channels] contract before Gated DeltaNet ops.
+        if mixed_qkv.ndim == 2:
+            mixed_qkv = mixed_qkv.reshape(batch_size, seq_len, -1)
+        mixed_qkv = mixed_qkv.transpose(1, 2)
+""",
+        "qwen35_mixed_qkv_shape_restore",
+    )
+
+    text = replace_once(
+        text,
+        """        b = self.in_proj_b(hidden_states)
+        a = self.in_proj_a(hidden_states)
+""",
+        """        b = self.in_proj_b(hidden_states)
+        a = self.in_proj_a(hidden_states)
+        if b.ndim == 2:
+            b = b.reshape(batch_size, seq_len, -1)
+        if a.ndim == 2:
+            a = a.reshape(batch_size, seq_len, -1)
+""",
+        "qwen35_gate_shape_restore",
+    )
+
+    text = replace_once(
+        text,
+        """        output = self.out_proj(core_attn_out)
+        return output
+""",
+        """        output = self.out_proj(core_attn_out)
+        if output.ndim == 2:
+            output = output.reshape(batch_size, seq_len, -1)
+        return output
+""",
+        "qwen35_output_shape_restore",
+    )
+    return text
+
+
 def main() -> int:
     head = subprocess.check_output(
         ["git", "-C", str(SDPO), "rev-parse", "HEAD"], text=True
@@ -255,6 +314,7 @@ def main() -> int:
     vllm_async = VLLM_ASYNC.read_text(encoding="utf-8")
     vllm_lora_models = VLLM_LORA_MODELS.read_text(encoding="utf-8")
     vllm_transformers_models = VLLM_TRANSFORMERS_MODELS.read_text(encoding="utf-8")
+    transformers_qwen35_modeling = TRANSFORMERS_QWEN35_MODELING.read_text(encoding="utf-8")
 
     if "# AQLEVON_TF5_VISION_ALIAS" not in model:
         model = replace_once(
@@ -317,15 +377,17 @@ def main() -> int:
     vllm_transformers_models = patch_vllm_transformers_mm_mapping(vllm_transformers_models)
     vllm_transformers_models = patch_vllm_transformers_mm_output(vllm_transformers_models)
     vllm_transformers_models = patch_vllm_qwen35_text_rollout(vllm_transformers_models)
+    transformers_qwen35_modeling = patch_transformers_qwen35_vllm_linear_shapes(transformers_qwen35_modeling)
 
     MODEL.write_text(model, encoding="utf-8")
     FSDP.write_text(fsdp, encoding="utf-8")
     VLLM_ASYNC.write_text(vllm_async, encoding="utf-8")
     VLLM_LORA_MODELS.write_text(vllm_lora_models, encoding="utf-8")
     VLLM_TRANSFORMERS_MODELS.write_text(vllm_transformers_models, encoding="utf-8")
+    TRANSFORMERS_QWEN35_MODELING.write_text(transformers_qwen35_modeling, encoding="utf-8")
 
     subprocess.run(
-        ["python", "-m", "py_compile", str(MODEL), str(FSDP), str(VLLM_ASYNC), str(VLLM_LORA_MODELS), str(VLLM_TRANSFORMERS_MODELS)],
+        ["python", "-m", "py_compile", str(MODEL), str(FSDP), str(VLLM_ASYNC), str(VLLM_LORA_MODELS), str(VLLM_TRANSFORMERS_MODELS), str(TRANSFORMERS_QWEN35_MODELING)],
         check=True,
     )
 
@@ -348,6 +410,8 @@ def main() -> int:
         raise SystemExit("vllm_transformers_mm_output_missing_after_patch")
     if "AQLEVON_QWEN35_TEXT_ROLLOUT_3D" not in vllm_transformers_models:
         raise SystemExit("vllm_qwen35_text_rollout_3d_missing_after_patch")
+    if "AQLEVON_QWEN35_VLLM_LINEAR_SHAPE_RESTORE" not in transformers_qwen35_modeling:
+        raise SystemExit("transformers_qwen35_linear_shape_restore_missing_after_patch")
 
     print("AQLEVON_SDPO_TF5_COMPAT_PATCH_PASS")
     print("MODEL_SHA256:", sha256(MODEL))
@@ -355,6 +419,7 @@ def main() -> int:
     print("VLLM_ASYNC_SHA256:", sha256(VLLM_ASYNC))
     print("VLLM_LORA_MODELS_SHA256:", sha256(VLLM_LORA_MODELS))
     print("VLLM_TRANSFORMERS_MODELS_SHA256:", sha256(VLLM_TRANSFORMERS_MODELS))
+    print("TRANSFORMERS_QWEN35_MODELING_SHA256:", sha256(TRANSFORMERS_QWEN35_MODELING))
     print("=== PATCH DIFF ===")
     print(diff)
     return 0
