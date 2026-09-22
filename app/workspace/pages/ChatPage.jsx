@@ -36,6 +36,7 @@ export default function ChatPage({ onChatsChanged, newChat, onMenu }) {
   const streamChatIdRef = useRef(null);
 
   const isTemp = params.get('temp') === '1' || chat?.temporary === 1;
+  const speechAvailable = typeof window !== 'undefined' && !!(window.SpeechRecognition || window.webkitSpeechRecognition);
 
   useEffect(() => {
     api.get('/bootstrap').then(setRuntime).catch(() => setRuntime({ inferenceReady:false, inferenceError:'HEALTH_CHECK_FAILED', webSearchAvailable:false }));
@@ -361,7 +362,7 @@ export default function ChatPage({ onChatsChanged, newChat, onMenu }) {
               <Icon name="spark" size={14} /><span className="chip-label">{t('chat.thinkLonger')}</span>
             </button>
 
-            <button className={'iconbtn' + (listening ? ' on' : '')} title={t('chat.dictate')} onClick={dictate} style={listening ? { color: 'var(--bad)' } : undefined}>
+            <button className={'iconbtn' + (listening ? ' on' : '')} disabled={!speechAvailable} title={speechAvailable ? t('chat.dictate') : t('chat.dictateUnavailable')} onClick={dictate} style={listening ? { color: 'var(--bad)' } : undefined}>
               <Icon name="mic" size={17} />
             </button>
             {busy
