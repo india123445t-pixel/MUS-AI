@@ -1,0 +1,15 @@
+{
+  "authorization_id": "P4-A1-RUNPOD-A40-20260922-19O-VLLM019-A40-VRAM-GATE-REPAIR",
+  "authorization_sha256": "1245ce4f7f399c3d4ebd413814d86a0988cc279d220bd0c2b82bbd998d502453",
+  "expected_head": "e48bc547226da29ac274f85cda8e685fe7b26c9a",
+  "image_digest": "sha256:ac70a74115046be4a866195344c0600ef0b1bb5ec5e897ec02ae8bd1f6c6f555",
+  "selection_mode": "dynamic_datacenter",
+  "gpu_type": "NVIDIA A40",
+  "min_memory_gb": 48,
+  "request_schema": "runpodctl_graphql_dynamic_dc",
+  "max_total_cost_usd": "0.55",
+  "max_hourly_rate_usd": "0.55",
+  "max_billed_seconds": 3600,
+  "single_use": true,
+  "reason": "Fresh single-use Retry19O after Retry19N correctly stopped on an over-strict application-visible VRAM threshold; A40 name remains exact and launch now accepts >=44 GiB visible VRAM with free CI gate"
+}
