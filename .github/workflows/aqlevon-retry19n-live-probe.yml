@@ -1,0 +1,91 @@
+name: AQLEVON Retry19N Live Probe
+
+on:
+  push:
+    branches: [ops/runpod-control-v1]
+    paths:
+      - ".github/runpod-control/retry19n-live-probe-trigger.json"
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/runpod-control-v1
+      - name: Capture active P4 pod log tail
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -sS -f "https://rest.runpod.io/v1/pods" -H "Authorization: Bearer $RUNPOD_API_KEY" > /tmp/pods.json
+          python - <<'PY'
+          import json
+          p=json.load(open('/tmp/pods.json'))
+          pods=p if isinstance(p,list) else p.get('pods') or p.get('items') or []
+          active=[x for x in pods if str(x.get('name') or '').startswith('AQLEVON-P4-A1-Retry19N') and str(x.get('desiredStatus') or x.get('status'))!='EXITED']
+          if len(active)!=1:
+              raise SystemExit('active_retry19n_count:'+str(len(active)))
+          x=active[0]
+          open('/tmp/pod_id','w').write(str(x.get('id')))
+          open('/tmp/pod_state.json','w').write(json.dumps({'id':x.get('id'),'name':x.get('name'),'desiredStatus':x.get('desiredStatus'),'costPerHr':x.get('costPerHr')},sort_keys=True))
+          PY
+          curl -sSL https://cli.runpod.net | sudo bash
+          python - <<'PY' > /tmp/graphql-body.json
+          import json
+          pod_id=open('/tmp/pod_id').read().strip()
+          q='query { pod(input: {podId: "'+pod_id+'"}) { id name desiredStatus runtime { uptimeInSeconds gpus { id gpuUtilPercent memoryUtilPercent } container { cpuPercent memoryPercent } } } }'
+          print(json.dumps({'query':q},separators=(',',':')))
+          PY
+          curl -sS -f https://api.runpod.io/graphql \
+            -H "Authorization: Bearer $RUNPOD_API_KEY" \
+            -H 'Content-Type: application/json' \
+            --data-binary @/tmp/graphql-body.json > /tmp/graphql-runtime.json
+          set +e
+          runpodctl pod get "$(cat /tmp/pod_id)" --output json > /tmp/pod-get.json 2>/tmp/pod-get.err
+          runpodctl pod logs "$(cat /tmp/pod_id)" --tail 100 --source container --max-wait 12s > /tmp/live.jsonl 2>/tmp/live.err
+          set -e
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          details={}
+          try:
+              raw=json.loads(Path('/tmp/pod-get.json').read_text())
+              gql=json.loads(Path('/tmp/graphql-runtime.json').read_text())
+              pod=(gql.get('data') or {}).get('pod') or {}
+              runtime=pod.get('runtime') or {}
+              gpus=runtime.get('gpus') or []
+              details={
+                  'runtime_status':raw.get('runtimeStatus') or raw.get('runtime_status'),
+                  'desired_status':pod.get('desiredStatus') or raw.get('desiredStatus') or raw.get('desired_status'),
+                  'uptime_seconds':runtime.get('uptimeInSeconds') or raw.get('uptimeSeconds'),
+                  'gpus':[{
+                      'gpu_util_percent':g.get('gpuUtilPercent'),
+                      'memory_util_percent':g.get('memoryUtilPercent')
+                  } for g in gpus],
+                  'container':{
+                      'cpu_percent':(runtime.get('container') or {}).get('cpuPercent'),
+                      'memory_percent':(runtime.get('container') or {}).get('memoryPercent')
+                  }
+              }
+          except Exception:
+              details={'pod_get_error':Path('/tmp/pod-get.err').read_text(errors='replace')[-800:]}
+          out={'pod':json.loads(Path('/tmp/pod_state.json').read_text()),'details':details,'lines':[],'stderr':Path('/tmp/live.err').read_text(errors='replace')[-1000:]}
+          for line in Path('/tmp/live.jsonl').read_text(errors='replace').splitlines():
+              try:
+                  x=json.loads(line)
+                  out['lines'].append({'ts':x.get('ts'),'line':str(x.get('line',''))[-1600:]})
+              except Exception:
+                  pass
+          Path('.github/runpod-control/retry19n-live-probe-result.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
+          PY
+          git config user.name aqlevon-runpod-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/runpod-control/retry19n-live-probe-result.json
+          git commit -m "ops: record live Retry19N probe [skip ci]" || true
+          git push origin HEAD:ops/runpod-control-v1
