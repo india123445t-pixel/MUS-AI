@@ -1,0 +1,83 @@
+name: AQLEVON Emergency Stop Retry18W Duplicate
+
+on:
+  push:
+    branches: [ops/runpod-control-v1]
+    paths:
+      - ".github/runpod-control/emergency-stop-retry18w-duplicate-trigger.json"
+
+permissions:
+  contents: write
+
+jobs:
+  stop-duplicate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      TARGET_NAME: AQLEVON-P4-A1-Retry18W
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/runpod-control-v1
+
+      - name: Stop every currently running duplicate Retry18W Pod
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${RUNPOD_API_KEY:-}"
+          curl -sS -f https://rest.runpod.io/v1/pods -H "Authorization: Bearer $RUNPOD_API_KEY" > /tmp/pods.json
+          python - <<'PY'
+          import json, os
+          raw=json.load(open('/tmp/pods.json'))
+          pods=raw if isinstance(raw,list) else raw.get('pods',raw.get('items',[]))
+          ids=[p['id'] for p in pods if isinstance(p,dict) and p.get('name')==os.environ['TARGET_NAME'] and p.get('desiredStatus')=='RUNNING']
+          open('/tmp/targets','w').write('\n'.join(ids))
+          print("RUNNING_RETRY18W_COUNT",len(ids))
+          PY
+          while IFS= read -r pod; do
+            [ -n "$pod" ] || continue
+            curl -sS -f -X POST "https://rest.runpod.io/v1/pods/$pod/stop" \
+              -H "Authorization: Bearer $RUNPOD_API_KEY" \
+              -H 'Content-Type: application/json' -d '{}' >/tmp/stop-$pod.json
+          done < /tmp/targets
+
+          sleep 3
+          curl -sS -f https://rest.runpod.io/v1/pods -H "Authorization: Bearer $RUNPOD_API_KEY" > /tmp/pods-after.json
+          python - <<'PY'
+          import json, os, sys
+          raw=json.load(open('/tmp/pods-after.json'))
+          pods=raw if isinstance(raw,list) else raw.get('pods',raw.get('items',[]))
+          running=[p for p in pods if isinstance(p,dict) and p.get('name')==os.environ['TARGET_NAME'] and p.get('desiredStatus')=='RUNNING']
+          if running:
+              print("FAIL_RETRY18W_STILL_RUNNING",[p.get('id') for p in running])
+              sys.exit(2)
+          print("RETRY18W_ALL_EXITED_PASS")
+          PY
+
+      - name: Record duplicate-stop result
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p .github/runpod-control
+          python - <<'PY'
+          import json,datetime,os
+          ids=[]
+          if os.path.exists('/tmp/targets'):
+              ids=[x for x in open('/tmp/targets').read().splitlines() if x]
+          out={
+            "action":"emergency_stop_retry18w_duplicates",
+            "target_name":"AQLEVON-P4-A1-Retry18W",
+            "stopped_count":len(ids),
+            "stopped_ids":ids,
+            "checked_at_utc":datetime.datetime.now(datetime.timezone.utc).isoformat()
+          }
+          json.dump(out,open('.github/runpod-control/emergency-stop-retry18w-duplicate-result.json','w'),indent=2,sort_keys=True)
+          open('.github/runpod-control/emergency-stop-retry18w-duplicate-result.json','a').write('\n')
+          PY
+          git config user.name aqlevon-runpod-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/runpod-control/emergency-stop-retry18w-duplicate-result.json
+          git commit -m "ops: record Retry18W duplicate emergency stop [skip ci]" || true
+          git pull --rebase origin ops/runpod-control-v1 || true
+          git push origin HEAD:ops/runpod-control-v1 || true
