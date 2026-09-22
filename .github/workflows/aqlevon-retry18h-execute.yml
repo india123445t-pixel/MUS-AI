@@ -71,15 +71,39 @@ jobs:
           import json, os, sys
           p=json.load(open('/tmp/create-response.json'))
           cost=float(p.get('costPerHr') or 999)
-          gpu=((p.get('gpu') or {}).get('displayName') or (p.get('machine') or {}).get('gpuDisplayName') or '')
-          count=int((p.get('gpu') or {}).get('count') or 1)
-          if cost>0.80 or gpu!="NVIDIA GeForce RTX 4090" or count!=1:
-              print("FAIL_CLOSED_CREATE_CONTRACT",cost,gpu,count)
+          count=int(p.get('gpuCount') or (p.get('gpu') or {}).get('count') or 1)
+          if cost>0.80 or count!=1:
+              print("FAIL_CLOSED_CREATE_CONTRACT",cost,count)
               sys.exit(2)
           open('/tmp/pod_id','w').write(p['id'])
-          print("CREATE_CONTRACT_PASS cost_per_hr=",cost,"gpu=",gpu,"count=",count)
+          print("CREATE_PRECHECK_PASS cost_per_hr=",cost,"count=",count)
           PY
           echo "pod_id=$(cat /tmp/pod_id)" >> "$GITHUB_OUTPUT"
+
+      - name: Verify allocated GPU type
+        shell: bash
+        run: |
+          set -euo pipefail
+          pod="${{ steps.create.outputs.pod_id }}"
+          for i in $(seq 1 36); do
+            curl -sS "https://rest.runpod.io/v1/pods/$pod?include=machine" -H "Authorization: Bearer $RUNPOD_API_KEY" > /tmp/verify-pod.json
+            python - <<'PY' && exit 0 || true
+          import json,sys
+          p=json.load(open('/tmp/verify-pod.json'))
+          m=p.get('machine') if isinstance(p.get('machine'),dict) else {}
+          gt=m.get('gpuType') if isinstance(m.get('gpuType'),dict) else {}
+          g=p.get('gpu') if isinstance(p.get('gpu'),dict) else {}
+          vals=[p.get('gpuTypeId'),p.get('gpuTypeName'),m.get('gpuTypeId'),m.get('gpuDisplayName'),gt.get('id'),gt.get('displayName'),g.get('displayName'),g.get('name')]
+          vals=[str(x) for x in vals if x]
+          if any('4090' in x for x in vals):
+              print("GPU_TYPE_VERIFIED_4090")
+              sys.exit(0)
+          sys.exit(1)
+          PY
+            sleep 5
+          done
+          echo "FAIL_CLOSED_GPU_TYPE_NOT_VERIFIED"
+          exit 2
 
       - name: Wait for SSH mapping
         id: ssh
