@@ -1,3 +1,4 @@
+numpy==1.26.4
 # AQLEVON P4 A1 native-Qwen3.5 runtime prototype. Build trigger after workflow registration.
 # vLLM 0.19.1 + its matching Torch/CUDA come from the official vLLM image; 0.19.1 adds Transformers v5 support.
 transformers==5.17.0
