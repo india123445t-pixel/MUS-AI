@@ -1,0 +1,22 @@
+{
+  "authorization_id": "P4-A1-RUNPOD-A40-20260922-19Q-VLLM019-FUNCTIONAL-SMOKE-THEN-TRAIN",
+  "checked_at_utc": "2026-09-22T21:32:16.278871+00:00",
+  "evidence_archive_present": true,
+  "expected_head": "ac9435526f47e6e70ad10851f9d3362f7a4aec61",
+  "image_digest": "sha256:ac70a74115046be4a866195344c0600ef0b1bb5ec5e897ec02ae8bd1f6c6f555",
+  "log_sha256": "d432a61b0d46dae5e6217d540b698f9a0f6ef31ac9fa078d947e8ce17e0c4325",
+  "markers": {
+    "A1_LOCKED_TRAINING_START": true,
+    "APPLIANCE_BINDING_PASS": true,
+    "APPLIANCE_EXACT_AUTHORIZATION_PASS": true,
+    "APPLIANCE_NATIVE_QWEN35_VLLM019_PASS": true,
+    "APPLIANCE_SEED1701_BINDING_PASS": true,
+    "APPLIANCE_SOURCE_DELTA_PASS": true,
+    "AQLEVON_A1_EXIT_CODE": true,
+    "AQLEVON_V019_LORA_SMOKE_PASS": true,
+    "AQLEVON_V019_NATIVE_LORA_FUNCTIONAL_SMOKE_PASS": true,
+    "MODEL_STAGE_PASS": true
+  },
+  "stop_status": "exited",
+  "training_exit_code": 127
+}
