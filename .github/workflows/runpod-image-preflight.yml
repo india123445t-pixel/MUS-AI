@@ -1,0 +1,41 @@
+name: AQLEVON Runtime Image Pull Preflight
+
+on:
+  push:
+    branches:
+      - ops/runpod-retry18f-execute-20260922
+    paths:
+      - .github/workflows/runpod-image-preflight.yml
+
+permissions:
+  contents: write
+  packages: read
+
+env:
+  IMAGE: "ghcr.io/india123445t-pixel/mus-ai@sha256:ecfe9d199a56333da7655a63a750fc6466d27fd1ed91d60aaa3e2c4b0a3dd69d"
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify immutable runtime image is anonymously pullable
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker manifest inspect "$IMAGE" >/tmp/manifest.json
+          test -s /tmp/manifest.json
+          mkdir -p ops
+          printf '%s\n' '{"schema_version":1,"runtime_image_manifest":"PASS","immutable_digest":"sha256:ecfe9d199a56333da7655a63a750fc6466d27fd1ed91d60aaa3e2c4b0a3dd69d","paid_action_performed":false}' > ops/runpod-r18f-image-preflight.json
+
+      - name: Persist sanitized receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "aqlevon-runpod-control"
+          git config user.email "aqlevon-runpod-control@users.noreply.github.com"
+          git add ops/runpod-r18f-image-preflight.json
+          git commit -m "ops: record Retry18F runtime image preflight" || exit 0
+          git push origin "HEAD:${GITHUB_REF_NAME}"
