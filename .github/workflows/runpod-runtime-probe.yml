@@ -1,0 +1,84 @@
+name: RunPod Runtime Probe
+
+on:
+  push:
+    branches:
+      - ops/runpod-control-v1
+    paths:
+      - ".github/runpod-control/runtime-trigger-*.json"
+
+permissions:
+  contents: write
+
+jobs:
+  runtime-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/runpod-control-v1
+
+      - name: Query RunPod runtime metrics
+        shell: bash
+        env:
+          RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "${RUNPOD_API_KEY:-}" || { echo "::error::RUNPOD_API_KEY missing"; exit 1; }
+
+          cat > /tmp/query.json <<'JSON'
+          {
+            "query": "query { myself { pods { id desiredStatus costPerHr createdAt runtime { uptimeInSeconds gpus { gpuUtilPercent memoryUtilPercent } container { cpuPercent memoryPercent } } } } }"
+          }
+          JSON
+
+          curl --silent --show-error --fail             --request POST             --url "https://api.runpod.io/graphql?api_key=${RUNPOD_API_KEY}"             --header "content-type: application/json"             --data-binary @/tmp/query.json             --output /tmp/runtime.json
+
+          mkdir -p .github/runpod-control
+          python - <<'PY'
+          import json, hashlib, datetime
+          with open('/tmp/runtime.json','r',encoding='utf-8') as f:
+              raw=json.load(f)
+
+          pods=((raw.get('data') or {}).get('myself') or {}).get('pods') or []
+          out={
+              "ok": True,
+              "checked_at_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+              "running": []
+          }
+          for p in pods:
+              if not isinstance(p,dict) or p.get('desiredStatus') != 'RUNNING':
+                  continue
+              pid=str(p.get('id') or '')
+              fp=hashlib.sha256(pid.encode()).hexdigest()[:12] if pid else None
+              rt=p.get('runtime') if isinstance(p.get('runtime'),dict) else {}
+              gs=rt.get('gpus') if isinstance(rt.get('gpus'),list) else []
+              utils=[g.get('gpuUtilPercent') for g in gs if isinstance(g,dict) and isinstance(g.get('gpuUtilPercent'),(int,float))]
+              mems=[g.get('memoryUtilPercent') for g in gs if isinstance(g,dict) and isinstance(g.get('memoryUtilPercent'),(int,float))]
+              c=rt.get('container') if isinstance(rt.get('container'),dict) else {}
+              out["running"].append({
+                  "fingerprint": fp,
+                  "cost_per_hr": p.get('costPerHr'),
+                  "created_at": p.get('createdAt'),
+                  "uptime_seconds": rt.get('uptimeInSeconds'),
+                  "gpu_util_percent_max": max(utils) if utils else None,
+                  "gpu_memory_util_percent_max": max(mems) if mems else None,
+                  "cpu_percent": c.get('cpuPercent'),
+                  "memory_percent": c.get('memoryPercent')
+              })
+
+          with open('.github/runpod-control/runtime.json','w',encoding='utf-8') as f:
+              json.dump(out,f,indent=2,sort_keys=True)
+              f.write("\n")
+          PY
+
+      - name: Commit sanitized runtime result
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "aqlevon-runpod-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add .github/runpod-control/runtime.json
+          git commit -m "ops: record sanitized RunPod runtime [skip ci]" || exit 0
+          git push origin HEAD:ops/runpod-control-v1
