@@ -11,7 +11,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: aqlevon-runpod-retry18f-single-use
+  group: aqlevon-runpod-retry18f-single-use-v2
   cancel-in-progress: false
 
 env:
@@ -41,9 +41,11 @@ jobs:
         run: |
           set -euo pipefail
           bash -n ops/runpod-retry18f-execute.sh
-          runpodctl pod create --help | grep -q -- '--wait'
-          runpodctl pod create --help | grep -q -- '--docker-args'
-          runpodctl ssh remove-key --help | grep -q -- '--fingerprint'
+          POD_HELP="$(runpodctl pod create --help)"
+          SSH_HELP="$(runpodctl ssh remove-key --help)"
+          grep -F -- '--wait' <<<"$POD_HELP" >/dev/null
+          grep -F -- '--docker-args' <<<"$POD_HELP" >/dev/null
+          grep -F -- '--fingerprint' <<<"$SSH_HELP" >/dev/null
 
       - name: Execute exact single-use Retry18F
         shell: bash
