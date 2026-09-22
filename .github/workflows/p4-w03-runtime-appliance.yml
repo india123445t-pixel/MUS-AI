@@ -1,4 +1,5 @@
 name: P4 W03 Runtime Appliance
+# trigger: rebuild after qwen3.5 backend syntax repair
 
 on:
   workflow_dispatch:
