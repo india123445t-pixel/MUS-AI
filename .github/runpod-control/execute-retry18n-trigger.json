@@ -1,0 +1,11 @@
+{
+  "authorization_id": "P4-A1-RUNPOD-4090-20260922-18N-CREATE-DIAGNOSTIC-REPAIR",
+  "authorization_sha256": "5a57c50065791ed4806e2a301f3014c5ec9d86ce1e2e647a95af635d33151b18",
+  "max_billed_seconds": 1800,
+  "max_total_cost_usd": "0.40",
+  "single_use": true,
+  "expected_head": "8d87bbb00da3713da07654014f4889bf491e007a",
+  "runtime_appliance_digest": "sha256:83d8074523c0a5535fc2718956f5bf430de400cd1e900030e83c1e4c974e8714",
+  "requested_by": "AQLEVON_MANAGER",
+  "nonce": "2026-09-22T07:28Z"
+}
