@@ -37,12 +37,33 @@ jobs:
           PY
           curl -sSL https://cli.runpod.net | sudo bash
           set +e
+          runpodctl pod get "$(cat /tmp/pod_id)" --output json > /tmp/pod-get.json 2>/tmp/pod-get.err
           runpodctl pod logs "$(cat /tmp/pod_id)" --tail 100 --source container --max-wait 12s > /tmp/live.jsonl 2>/tmp/live.err
           set -e
           python - <<'PY'
           import json
           from pathlib import Path
-          out={'pod':json.loads(Path('/tmp/pod_state.json').read_text()),'lines':[],'stderr':Path('/tmp/live.err').read_text(errors='replace')[-1000:]}
+          details={}
+          try:
+              raw=json.loads(Path('/tmp/pod-get.json').read_text())
+              runtime=raw.get('runtime') or {}
+              gpus=runtime.get('gpus') or []
+              details={
+                  'runtime_status':raw.get('runtimeStatus') or raw.get('runtime_status'),
+                  'desired_status':raw.get('desiredStatus') or raw.get('desired_status'),
+                  'uptime_seconds':runtime.get('uptimeInSeconds') or runtime.get('uptime_in_seconds'),
+                  'gpus':[{
+                      'gpu_util_percent':g.get('gpuUtilPercent') or g.get('gpu_util_percent'),
+                      'memory_util_percent':g.get('memoryUtilPercent') or g.get('memory_util_percent')
+                  } for g in gpus],
+                  'container':{
+                      'cpu_percent':(runtime.get('container') or {}).get('cpuPercent'),
+                      'memory_percent':(runtime.get('container') or {}).get('memoryPercent')
+                  }
+              }
+          except Exception:
+              details={'pod_get_error':Path('/tmp/pod-get.err').read_text(errors='replace')[-800:]}
+          out={'pod':json.loads(Path('/tmp/pod_state.json').read_text()),'details':details,'lines':[],'stderr':Path('/tmp/live.err').read_text(errors='replace')[-1000:]}
           for line in Path('/tmp/live.jsonl').read_text(errors='replace').splitlines():
               try:
                   x=json.loads(line)
