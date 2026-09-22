@@ -1,0 +1,121 @@
+name: AQLEVON RunPod Retry18F Paid Execute
+
+on:
+  push:
+    branches:
+      - ops/runpod-retry18f-execute-20260922
+    paths:
+      - .github/workflows/runpod-retry18f-paid.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aqlevon-runpod-retry18f-single-use
+  cancel-in-progress: false
+
+env:
+  RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+  POD_NAME: "AQLEVON-P4-A1-R18F-API"
+
+jobs:
+  execute:
+    runs-on: ubuntu-latest
+    timeout-minutes: 32
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install pinned runpodctl
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL https://github.com/runpod/runpodctl/releases/download/v2.14.0/runpodctl-linux-amd64.tar.gz -o /tmp/runpodctl.tgz
+          tar -xzf /tmp/runpodctl.tgz -C /tmp runpodctl
+          sudo install -m 0755 /tmp/runpodctl /usr/local/bin/runpodctl
+          runpodctl version
+
+      - name: Final local gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n ops/runpod-retry18f-execute.sh
+          runpodctl pod create --help | grep -q -- '--wait'
+          runpodctl pod create --help | grep -q -- '--docker-args'
+          runpodctl ssh remove-key --help | grep -q -- '--fingerprint'
+
+      - name: Execute exact single-use Retry18F
+        shell: bash
+        run: bash ops/runpod-retry18f-execute.sh
+
+      - name: Upload candidate and evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aqlevon-retry18f-result
+          path: retry18f-local/**
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Persist sanitized final receipt
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p ops
+          if [ -f retry18f-local/result.json ]; then
+            cp retry18f-local/result.json ops/runpod-retry18f-final-receipt.json
+          else
+            printf '%s\n' '{"schema_version":1,"run":"Retry18F","result":"WORKFLOW_FAILED_BEFORE_RECEIPT","artifact_received":false,"secret_exposed":false,"main_modified":false}' > ops/runpod-retry18f-final-receipt.json
+          fi
+          git config user.name "aqlevon-runpod-control"
+          git config user.email "aqlevon-runpod-control@users.noreply.github.com"
+          git add ops/runpod-retry18f-final-receipt.json
+          git commit -m "ops: record sanitized Retry18F final receipt" || exit 0
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+
+  watchdog:
+    runs-on: ubuntu-latest
+    timeout-minutes: 38
+    steps:
+      - name: Install pinned runpodctl
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL https://github.com/runpod/runpodctl/releases/download/v2.14.0/runpodctl-linux-amd64.tar.gz -o /tmp/runpodctl.tgz
+          tar -xzf /tmp/runpodctl.tgz -C /tmp runpodctl
+          sudo install -m 0755 /tmp/runpodctl /usr/local/bin/runpodctl
+
+      - name: Independent exact-name cleanup guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          START="$(date +%s)"
+          FIRST_SEEN=""
+          SEEN=false
+          while true; do
+            NOW="$(date +%s)"
+            PODS="$(runpodctl pod list --all --name "$POD_NAME" 2>/dev/null || printf '[]')"
+            IDS="$(printf '%s' "$PODS" | jq -r '.[]?.id // empty')"
+
+            if [ -n "$IDS" ]; then
+              if [ "$SEEN" = false ]; then
+                SEEN=true
+                FIRST_SEEN="$NOW"
+              fi
+              if [ "$((NOW-FIRST_SEEN))" -ge 1710 ]; then
+                while IFS= read -r id; do
+                  [ -n "$id" ] || continue
+                  echo "::add-mask::$id"
+                  runpodctl pod delete "$id" >/dev/null 2>&1 || true
+                done <<< "$IDS"
+                exit 0
+              fi
+            elif [ "$SEEN" = true ]; then
+              exit 0
+            elif [ "$((NOW-START))" -ge 600 ]; then
+              exit 0
+            fi
+            sleep 15
+          done
