@@ -200,11 +200,10 @@ def run_vllm_smoke(model_path: Path, adapter_dir: Path) -> dict:
         # vLLM 0.19.1 accepts discrete capacity ceilings; rank-4 adapters use ceiling 8.
         # This does NOT change the frozen PEFT adapter rank (r=4).
         max_lora_rank=8,
-        # Native Qwen3.5 packs HF q/k/v into the actual vLLM module qkv_proj.
-        # Keep PEFT adapter targets q_proj/v_proj; restrict only vLLM's deployment
-        # wrapper to the packed container so the 8 full-attention qkv_proj layers
-        # can ingest the 16 q/v adapter shards through packed_modules_mapping.
-        lora_target_modules=["qkv_proj"],
+        # Native Qwen3.5 packs HF q/k/v into qkv_proj. Do not add a
+        # deployment-time target restriction here: pinned SDPO/VERL also leaves
+        # vLLM target_modules unset and supplies only the adapter's q/v weights.
+        # This makes the smoke exercise the same LoRA-manager path as training.
         language_model_only=True,
         trust_remote_code=False,
         seed=SEED,
@@ -260,7 +259,7 @@ def run_vllm_smoke(model_path: Path, adapter_dir: Path) -> dict:
         "language_model_only": True,
         "max_model_len": 4096,
         "peft_lora_target_modules": ["q_proj", "v_proj"],
-        "vllm_lora_target_modules": ["qkv_proj"],
+        "vllm_lora_target_modules": null,
         "peft_lora_rank": 4,
         "vllm_max_lora_rank_capacity": 8,
         "base_repeat_common_logprob_tokens": len(base_common),
