@@ -1,0 +1,15 @@
+{
+  "authorization_id": "P4-A1-RUNPOD-A40-20260922-19N-VLLM019-PYTHON3-REPAIR",
+  "authorization_sha256": "09321185db8cfeec78fe61eb5dcbc8f6b4ef385b79dca14090729d635d3030f2",
+  "expected_head": "7eea52ec06388631657e2bc937122483fce1555b",
+  "image_digest": "sha256:ac70a74115046be4a866195344c0600ef0b1bb5ec5e897ec02ae8bd1f6c6f555",
+  "selection_mode": "dynamic_datacenter",
+  "gpu_type": "NVIDIA A40",
+  "min_memory_gb": 48,
+  "request_schema": "runpodctl_graphql_dynamic_dc",
+  "max_total_cost_usd": "0.55",
+  "max_hourly_rate_usd": "0.55",
+  "max_billed_seconds": 3600,
+  "single_use": true,
+  "reason": "Fresh single-use Retry19N after Retry19M stopped fail-closed on bare-python rc127; launch script now uses python3 and Exact Contract includes a gate forbidding bare python"
+}
