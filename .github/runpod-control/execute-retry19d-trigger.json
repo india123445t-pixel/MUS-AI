@@ -1,0 +1,14 @@
+{
+  "authorization_id": "P4-A1-RUNPOD-4090-20260922-19D-VLLM-LORA-GUARD",
+  "authorization_sha256": "02b259a28d63918b83251657f7e09689170bd610d2d0e0c43b4cc03ba00a1e7e",
+  "expected_head": "dd636bb051e2d6435feada0df40c0b2341bb9550",
+  "selection_mode": "dynamic_datacenter",
+  "gpu_type": "NVIDIA GeForce RTX 4090",
+  "min_memory_gb": 24,
+  "request_schema": "runpodctl_graphql_dynamic_dc",
+  "max_total_cost_usd": "0.60",
+  "max_hourly_rate_usd": "0.80",
+  "max_billed_seconds": 1800,
+  "single_use": true,
+  "reason": "Owner authorized autonomous completion; CPU Gate and Exact Contract PASS; appliance smoke is hard-bound to RTX 4090, so select any live secure RTX4090 datacenter under 0.80 USD/hr"
+}
