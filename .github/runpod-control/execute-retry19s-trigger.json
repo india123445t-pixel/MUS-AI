@@ -1,8 +1,8 @@
 {
   "authorization_id": "P4-A1-RUNPOD-A40-20260922-19S-VLLM019-NONE-FIX-SMOKE-THEN-TRAIN",
   "authorization_sha256": "20ae5849e6bc94be6c8c9147f7f0fde4f3e0791385b12d483c09f68175eb915e",
-  "expected_head": "5eb5b6ebfb4b95544c1fcbf0f72cc15015625013",
-  "image_digest": "sha256:ac70a74115046be4a866195344c0600ef0b1bb5ec5e897ec02ae8bd1f6c6f555",
+  "expected_head": "1491ab6de81c3ae762963cb3d9a9bb73d0455194",
+  "image_digest": "sha256:fe7037009a3bc63b034ba4239c6fc022fa6f5bf904bc360a268cb23499161e52",
   "gpu_type": "NVIDIA A40",
   "min_memory_gb": 48,
   "selection_mode": "dynamic_datacenter",
