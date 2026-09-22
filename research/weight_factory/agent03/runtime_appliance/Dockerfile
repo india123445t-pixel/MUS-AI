@@ -66,3 +66,7 @@ LABEL org.opencontainers.image.title="AQLEVON P4 A1 Runtime Appliance" \
       aqlevon.cuda="12.8" \
       aqlevon.flash_attn="2.8.3"
 
+
+# RunPod Pod startup contract: the official base expects /start.sh as the long-lived CMD.
+# Without this, the inherited non-interactive "bash" command exits immediately and the Pod never becomes reachable.
+CMD ["/start.sh"]
