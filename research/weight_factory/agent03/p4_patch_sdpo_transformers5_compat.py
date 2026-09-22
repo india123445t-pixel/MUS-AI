@@ -4,6 +4,8 @@
 The pinned SDPO commit still imports AutoModelForVision2Seq, removed from
 Transformers 5.17.0. This patch changes only those imports/usages needed by the
 P4 training path, aliasing the removed class name to AutoModelForImageTextToText.
+It also forces vLLM's documented Transformers model implementation for the pinned
+Qwen3.5 rollout path because vLLM 0.10.2 predates native Qwen3.5 registration.
 It does not modify model weights, data, training hyperparameters, or the Git HEAD.
 """
 from __future__ import annotations
@@ -17,6 +19,7 @@ EXPECTED_COMMIT = "7c457fc1b1f636ae794eb0362ba37d4743b06fbc"
 
 MODEL = SDPO / "verl/utils/model.py"
 FSDP = SDPO / "verl/workers/fsdp_workers.py"
+VLLM_ASYNC = SDPO / "verl/workers/rollout/vllm_rollout/vllm_async_server.py"
 
 
 def sha256(path: Path) -> str:
@@ -39,6 +42,7 @@ def main() -> int:
 
     model = MODEL.read_text(encoding="utf-8")
     fsdp = FSDP.read_text(encoding="utf-8")
+    vllm_async = VLLM_ASYNC.read_text(encoding="utf-8")
 
     if "# AQLEVON_TF5_VISION_ALIAS" not in model:
         model = replace_once(
@@ -75,16 +79,44 @@ def main() -> int:
             "fsdp_model_import",
         )
 
+    if "# AQLEVON_QWEN35_VLLM_TF_BACKEND" not in vllm_async:
+        vllm_async = replace_once(
+            vllm_async,
+            "        engine_args = AsyncEngineArgs.from_cli_args(args)\n"
+            "        usage_context = UsageContext.OPENAI_API_SERVER\n",
+            "        engine_args = AsyncEngineArgs.from_cli_args(args)\n"
+            "        # AQLEVON_QWEN35_VLLM_TF_BACKEND: vLLM 0.10.2 predates native Qwen3.5.\n"
+            "        engine_args.model_impl = \"transformers\"\n"
+            "        usage_context = UsageContext.OPENAI_API_SERVER\n",
+            "vllm_server_transformers_backend",
+        )
+        vllm_async = replace_once(
+            vllm_async,
+            "        engine_args = vllm.AsyncEngineArgs.from_cli_args(args)\n"
+            "        usage_context = UsageContext.OPENAI_API_SERVER\n",
+            "        engine_args = vllm.AsyncEngineArgs.from_cli_args(args)\n"
+            "        # AQLEVON_QWEN35_VLLM_TF_BACKEND: keep headless path identical.\n"
+            "        engine_args.model_impl = \"transformers\"\n"
+            "        usage_context = UsageContext.OPENAI_API_SERVER\n",
+            "vllm_headless_transformers_backend",
+        )
+
     MODEL.write_text(model, encoding="utf-8")
     FSDP.write_text(fsdp, encoding="utf-8")
+    VLLM_ASYNC.write_text(vllm_async, encoding="utf-8")
 
     subprocess.run(
-        ["python", "-m", "py_compile", str(MODEL), str(FSDP)],
+        ["python", "-m", "py_compile", str(MODEL), str(FSDP), str(VLLM_ASYNC)],
         check=True,
     )
 
     diff = subprocess.check_output(
-        ["git", "-C", str(SDPO), "diff", "--", "verl/utils/model.py", "verl/workers/fsdp_workers.py"],
+        [
+            "git", "-C", str(SDPO), "diff", "--",
+            "verl/utils/model.py",
+            "verl/workers/fsdp_workers.py",
+            "verl/workers/rollout/vllm_rollout/vllm_async_server.py",
+        ],
         text=True,
     )
     if not diff.strip():
@@ -93,6 +125,7 @@ def main() -> int:
     print("AQLEVON_SDPO_TF5_COMPAT_PATCH_PASS")
     print("MODEL_SHA256:", sha256(MODEL))
     print("FSDP_SHA256:", sha256(FSDP))
+    print("VLLM_ASYNC_SHA256:", sha256(VLLM_ASYNC))
     print("=== PATCH DIFF ===")
     print(diff)
     return 0
