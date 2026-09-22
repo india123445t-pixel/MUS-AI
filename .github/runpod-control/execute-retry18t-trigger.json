@@ -1,0 +1,11 @@
+{
+  "authorization_id": "P4-A1-RUNPOD-4090-20260922-18T-DIGEST-ENV-BIND",
+  "authorization_sha256": "aaf8c24a45241601a1fe4393d4147ebeccaf2c379dde64491fe947cf047e7849",
+  "max_billed_seconds": 1800,
+  "max_total_cost_usd": "0.40",
+  "single_use": true,
+  "expected_head": "9ff90816829cae5a2e4254eea1ec83e3780f6614",
+  "runtime_appliance_digest": "sha256:ac5c13b4ded6a529c03d334632fe2f2bd51205630b5b3950be8b0f4f061bf3c8",
+  "requested_by": "AQLEVON_MANAGER",
+  "nonce": "2026-09-22T09:33Z"
+}
