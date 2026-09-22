@@ -20,6 +20,9 @@ EXPECTED_COMMIT = "7c457fc1b1f636ae794eb0362ba37d4743b06fbc"
 MODEL = SDPO / "verl/utils/model.py"
 FSDP = SDPO / "verl/workers/fsdp_workers.py"
 VLLM_ASYNC = SDPO / "verl/workers/rollout/vllm_rollout/vllm_async_server.py"
+VLLM_LORA_MODELS = Path("/usr/local/lib/python3.12/dist-packages/vllm/lora/models.py")
+REQUIRED_ROLLOUT_LORA_SUFFIXES = (".self_attn.q_proj", ".self_attn.v_proj")
+EXPECTED_REQUIRED_ROLLOUT_LORA_MODULES = 32
 
 
 def sha256(path: Path) -> str:
@@ -33,6 +36,53 @@ def replace_once(text: str, old: str, new: str, label: str) -> str:
     return text.replace(old, new, 1)
 
 
+def patch_vllm_lora_manager(text: str) -> str:
+    """Backport a fail-closed guard for unsupported Transformers-backend modules.
+
+    vLLM 0.10.2 only skips non-LoRA-replaceable modules when supports_mm is
+    true. The forced Qwen3.5 Transformers backend can expose mixed module
+    types while supports_mm is false, causing an assertion before rollout.
+    We may skip only unsupported non-target modules. Frozen self_attn q/v
+    targets must all be LoRA-capable, and exactly 32 must be registered.
+    """
+    old = """            if self.supports_mm and not isinstance(new_module,
+                                                   BaseLayerWithLoRA):
+                continue
+            self.register_module(module_name, new_module)
+            self._register_packed_modules(module_name)
+            # All lora layers share the same punica_wrapper based on reference.
+            new_module.set_mapping(self.punica_wrapper)
+"""
+    new = """            # AQLEVON_QWEN35_VLLM_LORA_GUARD: Transformers backend may expose
+            # unsupported duplicate module names while supports_mm is false.
+            # Never skip the frozen self_attn q/v LoRA targets.
+            if not isinstance(new_module, BaseLayerWithLoRA):
+                if module_name.endswith((\".self_attn.q_proj\", \".self_attn.v_proj\")):
+                    raise RuntimeError(
+                        \"AQLEVON_REQUIRED_ROLLOUT_LORA_MODULE_UNSUPPORTED:\"
+                        + module_name + \":\" + type(module).__name__
+                    )
+                continue
+            self.register_module(module_name, new_module)
+            self._register_packed_modules(module_name)
+            # All lora layers share the same punica_wrapper based on reference.
+            new_module.set_mapping(self.punica_wrapper)
+
+        aqlevon_required = [
+            name for name in self.modules
+            if name.endswith((\".self_attn.q_proj\", \".self_attn.v_proj\"))
+        ]
+        if len(aqlevon_required) != 32:
+            raise RuntimeError(
+                \"AQLEVON_REQUIRED_ROLLOUT_LORA_MODULE_COUNT:\"
+                + str(len(aqlevon_required)) + \":expected_32\"
+            )
+"""
+    if "AQLEVON_QWEN35_VLLM_LORA_GUARD" in text:
+        return text
+    return replace_once(text, old, new, "vllm_lora_guard")
+
+
 def main() -> int:
     head = subprocess.check_output(
         ["git", "-C", str(SDPO), "rev-parse", "HEAD"], text=True
@@ -43,6 +93,7 @@ def main() -> int:
     model = MODEL.read_text(encoding="utf-8")
     fsdp = FSDP.read_text(encoding="utf-8")
     vllm_async = VLLM_ASYNC.read_text(encoding="utf-8")
+    vllm_lora_models = VLLM_LORA_MODELS.read_text(encoding="utf-8")
 
     if "# AQLEVON_TF5_VISION_ALIAS" not in model:
         model = replace_once(
@@ -101,12 +152,15 @@ def main() -> int:
             "vllm_headless_transformers_backend",
         )
 
+    vllm_lora_models = patch_vllm_lora_manager(vllm_lora_models)
+
     MODEL.write_text(model, encoding="utf-8")
     FSDP.write_text(fsdp, encoding="utf-8")
     VLLM_ASYNC.write_text(vllm_async, encoding="utf-8")
+    VLLM_LORA_MODELS.write_text(vllm_lora_models, encoding="utf-8")
 
     subprocess.run(
-        ["python", "-m", "py_compile", str(MODEL), str(FSDP), str(VLLM_ASYNC)],
+        ["python", "-m", "py_compile", str(MODEL), str(FSDP), str(VLLM_ASYNC), str(VLLM_LORA_MODELS)],
         check=True,
     )
 
@@ -121,11 +175,14 @@ def main() -> int:
     )
     if not diff.strip():
         raise SystemExit("compat_patch_produced_no_diff")
+    if "AQLEVON_QWEN35_VLLM_LORA_GUARD" not in vllm_lora_models:
+        raise SystemExit("vllm_lora_guard_missing_after_patch")
 
     print("AQLEVON_SDPO_TF5_COMPAT_PATCH_PASS")
     print("MODEL_SHA256:", sha256(MODEL))
     print("FSDP_SHA256:", sha256(FSDP))
     print("VLLM_ASYNC_SHA256:", sha256(VLLM_ASYNC))
+    print("VLLM_LORA_MODELS_SHA256:", sha256(VLLM_LORA_MODELS))
     print("=== PATCH DIFF ===")
     print(diff)
     return 0
