@@ -1,0 +1,108 @@
+name: Retry18I Startup Diagnostics Safe2
+
+on:
+  push:
+    branches:
+      - ops/runpod-control-v1
+    paths:
+      - ".github/runpod-control/diagnose-retry18i-safe2-*.json"
+
+permissions:
+  contents: write
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/runpod-control-v1
+
+      - name: Classify stopped Retry18I startup state with bounded log request
+        shell: bash
+        env:
+          RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+        run: |
+          set -euo pipefail
+
+          cat > /tmp/q.json <<'JSON'
+          {"query":"query { myself { pods { id name desiredStatus costPerHr } } }"}
+          JSON
+          curl --connect-timeout 5 --max-time 15 -fsS             -X POST "https://api.runpod.io/graphql?api_key=${RUNPOD_API_KEY}"             -H "content-type: application/json"             --data-binary @/tmp/q.json > /tmp/pods.json
+
+          POD_ID="$(python - <<'PY'
+          import json
+          d=json.load(open('/tmp/pods.json',encoding='utf-8'))
+          pods=((d.get('data') or {}).get('myself') or {}).get('pods') or []
+          m=[p for p in pods if isinstance(p,dict) and p.get('name')=='AQLEVON-P4-A1-R18I']
+          if len(m)!=1:
+              raise SystemExit(f"FAIL_CLOSED_MATCH_COUNT:{len(m)}")
+          print(m[0]['id'],end='')
+          PY
+          )"
+
+          set +e
+          HTTP="$(curl --connect-timeout 5 --max-time 15 -sS -o /tmp/system.log -w "%{http_code}"             -H "Authorization: Bearer ${RUNPOD_API_KEY}"             "https://api.runpod.io/v2/pods/${POD_ID}/logs?source=system&tail=200")"
+          CURL_RC=$?
+          set -e
+
+          python - "$HTTP" "$CURL_RC" <<'PY'
+          import json,sys,datetime,hashlib
+          http=sys.argv[1]
+          curl_rc=int(sys.argv[2])
+          d=json.load(open('/tmp/pods.json',encoding='utf-8'))
+          pods=((d.get('data') or {}).get('myself') or {}).get('pods') or []
+          p=[x for x in pods if isinstance(x,dict) and x.get('name')=='AQLEVON-P4-A1-R18I'][0]
+          pid=str(p.get('id') or '')
+          try:
+              txt=open('/tmp/system.log',encoding='utf-8',errors='replace').read().lower()
+          except Exception:
+              txt=''
+
+          signals={
+            "image_pull": any(x in txt for x in ("pulling image","fetching image","pull image","downloading image")),
+            "image_pull_error": any(x in txt for x in ("pull access denied","manifest unknown","image pull failed","failed to pull","unauthorized")),
+            "container_create": any(x in txt for x in ("create container","creating container")),
+            "container_start": any(x in txt for x in ("start container","container started","starting container")),
+            "disk_error": any(x in txt for x in ("no space left on device","disk quota","insufficient disk")),
+          }
+          if curl_rc!=0:
+              classification="SYSTEM_LOG_ENDPOINT_TIMEOUT_OR_TRANSPORT_ERROR"
+          elif signals["image_pull_error"]:
+              classification="IMAGE_PULL_FAILED"
+          elif signals["disk_error"]:
+              classification="DISK_ERROR"
+          elif signals["image_pull"] and not signals["container_create"]:
+              classification="IMAGE_PULL_STALLED_OR_INCOMPLETE"
+          elif signals["container_create"] and not signals["container_start"]:
+              classification="CONTAINER_CREATE_STALLED"
+          elif signals["container_start"]:
+              classification="CONTAINER_START_OBSERVED"
+          elif http!="200":
+              classification="SYSTEM_LOG_ENDPOINT_UNAVAILABLE"
+          else:
+              classification="NO_DECISIVE_SYSTEM_SIGNAL"
+
+          out={
+            "ok":True,
+            "run":"Retry18I",
+            "pod_fingerprint":hashlib.sha256(pid.encode()).hexdigest()[:12] if pid else None,
+            "desired_status":p.get('desiredStatus'),
+            "cost_per_hr":p.get('costPerHr'),
+            "logs_http_status":http,
+            "logs_transport_rc":curl_rc,
+            "classification":classification,
+            "signals":signals,
+            "recorded_at_utc":datetime.datetime.now(datetime.timezone.utc).isoformat(),
+          }
+          with open('.github/runpod-control/retry18i-diagnostics-safe2.json','w',encoding='utf-8') as f:
+              json.dump(out,f,indent=2,sort_keys=True); f.write('\n')
+          print(json.dumps(out,sort_keys=True))
+          PY
+
+          git config user.name "aqlevon-runpod-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add .github/runpod-control/retry18i-diagnostics-safe2.json
+          git commit -m "ops: record bounded safe Retry18I diagnostics [skip ci]"
+          git push origin HEAD:ops/runpod-control-v1
