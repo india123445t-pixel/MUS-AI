@@ -1,6 +1,6 @@
 {
   "target": "Retry19T",
   "pod_id": "3u1res8nwlqalk",
-  "nonce": "live-4",
-  "purpose": "Retry19T readiness check near Q-equivalent boot horizon"
+  "nonce": "live-5",
+  "purpose": "final Retry19T boot decision"
 }
