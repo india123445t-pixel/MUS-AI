@@ -192,6 +192,57 @@ def patch_vllm_transformers_mm_output(text: str) -> str:
 """
     return replace_once(text, old, new, "vllm_transformers_mm_output")
 
+
+def patch_vllm_qwen35_text_rollout(text: str) -> str:
+    """Route Qwen3.5 rollout through its text model with an explicit batch axis.
+
+    vLLM 0.10.2's generic Transformers multimodal wrapper predates Qwen3.5.
+    During v1 profile/dummy runs it can feed flattened [tokens, hidden] states
+    into Qwen3.5's Gated DeltaNet, whose linear-attention implementation
+    requires [batch, seq, hidden]. The P4 A1 arm is text-only, so route only
+    Qwen3.5 through the already-loaded language_model and preserve the exact
+    vLLM attention_instances/position_ids contract. Fail closed if the expected
+    Qwen3.5 structure is not present.
+    """
+    if "AQLEVON_QWEN35_TEXT_ROLLOUT_3D" in text:
+        return text
+
+    old = """        hidden_states = self.model(
+            input_ids=input_ids,
+            inputs_embeds=inputs_embeds,
+            use_cache=False,
+            position_ids=position_ids,
+            attention_instances=self.attention_instances,
+            return_dict=False)[0][0, ...]  # we remove batch dimension for now
+"""
+    new = """        # AQLEVON_QWEN35_TEXT_ROLLOUT_3D: vLLM 0.10.2 predates Qwen3.5's
+        # hybrid Gated DeltaNet. Keep the explicit batch axis and bypass the
+        # multimodal shell for this frozen text-only rollout arm.
+        target_model = self.model
+        if getattr(self.config, "model_type", None) == "qwen3_5":
+            language_model = getattr(self.model, "language_model", None)
+            if language_model is None:
+                raise RuntimeError("AQLEVON_QWEN35_LANGUAGE_MODEL_MISSING")
+            if input_ids is not None and input_ids.ndim != 2:
+                raise RuntimeError(
+                    "AQLEVON_QWEN35_INPUT_IDS_RANK:" + str(input_ids.ndim)
+                )
+            if inputs_embeds is not None and inputs_embeds.ndim != 3:
+                raise RuntimeError(
+                    "AQLEVON_QWEN35_INPUT_EMBEDS_RANK:" + str(inputs_embeds.ndim)
+                )
+            target_model = language_model
+
+        hidden_states = target_model(
+            input_ids=input_ids,
+            inputs_embeds=inputs_embeds,
+            use_cache=False,
+            position_ids=position_ids,
+            attention_instances=self.attention_instances,
+            return_dict=False)[0][0, ...]  # we remove batch dimension for now
+"""
+    return replace_once(text, old, new, "vllm_qwen35_text_rollout_3d")
+
 def main() -> int:
     head = subprocess.check_output(
         ["git", "-C", str(SDPO), "rev-parse", "HEAD"], text=True
@@ -265,6 +316,7 @@ def main() -> int:
     vllm_lora_models = patch_vllm_lora_manager(vllm_lora_models)
     vllm_transformers_models = patch_vllm_transformers_mm_mapping(vllm_transformers_models)
     vllm_transformers_models = patch_vllm_transformers_mm_output(vllm_transformers_models)
+    vllm_transformers_models = patch_vllm_qwen35_text_rollout(vllm_transformers_models)
 
     MODEL.write_text(model, encoding="utf-8")
     FSDP.write_text(fsdp, encoding="utf-8")
@@ -294,6 +346,8 @@ def main() -> int:
         raise SystemExit("vllm_transformers_mm_mapping_missing_after_patch")
     if "AQLEVON_QWEN35_MM_OUTPUT_UNWRAP" not in vllm_transformers_models:
         raise SystemExit("vllm_transformers_mm_output_missing_after_patch")
+    if "AQLEVON_QWEN35_TEXT_ROLLOUT_3D" not in vllm_transformers_models:
+        raise SystemExit("vllm_qwen35_text_rollout_3d_missing_after_patch")
 
     print("AQLEVON_SDPO_TF5_COMPAT_PATCH_PASS")
     print("MODEL_SHA256:", sha256(MODEL))
