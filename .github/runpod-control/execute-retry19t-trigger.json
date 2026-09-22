@@ -1,0 +1,15 @@
+{
+  "authorization_id": "P4-A1-RUNPOD-A40-20260922-19T-VLLM019-CORRECTED-IMAGE-SMOKE-THEN-TRAIN",
+  "authorization_sha256": "f8c767eddd69d0535a279c0585ace4c0a8e00e3e10a3f74375def48f1088bdb7",
+  "expected_head": "a5c66f09895eae86df6432c245948ead5d90ad43",
+  "image_digest": "sha256:fe7037009a3bc63b034ba4239c6fc022fa6f5bf904bc360a268cb23499161e52",
+  "gpu_type": "NVIDIA A40",
+  "min_memory_gb": 48,
+  "selection_mode": "dynamic_datacenter",
+  "request_schema": "runpodctl_graphql_dynamic_dc",
+  "max_billed_seconds": 3600,
+  "max_total_cost_usd": "0.55",
+  "max_hourly_rate_usd": "0.55",
+  "single_use": true,
+  "attempt_nonce": "retry19t-corrected-image-1"
+}
