@@ -1,5 +1,5 @@
 {
   "pod_id": "2c0ol2ivymch3n",
-  "reason": "Retry19M second live startup probe after image extraction progressed",
-  "nonce": "probe-2"
+  "reason": "Retry19M third live startup probe; verify image extraction completion",
+  "nonce": "probe-3"
 }
