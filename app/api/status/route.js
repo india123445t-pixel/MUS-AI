@@ -62,7 +62,7 @@ export async function GET(req){
     huggingface:!!process.env.HF_TOKEN&&process.env.HF_FREE_FALLBACK_ENABLED==='true',
     self_hosted:!!(process.env.AQLEVON_MODEL_URL||process.env.LOCAL_MODEL_URL)
   };
-  return NextResponse.json({openrouter_configured:providers.openrouter,self_hosted_configured:providers.self_hosted,providers,free_provider_count:Object.values(providers).filter(Boolean).length,settings},{headers:{'Cache-Control':'no-store'}});
+  return NextResponse.json({database_configured:!!client,openrouter_configured:providers.openrouter,self_hosted_configured:providers.self_hosted,providers,free_provider_count:Object.values(providers).filter(Boolean).length,settings},{headers:{'Cache-Control':'no-store'}});
 }
 
 export async function POST(req){
