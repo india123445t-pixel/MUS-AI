@@ -95,18 +95,19 @@ async function get(path){
   if(p==='/bootstrap'){
     let status=null,health=null,commons=null;
     try{
-      const [sr,hr,cr]=await Promise.all([
-        fetch('/api/status',{cache:'no-store'}),
-        fetch('/api/inference-health',{cache:'no-store'}),
+      const sr=await fetch('/api/status',{cache:'no-store'});
+      status=sr.ok?await sr.json():null;
+      const runtimeMode=String(status?.settings?.runtime_mode||'');
+      const [hr,cr]=await Promise.all([
+        fetch('/api/inference-health?runtime_mode='+encodeURIComponent(runtimeMode),{cache:'no-store'}),
         fetch('/api/commons/health',{cache:'no-store'})
       ]);
-      status=sr.ok?await sr.json():null;
       health=hr.ok?await hr.json():null;
       commons=cr.ok?await cr.json():null;
     }catch{}
     const providerConfigured=Object.values(status?.providers||{}).some(Boolean);
     const inferenceReady=!!commons?.available||health?.inference_ready===true;
-    return {mode:'public-browser',workspace:{id:'local',name:'AQLEVON Workspace',created_at:now()},aiConfigured:providerConfigured,inferenceReady,inferenceError:health?.primary_error_class||null,webSearchAvailable:status?.settings?.allow_paid_external===true&&!!status?.settings?.public_web_search_enabled&&health?.openrouter?.ok===true,runtime:{provider:'AQLEVON',browserStorage:true,commonsAvailable:!!commons?.available,activeWorkers:Number(commons?.active_workers||0),providerHealth:health}};
+    return {mode:'public-browser',workspace:{id:'local',name:'AQLEVON Workspace',created_at:now()},aiConfigured:providerConfigured,inferenceReady,inferenceError:health?.primary_error_class||null,webSearchAvailable:status?.settings?.allow_paid_external===true&&!!status?.settings?.public_web_search_enabled&&health?.openrouter?.ok===true,runtime:{provider:'AQLEVON',browserStorage:true,commonsAvailable:!!commons?.available,activeWorkers:Number(commons?.active_workers||0),runtimeMode:status?.settings?.runtime_mode||null,providerHealth:health}};
   }
   if(p==='/chats'){
     const q=(u.searchParams.get('q')||'').toLowerCase();
