@@ -1,0 +1,65 @@
+name: RunPod Inventory V2
+
+on:
+  push:
+    branches:
+      - ops/runpod-control-v1
+    paths:
+      - ".github/runpod-control/inventory-v2-trigger.json"
+
+permissions:
+  contents: write
+
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/runpod-control-v1
+
+      - name: Install runpodctl
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -sSL https://cli.runpod.net | bash
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Read inventory
+        shell: bash
+        env:
+          RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+        run: |
+          set -euo pipefail
+          export PATH="$HOME/.local/bin:$PATH"
+          test -n "$RUNPOD_API_KEY"
+          runpodctl config --apiKey "$RUNPOD_API_KEY" >/dev/null
+          runpodctl registry list --output json > /tmp/registry.json
+          runpodctl gpu list --output json > /tmp/gpus.json
+          runpodctl pod list --all --output json > /tmp/pods.json
+
+          REGISTRY_ID="$(jq -r '[.[] | select(.name=="ghcr-mus-ai")] | if length==1 then .[0].id else empty end' /tmp/registry.json)"
+          test -n "$REGISTRY_ID"
+
+          jq '[.[] | select((.displayName|tostring|contains("RTX 4090")) and .memoryInGb==24 and .secureCloud==true)]' /tmp/gpus.json > /tmp/rtx4090.json
+          jq -e 'length > 0' /tmp/rtx4090.json >/dev/null
+          jq -e 'any(.[]; .available==true and (.securePricePerHr|tonumber)<=0.80)' /tmp/rtx4090.json >/dev/null
+
+          mkdir -p .github/runpod-control
+          jq -n             --arg registry_id "$REGISTRY_ID"             --slurpfile gpus /tmp/rtx4090.json             --slurpfile pods /tmp/pods.json             '{
+              ok:true,
+              registry:{id:$registry_id,name:"ghcr-mus-ai"},
+              rtx4090:$gpus[0],
+              pods:($pods[0] | map({id,name,status:(.status // .desiredStatus),gpuId,costPerHr}))
+            }' > .github/runpod-control/inventory-v2.json
+
+      - name: Commit result
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "aqlevon-runpod-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add .github/runpod-control/inventory-v2.json
+          git commit -m "ops: record RunPod inventory v2 [skip ci]" || exit 0
+          git push origin HEAD:ops/runpod-control-v1
