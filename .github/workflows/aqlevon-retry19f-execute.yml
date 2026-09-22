@@ -51,7 +51,7 @@ jobs:
             (.expected_head|test("^[0-9a-f]{40}$"))
           ' "$trigger" >/dev/null
           expected_head="$(jq -r '.expected_head' "$trigger")"
-          test "$expected_head" = "738117ec522a6e109fd92e7440fa937403bfb4ed"
+          test "$expected_head" = "87dcdc5301fac66d004184dfc9eb4638075f432a"
           echo "expected_head=$expected_head" >> "$GITHUB_OUTPUT"
 
       - name: Confirm no active AQLEVON P4 A1 Pod before new spend
