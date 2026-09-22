@@ -2,6 +2,6 @@
   "action": "status",
   "requested_by": "AQLEVON_MANAGER",
   "mode": "read_only",
-  "nonce": "2026-09-22T06:35:00Z",
-  "note": "post-Retry18K teardown verification"
+  "nonce": "2026-09-22T06:15:00Z",
+  "note": "pre-Retry18L no-running-pod gate"
 }
