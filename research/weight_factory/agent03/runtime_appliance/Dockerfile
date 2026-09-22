@@ -66,4 +66,3 @@ LABEL org.opencontainers.image.title="AQLEVON P4 A1 Runtime Appliance" \
       aqlevon.cuda="12.8" \
       aqlevon.flash_attn="2.8.3"
 
-CMD ["bash"]
