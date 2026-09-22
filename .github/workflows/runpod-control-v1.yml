@@ -99,12 +99,19 @@ jobs:
               status=first(p.get('desiredStatus'),p.get('status'),p.get('runtimeStatus')) or "UNKNOWN"
               cost=first(p.get('costPerHr'),p.get('costPerHour'),p.get('pricePerHr'),machine.get('costPerHr'))
               created=first(p.get('createdAt'),p.get('created_at'),p.get('lastStartedAt'))
+              runtime=p.get('runtime') if isinstance(p.get('runtime'),dict) else {}
+              rgpus=runtime.get('gpus') if isinstance(runtime.get('gpus'),list) else []
+              utils=[g.get('gpuUtilPercent') for g in rgpus if isinstance(g,dict) and isinstance(g.get('gpuUtilPercent'),(int,float))]
+              mems=[g.get('memoryUtilPercent') for g in rgpus if isinstance(g,dict) and isinstance(g.get('memoryUtilPercent'),(int,float))]
               out["pods"].append({
                   "fingerprint": fp,
                   "status": status,
                   "gpu": gpu,
                   "cost_per_hr": cost,
-                  "created_at": created
+                  "created_at": created,
+                  "uptime_seconds": runtime.get('uptimeInSeconds'),
+                  "gpu_util_percent_max": max(utils) if utils else None,
+                  "gpu_memory_util_percent_max": max(mems) if mems else None
               })
 
           with open('.github/runpod-control/status.json','w',encoding='utf-8') as f:
