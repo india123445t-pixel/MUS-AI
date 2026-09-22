@@ -76,7 +76,9 @@ test('public work surface only advertises the format it actually renders',()=>{
 
 test('chat text-file attachment sends real content and multimodal stays fail-closed',()=>{
   assert.match(chat,/const text = await f\.text\(\)/);
-  assert.match(chat,/100 \* 1024/);
+  assert.match(chat,/32 \* 1024/);
+  assert.match(chat,/text\.length > 12000/);
+  assert.match(chatRoute,/rawInput\.length>20000/);
   assert.match(chat,/chat\.fileUnsupported/);
   assert.match(chat,/chat\.imageUnavailable/);
   assert.doesNotMatch(chat,/imgRef/);
