@@ -47,7 +47,7 @@ jobs:
         working-directory: research/weight_factory/agent03
         run: |
           set -euo pipefail
-          python -m py_compile p4_gene1_trainer.py p4_sft_surrogate.py p4_aqlevon_reward.py p4_surrogate_tournament.py test_p4_gene1_trainer.py
+          python -m py_compile p4_gene1_trainer.py p4_sft_surrogate.py p4_aqlevon_reward.py p4_surrogate_tournament.py p4_v019_gpu_lora_smoke.py test_p4_gene1_trainer.py\n          bash -n p4_runpod_appliance_launch_v019.sh
           python -m unittest -v test_p4_gene1_trainer.py
 
       - name: Rebuild frozen plan from real cross-worker inputs
@@ -210,6 +210,43 @@ jobs:
               local_dir="/workspace/models/qwen35-4b-daa9c16f3712",
               ignore_patterns=["*.safetensors","*.bin","*.pt","*.pth","*.gguf","*.onnx","*.h5"],
           )
+          PY
+
+      - name: Verify pinned Qwen3.5 hybrid target contract and v019 smoke wiring
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          cfg=json.loads(Path("/workspace/models/qwen35-4b-daa9c16f3712/config.json").read_text())
+          assert cfg["architectures"]==["Qwen3_5ForConditionalGeneration"],cfg["architectures"]
+          layer_types=cfg["text_config"]["layer_types"]
+          full=[i for i,x in enumerate(layer_types) if x=="full_attention"]
+          assert full==[3,7,11,15,19,23,27,31],full
+          assert len(full)*2==16
+          smoke=Path("research/weight_factory/agent03/p4_v019_gpu_lora_smoke.py").read_text()
+          launch=Path("research/weight_factory/agent03/p4_runpod_appliance_launch_v019.sh").read_text()
+          for token in (
+              "EXPECTED_TARGET_MODULES = 16",
+              "init_lora_weights=False",
+              "language_model_only=True",
+              "LoRARequest",
+              "AQLEVON_LORA_FUNCTIONALLY_INERT",
+              "max_tokens=8",
+          ):
+              assert token in smoke,token
+          for token in (
+              "AQLEVON_V019_LORA_SMOKE_START",
+              "AQLEVON_V019_LORA_SMOKE_PASS",
+              "smoke_runtime_v019.py --build-check",
+              "AQLEVON_V019_GPU_IDENTITY_PASS",
+              "2400s",
+          ):
+              assert token in launch,token
+          assert "p4_patch_sdpo_transformers5_compat.py" not in launch
+          print("QWEN35_PINNED_HYBRID_16_TARGET_CONTRACT_PASS",full)
+          print("V019_FUNCTIONAL_LORA_SMOKE_WIRING_PASS")
           PY
 
       - name: Patch exact pinned SDPO and verify patch identities
