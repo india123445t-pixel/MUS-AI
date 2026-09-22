@@ -40,7 +40,8 @@ jobs:
           for x in (
               "vllm/vllm-openai:v0.19.1",
               "7c457fc1b1f636ae794eb0362ba37d4743b06fbc",
-              "flash-attn==2.8.3",
+              "flash_attn-2.8.3%2Bcu12torch2.10cxx11abiTRUE-cp312-cp312-linux_x86_64.whl",
+              "d4a497a7bd837bf47f7a8f6a7aa6887695f2ea819fa597f307552552018ee9d7",
               'ENTRYPOINT []',
               'CMD ["/start.sh"]',
           ):
