@@ -1,20 +1,10 @@
 {
   "action": "status",
   "api": "v1",
-  "checked_at_utc": "2026-09-22T04:20:48.991223+00:00",
+  "checked_at_utc": "2026-09-22T04:23:13.324236+00:00",
   "ok": true,
-  "pod_count": 10,
+  "pod_count": 9,
   "pods": [
-    {
-      "cost_per_hr": 0.74,
-      "created_at": "2026-09-22 04:18:09.359 +0000 UTC",
-      "fingerprint": "b10f340aa0f4",
-      "gpu": "unknown",
-      "gpu_memory_util_percent_max": null,
-      "gpu_util_percent_max": null,
-      "status": "RUNNING",
-      "uptime_seconds": null
-    },
     {
       "cost_per_hr": 0.74,
       "created_at": "2026-09-21 00:46:45.345 +0000 UTC",
