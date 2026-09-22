@@ -1,0 +1,6 @@
+{
+  "phase": "create_failed",
+  "http_code": 500,
+  "error": "create pod: Something went wrong. Please try again later or contact support.",
+  "checked_at_utc": "2026-09-22T07:35:04.020370+00:00"
+}
