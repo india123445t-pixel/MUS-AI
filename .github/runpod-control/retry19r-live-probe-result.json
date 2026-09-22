@@ -1,0 +1,49 @@
+{
+  "container_logs": [],
+  "graphql": {
+    "container": null,
+    "costPerHr": null,
+    "desiredStatus": null,
+    "gpus": null,
+    "uptimeInSeconds": null
+  },
+  "rest": {
+    "costPerHr": 0.49,
+    "desiredStatus": "RUNNING",
+    "id": "vjrygfp8pswmmw",
+    "name": "AQLEVON-P4-A1-Retry19R",
+    "portMappings": null,
+    "publicIp": false
+  },
+  "runpodctl": {
+    "containerDiskInGb": 40,
+    "costPerHr": 0.49,
+    "createdAt": "2026-09-22 21:56:05.142 +0000 UTC",
+    "desiredStatus": "RUNNING",
+    "env": {
+      "AQLEVON_EXPECTED_W03_HEAD": "0c1f60b12f3d6ba1e5fbb27ab3ae688d68730df0",
+      "PUBLIC_KEY": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJeLr+1IdNHFOCQbr00BqgTSbLXRl7u8lO5e983fKP9n runner@runnervmlun5p"
+    },
+    "gpuCount": 1,
+    "id": "vjrygfp8pswmmw",
+    "imageName": "ghcr.io/india123445t-pixel/mus-ai@sha256:ac70a74115046be4a866195344c0600ef0b1bb5ec5e897ec02ae8bd1f6c6f555",
+    "lastStatusChange": "Rented by User: Tue Sep 22 2026 21:56:05 GMT+0000 (Coordinated Universal Time)",
+    "memoryInGb": 50,
+    "name": "AQLEVON-P4-A1-Retry19R",
+    "ports": [
+      "22/tcp"
+    ],
+    "runtimeStatus": "initializing",
+    "runtimeStatusReason": "awaiting_container",
+    "ssh": {
+      "error": "pod not ready: no container reported yet (image pull, container create or boot)",
+      "id": "vjrygfp8pswmmw",
+      "name": "AQLEVON-P4-A1-Retry19R",
+      "status": "RUNNING"
+    },
+    "vcpuCount": 9,
+    "volumeInGb": 20,
+    "volumeMountPath": "/workspace"
+  },
+  "stderr": ""
+}
