@@ -18,6 +18,19 @@ echo "AQLEVON_EXPECTED_IMAGE_DIGEST=$EXPECTED_IMAGE_DIGEST"
 
 test -d "$SDPO_IMAGE/.git" || { echo "FAIL_CLOSED_APPLIANCE_SDPO_MISSING"; exit 40; }
 python3 /opt/aqlevon/runtime/smoke_runtime_v019.py --build-check
+# Retry19Q proved the pinned SDPO launcher invokes `python`, while the
+# vLLM appliance may expose only `python3`. Repair this explicitly and
+# fail closed before model staging/training; this is runtime plumbing only.
+if ! command -v python >/dev/null 2>&1; then
+  PY3="$(command -v python3)"
+  test -n "$PY3" || { echo "FAIL_CLOSED_PYTHON3_MISSING"; exit 49; }
+  ln -sf "$PY3" /usr/local/bin/python
+fi
+python - <<'PY'
+import sys
+assert sys.version_info[:2] == (3, 12), sys.version
+print("AQLEVON_SDPO_PYTHON_LAUNCHER_PASS", sys.executable, sys.version.split()[0])
+PY
 python3 - <<'PY'
 import torch
 assert torch.cuda.is_available(), "AQLEVON_V019_CUDA_UNAVAILABLE"
