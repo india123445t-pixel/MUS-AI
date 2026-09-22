@@ -23,6 +23,7 @@ const benchmarkRoute=read('app/api/benchmark/run/route.js');
 const goalRoute=read('app/api/goal/run/route.js');
 const evalRoute=read('app/api/internal/eval-snapshot/route.js');
 const providerTestRoute=read('app/api/provider-test/route.js');
+const providers=read('lib/aqlevon/providers.js');
 
 test('browser workspace fails closed for unavailable adapters',()=>{
   assert.match(api,/adapter_state:'NOT_CONNECTED'/);
@@ -34,25 +35,28 @@ test('browser workspace fails closed for unavailable adapters',()=>{
   assert.match(plugins,/t\('apps\.adapterRequired'\)/);
 });
 
-test('chat exposes real inference readiness and disables unavailable actions',()=>{
-  assert.match(health,/openrouter\.ai\/api\/v1\/key/);
-  assert.match(health,/api\.groq\.com\/openai\/v1\/models/);
-  assert.match(health,/generativelanguage\.googleapis\.com\/v1beta\/models/);
-  assert.match(health,/api\.mistral\.ai\/v1\/models/);
-  assert.match(health,/api\.cerebras\.ai\/v1\/models/);
-  assert.match(health,/huggingface\.co\/api\/whoami-v2/);
+test('public runtime readiness is sovereign-only and external providers are never required',()=>{
   assert.match(health,/checkSelfHostedHealth/);
-  assert.match(health,/mode==='self_hosted_only'\?selfHostedReady:anyProviderReady/);
-  assert.match(health,/modeKnown\?\(mode==='self_hosted_only'\?selfHostedReady:anyProviderReady\):false/);
-  assert.match(api,/inference-health\?runtime_mode=/);
-  assert.match(api,/runtimeMode:status\?\.settings\?\.runtime_mode\|\|null/);
-  assert.match(health,/AUTH_ERROR/);
-  assert.match(api,/\/api\/inference-health/);
-  assert.match(api,/allow_paid_external===true&&!!status\?\.settings\?\.public_web_search_enabled/);
+  assert.match(health,/runtime_mode:'self_hosted_only'/);
+  assert.match(health,/external_provider_routing:false/);
+  assert.doesNotMatch(health,/openrouter\.ai/);
+  assert.doesNotMatch(health,/api\.groq\.com/);
+  assert.doesNotMatch(health,/generativelanguage\.googleapis\.com/);
+  assert.match(statusRoute,/runtime_mode:'self_hosted_only'/);
+  assert.match(statusRoute,/external_provider_routing:false/);
+  assert.match(chatRoute,/runtime_mode:'self_hosted_only'/);
+  assert.match(chatRoute,/allow_paid_external:false/);
+  assert.match(chatRoute,/public_web_search_enabled:false/);
+  assert.match(providers,/settings\?\.runtime_mode\|\|'self_hosted_only'/);
+  assert.match(providers,/if\(mode==='self_hosted_only'\)value=await record\(await selfHosted/);
+  assert.match(api,/selfHostedConfigured/);
+  assert.match(api,/commons\?\.available===true/);
+  assert.match(api,/webSearchAvailable:false/);
+  assert.match(api,/runtimeMode:'self_hosted_only'/);
+  assert.match(api,/externalProviderRouting:false/);
   assert.match(chat,/runtime\.inferenceReady !== true/);
-  assert.match(chat,/runtimeAuthError/);
-  assert.match(chat,/webSearchAvailable !== true/);
 });
+
 
 test('apps never solicit browser secrets or claim disconnected capabilities are live',()=>{
   assert.doesNotMatch(plugins,/type="password"/);
@@ -118,6 +122,15 @@ test('new users default to Arabic and persistence claims are truthful',()=>{
   assert.match(settings,/set\.webUnavailable/);
 });
 
+
+
+test('AQLEVON public chat cannot silently reactivate external-key routing',()=>{
+  assert.doesNotMatch(health,/OPENROUTER_API_KEY|GROQ_API_KEY|GEMINI_API_KEY|MISTRAL_API_KEY|CEREBRAS_API_KEY|HF_TOKEN/);
+  assert.match(statusRoute,/sovereign_runtime:true/);
+  assert.match(statusRoute,/inference_target:'aqlevon-engine'/);
+  assert.match(chatRoute,/runtime_mode:'self_hosted_only'/);
+  assert.match(providers,/Sovereign guarantee: self_hosted_only never evaluates tryExternal/);
+});
 
 test('public runtime never silently falls back to the legacy Supabase project',()=>{
   const guarded=[chatRoute,statusRoute,benchmarkRoute,goalRoute,evalRoute,providerTestRoute];
