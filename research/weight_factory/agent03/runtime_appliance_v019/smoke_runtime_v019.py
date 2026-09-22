@@ -6,7 +6,7 @@ import subprocess
 
 def build_check():
     import torch, vllm, ray, transformers, peft, accelerate, flash_attn
-    assert vllm.__version__.split("+")[0] == "0.19.0", vllm.__version__
+    assert vllm.__version__.split("+")[0] == "0.19.1", vllm.__version__
     assert transformers.__version__ == "5.17.0", transformers.__version__
     assert peft.__version__ == "0.21.0", peft.__version__
     assert accelerate.__version__ == "1.15.0", accelerate.__version__
