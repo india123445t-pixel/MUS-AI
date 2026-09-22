@@ -1,7 +1,7 @@
 {
   "action": "status",
   "api": "v1",
-  "checked_at_utc": "2026-09-22T07:43:45.231384+00:00",
+  "checked_at_utc": "2026-09-22T07:45:30.975626+00:00",
   "ok": true,
   "pod_count": 3,
   "pods": [
@@ -11,7 +11,7 @@
       "fingerprint": "32ab19134baa",
       "gpu_fields": [],
       "name": "AQLEVON-P4-A1-Retry18P",
-      "status": "RUNNING",
+      "status": "EXITED",
       "volume_in_gb": 20
     },
     {
