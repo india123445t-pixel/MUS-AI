@@ -1,0 +1,13 @@
+{
+  "authorization_id": "P4-A1-RUNPOD-4090-20260922-18K-STARTUP-REPAIRED",
+  "authorization_sha256": "e49e05f365e182ea11367452e6dbdd8188c44bfddf7eee9464e71f954d01a508",
+  "expected_w03_head": "c5ef8f0123c0249eb03d7d8af7b3517b786cb240",
+  "gpu": "NVIDIA GeForce RTX 4090",
+  "gpu_count": 1,
+  "max_hourly_rate_usd": "0.80",
+  "max_total_cost_usd": "0.40",
+  "max_billed_seconds": 1800,
+  "single_use": true,
+  "approved_by_owner": true,
+  "nonce": "2026-09-22T06:10:00Z"
+}
