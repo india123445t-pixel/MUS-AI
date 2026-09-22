@@ -1,5 +1,5 @@
 {
   "action": "scan_secure_gpu_capacity",
-  "reason": "Pre-spend refresh after v019 qkv/tensor-LoRA gates; prefer exact A40 48GB under Retry19M ceiling",
-  "nonce": "20260922-v019-48gb-refresh-2"
+  "reason": "Pre-spend refresh for Retry19Q after strengthened native Qwen3.5 LoRA smoke; prefer A40 48GB under existing 0.55 USD/hr ceiling",
+  "nonce": "20260922-v019-48gb-refresh-3"
 }
