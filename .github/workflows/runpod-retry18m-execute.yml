@@ -1,11 +1,7 @@
 name: AQLEVON Retry18M Paid Execute
 
 on:
-  pull_request:
-    branches:
-      - ops/runpod-control-base-20260922
-    paths:
-      - 'ops/runpod-control/retry18m.request.json'
+  workflow_dispatch:
 
 permissions:
   contents: read
