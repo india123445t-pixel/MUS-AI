@@ -9,5 +9,6 @@
   "max_hourly_rate_usd": "0.55",
   "max_billed_seconds": 1800,
   "single_use": true,
-  "reason": "Owner authorized one paid GPU attempt; previous Retry18Z runs created no Pod; official RunPod CLI now uses RUNPOD_API_KEY environment directly"
+  "reason": "Owner authorized one paid GPU attempt; previous Retry18Z runs created no Pod; official RunPod CLI now uses RUNPOD_API_KEY environment directly",
+  "attempt_nonce": "official-cli-env-auth-1"
 }
