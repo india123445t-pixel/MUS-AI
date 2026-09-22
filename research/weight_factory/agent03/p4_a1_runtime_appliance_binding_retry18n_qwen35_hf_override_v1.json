@@ -1,0 +1,13 @@
+{
+  "authorization_sha256": "d1f2e45c285506f0996dafc1fb0e6debaeb2ff7878f8ee6f79f1c8c09785e8d6",
+  "binding_kind": "AQLEVON_RUNTIME_APPLIANCE_BINDING_V1",
+  "binding_sha256": "3f8120c11cb77877811918d673dd340fee213771eeb0b191f836d7b6d474d0ec",
+  "command_lock_sha256": "b07441e07d0f26191fc5bd20ebf61e61c88003c542205687a2679243d90623c2",
+  "hash_profile": "AQLEVON_CANONICAL_JSON_SHA256_V1",
+  "run_manifest_sha256": "24e3d21155c3f1011ca92f90e6c622fe03f92bfd65656d31d87fa627886fad47",
+  "runtime_appliance_digest": "sha256:fd612fd98f4faf0340d8a5cf51e71a0cc3a46b8f89631698e071e4391c30fa53",
+  "runtime_appliance_image": "ghcr.io/india123445t-pixel/mus-ai@sha256:fd612fd98f4faf0340d8a5cf51e71a0cc3a46b8f89631698e071e4391c30fa53",
+  "schema_version": 1,
+  "worker03_runtime_source_commit": "0a16476526b19099a7a4c76e95c64f5b96a38a17",
+  "workflow_run_id": 35697249804
+}
