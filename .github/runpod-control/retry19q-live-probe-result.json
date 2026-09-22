@@ -1,0 +1,19 @@
+{
+  "container_logs": [],
+  "graphql": {
+    "container": null,
+    "costPerHr": null,
+    "desiredStatus": null,
+    "gpus": null,
+    "uptimeInSeconds": null
+  },
+  "rest": {
+    "costPerHr": 0.49,
+    "desiredStatus": "RUNNING",
+    "id": "fx7vfkq7pxd1sz",
+    "name": "AQLEVON-P4-A1-Retry19Q",
+    "portMappings": null,
+    "publicIp": false
+  },
+  "stderr": "{\"error\":\"timed out waiting for the log stream to respond. the api sends nothing until it has a line, so this can also mean no logs match --since/--source, or the pod has not started writing yet\",\"code\":\"timeout\"}\n"
+}
