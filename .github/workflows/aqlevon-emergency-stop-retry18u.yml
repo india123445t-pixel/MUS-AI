@@ -1,0 +1,70 @@
+name: AQLEVON Emergency Stop Retry18U
+
+on:
+  push:
+    branches:
+      - ops/runpod-control-v1
+    paths:
+      - ".github/runpod-control/emergency-stop-retry18u-trigger-*.json"
+
+permissions:
+  contents: write
+
+jobs:
+  stop:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/runpod-control-v1
+      - name: Stop exact Retry18U pod
+        shell: bash
+        env:
+          RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "${RUNPOD_API_KEY:-}" || { echo "::error::RUNPOD_API_KEY missing"; exit 1; }
+          cat >/tmp/q.json <<'JSON'
+          {"query":"query { myself { pods { id name desiredStatus costPerHr runtime { uptimeInSeconds gpus { gpuUtilPercent memoryUtilPercent } } } } }"}
+          JSON
+          curl --silent --show-error --fail --request POST --url "https://api.runpod.io/graphql?api_key=${RUNPOD_API_KEY}" --header "content-type: application/json" --data-binary @/tmp/q.json >/tmp/pods.json
+          python - <<'PY'
+          import json, hashlib
+          raw=json.load(open('/tmp/pods.json'))
+          pods=((raw.get('data') or {}).get('myself') or {}).get('pods') or []
+          running=[p for p in pods if isinstance(p,dict) and p.get('desiredStatus')=='RUNNING']
+          if len(running)!=1:
+              raise SystemExit(f"SAFE_ABORT: expected exactly one RUNNING pod, got {len(running)}")
+          p=running[0]
+          fp=hashlib.sha256(p['id'].encode()).hexdigest()[:12]
+          if fp!='6b50da9fdfb9':
+              raise SystemExit(f"SAFE_ABORT: running pod fingerprint mismatch {fp}")
+          if p.get('name')!='AQLEVON-P4-A1-Retry18U':
+              raise SystemExit(f"SAFE_ABORT: unexpected pod name {p.get('name')}")
+          open('/tmp/pod_id','w').write(p['id'])
+          open('/tmp/fp','w').write(fp)
+          PY
+          POD_ID="$(cat /tmp/pod_id)"
+          cat >/tmp/stop.json <<JSON
+          {"query":"mutation { podStop(input: {podId: \"$POD_ID\"}) { id desiredStatus } }"}
+          JSON
+          curl --silent --show-error --fail --request POST --url "https://api.runpod.io/graphql?api_key=${RUNPOD_API_KEY}" --header "content-type: application/json" --data-binary @/tmp/stop.json >/tmp/stop-response.json
+          python - <<'PY'
+          import json, datetime
+          raw=json.load(open('/tmp/stop-response.json'))
+          pod=((raw.get('data') or {}).get('podStop') or {})
+          if pod.get('desiredStatus')!='EXITED':
+              raise SystemExit("stop did not return EXITED")
+          out={"ok":True,"action":"emergency_stop_retry18u","fingerprint":open('/tmp/fp').read().strip(),"desired_status":"EXITED","checked_at_utc":datetime.datetime.now(datetime.timezone.utc).isoformat()}
+          json.dump(out,open('.github/runpod-control/emergency-stop-retry18u-result.json','w'),indent=2,sort_keys=True); open('.github/runpod-control/emergency-stop-retry18u-result.json','a').write("\n")
+          PY
+      - name: Commit stop result
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "aqlevon-runpod-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add .github/runpod-control/emergency-stop-retry18u-result.json
+          git commit -m "ops: record Retry18U emergency stop [skip ci]" || exit 0
+          git push origin HEAD:ops/runpod-control-v1
