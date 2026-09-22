@@ -30,7 +30,6 @@ export default function ChatPage({ onChatsChanged, newChat, onMenu }) {
   const [titleEdit, setTitleEdit] = useState(null);
   const scrollRef = useRef();
   const fileRef = useRef();
-  const imgRef = useRef();
   const taRef = useRef();
   const recRef = useRef(null);
   const abortRef = useRef(null);
@@ -183,14 +182,20 @@ export default function ChatPage({ onChatsChanged, newChat, onMenu }) {
   };
 
   const uploadFile = async (f, thenSummarize = false) => {
-    const fd = new FormData();
-    fd.append('file', f);
-    const file = await api.upload('/files', fd);
-    if (thenSummarize) {
-      send(`${t('chat.starter.summarize')}: [${t('chat.attached')}: ${file.name}]`);
-    } else {
-      setInput(v => v + (v ? '\n' : '') + `[${t('chat.attached')}: ${file.name}]`);
-      taRef.current?.focus();
+    const textLike = /^(text\/|application\/(json|xml|javascript))/.test(f.type || '') || /\.(md|txt|json|csv|js|jsx|ts|tsx|css|html|xml|yaml|yml)$/i.test(f.name || '');
+    if (!textLike) { setLastError(t('chat.fileUnsupported')); return; }
+    if (f.size > 100 * 1024) { setLastError(t('chat.fileTooLarge')); return; }
+    try {
+      const text = await f.text();
+      if (!text.trim()) { setLastError(t('chat.fileEmpty')); return; }
+      const payload = `${thenSummarize ? t('chat.starter.summarize') : t('chat.fileContext')}\n\n--- ${f.name} ---\n${text}\n--- ${t('chat.fileEnd')} ---`;
+      if (thenSummarize) send(payload);
+      else {
+        setInput(v => v + (v ? '\n\n' : '') + payload);
+        taRef.current?.focus();
+      }
+    } catch {
+      setLastError(t('chat.fileReadError'));
     }
   };
 
@@ -250,7 +255,7 @@ export default function ChatPage({ onChatsChanged, newChat, onMenu }) {
             <p className="sub">{t('chat.hint')}</p>
             <div className="starters">
               {starters.map(s => (
-                <button key={s.key} className="starter" onClick={() => {
+                <button key={s.key} className="starter" disabled={s.mode === 'file' && runtime?.inferenceReady !== true} onClick={() => {
                   if (s.mode === 'file') { summarizeRef.current = true; fileRef.current?.click(); }
                   else s.run();
                 }}>
@@ -338,17 +343,16 @@ export default function ChatPage({ onChatsChanged, newChat, onMenu }) {
               {addMenu && <>
                 <div className="menu-backdrop" onClick={() => setAddMenu(false)} />
                 <div className="menu" style={{ bottom: 40, insetInlineStart: 0 }}>
-                  <button onClick={() => { setAddMenu(false); fileRef.current?.click(); }}><Icon name="clip" size={15} /> {t('chat.attachFile')}</button>
-                  <button onClick={() => { setAddMenu(false); imgRef.current?.click(); }}><Icon name="image" size={15} /> {t('chat.addImage')}</button>
+                  <button disabled={runtime?.inferenceReady !== true} onClick={() => { setAddMenu(false); fileRef.current?.click(); }}><Icon name="clip" size={15} /> {t('chat.attachFile')}</button>
+                  <button disabled title={t('chat.imageUnavailable')}><Icon name="image" size={15} /> {t('chat.addImage')}</button>
                   <button onClick={() => { setAddMenu(false); setCodeSheet(true); }}><Icon name="code" size={15} /> {t('chat.pasteCode')}</button>
                 </div>
               </>}
             </div>
-            <input type="file" hidden ref={fileRef} onChange={e => {
+            <input type="file" accept=".md,.txt,.json,.csv,.js,.jsx,.ts,.tsx,.css,.html,.xml,.yaml,.yml,text/*,application/json,application/xml" hidden ref={fileRef} onChange={e => {
               const f = e.target.files[0]; e.target.value = '';
-              if (f) { const s = summarizeRef.current; summarizeRef.current = false; uploadFile(f, s); }
+              if (f) { const summarize = summarizeRef.current; summarizeRef.current = false; uploadFile(f, summarize); }
             }} />
-            <input type="file" accept="image/*" hidden ref={imgRef} onChange={e => { const f = e.target.files[0]; e.target.value = ''; if (f) uploadFile(f); }} />
 
             <button className={'chip' + (webSearch ? ' on' : '')} disabled={runtime?.webSearchAvailable !== true} title={runtime?.webSearchAvailable !== true ? t('chat.webUnavailable') : undefined} onClick={() => setWebSearch(v => !v)}>
               <Icon name="globe" size={15} /><span className="chip-label">{t('chat.webSearch')}</span>
