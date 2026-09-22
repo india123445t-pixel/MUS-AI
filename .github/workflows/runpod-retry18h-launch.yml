@@ -1,0 +1,301 @@
+name: AQLEVON Retry18H RunPod Launch
+
+on:
+  push:
+    branches:
+      - ops/runpod-control-v1
+    paths:
+      - ".github/runpod-control/launch-retry18h-*.json"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aqlevon-retry18h-runpod
+  cancel-in-progress: false
+
+jobs:
+  launch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      WORKER03_HEAD: 6c8340ceb2c1a5d15652c62953fee5f5eb515c91
+      WRAPPER_COMMIT: 8c2b78f4a1fa1e28018c9cbc9f487a048d75f6c5
+      IMAGE: ghcr.io/india123445t-pixel/mus-ai@sha256:ecfe9d199a56333da7655a63a750fc6466d27fd1ed91d60aaa3e2c4b0a3dd69d
+      MAX_RATE: "0.80"
+      MAX_SECONDS: "1800"
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/runpod-control-v1
+
+      - name: Install pinned runpodctl v2.8.0
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL \
+            https://github.com/runpod/runpodctl/releases/download/v2.8.0/runpodctl-linux-amd64 \
+            -o /tmp/runpodctl
+          echo "33184eb9b4ede3524582d81dfb84a0a632402cec11feb97d9ae46e26d3090c4c  /tmp/runpodctl" | sha256sum -c -
+          chmod +x /tmp/runpodctl
+          sudo mv /tmp/runpodctl /usr/local/bin/runpodctl
+          runpodctl version
+
+      - name: Fail-closed free preflight
+        id: preflight
+        shell: bash
+        env:
+          RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "${RUNPOD_API_KEY:-}" || { echo "::error::RUNPOD_API_KEY missing"; exit 1; }
+
+          runpodctl pod list --all > /tmp/pods.json
+          runpodctl gpu list --include-unavailable > /tmp/gpus.json
+
+          python - <<'PY' > /tmp/preflight.env
+          import json, sys
+          pods_raw=json.load(open('/tmp/pods.json',encoding='utf-8'))
+          pods=pods_raw if isinstance(pods_raw,list) else pods_raw.get('pods',pods_raw.get('items',pods_raw.get('data',[])))
+          if not isinstance(pods,list): pods=[]
+          running=[]
+          for p in pods:
+              if not isinstance(p,dict): continue
+              status=p.get('desiredStatus') or p.get('status')
+              if status == 'RUNNING':
+                  running.append(p.get('id','unknown'))
+          if running:
+              raise SystemExit(f"FAIL_CLOSED_RUNNING_PODS:{len(running)}")
+
+          raw=json.load(open('/tmp/gpus.json',encoding='utf-8'))
+          items=raw if isinstance(raw,list) else raw.get('gpus',raw.get('items',raw.get('data',[])))
+          if not isinstance(items,list): items=[]
+
+          target=None
+          for x in items:
+              if not isinstance(x,dict): continue
+              blob=' '.join(str(x.get(k,'')) for k in ('id','displayName','name','gpuTypeId')).lower()
+              if '4090' in blob:
+                  target=x; break
+          if target is None:
+              raise SystemExit("FAIL_CLOSED_RTX4090_NOT_LISTED")
+
+          price=target.get('securePricePerHr')
+          if not isinstance(price,(int,float)):
+              raise SystemExit("FAIL_CLOSED_SECURE_PRICE_MISSING")
+          if price > 0.80:
+              raise SystemExit(f"FAIL_CLOSED_RATE:{price}")
+
+          stock={}
+          for d in target.get('dataCenterAvailability') or []:
+              if isinstance(d,dict):
+                  dc=d.get('id') or d.get('dataCenterId')
+                  st=d.get('stockStatus') or d.get('availability')
+                  if dc: stock[str(dc)]=str(st or '')
+          priority=['EUR-IS-1','EUR-NO-1','EU-CZ-1','EU-RO-1','US-IL-1']
+          selected=next((dc for dc in priority if stock.get(dc,'').lower() not in ('','none','unavailable','out_of_stock')),None)
+          if not selected:
+              raise SystemExit("FAIL_CLOSED_NO_APPROVED_4090_STOCK")
+
+          print(f"SELECTED_DC={selected}")
+          print(f"SECURE_PRICE={price}")
+          PY
+
+          cat /tmp/preflight.env >> "$GITHUB_ENV"
+          cat /tmp/preflight.env
+          echo "preflight=pass" >> "$GITHUB_OUTPUT"
+
+      - name: Create exactly one guarded RTX 4090 Pod
+        id: create
+        shell: bash
+        env:
+          RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+        run: |
+          set -euo pipefail
+
+          RESULT_TOKEN="$(python - <<'PY'
+          import secrets
+          print(secrets.token_urlsafe(32))
+          PY
+          )"
+          echo "RESULT_TOKEN=$RESULT_TOKEN" >> "$GITHUB_ENV"
+
+          ENV_JSON="$(python - "$WORKER03_HEAD" "$RESULT_TOKEN" <<'PY'
+          import json,sys
+          print(json.dumps({
+            "AQLEVON_EXPECTED_W03_HEAD":sys.argv[1],
+            "RESULT_TOKEN":sys.argv[2],
+          },separators=(',',':')))
+          PY
+          )"
+
+          WRAPPER_URL="https://raw.githubusercontent.com/india123445t-pixel/MUS-AI/${WRAPPER_COMMIT}/.github/runpod-control/retry18h-wrapper.sh"
+          DOCKER_ARGS="-lc \"curl -fsSL '${WRAPPER_URL}' -o /tmp/retry18h-wrapper.sh && chmod +x /tmp/retry18h-wrapper.sh && exec /tmp/retry18h-wrapper.sh\""
+
+          set +e
+          runpodctl pod create \
+            --name "AQLEVON-P4-A1-R18H" \
+            --image "$IMAGE" \
+            --gpu-id "NVIDIA GeForce RTX 4090" \
+            --gpu-count 1 \
+            --cloud-type SECURE \
+            --data-center-ids "$SELECTED_DC" \
+            --container-disk-in-gb 40 \
+            --volume-in-gb 0 \
+            --ports "8000/http" \
+            --ssh=false \
+            --stop-after 30m \
+            --env "$ENV_JSON" \
+            --docker-args "$DOCKER_ARGS" \
+            > /tmp/create.json 2> /tmp/create.err
+          RC=$?
+          set -e
+
+          if [ "$RC" -ne 0 ]; then
+            cat /tmp/create.err >&2
+            exit "$RC"
+          fi
+
+          cat /tmp/create.json
+          POD_ID="$(python - <<'PY'
+          import json
+          d=json.load(open('/tmp/create.json',encoding='utf-8'))
+          vals=[]
+          if isinstance(d,dict):
+              vals.extend([d.get('id')])
+              for k in ('pod','data','result'):
+                  v=d.get(k)
+                  if isinstance(v,dict): vals.append(v.get('id'))
+          print(next((str(x) for x in vals if x),''),end='')
+          PY
+          )"
+          test -n "$POD_ID" || { echo "::error::Could not parse created Pod ID"; exit 1; }
+
+          echo "$POD_ID" > /tmp/pod_id
+          POD_FP="$(printf '%s' "$POD_ID" | sha256sum | awk '{print substr($1,1,12)}')"
+          echo "POD_FP=$POD_FP" >> "$GITHUB_ENV"
+          echo "pod_fingerprint=$POD_FP"
+          echo "pod_created=true" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for result and retrieve evidence
+        id: collect
+        shell: bash
+        env:
+          RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+        run: |
+          set -euo pipefail
+          POD_ID="$(cat /tmp/pod_id)"
+          BASE="https://${POD_ID}-8000.proxy.runpod.net/${RESULT_TOKEN}"
+          mkdir -p /tmp/retry18h
+
+          FOUND=0
+          for i in $(seq 1 100); do
+            if curl -fsS --max-time 10 "$BASE/result.tgz.sha256" -o /tmp/retry18h/result.tgz.sha256; then
+              FOUND=1
+              break
+            fi
+            sleep 15
+          done
+
+          if [ "$FOUND" -ne 1 ]; then
+            echo "::error::Retry18H result endpoint did not become ready within 1500 seconds"
+            exit 1
+          fi
+
+          curl -fsS --retry 3 --max-time 300 "$BASE/result.tgz" -o /tmp/retry18h/result.tgz
+          EXPECTED="$(tr -d '[:space:]' < /tmp/retry18h/result.tgz.sha256)"
+          ACTUAL="$(sha256sum /tmp/retry18h/result.tgz | awk '{print $1}')"
+          test "$EXPECTED" = "$ACTUAL" || { echo "::error::Artifact SHA mismatch"; exit 1; }
+
+          tar -xzf /tmp/retry18h/result.tgz -C /tmp/retry18h
+          test -f /tmp/retry18h/result.json
+          TRAIN_RC="$(python - <<'PY'
+          import json
+          print(json.load(open('/tmp/retry18h/result.json',encoding='utf-8'))['exit_code'])
+          PY
+          )"
+          echo "$TRAIN_RC" > /tmp/training_rc
+          echo "$ACTUAL" > /tmp/artifact_sha
+          echo "training_exit_code=$TRAIN_RC" >> "$GITHUB_OUTPUT"
+          echo "artifact_sha256=$ACTUAL" >> "$GITHUB_OUTPUT"
+
+      - name: Stop Pod immediately after evidence retrieval
+        if: always() && steps.create.outputs.pod_created == 'true'
+        shell: bash
+        env:
+          RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+        run: |
+          set -euo pipefail
+          POD_ID="$(cat /tmp/pod_id)"
+          runpodctl pod stop "$POD_ID" || true
+
+      - name: Upload Retry18H evidence artifact
+        if: always() && steps.collect.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: aqlevon-retry18h-evidence
+          path: |
+            /tmp/retry18h/result.tgz
+            /tmp/retry18h/result.tgz.sha256
+            /tmp/retry18h/result.json
+            /tmp/retry18h/retry18h-console.log
+            /tmp/retry18h/aqlevon_p4
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Record sanitized Retry18H result
+        if: always() && steps.collect.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          TRAIN_RC="$(cat /tmp/training_rc)"
+          ART_SHA="$(cat /tmp/artifact_sha)"
+          SIZE="$(stat -c %s /tmp/retry18h/result.tgz)"
+          python - "$TRAIN_RC" "$ART_SHA" "$SIZE" <<'PY'
+          import json,sys,datetime,os
+          out={
+            "schema_version":1,
+            "run":"Retry18H",
+            "github_run_id":int(os.environ["GITHUB_RUN_ID"]),
+            "worker03_head":os.environ["WORKER03_HEAD"],
+            "pod_fingerprint":os.environ.get("POD_FP"),
+            "data_center":os.environ.get("SELECTED_DC"),
+            "secure_price_per_hr":float(os.environ["SECURE_PRICE"]),
+            "max_billed_seconds":int(os.environ["MAX_SECONDS"]),
+            "max_total_cost_usd":"0.40",
+            "artifact_sha256":sys.argv[2],
+            "artifact_bytes":int(sys.argv[3]),
+            "training_exit_code":int(sys.argv[1]),
+            "recorded_at_utc":datetime.datetime.now(datetime.timezone.utc).isoformat(),
+          }
+          with open('.github/runpod-control/retry18h-result.json','w',encoding='utf-8') as f:
+              json.dump(out,f,indent=2,sort_keys=True); f.write("\n")
+          PY
+          git config user.name "aqlevon-runpod-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add .github/runpod-control/retry18h-result.json
+          git commit -m "ops: record sanitized Retry18H result [skip ci]"
+          git push origin HEAD:ops/runpod-control-v1
+
+      - name: Delete Pod after evidence is safely local
+        if: always() && steps.collect.outcome == 'success' && steps.create.outputs.pod_created == 'true'
+        shell: bash
+        env:
+          RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+        run: |
+          set -euo pipefail
+          POD_ID="$(cat /tmp/pod_id)"
+          runpodctl pod delete "$POD_ID" || true
+
+      - name: Enforce physical run exit code
+        if: steps.collect.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          RC="$(cat /tmp/training_rc)"
+          if [ "$RC" -ne 0 ]; then
+            echo "::error::Retry18H physical run returned exit code $RC"
+            exit "$RC"
+          fi
+          echo "Retry18H physical run completed with exit code 0."
