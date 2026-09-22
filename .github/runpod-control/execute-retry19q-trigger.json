@@ -1,0 +1,15 @@
+{
+  "authorization_id": "P4-A1-RUNPOD-A40-20260922-19Q-VLLM019-FUNCTIONAL-SMOKE-THEN-TRAIN",
+  "authorization_sha256": "bbe5ab7e5473c5813ef45fb7fdfc0c74b5c96ec7ba06c90bea243fe572d535a3",
+  "expected_head": "ac9435526f47e6e70ad10851f9d3362f7a4aec61",
+  "image_digest": "sha256:ac70a74115046be4a866195344c0600ef0b1bb5ec5e897ec02ae8bd1f6c6f555",
+  "selection_mode": "dynamic_datacenter",
+  "gpu_type": "NVIDIA A40",
+  "min_memory_gb": 48,
+  "request_schema": "runpodctl_graphql_dynamic_dc",
+  "max_total_cost_usd": "0.55",
+  "max_hourly_rate_usd": "0.55",
+  "max_billed_seconds": 3600,
+  "single_use": true,
+  "reason": "Fresh Retry19Q after independent review, primary-source vLLM 0.19.1 Qwen3.5 LoRA verification, Retry19P KV-cache diagnosis, corrected gpu_memory_utilization=0.25, current sealed manifest/lock, strengthened functional LoRA smoke, and green CPU/Exact Contract gates"
+}
