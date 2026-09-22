@@ -1,0 +1,43 @@
+name: AQLEVON RunPod Capacity Scan
+
+on:
+  push:
+    branches: [ops/runpod-control-v1]
+    paths:
+      - ".github/runpod-control/capacity-scan-trigger.json"
+
+permissions:
+  contents: write
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/runpod-control-v1
+      - name: Install runpodctl
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -sSL https://cli.runpod.net | sudo bash
+      - name: Scan secure GPU capacity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${RUNPOD_API_KEY:-}"
+          runpodctl gpu list --output json > /tmp/gpus.json
+          jq '[.[] | select(.secureCloud==true and .available==true and (.memoryInGb|tonumber)>=24) | {gpuId,displayName,memoryInGb,securePricePerHr,stockStatus,dataCenterAvailability}] | sort_by(.securePricePerHr)' /tmp/gpus.json > .github/runpod-control/capacity-scan-result.json
+          cat .github/runpod-control/capacity-scan-result.json
+      - name: Commit scan result
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name aqlevon-runpod-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/runpod-control/capacity-scan-result.json
+          git commit -m "ops: record RunPod secure capacity scan [skip ci]" || exit 0
+          git push origin HEAD:ops/runpod-control-v1
