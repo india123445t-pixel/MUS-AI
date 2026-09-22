@@ -38,5 +38,5 @@
     "volumeInGb": 20,
     "volumeMountPath": "/workspace"
   },
-  "stderr": "{\"error\":\"timed out waiting for the log stream to respond. the api sends nothing until it has a line, so this can also mean no logs match --since/--source, or the pod has not started writing yet\",\"code\":\"timeout\"}\n"
+  "stderr": ""
 }
