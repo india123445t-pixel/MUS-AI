@@ -9,6 +9,7 @@ EXPECTED_COMMIT="7c457fc1b1f636ae794eb0362ba37d4743b06fbc"
 MODEL=SDPO/"verl/utils/model.py"
 FSDP=SDPO/"verl/workers/fsdp_workers.py"
 VLLM_ASYNC=SDPO/"verl/workers/rollout/vllm_rollout/vllm_async_server.py"
+VLLM_ROLLOUT=SDPO/"verl/workers/rollout/vllm_rollout/vllm_rollout.py"
 
 def sha256(p: Path) -> str:
     return hashlib.sha256(p.read_bytes()).hexdigest()
@@ -27,6 +28,7 @@ def main() -> int:
     model=MODEL.read_text()
     fsdp=FSDP.read_text()
     vllm_async=VLLM_ASYNC.read_text()
+    vllm_rollout=VLLM_ROLLOUT.read_text()
 
     if "# AQLEVON_TF5_VISION_ALIAS" not in model:
         model=replace_once(model,"    AutoModelForVision2Seq,\n","","model_top_level_import")
@@ -58,6 +60,24 @@ def main() -> int:
             "fsdp_model_import",
         )
 
+    if "AQLEVON_VLLM019_WORKER_DISPATCH" not in vllm_rollout:
+        vllm_rollout=replace_once(
+            vllm_rollout,
+            "        else:\n"
+            "            return self.inference_engine.execute_method(method, *args, **kwargs)\n",
+            "        else:\n"
+            "            # AQLEVON_VLLM019_WORKER_DISPATCH: vLLM 0.19 removed\n"
+            "            # WorkerWrapperBase.execute_method. Mirror vLLM 0.19's own\n"
+            "            # UniProcExecutor collective_rpc dispatch via serial_utils.run_method.\n"
+            "            if not hasattr(type(self.inference_engine), \"execute_method\"):\n"
+            "                if isinstance(method, bytes):\n"
+            "                    method = pickle.loads(method)\n"
+            "                from vllm.v1.serial_utils import run_method\n"
+            "                return run_method(self.inference_engine, method, args, kwargs)\n"
+            "            return self.inference_engine.execute_method(method, *args, **kwargs)\n",
+            "vllm019_worker_dispatch",
+        )
+
     if "AQLEVON_QWEN35_NATIVE_V019_TEXT_LORA_BINDING" not in vllm_async:
         vllm_async=replace_once(
             vllm_async,
@@ -77,19 +97,24 @@ def main() -> int:
     MODEL.write_text(model)
     FSDP.write_text(fsdp)
     VLLM_ASYNC.write_text(vllm_async)
+    VLLM_ROLLOUT.write_text(vllm_rollout)
     py_compile.compile(str(MODEL),doraise=True)
     py_compile.compile(str(FSDP),doraise=True)
     py_compile.compile(str(VLLM_ASYNC),doraise=True)
+    py_compile.compile(str(VLLM_ROLLOUT),doraise=True)
 
     if "AQLEVON_TF5_VISION_ALIAS" not in model or "AQLEVON_TF5_VISION_ALIAS" not in fsdp:
         raise SystemExit("tf5_alias_missing_after_patch")
     if "AQLEVON_QWEN35_NATIVE_V019_TEXT_LORA_BINDING" not in vllm_async:
         raise SystemExit("qwen35_native_v019_binding_missing_after_patch")
+    if "AQLEVON_VLLM019_WORKER_DISPATCH" not in vllm_rollout:
+        raise SystemExit("vllm019_worker_dispatch_missing_after_patch")
 
     print("AQLEVON_SDPO_TF5_NATIVE_VLLM019_PATCH_PASS")
     print("MODEL_SHA256:",sha256(MODEL))
     print("FSDP_SHA256:",sha256(FSDP))
     print("VLLM_ASYNC_SHA256:",sha256(VLLM_ASYNC))
+    print("VLLM_ROLLOUT_SHA256:",sha256(VLLM_ROLLOUT))
     return 0
 
 if __name__=="__main__":
