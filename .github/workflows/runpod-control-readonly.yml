@@ -1,0 +1,52 @@
+name: RunPod Control Read-Only
+
+on:
+  pull_request:
+    branches:
+      - ops/runpod-control-base-20260922
+    paths:
+      - '.github/workflows/runpod-control-readonly.yml'
+      - 'ops/runpod-control/**'
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pinned runpodctl
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fL --retry 3 \
+            https://github.com/runpod/runpodctl/releases/download/v2.8.0/runpodctl-linux-amd64 \
+            -o /tmp/runpodctl
+          echo "33184eb9b4ede3524582d81dfb84a0a632402cec11feb97d9ae46e26d3090c4c  /tmp/runpodctl" | sha256sum -c -
+          chmod +x /tmp/runpodctl
+          sudo mv /tmp/runpodctl /usr/local/bin/runpodctl
+          runpodctl version || runpodctl --version
+
+      - name: Verify secret presence without disclosure
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${RUNPOD_API_KEY:-}"
+          echo "RUNPOD_API_KEY_PRESENT"
+
+      - name: Read billing summary
+        shell: bash
+        run: runpodctl user | jq '{clientBalance,currentSpendPerHr,spendLimit}'
+
+      - name: List Pods concise
+        shell: bash
+        run: runpodctl pod list --all | jq '[.[] | {id,name,desiredStatus,costPerHr,gpuCount,imageName,volumeInGb}]'
+
+      - name: Inspect RTX 4090 only
+        shell: bash
+        run: runpodctl gpu list | jq '[.[] | select(.gpuId == "NVIDIA GeForce RTX 4090")]'

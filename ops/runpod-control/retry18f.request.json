@@ -1,0 +1,15 @@
+{
+  "authorization_id": "P4-A1-RUNPOD-4090-20260922-18F-API-CONTROL",
+  "authorization_sha256": "1230f46291e2d1be22c7ac4c4d758666ef41348872488e528faceb3f21c69b57",
+  "worker03_head": "3d305380ec124c2acb40070ed9e0b7c9cb95d7af",
+  "run_manifest_sha256": "24e3d21155c3f1011ca92f90e6c622fe03f92bfd65656d31d87fa627886fad47",
+  "command_lock_sha256": "b07441e07d0f26191fc5bd20ebf61e61c88003c542205687a2679243d90623c2",
+  "runtime_image": "ghcr.io/india123445t-pixel/mus-ai@sha256:ecfe9d199a56333da7655a63a750fc6466d27fd1ed91d60aaa3e2c4b0a3dd69d",
+  "gpu_id": "NVIDIA GeForce RTX 4090",
+  "gpu_count": 1,
+  "cloud_type": "SECURE",
+  "max_hourly_rate_usd": "0.80",
+  "max_billed_seconds": 1800,
+  "max_total_cost_usd": "0.40",
+  "single_use": true
+}
