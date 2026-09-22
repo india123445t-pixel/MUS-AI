@@ -1,0 +1,14 @@
+{
+  "authorization_id": "P4-A1-RUNPOD-4090-20260922-19K-QWEN35-TEXT-3D",
+  "authorization_sha256": "af5a399b915ab2669025d10e67238346ca986d56a2055499262e6fb4725852a4",
+  "expected_head": "0388dc349d3d263cacc5d24a8078c387edd4c2b2",
+  "selection_mode": "dynamic_datacenter",
+  "gpu_type": "NVIDIA GeForce RTX 4090",
+  "min_memory_gb": 24,
+  "request_schema": "runpodctl_graphql_dynamic_dc",
+  "max_total_cost_usd": "0.60",
+  "max_hourly_rate_usd": "0.80",
+  "max_billed_seconds": 2400,
+  "single_use": true,
+  "reason": "Fresh Retry19K after Qwen3.5 explicit 3D text-rollout fix; final CPU and Exact gates PASS"
+}
