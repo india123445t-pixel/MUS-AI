@@ -1,0 +1,6 @@
+{
+  "phase": "create_failed",
+  "create_rc": 1,
+  "error": "{\"error\":\"failed to create pod: graphql error: There are no longer any instances available with the requested specifications. Please refresh and try again.\",\"code\":\"graphql_error\"}\n",
+  "checked_at_utc": "2026-09-22T14:44:02.300343+00:00"
+}
