@@ -1,0 +1,22 @@
+{
+  "authorization_id": "P4-A1-RUNPOD-A40-20260922-19R-VLLM019-PYTHON-FIX-SMOKE-THEN-TRAIN",
+  "checked_at_utc": "2026-09-22T22:06:06.732244+00:00",
+  "evidence_archive_present": true,
+  "expected_head": "0c1f60b12f3d6ba1e5fbb27ab3ae688d68730df0",
+  "image_digest": "sha256:ac70a74115046be4a866195344c0600ef0b1bb5ec5e897ec02ae8bd1f6c6f555",
+  "log_sha256": "b5ef136b59962747fa5a7f9273a1ffa69dd4e66389b01817307d5c3181ebe4d1",
+  "markers": {
+    "A1_LOCKED_TRAINING_START": false,
+    "APPLIANCE_BINDING_PASS": true,
+    "APPLIANCE_EXACT_AUTHORIZATION_PASS": true,
+    "APPLIANCE_NATIVE_QWEN35_VLLM019_PASS": true,
+    "APPLIANCE_SEED1701_BINDING_PASS": true,
+    "APPLIANCE_SOURCE_DELTA_PASS": true,
+    "AQLEVON_A1_EXIT_CODE": false,
+    "AQLEVON_V019_LORA_SMOKE_PASS": false,
+    "AQLEVON_V019_NATIVE_LORA_FUNCTIONAL_SMOKE_PASS": false,
+    "MODEL_STAGE_PASS": true
+  },
+  "stop_status": "exited",
+  "training_exit_code": 1
+}
