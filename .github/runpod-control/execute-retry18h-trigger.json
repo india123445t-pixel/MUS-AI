@@ -9,6 +9,6 @@
   "max_billed_seconds": 1800,
   "single_use": true,
   "approved_by_owner": true,
-  "attempt_nonce": "2026-09-22T05:45:00Z",
-  "repair": "persist_create_diagnostic"
+  "attempt_nonce": "2026-09-22T05:47:00Z",
+  "repair": "trigger_after_workflow_update"
 }
