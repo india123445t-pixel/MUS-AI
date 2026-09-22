@@ -1,0 +1,20 @@
+{
+  "authorization_id": "P4-A1-RUNPOD-4090-20260922-19G-QWEN35-MM-LORA-MAPPING",
+  "checked_at_utc": "2026-09-22T16:28:36.586512+00:00",
+  "checkpoint_valid": false,
+  "evidence_archive_present": false,
+  "expected_head": "4ce63a0331743d85a7e28a1b695668bbf435b826",
+  "log_sha256": null,
+  "markers": {
+    "A1_LOCKED_TRAINING_START": false,
+    "APPLIANCE_BINDING_PASS": false,
+    "APPLIANCE_EXACT_AUTHORIZATION_PASS": false,
+    "APPLIANCE_SEED1701_BINDING_PASS": false,
+    "APPLIANCE_SOURCE_DELTA_PASS": false,
+    "AQLEVON_A1_EXIT_CODE": false,
+    "AQLEVON_APPLIANCE_LAUNCH_START": false,
+    "AQLEVON_APPLIANCE_TOTAL_SCRIPT_SECONDS": false,
+    "MODEL_STAGE_PASS": false
+  },
+  "training_exit_code": 255
+}
