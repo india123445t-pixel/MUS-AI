@@ -1,0 +1,16 @@
+{
+  "authorization_id": "P4-A1-RUNPOD-4090-20260922-18U-VLLM-MEMORY-REPAIR",
+  "authorization_kind": "AQLEVON_MANAGER_COMPUTE_AUTHORIZATION_V1",
+  "authorization_sha256": "41270c1232b4257e17ecea2d939c98fd4648902272bc3183bc4330a4d1aab8d5",
+  "compute_origin": "paid_manager_authorized",
+  "hash_profile": "AQLEVON_CANONICAL_JSON_SHA256_V1",
+  "max_artifact_egress_bytes": 5368709120,
+  "max_billed_seconds": 1800,
+  "max_hourly_rate_usd": "0.80",
+  "max_total_cost_usd": "0.40",
+  "profile_id": "p4-surrogate-1x24",
+  "run_manifest_sha256": "e05fbb10bdb594d7c14c11f40da3ec8d5de55e3628316ac1f24b9aaad6328b28",
+  "run_task_id": "P4-A03-GENE1-PHYSICAL-TRAINER",
+  "schema_version": 1,
+  "single_use": true
+}
