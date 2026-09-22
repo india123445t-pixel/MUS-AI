@@ -249,6 +249,9 @@ jobs:
           assert "p4_patch_sdpo_transformers5_compat.py" not in launch
           assert not re.search(r"(?<![A-Za-z0-9_])python(?=\\s)", launch), "bare_python_runtime_command"
           assert "python3 /opt/aqlevon/runtime/smoke_runtime_v019.py --build-check" in launch
+          assert 'assert gib >= 44.0' in launch
+          assert 'assert gib >= 45.0' not in launch
+          print("V019_A40_APPLICATION_VRAM_GATE_PASS")
           print("V019_PYTHON3_RUNTIME_COMMAND_GATE_PASS")
           print("QWEN35_PINNED_HYBRID_16_TARGET_CONTRACT_PASS",full)
           print("V019_FUNCTIONAL_LORA_SMOKE_WIRING_PASS")
