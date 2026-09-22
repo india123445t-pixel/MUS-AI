@@ -1,0 +1,41 @@
+name: RunPod auth smoke (read-only)
+
+on:
+  push:
+    branches:
+      - ops/runpod-auth-smoke-20260922
+
+permissions:
+  contents: read
+
+jobs:
+  verify-runpod-auth:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Verify secret is configured
+        shell: bash
+        env:
+          RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${RUNPOD_API_KEY:-}" ]; then
+            echo "::error::RUNPOD_API_KEY is missing"
+            exit 1
+          fi
+          echo "RUNPOD_API_KEY is present (value not printed)."
+
+      - name: Validate RunPod key with read-only List Pods
+        shell: bash
+        env:
+          RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+        run: |
+          set -euo pipefail
+          http_code="$(curl --silent --show-error             --output /tmp/runpod-response.json             --write-out "%{http_code}"             --request GET             --url "https://rest.runpod.io/v1/pods"             --header "Authorization: Bearer ${RUNPOD_API_KEY}")"
+
+          if [ "${http_code}" != "200" ]; then
+            echo "::error::RunPod read-only auth check failed with HTTP ${http_code}"
+            exit 1
+          fi
+
+          echo "RunPod authentication PASS: read-only List Pods returned HTTP 200."
