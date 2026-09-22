@@ -1,6 +1,6 @@
 {
   "target": "Retry19T",
   "pod_id": "3u1res8nwlqalk",
-  "nonce": "live-2",
-  "purpose": "observe Retry19T readiness after verified corrected head/image"
+  "nonce": "live-3",
+  "purpose": "Retry19T readiness decision: stop if still awaiting_container materially beyond normal boot"
 }
