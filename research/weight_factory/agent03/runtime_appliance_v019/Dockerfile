@@ -12,7 +12,7 @@ USER root
 WORKDIR /opt/aqlevon/runtime
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      git curl ca-certificates openssh-server ninja-build \
+      git curl ca-certificates openssh-server ninja-build python3-cairo \
     && mkdir -p /run/sshd /root/.ssh \
     && chmod 700 /root/.ssh \
     && rm -rf /var/lib/apt/lists/*
