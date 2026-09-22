@@ -45,6 +45,8 @@ def build_check() -> dict:
     qwen_text = qwen_backend.read_text(encoding="utf-8")
     assert 'getattr(self.model_config.hf_config, "model_type", None) == "qwen3_5"' in qwen_text
     assert 'engine_kwargs["model_impl"] = "transformers"' in qwen_text
+    assert '"TransformersForMultimodalLM"' in qwen_text
+    assert 'engine_kwargs["hf_overrides"] = required_hf_overrides' in qwen_text
     assert "AQLEVON_QWEN35_VLLM_TRANSFORMERS_BACKEND_PASS" in qwen_text
 
     for path, expected in EXPECTED_PATCH.items():
@@ -64,6 +66,7 @@ def build_check() -> dict:
         "flash_attn": flash_attn.__version__,
         "vllm": vllm.__version__,
         "qwen35_model_impl": "transformers",
+        "qwen35_hf_override_architecture": "TransformersForMultimodalLM",
         "verl": str(Path(verl.__file__).resolve()),
         "gpu_required": False,
     }
