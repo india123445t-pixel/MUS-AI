@@ -1,0 +1,200 @@
+name: AQLEVON Retry18P RunPod Execute
+
+on:
+  push:
+    branches: [ops/runpod-control-v1]
+    paths:
+      - ".github/runpod-control/execute-retry18p-trigger.json"
+
+permissions:
+  contents: write
+
+jobs:
+  execute:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      EXPECTED_HEAD: 0501c407c5ca9593f93a3012a8aef351ab38e10a
+      IMAGE: ghcr.io/india123445t-pixel/mus-ai@sha256:83d8074523c0a5535fc2718956f5bf430de400cd1e900030e83c1e4c974e8714
+      GPU_TYPE: NVIDIA GeForce RTX 4090
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/runpod-control-v1
+
+      - name: Validate trigger and secret
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${RUNPOD_API_KEY:-}"
+          jq -e '.authorization_id=="P4-A1-RUNPOD-4090-20260922-18P-TRANSIENT-CREATE-RETRY" and .authorization_sha256=="254687987aac9b1df1a56aea011d8d4bc98d1032439d7351c456db8c204f0aab" and .max_total_cost_usd=="0.40" and .max_billed_seconds==1800 and .single_use==true' .github/runpod-control/execute-retry18p-trigger.json >/dev/null
+
+      - name: Generate ephemeral SSH key
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh-keygen -q -t ed25519 -N '' -f /tmp/aqlevon_key
+          echo "PUBKEY=$(cat /tmp/aqlevon_key.pub)" >> "$GITHUB_ENV"
+
+      - name: Create exactly one authorized RTX 4090 Pod
+        id: create
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY' > /tmp/create.json
+          import json, os
+          print(json.dumps({
+            "cloudType":"SECURE",
+            "computeType":"GPU",
+            "containerDiskInGb":40,
+            "gpuCount":1,
+            "gpuTypeIds":[os.environ["GPU_TYPE"]],
+            "gpuTypePriority":"custom",
+            "imageName":os.environ["IMAGE"],
+            "interruptible":False,
+            "locked":False,
+            "name":"AQLEVON-P4-A1-Retry18P",
+            "ports":["22/tcp"],
+            
+            "volumeInGb":20,
+            "volumeMountPath":"/workspace",
+            "env":{
+              "PUBLIC_KEY":os.environ["PUBKEY"],
+              "AQLEVON_EXPECTED_W03_HEAD":os.environ["EXPECTED_HEAD"]
+            }
+          }))
+          PY
+          code="$(curl -sS -o /tmp/create-response.json -w '%{http_code}' -X POST https://rest.runpod.io/v1/pods -H "Authorization: Bearer $RUNPOD_API_KEY" -H 'Content-Type: application/json' --data-binary @/tmp/create.json)"
+          if [ "$code" != "201" ]; then
+            export CREATE_HTTP_CODE="$code"
+            python - <<'PY'
+          import json,datetime,os
+          try:
+              p=json.load(open('/tmp/create-response.json'))
+              err=p.get('error') or p.get('message') or p.get('status') or 'unknown'
+          except Exception:
+              err='non_json_response'
+          json.dump({'phase':'create_failed','http_code':int(os.environ['CREATE_HTTP_CODE']),'error':str(err)[:500],'checked_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat()},open('.github/runpod-control/retry18p-create-diagnostic.json','w'),indent=2)
+          open('.github/runpod-control/retry18p-create-diagnostic.json','a').write('\n')
+          PY
+            git config user.name aqlevon-runpod-bot
+            git config user.email actions@users.noreply.github.com
+            git add .github/runpod-control/retry18p-create-diagnostic.json
+            git commit -m "ops: record Retry18P create diagnostic [skip ci]" || true
+            git push origin HEAD:ops/runpod-control-v1 || true
+            exit 1
+          fi
+          python - <<'PY'
+          import json, os, sys
+          p=json.load(open('/tmp/create-response.json'))
+          cost=float(p.get('costPerHr') or 999)
+          count=int(p.get('gpuCount') or (p.get('gpu') or {}).get('count') or 1)
+          if cost>0.80 or count!=1:
+              print("FAIL_CLOSED_CREATE_CONTRACT",cost,count)
+              sys.exit(2)
+          open('/tmp/pod_id','w').write(p['id'])
+          print("CREATE_PRECHECK_PASS cost_per_hr=",cost,"count=",count)
+          PY
+          echo "pod_id=$(cat /tmp/pod_id)" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for SSH mapping
+        id: ssh
+        shell: bash
+        run: |
+          set -euo pipefail
+          pod="${{ steps.create.outputs.pod_id }}"
+          for i in $(seq 1 60); do
+            curl -sS https://rest.runpod.io/v1/pods/$pod -H "Authorization: Bearer $RUNPOD_API_KEY" > /tmp/pod.json
+            python - <<'PY' && break || true
+          import json,sys
+          p=json.load(open('/tmp/pod.json'))
+          ip=p.get('publicIp')
+          m=p.get('portMappings') or {}
+          port=m.get('22') or m.get(22)
+          if p.get('desiredStatus')=='RUNNING' and ip and port:
+              open('/tmp/ssh_target','w').write(f"{ip}|{port}")
+              sys.exit(0)
+          sys.exit(1)
+          PY
+            sleep 5
+          done
+          test -s /tmp/ssh_target
+          echo "host=$(cut -d'|' -f1 /tmp/ssh_target)" >> "$GITHUB_OUTPUT"
+          echo "port=$(cut -d'|' -f2 /tmp/ssh_target)" >> "$GITHUB_OUTPUT"
+
+      - name: Execute locked Retry18P and retrieve evidence
+        id: train
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -uo pipefail
+          host="${{ steps.ssh.outputs.host }}"
+          port="${{ steps.ssh.outputs.port }}"
+          opts="-i /tmp/aqlevon_key -p $port -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10"
+          for i in $(seq 1 36); do
+            ssh $opts root@$host 'nvidia-smi --query-gpu=name --format=csv,noheader | grep -F "NVIDIA GeForce RTX 4090"' && break
+            sleep 5
+          done
+          ssh $opts root@$host "export AQLEVON_EXPECTED_W03_HEAD=$EXPECTED_HEAD; rm -rf /workspace/MUS-AI; git clone -q --branch agent/03-p4-gene1-physical-trainer --single-branch https://github.com/india123445t-pixel/MUS-AI.git /workspace/MUS-AI; git -C /workspace/MUS-AI reset -q --hard $EXPECTED_HEAD; bash /workspace/MUS-AI/research/weight_factory/agent03/p4_runpod_appliance_launch.sh" 2>&1 | tee /tmp/retry18p.log
+          rc=${PIPESTATUS[0]}
+          ssh $opts root@$host 'cd /workspace && tar -czf /tmp/aqlevon-retry18p-evidence.tgz aqlevon_p4 2>/dev/null || true'
+          scp -q $opts root@$host:/tmp/aqlevon-retry18p-evidence.tgz /tmp/aqlevon-retry18p-evidence.tgz || true
+          echo "$rc" > /tmp/train_rc
+          exit "$rc"
+
+      - name: Stop Pod immediately
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          pod="${{ steps.create.outputs.pod_id }}"
+          if [ -n "$pod" ]; then
+            curl -sS -X POST "https://rest.runpod.io/v1/pods/$pod/stop" -H "Authorization: Bearer $RUNPOD_API_KEY" -H 'Content-Type: application/json' -d '{}' >/tmp/stop.json
+          fi
+
+      - name: Write sanitized result
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p .github/runpod-control
+          python - <<'PY'
+          import json,os,re,hashlib,datetime
+          log=''
+          if os.path.exists('/tmp/retry18p.log'):
+              log=open('/tmp/retry18p.log',errors='replace').read()
+          markers={}
+          for k in ['AQLEVON_APPLIANCE_LAUNCH_START','APPLIANCE_BINDING_PASS','APPLIANCE_SOURCE_DELTA_PASS','APPLIANCE_SEED1701_BINDING_PASS','APPLIANCE_EXACT_AUTHORIZATION_PASS','MODEL_STAGE_PASS','A1_LOCKED_TRAINING_START','AQLEVON_A1_EXIT_CODE','AQLEVON_APPLIANCE_TOTAL_SCRIPT_SECONDS']:
+              markers[k]=k in log
+          rc=None
+          if os.path.exists('/tmp/train_rc'):
+              try: rc=int(open('/tmp/train_rc').read().strip())
+              except: pass
+          out={
+            'authorization_id':'P4-A1-RUNPOD-4090-20260922-18P-TRANSIENT-CREATE-RETRY',
+            'expected_head':os.environ['EXPECTED_HEAD'],
+            'checked_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            'training_exit_code':rc,
+            'markers':markers,
+            'log_sha256':hashlib.sha256(log.encode()).hexdigest() if log else None,
+            'evidence_archive_present':os.path.exists('/tmp/aqlevon-retry18p-evidence.tgz')
+          }
+          json.dump(out,open('.github/runpod-control/retry18p-result.json','w'),indent=2,sort_keys=True)
+          open('.github/runpod-control/retry18p-result.json','a').write('\n')
+          PY
+          git config user.name aqlevon-runpod-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/runpod-control/retry18p-result.json
+          git commit -m "ops: record Retry18P sanitized result [skip ci]" || true
+          git push origin HEAD:ops/runpod-control-v1 || true
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aqlevon-retry18p-evidence
+          path: |
+            /tmp/retry18p.log
+            /tmp/aqlevon-retry18p-evidence.tgz
+          if-no-files-found: warn
+          retention-days: 7
