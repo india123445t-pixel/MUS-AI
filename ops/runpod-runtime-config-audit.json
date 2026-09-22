@@ -1,0 +1,1 @@
+{"cmd":["bash"],"config_digest":"sha256:a61e1f8beec3a0809b3e702fb280cc77f166408bb4beebb19dd6fd7240517b5c","entrypoint":["/opt/nvidia/nvidia_entrypoint.sh"],"image_digest":"sha256:ecfe9d199a56333da7655a63a750fc6466d27fd1ed91d60aaa3e2c4b0a3dd69d","paid_action_performed":false,"runtime_config_read":"PASS","schema_version":1,"working_dir":"/opt/aqlevon/runtime"}
