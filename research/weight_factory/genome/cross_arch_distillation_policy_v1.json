@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "base_student": {
+    "repo": "Qwen/Qwen3.8-27B",
+    "revision": "1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0"
+  },
+  "default_mode": "verified_output_only",
+  "experimental_modes": ["span_representation_alignment", "byte_level_distillation", "semantic_distribution_alignment"],
+  "teacher_requirements": [
+    "open_weight_local_only",
+    "license_training_use_pass",
+    "exact_teacher_revision_pinned",
+    "no_hosted_service_output_harvest",
+    "prompt_and_output_hashes_recorded"
+  ],
+  "experiment_requirements": [
+    "narrow_objective_domain",
+    "output_only_control_arm",
+    "same_training_example_ids",
+    "same_student_initialization",
+    "same_eval_harness",
+    "private_holdout",
+    "compute_and_vram_logged",
+    "target_gain_exceeds_baseline_variance",
+    "global_regression_pass"
+  ],
+  "promotion_rule": "Representation/logit transfer is promoted only when it beats verified output-only distillation after compute-normalized comparison and does not create material regressions.",
+  "forbidden": [
+    "direct_tensor_splice_across_architectures",
+    "hidden_proprietary_cot_harvest",
+    "protected_benchmark_answers",
+    "unlicensed_teacher_logits",
+    "silent_tokenizer_substitution"
+  ]
+}

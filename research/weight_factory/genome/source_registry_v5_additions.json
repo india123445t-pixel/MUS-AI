@@ -1,0 +1,79 @@
+{
+  "schema_version": 5,
+  "generated_at": "2026-09-18",
+  "purpose": "Add research-only frontier transfer recipes discovered after source_registry_v4 without weakening default-deny admission.",
+  "sources": [
+    {
+      "id": "sra_cross_tokenizer_recipe",
+      "kind": "paper_recipe",
+      "ref": "ACL-2026-SRA-Span-Representation-Alignment",
+      "license": "PAPER_REVIEWED_CODE_AUDIT_REQUIRED",
+      "role": ["cross_tokenizer_distillation", "representation_alignment"],
+      "admission": "research_recipe_only_until_code_license_audit",
+      "notes": "Span-level teacher/student alignment across tokenizer and architecture mismatch. Compare against output-only distillation before promotion."
+    },
+    {
+      "id": "byte_level_distillation_recipe",
+      "kind": "paper_recipe",
+      "ref": "ACL-2026-CustomNLP4U-Byte-Level-Distillation",
+      "license": "PAPER_REVIEWED_CODE_AUDIT_REQUIRED",
+      "role": ["cross_tokenizer_distillation", "byte_interface"],
+      "admission": "research_recipe_only_until_code_license_audit",
+      "notes": "Shared byte-level interface for tokenizer-independent teacher/student transfer; research lane only until implementation terms are pinned."
+    },
+    {
+      "id": "sedi_cross_tokenizer_recipe",
+      "kind": "paper_recipe",
+      "ref": "AAAI-2026-SeDi",
+      "license": "PAPER_REVIEWED_CODE_AUDIT_REQUIRED",
+      "role": ["cross_tokenizer_distillation", "distribution_alignment"],
+      "admission": "research_recipe_only_until_code_license_audit",
+      "notes": "Semantics/distribution-aware cross-tokenizer transfer with entropy alignment. Must beat output-only baseline on private holdout."
+    },
+    {
+      "id": "rpo_adaptive_reasoning_recipe",
+      "kind": "paper_recipe",
+      "ref": "ACL-2026-Root-token-Policy-Optimization",
+      "license": "PAPER_REVIEWED_CODE_AUDIT_REQUIRED",
+      "role": ["adaptive_reasoning", "compute_efficiency"],
+      "admission": "research_recipe_only_until_code_license_audit",
+      "notes": "Optimize initial reason/not-reason decision; paper reports low training-compute overhead. Use for R0-E ablation only."
+    },
+    {
+      "id": "rlvrr_reference_chain_recipe",
+      "kind": "paper_recipe",
+      "ref": "ICLR-2026-RLVRR",
+      "license": "PAPER_REVIEWED_CODE_AUDIT_REQUIRED",
+      "role": ["open_ended_rl", "reference_chain_rewards"],
+      "admission": "research_recipe_only_until_code_license_audit",
+      "notes": "Reference-derived reward chains for open-ended generation. Generative/style verifier cannot become sole release judge."
+    },
+    {
+      "id": "dsmoe_recipe",
+      "kind": "paper_recipe",
+      "ref": "ACL-2026-DSMoE",
+      "license": "PAPER_REVIEWED_CODE_AUDIT_REQUIRED",
+      "role": ["moe_domain_steering", "expert_analysis"],
+      "admission": "future_moe_research_only",
+      "notes": "Training-free domain steering based on empirically observed expert specialization; relevant to future AQLEVON-MoE, not 27B tensor grafting."
+    },
+    {
+      "id": "submoe_recipe",
+      "kind": "paper_recipe",
+      "ref": "AAAI-2026-Sub-MoE",
+      "license": "PAPER_REVIEWED_CODE_AUDIT_REQUIRED",
+      "role": ["moe_compression", "expert_subspace_merging"],
+      "admission": "future_moe_research_only",
+      "notes": "Subspace expert merging/compression; use only on architecturally compatible MoE checkpoints."
+    },
+    {
+      "id": "evogm_recipe_refresh",
+      "kind": "code_recipe",
+      "ref": "JiangTao97/evogm",
+      "license": "MIT_REPORTED_REVERIFY_COMMIT",
+      "role": ["evolutionary_merge_search", "merge_coefficient_optimization"],
+      "admission": "recipe_allow_after_commit_pin",
+      "notes": "ICML 2026 evolutionary generative optimization for merge coefficients. AQLEVON must use private regression fitness and same-base deltas only."
+    }
+  ]
+}

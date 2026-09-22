@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "gene": "R0-E",
+  "objective": "maximize verified correctness per generated reasoning token and GPU-second",
+  "arms": [
+    "baseline_fixed_reasoning",
+    "prompt_controlled_effort",
+    "RPO_style_root_decision"
+  ],
+  "task_bands": ["trivial", "easy", "medium", "hard", "adversarial"],
+  "metrics": [
+    "accuracy",
+    "verification_success",
+    "reasoning_tokens",
+    "total_output_tokens",
+    "latency_ms",
+    "gpu_seconds",
+    "overthinking_rate",
+    "premature_stop_rate"
+  ],
+  "reward_contract": {
+    "correctness_dominates": true,
+    "compute_penalty_only_after_correctness_gate": true,
+    "no_reward_for_hidden_chain_of_thought_content": true
+  },
+  "promotion": "RPO-style policy may replace prompt-only effort control only after better accuracy-cost Pareto performance on private difficulty-balanced holdouts."
+}
