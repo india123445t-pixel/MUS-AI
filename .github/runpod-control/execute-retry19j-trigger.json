@@ -1,0 +1,14 @@
+{
+  "authorization_id": "P4-A1-RUNPOD-4090-20260922-19J-QWEN35-MM-OUTPUT-UNWRAP",
+  "authorization_sha256": "79ecf1851f53dc963ae789a70e0ea2cd1685c1cb5feb7d54eff03248c8a17f8d",
+  "expected_head": "87dcdc5301fac66d004184dfc9eb4638075f432a",
+  "selection_mode": "dynamic_datacenter",
+  "gpu_type": "NVIDIA GeForce RTX 4090",
+  "min_memory_gb": 24,
+  "request_schema": "runpodctl_graphql_dynamic_dc",
+  "max_total_cost_usd": "0.60",
+  "max_hourly_rate_usd": "0.80",
+  "max_billed_seconds": 2400,
+  "single_use": true,
+  "reason": "Fresh Retry19J after verified Qwen3.5 multimodal pooler_output compatibility fix; CPU and Exact gates PASS"
+}
