@@ -1,0 +1,86 @@
+name: AQLEVON Retry18G Read-only Monitor
+
+on:
+  push:
+    branches:
+      - ops/runpod-retry18g-monitor-20260922
+    paths:
+      - .github/workflows/runpod-retry18g-monitor.yml
+
+permissions:
+  contents: write
+
+env:
+  RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+  POD_NAME: "AQLEVON-P4-A1-R18G-SSH-TCP22"
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install runpodctl
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL https://github.com/runpod/runpodctl/releases/download/v2.14.0/runpodctl-linux-amd64.tar.gz -o /tmp/runpodctl.tgz
+          tar -xzf /tmp/runpodctl.tgz -C /tmp runpodctl
+          sudo install -m 0755 /tmp/runpodctl /usr/local/bin/runpodctl
+
+      - name: Read-only sanitized status
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p ops
+          PODS="$(runpodctl pod list --all --name "$POD_NAME")"
+          COUNT="$(printf '%s' "$PODS" | jq 'length')"
+          if [ "$COUNT" -eq 0 ]; then
+            printf '%s\n' '{"schema_version":1,"exact_pod_count":0,"status":"NO_EXACT_POD","paid_action_performed":false}' > ops/runpod-retry18g-monitor.json
+            exit 0
+          fi
+
+          ID="$(printf '%s' "$PODS" | jq -r '.[0].id')"
+          echo "::add-mask::$ID"
+          P="$(runpodctl pod get "$ID")"
+          DESIRED="$(printf '%s' "$P" | jq -r '.desiredStatus // "unknown"')"
+          RUNTIME="$(printf '%s' "$P" | jq -r '.runtimeStatus // "unknown"')"
+          RATE="$(printf '%s' "$P" | jq -r '.costPerHr // .costPerHrGpu // ""')"
+          UPTIME="$(printf '%s' "$P" | jq -r '.uptimeSeconds // .runtime.uptimeInSeconds // 0')"
+
+          LOGS="$(runpodctl pod logs "$ID" --tail 250 --source container 2>/dev/null || true)"
+          LINES="$(printf '%s' "$LOGS" | jq -r '.line // empty' 2>/dev/null || true)"
+          STARTED=false
+          MODEL=false
+          TRAIN=false
+          EXIT=false
+          printf '%s' "$LINES" | grep -Fq 'AQLEVON_APPLIANCE_LAUNCH_START' && STARTED=true || true
+          printf '%s' "$LINES" | grep -Fq 'MODEL_STAGE_PASS' && MODEL=true || true
+          printf '%s' "$LINES" | grep -Fq 'A1_LOCKED_TRAINING_START' && TRAIN=true || true
+          printf '%s' "$LINES" | grep -Fq 'AQLEVON_A1_EXIT_CODE=' && EXIT=true || true
+
+          jq -cn             --arg desired "$DESIRED"             --arg runtime "$RUNTIME"             --arg rate "$RATE"             --argjson uptime "$UPTIME"             --argjson started "$STARTED"             --argjson model "$MODEL"             --argjson train "$TRAIN"             --argjson exit_seen "$EXIT"             '{
+              schema_version:1,
+              exact_pod_count:1,
+              desired_status:$desired,
+              runtime_status:$runtime,
+              rate_usd_per_hr:$rate,
+              uptime_seconds:$uptime,
+              appliance_started:$started,
+              model_stage_pass:$model,
+              training_started:$train,
+              training_exit_seen:$exit_seen,
+              paid_action_performed:false,
+              secret_exposed:false
+            }' > ops/runpod-retry18g-monitor.json
+
+      - name: Persist sanitized monitor
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "aqlevon-runpod-monitor"
+          git config user.email "aqlevon-runpod-monitor@users.noreply.github.com"
+          git add ops/runpod-retry18g-monitor.json
+          git commit -m "ops: record sanitized Retry18G monitor" || exit 0
+          git push origin "HEAD:${GITHUB_REF_NAME}"
