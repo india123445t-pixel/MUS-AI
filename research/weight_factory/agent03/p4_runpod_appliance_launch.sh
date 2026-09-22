@@ -9,7 +9,7 @@ SDPO="$ROOT/SDPO"
 DATA="$ROOT/aqlevon_p4/data"
 MODEL="$ROOT/models/qwen35-4b-daa9c16f3712"
 EXPECTED_HEAD="${AQLEVON_EXPECTED_W03_HEAD:?AQLEVON_EXPECTED_W03_HEAD is required}"
-EXPECTED_IMAGE_DIGEST="sha256:62576b7892e2ccc7caeaf1de4e70f2a185294c00113571a32dbbd0656cbd0a61"
+EXPECTED_IMAGE_DIGEST="sha256:fd612fd98f4faf0340d8a5cf51e71a0cc3a46b8f89631698e071e4391c30fa53"
 export AQLEVON_EXPECTED_IMAGE_DIGEST="$EXPECTED_IMAGE_DIGEST"
 
 echo "AQLEVON_APPLIANCE_LAUNCH_START $(date -u +%FT%TZ)"
@@ -19,14 +19,19 @@ test -d "$SDPO_IMAGE/.git" || { echo "FAIL_CLOSED_APPLIANCE_SDPO_MISSING"; exit 
 python /opt/aqlevon/runtime/smoke_runtime.py --build-check --gpu-check
 
 if [ ! -d "$REPO/.git" ]; then
-  git clone -q --branch agent/03-p4-gene1-physical-trainer --single-branch https://github.com/india123445t-pixel/MUS-AI.git "$REPO"
+  git clone -q --no-checkout https://github.com/india123445t-pixel/MUS-AI.git "$REPO"
 fi
-git -C "$REPO" fetch -q origin agent/03-p4-gene1-physical-trainer
-git -C "$REPO" checkout -q agent/03-p4-gene1-physical-trainer
-git -C "$REPO" reset -q --hard origin/agent/03-p4-gene1-physical-trainer
+# Freeze execution to the Manager-authorized commit. Never reset to a mutable
+# branch head: concurrent Worker03 commits must not invalidate or alter a paid run.
+if ! git -C "$REPO" cat-file -e "$EXPECTED_HEAD^{commit}" 2>/dev/null; then
+  git -C "$REPO" fetch -q origin "$EXPECTED_HEAD"
+fi
+git -C "$REPO" checkout -q --detach "$EXPECTED_HEAD"
+git -C "$REPO" reset -q --hard "$EXPECTED_HEAD"
 ACTUAL_HEAD="$(git -C "$REPO" rev-parse HEAD)"
 echo "MUS_AI_HEAD=$ACTUAL_HEAD"
 test "$ACTUAL_HEAD" = "$EXPECTED_HEAD" || { echo "FAIL_CLOSED_WRONG_HEAD"; exit 41; }
+echo "APPLIANCE_IMMUTABLE_HEAD_PASS=$ACTUAL_HEAD"
 
 AGENT="$REPO/research/weight_factory/agent03"
 RUN="$AGENT/p4_a1_seed1701_run_manifest_v1.json"
