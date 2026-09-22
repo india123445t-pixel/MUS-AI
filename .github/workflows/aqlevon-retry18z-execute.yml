@@ -89,7 +89,6 @@ jobs:
         run: |
           set -euo pipefail
           curl -sSL https://cli.runpod.net | sudo bash
-          runpodctl config --apiKey="$RUNPOD_API_KEY"
           env_json="$(python - <<'PY'
           import json,os
           print(json.dumps({
