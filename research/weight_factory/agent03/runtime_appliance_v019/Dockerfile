@@ -26,10 +26,10 @@ RUN python3 -m pip install --no-cache-dir -r /tmp/requirements-p4-a1-v019.txt
 ARG FLASH_ATTN_WHEEL_URL=https://github.com/lesj0610/flash-attention/releases/download/v2.8.3-cu12-torch2.10-cp312/flash_attn-2.8.3%2Bcu12torch2.10cxx11abiTRUE-cp312-cp312-linux_x86_64.whl
 ARG FLASH_ATTN_WHEEL_SHA256=d4a497a7bd837bf47f7a8f6a7aa6887695f2ea819fa597f307552552018ee9d7
 RUN if ! python3 -c 'import flash_attn' >/dev/null 2>&1; then \
-      curl -fL "$FLASH_ATTN_WHEEL_URL" -o /tmp/flash_attn.whl && \
-      echo "$FLASH_ATTN_WHEEL_SHA256  /tmp/flash_attn.whl" | sha256sum -c - && \
-      python3 -m pip install --no-cache-dir /tmp/flash_attn.whl && \
-      rm -f /tmp/flash_attn.whl; \
+      curl -fL "$FLASH_ATTN_WHEEL_URL" -o /tmp/flash_attn-2.8.3+cu12torch2.10cxx11abiTRUE-cp312-cp312-linux_x86_64.whl && \
+      echo "$FLASH_ATTN_WHEEL_SHA256  /tmp/flash_attn-2.8.3+cu12torch2.10cxx11abiTRUE-cp312-cp312-linux_x86_64.whl" | sha256sum -c - && \
+      python3 -m pip install --no-cache-dir /tmp/flash_attn-2.8.3+cu12torch2.10cxx11abiTRUE-cp312-cp312-linux_x86_64.whl && \
+      rm -f /tmp/flash_attn-2.8.3+cu12torch2.10cxx11abiTRUE-cp312-cp312-linux_x86_64.whl; \
     fi
 
 RUN git clone -q https://github.com/lasgroup/SDPO.git "$AQLEVON_SDPO" \
