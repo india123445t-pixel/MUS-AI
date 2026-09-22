@@ -1,0 +1,79 @@
+name: RunPod control (ops branch)
+
+on:
+  push:
+    branches:
+      - ops/runpod-auth-smoke-20260922
+    paths:
+      - ops/runpod-command.json
+
+permissions:
+  contents: write
+
+jobs:
+  control:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate command and secret
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${RUNPOD_API_KEY:-}" || { echo "::error::RUNPOD_API_KEY missing"; exit 1; }
+          action="$(jq -r '.action // empty' ops/runpod-command.json)"
+          if [ "$action" != "status" ]; then
+            echo "::error::Only read-only action=status is enabled in this controller."
+            exit 1
+          fi
+
+      - name: Read RunPod status
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error             --output /tmp/runpod.json             --write-out "%{http_code}"             --request GET             --url "https://rest.runpod.io/v1/pods"             --header "Authorization: Bearer ${RUNPOD_API_KEY}")"
+
+          if [ "$code" != "200" ]; then
+            jq -n --arg code "$code" --arg ts "$(date -u +%FT%TZ)"               '{checked_at:$ts,http_status:($code|tonumber),ok:false,error:"RunPod status request failed"}'               > ops/runpod-status.json
+          else
+            jq -n               --arg ts "$(date -u +%FT%TZ)"               --slurpfile raw /tmp/runpod.json '
+                def arr:
+                  if ($raw[0] | type) == "array" then $raw[0]
+                  elif ($raw[0].pods? | type) == "array" then $raw[0].pods
+                  elif ($raw[0].data? | type) == "array" then $raw[0].data
+                  else [] end;
+                {
+                  checked_at:$ts,
+                  http_status:200,
+                  ok:true,
+                  pod_count:(arr|length),
+                  pods:(arr | map({
+                    id:(.id // null),
+                    name:(.name // null),
+                    status:(.status // .desiredStatus // null),
+                    desired_status:(.desiredStatus // null),
+                    gpu_type:(.gpu?.displayName // .gpuTypeId // .machine?.gpuDisplayName // null),
+                    gpu_count:(.gpuCount // .gpu?.count // null),
+                    cost_per_hr:(.costPerHr // .costPerHour // null)
+                  }))
+                }' > ops/runpod-status.json
+          fi
+
+          cat ops/runpod-status.json
+
+      - name: Commit sanitized status snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ops/runpod-status.json
+          if git diff --cached --quiet; then
+            echo "No status change to commit."
+          else
+            git commit -m "ops: refresh RunPod status snapshot"
+            git push
+          fi
