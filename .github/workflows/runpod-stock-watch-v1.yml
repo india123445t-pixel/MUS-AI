@@ -1,0 +1,124 @@
+name: RunPod RTX4090 Stock Watch V1
+
+on:
+  push:
+    branches:
+      - ops/runpod-control-v1
+    paths:
+      - ".github/runpod-control/stock-watch-trigger-*.json"
+
+permissions:
+  contents: write
+
+jobs:
+  stock-watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/runpod-control-v1
+
+      - name: Watch RTX4090 Secure stock read-only
+        shell: bash
+        env:
+          RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p .github/runpod-control
+
+          python - <<'PY'
+          import datetime
+          import json
+          import os
+          import subprocess
+          import time
+
+          key=os.environ["RUNPOD_API_KEY"]
+          query={
+            "query": "query { gpuTypes(input: {id: \"NVIDIA GeForce RTX 4090\"}) { id displayName memoryInGb secureCloud lowestPrice(input: {gpuCount: 1, secureCloud: true}) { stockStatus uninterruptablePrice availableGpuCounts } } }"
+          }
+
+          samples=[]
+          ready=False
+          reason=None
+          for attempt in range(1, 13):
+              p=subprocess.run(
+                  [
+                      "curl","--silent","--show-error","--fail",
+                      "--request","POST",
+                      "--url","https://api.runpod.io/graphql",
+                      "--header",f"Authorization: Bearer {key}",
+                      "--header","Content-Type: application/json",
+                      "--data-binary",json.dumps(query),
+                  ],
+                  capture_output=True,
+                  text=True,
+                  check=False,
+              )
+              sample={
+                  "attempt":attempt,
+                  "checked_at_utc":datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                  "curl_rc":p.returncode,
+              }
+              if p.returncode==0:
+                  try:
+                      raw=json.loads(p.stdout)
+                      gpus=((raw.get("data") or {}).get("gpuTypes") or [])
+                      if len(gpus)==1:
+                          g=gpus[0]
+                          lp=g.get("lowestPrice") or {}
+                          stock=lp.get("stockStatus")
+                          price=lp.get("uninterruptablePrice")
+                          counts=lp.get("availableGpuCounts") or []
+                          sample.update({
+                              "stock_status":stock,
+                              "price_usd_per_hr":price,
+                              "available_gpu_counts":counts,
+                          })
+                          ready=(
+                              isinstance(price,(int,float))
+                              and not isinstance(price,bool)
+                              and price <= 0.80
+                              and (
+                                  stock in ("Medium","High")
+                                  or 1 in counts
+                              )
+                          )
+                          if ready:
+                              reason="confirmed_capacity_signal"
+                      else:
+                          sample["error"]="gpu_type_count_"+str(len(gpus))
+                  except Exception as exc:
+                      sample["error"]=type(exc).__name__
+              else:
+                  sample["error"]="curl_failure"
+              samples.append(sample)
+              if ready:
+                  break
+              if attempt < 12:
+                  time.sleep(15)
+
+          out={
+              "ok":True,
+              "ready_for_allocation_attempt":ready,
+              "reason":reason or "no_strong_capacity_signal",
+              "target":"NVIDIA GeForce RTX 4090",
+              "max_hourly_rate_usd":0.80,
+              "samples":samples,
+          }
+          with open(".github/runpod-control/stock-watch.json","w",encoding="utf-8") as f:
+              json.dump(out,f,indent=2,sort_keys=True)
+              f.write("\n")
+          print(json.dumps(out,sort_keys=True))
+          PY
+
+      - name: Commit stock watch result
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "aqlevon-runpod-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add .github/runpod-control/stock-watch.json
+          git commit -m "ops: record RTX4090 stock watch [skip ci]" || exit 0
+          git push origin HEAD:ops/runpod-control-v1
