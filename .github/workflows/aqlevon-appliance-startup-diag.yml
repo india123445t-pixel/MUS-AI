@@ -1,0 +1,57 @@
+name: AQLEVON Appliance Startup Diagnostic
+
+on:
+  push:
+    branches:
+      - ops/runpod-control-v1
+    paths:
+      - ".github/runpod-control/appliance-startup-diag-trigger.json"
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Login GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull exact immutable appliance
+        run: |
+          set -euo pipefail
+          docker pull ghcr.io/india123445t-pixel/mus-ai@sha256:ecfe9d199a56333da7655a63a750fc6466d27fd1ed91d60aaa3e2c4b0a3dd69d
+
+      - name: Inspect inherited startup contract
+        run: |
+          set -euo pipefail
+          IMG="ghcr.io/india123445t-pixel/mus-ai@sha256:ecfe9d199a56333da7655a63a750fc6466d27fd1ed91d60aaa3e2c4b0a3dd69d"
+          docker image inspect "$IMG" --format 'CMD={{json .Config.Cmd}} ENTRYPOINT={{json .Config.Entrypoint}}'
+          docker run --rm --entrypoint /bin/bash "$IMG" -lc '
+            echo "START_SH_SHA=$(sha256sum /start.sh | cut -d" " -f1)"
+            head -n 8 /start.sh
+            command -v nginx || true
+            command -v sshd || true
+            test -x /start.sh
+          '
+
+      - name: Run exact default startup for 12 seconds
+        shell: bash
+        run: |
+          set -uo pipefail
+          IMG="ghcr.io/india123445t-pixel/mus-ai@sha256:ecfe9d199a56333da7655a63a750fc6466d27fd1ed91d60aaa3e2c4b0a3dd69d"
+          docker rm -f aqlevon-startup-diag >/dev/null 2>&1 || true
+          docker run -d --name aqlevon-startup-diag             -e PUBLIC_KEY='ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFakeDiagnosticOnlyKey000000000000000 diagnostic'             "$IMG" >/tmp/cid
+          sleep 12
+          echo "STATE=$(docker inspect aqlevon-startup-diag --format '{{.State.Status}} exit={{.State.ExitCode}} error={{.State.Error}}')"
+          echo "----- LOGS -----"
+          docker logs aqlevon-startup-diag 2>&1 || true
+          echo "----- END LOGS -----"
+          test "$(docker inspect aqlevon-startup-diag --format '{{.State.Running}}')" = "true"
+          docker rm -f aqlevon-startup-diag
