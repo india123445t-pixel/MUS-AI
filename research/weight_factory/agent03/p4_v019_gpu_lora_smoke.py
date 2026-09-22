@@ -19,6 +19,13 @@ MODEL_REVISION = "daa9c16f371249f9ad1c75a9ed6f956c08ea08f5"
 SEED = 1701
 EXPECTED_FULL_ATTN_LAYERS = [3, 7, 11, 15, 19, 23, 27, 31]
 EXPECTED_TARGET_MODULES = 16
+EXPECTED_TRAINABLE_PARAMS = 458_752
+EXPECTED_HIDDEN_SIZE = 2560
+EXPECTED_NUM_HEADS = 16
+EXPECTED_NUM_KV_HEADS = 4
+EXPECTED_HEAD_DIM = 256
+EXPECTED_Q_OUT = 8192
+EXPECTED_V_OUT = 1024
 SMOKE_PROMPT = "AQLEVON infrastructure smoke. Return one short token."
 
 
@@ -51,7 +58,26 @@ def build_ephemeral_adapter(model_path: Path, adapter_dir: Path) -> tuple[list[s
         device_map={"": "cpu"},
         low_cpu_mem_usage=True,
     )
-    layer_types = list(base.config.text_config.layer_types)
+    text_cfg = base.config.text_config
+    layer_types = list(text_cfg.layer_types)
+    if int(text_cfg.num_hidden_layers) != 32:
+        raise RuntimeError(f"AQLEVON_SMOKE_LAYER_COUNT:{text_cfg.num_hidden_layers}:expected_32")
+    if not bool(getattr(text_cfg, "attn_output_gate", False)):
+        raise RuntimeError("AQLEVON_SMOKE_ATTN_OUTPUT_GATE_DISABLED")
+    geometry = {
+        "hidden_size": int(text_cfg.hidden_size),
+        "num_attention_heads": int(text_cfg.num_attention_heads),
+        "num_key_value_heads": int(text_cfg.num_key_value_heads),
+        "head_dim": int(text_cfg.head_dim),
+    }
+    expected_geometry = {
+        "hidden_size": EXPECTED_HIDDEN_SIZE,
+        "num_attention_heads": EXPECTED_NUM_HEADS,
+        "num_key_value_heads": EXPECTED_NUM_KV_HEADS,
+        "head_dim": EXPECTED_HEAD_DIM,
+    }
+    if geometry != expected_geometry:
+        raise RuntimeError(f"AQLEVON_SMOKE_GEOMETRY:{geometry}:expected_{expected_geometry}")
     full_layers = [i for i, kind in enumerate(layer_types) if kind == "full_attention"]
     if full_layers != EXPECTED_FULL_ATTN_LAYERS:
         raise RuntimeError(
@@ -78,6 +104,27 @@ def build_ephemeral_adapter(model_path: Path, adapter_dir: Path) -> tuple[list[s
         raise RuntimeError(
             f"AQLEVON_SMOKE_PEFT_TARGET_COUNT:{len(targets)}:expected_{EXPECTED_TARGET_MODULES}"
         )
+    trainable_params, _ = peft_model.get_nb_trainable_parameters()
+    if int(trainable_params) != EXPECTED_TRAINABLE_PARAMS:
+        raise RuntimeError(
+            f"AQLEVON_SMOKE_TRAINABLE_PARAM_COUNT:{trainable_params}:expected_{EXPECTED_TRAINABLE_PARAMS}"
+        )
+    named_modules = dict(peft_model.named_modules())
+    for name in targets:
+        module = named_modules[name]
+        base_layer = getattr(module, "base_layer", None)
+        if base_layer is None:
+            raise RuntimeError("AQLEVON_SMOKE_LORA_BASE_LAYER_MISSING:" + name)
+        dims = (int(base_layer.in_features), int(base_layer.out_features))
+        expected_dims = (
+            (EXPECTED_HIDDEN_SIZE, EXPECTED_Q_OUT)
+            if name.endswith(".q_proj")
+            else (EXPECTED_HIDDEN_SIZE, EXPECTED_V_OUT)
+        )
+        if dims != expected_dims:
+            raise RuntimeError(
+                f"AQLEVON_SMOKE_TARGET_SHAPE:{name}:{dims}:expected_{expected_dims}"
+            )
 
     expected_suffixes = {
         f"layers.{idx}.self_attn.{proj}"
@@ -106,6 +153,18 @@ def build_ephemeral_adapter(model_path: Path, adapter_dir: Path) -> tuple[list[s
     target_cfg = set(adapter_cfg.get("target_modules") or [])
     if target_cfg != {"q_proj", "v_proj"}:
         raise RuntimeError(f"AQLEVON_SMOKE_ADAPTER_TARGET_CONFIG:{sorted(target_cfg)}")
+    from safetensors.torch import load_file
+    adapter_state = load_file(str(adapter_dir / "adapter_model.safetensors"))
+    lora_keys = sorted(k for k in adapter_state if ".lora_A." in k or ".lora_B." in k)
+    if len(lora_keys) != EXPECTED_TARGET_MODULES * 2:
+        raise RuntimeError(
+            f"AQLEVON_SMOKE_ADAPTER_TENSOR_COUNT:{len(lora_keys)}:expected_{EXPECTED_TARGET_MODULES * 2}"
+        )
+    forbidden = [k for k in lora_keys if ".linear_attn." in k or ".mtp." in k or ".visual." in k]
+    if forbidden:
+        raise RuntimeError("AQLEVON_SMOKE_FORBIDDEN_ADAPTER_KEYS:" + ",".join(forbidden))
+    if not any(float(adapter_state[k].abs().max()) > 0 for k in lora_keys if ".lora_B." in k):
+        raise RuntimeError("AQLEVON_SMOKE_DEBUG_ADAPTER_B_ALL_ZERO")
 
     del peft_model, base
     gc.collect()
@@ -154,15 +213,26 @@ def run_vllm_smoke(model_path: Path, adapter_dir: Path) -> dict:
         seed=SEED,
     )
     base_out = llm.generate([SMOKE_PROMPT], deterministic)
+    base_repeat_out = llm.generate([SMOKE_PROMPT], deterministic)
     lora_out = llm.generate([SMOKE_PROMPT], deterministic, lora_request=request)
     base_lp = _logprob_map(base_out)
+    base_repeat_lp = _logprob_map(base_repeat_out)
     lora_lp = _logprob_map(lora_out)
+    base_common = sorted(set(base_lp) & set(base_repeat_lp))
+    base_noise = (
+        max(abs(base_lp[t] - base_repeat_lp[t]) for t in base_common)
+        if base_common else float("inf")
+    )
+    if base_noise > 1e-5:
+        raise RuntimeError(f"AQLEVON_SMOKE_BASE_NONDETERMINISTIC:max_logprob_delta={base_noise}")
     common = sorted(set(base_lp) & set(lora_lp))
     if common:
         max_delta = max(abs(base_lp[t] - lora_lp[t]) for t in common)
-        if max_delta <= 1e-7:
+        required_delta = max(1e-6, base_noise * 10.0)
+        if max_delta <= required_delta:
             raise RuntimeError(
-                f"AQLEVON_LORA_FUNCTIONALLY_INERT:max_logprob_delta={max_delta}"
+                "AQLEVON_LORA_FUNCTIONALLY_INERT:"
+                f"max_logprob_delta={max_delta}:required_gt_{required_delta}:noise={base_noise}"
             )
     else:
         max_delta = None  # disjoint top-logprob sets already prove a functional change.
@@ -188,6 +258,8 @@ def run_vllm_smoke(model_path: Path, adapter_dir: Path) -> dict:
         "vllm_lora_target_modules": ["qkv_proj"],
         "peft_lora_rank": 4,
         "vllm_max_lora_rank_capacity": 8,
+        "base_repeat_common_logprob_tokens": len(base_common),
+        "base_repeat_max_logprob_delta": base_noise,
         "base_lora_common_logprob_tokens": len(common),
         "max_common_logprob_delta": max_delta,
         "tiny_rollout_token_ids": token_ids,
