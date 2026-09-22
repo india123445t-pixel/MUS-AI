@@ -1,6 +1,6 @@
 {
   "action": "inventory_v2",
   "requested_by": "AQLEVON_MANAGER",
-  "nonce": "2026-09-22T05:30:00Z",
-  "reason": "observe_retry18h_v2"
+  "nonce": "2026-09-22T12:06:30Z",
+  "reason": "verify_retry18v_pod_stopped_before_retry18w"
 }
