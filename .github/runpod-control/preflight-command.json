@@ -4,6 +4,11 @@
   "w03_head": "d3ded5159ea66c4364e283fdef355ced46ad20bb",
   "max_hourly_rate_usd": 0.8,
   "mode": "read_only",
-  "nonce": "2026-09-22T05:12Z",
-  "diagnostics": "persist_on_failure"
+  "nonce": "2026-09-22T05:14Z",
+  "capacity_fields": [
+    "availableGpuCounts",
+    "maxUnreservedGpuCount",
+    "totalCount",
+    "rentedCount"
+  ]
 }
