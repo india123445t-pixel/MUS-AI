@@ -34,7 +34,17 @@ RUN if ! python3 -c 'import flash_attn' >/dev/null 2>&1; then \
 
 RUN git clone -q https://github.com/lasgroup/SDPO.git "$AQLEVON_SDPO" \
  && git -C "$AQLEVON_SDPO" checkout -q "$SDPO_COMMIT" \
- && python3 -m pip install --no-cache-dir --no-deps -e "$AQLEVON_SDPO"
+ && python3 - <<'PY'
+from pathlib import Path
+p=Path("/opt/aqlevon/runtime/SDPO/setup.py")
+s=p.read_text()
+old='"numpy<2.0.0"'
+new='"numpy>=2.0,<2.3"'
+assert s.count(old)==1, s.count(old)
+p.write_text(s.replace(old,new,1))
+print("AQLEVON_SDPO_NUMPY2_METADATA_PATCH_PASS")
+PY
+RUN python3 -m pip install --no-cache-dir --no-deps -e "$AQLEVON_SDPO"
 
 COPY research/weight_factory/agent03/p4_patch_sdpo_transformers5_native_vllm019.py /opt/aqlevon/runtime/p4_patch_sdpo_transformers5_native_vllm019.py
 RUN python3 /opt/aqlevon/runtime/p4_patch_sdpo_transformers5_native_vllm019.py
