@@ -1,0 +1,22 @@
+{
+  "authorization_id": "P4-A1-RUNPOD-A40-20260922-19O-VLLM019-A40-VRAM-GATE-REPAIR",
+  "checked_at_utc": "2026-09-22T20:22:14.752360+00:00",
+  "evidence_archive_present": true,
+  "expected_head": "e48bc547226da29ac274f85cda8e685fe7b26c9a",
+  "image_digest": "sha256:ac70a74115046be4a866195344c0600ef0b1bb5ec5e897ec02ae8bd1f6c6f555",
+  "log_sha256": "a6060f417797b5e725b188d9bab4e79e5881d82750795373b90b5daf633144f6",
+  "markers": {
+    "A1_LOCKED_TRAINING_START": false,
+    "APPLIANCE_BINDING_PASS": true,
+    "APPLIANCE_EXACT_AUTHORIZATION_PASS": true,
+    "APPLIANCE_NATIVE_QWEN35_VLLM019_PASS": true,
+    "APPLIANCE_SEED1701_BINDING_PASS": true,
+    "APPLIANCE_SOURCE_DELTA_PASS": true,
+    "AQLEVON_A1_EXIT_CODE": false,
+    "AQLEVON_V019_LORA_SMOKE_PASS": false,
+    "AQLEVON_V019_NATIVE_LORA_FUNCTIONAL_SMOKE_PASS": false,
+    "MODEL_STAGE_PASS": true
+  },
+  "stop_status": "exited",
+  "training_exit_code": 1
+}
