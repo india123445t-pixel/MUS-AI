@@ -1,0 +1,46 @@
+name: AQLEVON Stop Exact Pod
+
+on:
+  push:
+    branches: [ops/runpod-control-v1]
+    paths:
+      - ".github/runpod-control/stop-exact-pod-trigger.json"
+
+permissions:
+  contents: write
+
+jobs:
+  stop:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/runpod-control-v1
+      - name: Stop exact Pod and verify EXITED
+        shell: bash
+        run: |
+          set -euo pipefail
+          pod="$(jq -r '.pod_id' .github/runpod-control/stop-exact-pod-trigger.json)"
+          test "$pod" = "orprrzc6hsfwa4"
+          curl -sS -f -X POST "https://rest.runpod.io/v1/pods/$pod/stop" -H "Authorization: Bearer $RUNPOD_API_KEY" -H 'Content-Type: application/json' -d '{}' >/tmp/stop.json
+          verified=0
+          for i in $(seq 1 10); do
+            sleep 2
+            curl -sS -f "https://rest.runpod.io/v1/pods/$pod" -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/probe.json
+            status="$(jq -r '.desiredStatus // .status // "UNKNOWN"' /tmp/probe.json)"
+            [ "$status" = "EXITED" ] && { verified=1; break; }
+          done
+          [ "$verified" -eq 1 ] || { echo "::error::Exact pod stop not verified"; exit 98; }
+          jq -n --arg pod "$pod" --arg status "$status" '{pod_id:$pod,status:$status}' > .github/runpod-control/stop-exact-pod-result.json
+      - name: Commit stop result
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name aqlevon-runpod-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/runpod-control/stop-exact-pod-result.json
+          git commit -m "ops: record exact pod stop [skip ci]" || exit 0
+          git push origin HEAD:ops/runpod-control-v1
