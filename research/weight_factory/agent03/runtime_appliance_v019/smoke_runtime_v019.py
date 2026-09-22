@@ -3,6 +3,7 @@ import argparse
 import importlib
 import json
 import subprocess
+from dataclasses import fields
 
 def build_check():
     import torch, vllm, ray, transformers, peft, accelerate, flash_attn, numpy as np
@@ -15,9 +16,15 @@ def build_check():
     assert np.__version__ == "2.2.6", np.__version__
 
     # Native Qwen3.5 implementation must exist; generic Transformers backend is forbidden.
+    from vllm.engine.arg_utils import EngineArgs
+    engine_fields={f.name for f in fields(EngineArgs)}
+    assert "language_model_only" in engine_fields
+    assert "lora_target_modules" in engine_fields
     q=importlib.import_module("vllm.model_executor.models.qwen3_5")
     assert hasattr(q,"Qwen3_5ForConditionalGeneration")
     assert hasattr(q,"Qwen3_5ForCausalLM")
+    packed=q.Qwen3_5ForCausalLMBase.packed_modules_mapping
+    assert packed.get("qkv_proj")==["q_proj","k_proj","v_proj"], packed.get("qkv_proj")
 
     # Pinned SDPO commit must import against this vLLM generation.
     import verl
@@ -43,6 +50,9 @@ def build_check():
       "numpy":np.__version__,
       "sdpo_numpy2_runtime":"pass",
       "qwen35_backend":"native",
+      "qwen35_packed_qkv_lora":"pass",
+      "vllm_language_model_only_arg":"pass",
+      "vllm_lora_target_modules_arg":"pass",
       "sdpo_imports":"pass",
     }
 
