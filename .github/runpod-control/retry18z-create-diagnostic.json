@@ -1,0 +1,6 @@
+{
+  "phase": "create_failed",
+  "http_code": 400,
+  "error": "non_json_response",
+  "checked_at_utc": "2026-09-22T14:24:12.587291+00:00"
+}
