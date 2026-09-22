@@ -2,6 +2,6 @@
   "action": "status",
   "requested_by": "AQLEVON_MANAGER",
   "mode": "read_only",
-  "nonce": "2026-09-22T08:13Z",
-  "note": "pre-Retry18Q paid safety status"
+  "nonce": "2026-09-22T08:16Z",
+  "note": "monitor Retry18Q SSH readiness"
 }
