@@ -1,0 +1,14 @@
+{
+  "action": "launch_retry18k",
+  "worker03_head": "c5ef8f0123c0249eb03d7d8af7b3517b786cb240",
+  "image_digest": "sha256:62576b7892e2ccc7caeaf1de4e70f2a185294c00113571a32dbbd0656cbd0a61",
+  "authorization_sha256": "e49e05f365e182ea11367452e6dbdd8188c44bfddf7eee9464e71f954d01a508",
+  "binding_sha256": "84ec220aa80fb8001193b77876ab25548e43b78104d556f36bdbaa7f124b1c2e",
+  "gpu": "NVIDIA GeForce RTX 4090",
+  "gpu_count": 1,
+  "max_hourly_rate_usd": "0.80",
+  "max_total_cost_usd": "0.40",
+  "max_billed_seconds": 1800,
+  "single_use": true,
+  "owner_continuation_authorized": true
+}
