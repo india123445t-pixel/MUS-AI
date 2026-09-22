@@ -1,4 +1,4 @@
 {
-  "pod_id": "f1ry7ce3bfxk73",
-  "reason": "Retry19K idle telemetry: gpu_util_percent=0 memory_util_percent=0 after 658s"
+  "pod_id": "32hjzjz44cslte",
+  "reason": "Emergency stop: stale Retry19S launched with old W03 head 5eb5... and old image digest ac70..., not corrected 1491.../fe7037..."
 }
