@@ -74,6 +74,19 @@ test('public work surface only advertises the format it actually renders',()=>{
   assert.match(work,/work\.browserOnly/);
 });
 
+test('browser chat controls do not overclaim stop reasoning temporary privacy or dictation',()=>{
+  assert.match(chat,/const stop = \(\) => abortRef\.current\?\.abort\(\)/);
+  assert.doesNotMatch(chat,/stream\/stop/);
+  assert.doesNotMatch(chat,/reasoning: thinkLonger/);
+  assert.match(chat,/disabled\s*\n\s*aria-pressed=\{false\}/);
+  assert.match(chat,/speechAvailable/);
+  assert.match(chat,/disabled=\{!speechAvailable\}/);
+  assert.match(en,/Hidden from history · stored locally/);
+  assert.match(ar,/مخفية من السجل · محفوظة محليًا/);
+  assert.match(en,/Export Workspace metadata \(file contents excluded\)/);
+  assert.match(ar,/تصدير بيانات Workspace الوصفية \(دون محتوى الملفات\)/);
+});
+
 test('chat text-file attachment sends real content and multimodal stays fail-closed',()=>{
   assert.match(chat,/const text = await f\.text\(\)/);
   assert.match(chat,/32 \* 1024/);
