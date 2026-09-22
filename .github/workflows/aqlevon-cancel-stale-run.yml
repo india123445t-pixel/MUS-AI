@@ -27,4 +27,4 @@ jobs:
           run_id="$(jq -r '.run_id' .github/runpod-control/cancel-stale-run-trigger.json)"
           test "$run_id" = "35764447318"
           curl -sS -f -X POST             -H "Authorization: Bearer $GH_TOKEN"             -H "Accept: application/vnd.github+json"             "https://api.github.com/repos/${{ github.repository }}/actions/runs/$run_id/cancel"
-          echo "CANCEL_REQUESTED=$run_id"
+          echo "FORCE_CANCEL_REQUESTED=$run_id"
