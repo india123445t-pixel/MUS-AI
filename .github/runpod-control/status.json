@@ -1,7 +1,7 @@
 {
   "action": "status",
   "api": "v1",
-  "checked_at_utc": "2026-09-22T09:35:35.102391+00:00",
+  "checked_at_utc": "2026-09-22T09:45:40.672963+00:00",
   "ok": true,
   "pod_count": 7,
   "pods": [
@@ -9,7 +9,7 @@
       "cost_per_hr": 0.74,
       "created_at": "2026-09-22 09:33:41.395 +0000 UTC",
       "fingerprint": "2e366d1256da",
-      "status": "RUNNING"
+      "status": "EXITED"
     },
     {
       "cost_per_hr": 0.74,
