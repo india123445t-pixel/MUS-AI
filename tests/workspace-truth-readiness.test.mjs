@@ -38,6 +38,7 @@ test('chat exposes real inference readiness and disables unavailable actions',()
   assert.match(health,/Object\.values\(providers\)\.some\(x=>x\?\.ok===true\)/);
   assert.match(health,/AUTH_ERROR/);
   assert.match(api,/\/api\/inference-health/);
+  assert.match(api,/allow_paid_external===true&&!!status\?\.settings\?\.public_web_search_enabled/);
   assert.match(chat,/runtime\.inferenceReady !== true/);
   assert.match(chat,/runtimeAuthError/);
   assert.match(chat,/webSearchAvailable !== true/);
