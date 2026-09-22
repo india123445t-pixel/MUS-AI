@@ -36,6 +36,16 @@ jobs:
           open('/tmp/pod_state.json','w').write(json.dumps({'id':x.get('id'),'name':x.get('name'),'desiredStatus':x.get('desiredStatus'),'costPerHr':x.get('costPerHr')},sort_keys=True))
           PY
           curl -sSL https://cli.runpod.net | sudo bash
+          python - <<'PY' > /tmp/graphql-body.json
+          import json
+          pod_id=open('/tmp/pod_id').read().strip()
+          q='query { pod(input: {podId: "'+pod_id+'"}) { id name desiredStatus runtime { uptimeInSeconds gpus { id gpuUtilPercent memoryUtilPercent } container { cpuPercent memoryPercent } } } }'
+          print(json.dumps({'query':q},separators=(',',':')))
+          PY
+          curl -sS -f https://api.runpod.io/graphql \
+            -H "Authorization: Bearer $RUNPOD_API_KEY" \
+            -H 'Content-Type: application/json' \
+            --data-binary @/tmp/graphql-body.json > /tmp/graphql-runtime.json
           set +e
           runpodctl pod get "$(cat /tmp/pod_id)" --output json > /tmp/pod-get.json 2>/tmp/pod-get.err
           runpodctl pod logs "$(cat /tmp/pod_id)" --tail 100 --source container --max-wait 12s > /tmp/live.jsonl 2>/tmp/live.err
@@ -46,22 +56,22 @@ jobs:
           details={}
           try:
               raw=json.loads(Path('/tmp/pod-get.json').read_text())
-              runtime=raw.get('runtime') or {}
+              gql=json.loads(Path('/tmp/graphql-runtime.json').read_text())
+              pod=(gql.get('data') or {}).get('pod') or {}
+              runtime=pod.get('runtime') or {}
               gpus=runtime.get('gpus') or []
               details={
                   'runtime_status':raw.get('runtimeStatus') or raw.get('runtime_status'),
-                  'desired_status':raw.get('desiredStatus') or raw.get('desired_status'),
-                  'uptime_seconds':raw.get('uptimeSeconds') or runtime.get('uptimeInSeconds') or runtime.get('uptime_in_seconds'),
+                  'desired_status':pod.get('desiredStatus') or raw.get('desiredStatus') or raw.get('desired_status'),
+                  'uptime_seconds':runtime.get('uptimeInSeconds') or raw.get('uptimeSeconds'),
                   'gpus':[{
-                      'gpu_util_percent':g.get('gpuUtilPercent') or g.get('gpu_util_percent'),
-                      'memory_util_percent':g.get('memoryUtilPercent') or g.get('memory_util_percent')
+                      'gpu_util_percent':g.get('gpuUtilPercent'),
+                      'memory_util_percent':g.get('memoryUtilPercent')
                   } for g in gpus],
                   'container':{
                       'cpu_percent':(runtime.get('container') or {}).get('cpuPercent'),
                       'memory_percent':(runtime.get('container') or {}).get('memoryPercent')
-                  },
-                  'runtime_keys': sorted(runtime.keys()),
-                  'raw_gpu_runtime': runtime.get('gpus') or runtime.get('gpu') or raw.get('gpus') or raw.get('gpu')
+                  }
               }
           except Exception:
               details={'pod_get_error':Path('/tmp/pod-get.err').read_text(errors='replace')[-800:]}
