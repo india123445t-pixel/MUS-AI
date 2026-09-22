@@ -1,0 +1,90 @@
+name: RunPod CLI Preflight
+
+on:
+  push:
+    branches:
+      - ops/runpod-control-v1
+    paths:
+      - ".github/runpod-control/cli-preflight-trigger-*.json"
+
+permissions:
+  contents: write
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/runpod-control-v1
+
+      - name: Install current runpodctl
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -sSL https://cli.runpod.net | sudo bash
+          runpodctl version
+
+      - name: Query account and RTX 4090 availability only
+        shell: bash
+        env:
+          RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "${RUNPOD_API_KEY:-}"
+          runpodctl user > /tmp/user.json
+          runpodctl gpu list --include-unavailable > /tmp/gpus.json
+
+          python - <<'PY'
+          import json, datetime
+          user=json.load(open('/tmp/user.json',encoding='utf-8'))
+          g=json.load(open('/tmp/gpus.json',encoding='utf-8'))
+          items=g if isinstance(g,list) else g.get('gpus',g.get('items',g.get('data',[])))
+          if not isinstance(items,list): items=[]
+          matches=[]
+          for x in items:
+              if not isinstance(x,dict): continue
+              text=' '.join(str(x.get(k,'')) for k in ('id','displayName','name','gpuTypeId')).lower()
+              if '4090' not in text: continue
+              dcs=x.get('dataCenterAvailability')
+              dc_s=[]
+              if isinstance(dcs,list):
+                  for d in dcs:
+                      if not isinstance(d,dict): continue
+                      dc_s.append({
+                          'id': d.get('id') or d.get('dataCenterId'),
+                          'stock': d.get('stockStatus') or d.get('availability'),
+                      })
+              matches.append({
+                  'id':x.get('id'),
+                  'display_name':x.get('displayName') or x.get('name'),
+                  'secure_price_per_hr':x.get('securePricePerHr'),
+                  'community_price_per_hr':x.get('communityPricePerHr'),
+                  'stock_status':x.get('stockStatus'),
+                  'datacenters':dc_s,
+              })
+          balance=None
+          if isinstance(user,dict):
+              for k in ('balance','currentBalance','creditBalance'):
+                  if k in user: balance=user[k]
+          out={
+              'ok':True,
+              'checked_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),
+              'account_balance':balance,
+              'rtx4090':matches,
+          }
+          with open('.github/runpod-control/cli-preflight.json','w',encoding='utf-8') as f:
+              json.dump(out,f,indent=2,sort_keys=True);f.write('\n')
+          print(json.dumps(out,sort_keys=True))
+          PY
+
+      - name: Commit sanitized preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "aqlevon-runpod-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add .github/runpod-control/cli-preflight.json
+          git commit -m "ops: record sanitized RunPod CLI preflight [skip ci]" || exit 0
+          git push origin HEAD:ops/runpod-control-v1
