@@ -26,78 +26,88 @@ jobs:
           set -euo pipefail
           sudo wget -q https://github.com/runpod/runpodctl/releases/latest/download/runpodctl-linux-amd64 -O /usr/local/bin/runpodctl
           sudo chmod +x /usr/local/bin/runpodctl
-          runpodctl version
 
-      - name: Find Retry18H pod and collect sanitized logs
+      - name: Locate Retry18H through GraphQL and collect logs
         shell: bash
         run: |
-          set -euo pipefail
-          runpodctl pod list --all > /tmp/pods.json
-          python - <<'PY' > /tmp/target
+          set -uo pipefail
+          mkdir -p .github/runpod-control
+          cat >/tmp/q.json <<'JSON'
+          {"query":"query { myself { pods { id name desiredStatus costPerHr createdAt } } }"}
+          JSON
+          GQL_RC=0
+          curl -sS --fail -X POST "https://api.runpod.io/graphql?api_key=${RUNPOD_API_KEY}"             -H 'content-type: application/json' --data-binary @/tmp/q.json > /tmp/pods.json || GQL_RC=$?
+
+          POD_ID="$(python - <<'PY'
           import json
-          raw=json.load(open('/tmp/pods.json'))
-          def walk(x):
-              if isinstance(x,dict):
-                  if isinstance(x.get('id'),str):
-                      yield x
-                  for v in x.values(): yield from walk(v)
-              elif isinstance(x,list):
-                  for v in x: yield from walk(v)
-          c=[]
-          for p in walk(raw):
-              name=str(p.get('name') or p.get('podName') or '')
-              if name == 'AQLEVON-P4-A1-R18H':
-                  c.append(p)
-          if not c:
-              raise SystemExit('RETRY18H_POD_NOT_FOUND')
-          def key(p):
-              return str(p.get('createdAt') or p.get('created_at') or '')
-          p=sorted(c,key=key)[-1]
-          print(p['id'])
+          try: raw=json.load(open('/tmp/pods.json'))
+          except Exception: raise SystemExit(0)
+          pods=((raw.get('data') or {}).get('myself') or {}).get('pods') or []
+          exact=[p for p in pods if isinstance(p,dict) and p.get('name')=='AQLEVON-P4-A1-R18H']
+          if exact:
+              exact.sort(key=lambda p:str(p.get('createdAt') or ''))
+              print(exact[-1].get('id') or '')
           PY
-          POD_ID="$(cat /tmp/target)"
-          POD_FP="$(printf '%s' "$POD_ID" | sha256sum | cut -c1-12)"
+          )"
+          if [ -z "$POD_ID" ]; then
+            POD_ID="$(python - <<'PY'
+          import json
+          try: raw=json.load(open('/tmp/pods.json'))
+          except Exception: raise SystemExit(0)
+          pods=((raw.get('data') or {}).get('myself') or {}).get('pods') or []
+          c=[p for p in pods if isinstance(p,dict) and str(p.get('createdAt') or '').startswith('2026-09-22') and p.get('costPerHr')==0.74]
+          if c:
+              c.sort(key=lambda p:str(p.get('createdAt') or ''))
+              print(c[-1].get('id') or '')
+          PY
+            )"
+          fi
 
-          set +e
-          runpodctl pod logs "$POD_ID" --tail 500 > /tmp/logs.jsonl 2>/tmp/logs.err
-          LOG_RC=$?
-          set -e
+          LOG_RC=99
+          : >/tmp/logs.jsonl
+          : >/tmp/logs.err
+          if [ -n "$POD_ID" ]; then
+            set +e
+            runpodctl pod logs "$POD_ID" --tail 500 > /tmp/logs.jsonl 2>/tmp/logs.err
+            LOG_RC=$?
+            set -e
+          fi
 
-          python - "$POD_ID" "$POD_FP" "$LOG_RC" <<'PY'
-          import json,sys,datetime,re
-          pid,fp,rc=sys.argv[1],sys.argv[2],int(sys.argv[3])
+          python - "$POD_ID" "$GQL_RC" "$LOG_RC" <<'PY'
+          import json,sys,datetime,re,hashlib
+          pid,gql_rc,log_rc=sys.argv[1],int(sys.argv[2]),int(sys.argv[3])
+          fp=hashlib.sha256(pid.encode()).hexdigest()[:12] if pid else None
           lines=[]
-          try:
-              for raw in open('/tmp/logs.jsonl',encoding='utf-8',errors='replace'):
-                  raw=raw.strip()
-                  if not raw: continue
-                  try:
-                      d=json.loads(raw)
-                      line=str(d.get('line',''))
-                      source=d.get('source')
-                      ts=d.get('ts')
-                  except Exception:
-                      line=raw; source='unknown'; ts=None
-                  line=line.replace(pid,'<POD_ID>')
-                  line=re.sub(r'rpa_[A-Za-z0-9_-]+','<REDACTED_RUNPOD_KEY>',line)
-                  line=re.sub(r'gh[pousr]_[A-Za-z0-9_]+','<REDACTED_GITHUB_TOKEN>',line)
-                  lines.append({'source':source,'ts':ts,'line':line[:4000]})
-          except FileNotFoundError:
-              pass
-          err=''
-          try: err=open('/tmp/logs.err',encoding='utf-8',errors='replace').read()
-          except: pass
-          err=err.replace(pid,'<POD_ID>')
+          for raw in open('/tmp/logs.jsonl',encoding='utf-8',errors='replace'):
+              raw=raw.strip()
+              if not raw: continue
+              try:
+                  d=json.loads(raw)
+                  line=str(d.get('line',''))
+                  source=d.get('source')
+                  ts=d.get('ts')
+              except Exception:
+                  line=raw; source='unknown'; ts=None
+              if pid: line=line.replace(pid,'<POD_ID>')
+              line=re.sub(r'rpa_[A-Za-z0-9_-]+','<REDACTED_RUNPOD_KEY>',line)
+              line=re.sub(r'gh[pousr]_[A-Za-z0-9_]+','<REDACTED_GITHUB_TOKEN>',line)
+              lines.append({'source':source,'ts':ts,'line':line[:4000]})
+          err=open('/tmp/logs.err',encoding='utf-8',errors='replace').read()[:3000]
+          if pid: err=err.replace(pid,'<POD_ID>')
           out={
-              'schema_version':1,
+              'schema_version':2,
               'checked_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),
+              'pod_found':bool(pid),
               'pod_fingerprint':fp,
-              'logs_rc':rc,
-              'stderr':err[:3000],
+              'graphql_rc':gql_rc,
+              'logs_rc':log_rc,
+              'stderr':err,
               'lines':lines[-500:]
           }
-          open('.github/runpod-control/retry18h-diagnostic.json','w',encoding='utf-8').write(json.dumps(out,indent=2,sort_keys=True)+'\n')
-          print('DIAGNOSTIC_LINES',len(lines))
+          open('.github/runpod-control/retry18h-diagnostic.json','w',encoding='utf-8').write(
+              json.dumps(out,indent=2,sort_keys=True)+'\n'
+          )
+          print('RETRY18H_DIAGNOSTIC_WRITTEN',out['pod_found'],len(lines))
           PY
 
       - name: Commit sanitized diagnostic
