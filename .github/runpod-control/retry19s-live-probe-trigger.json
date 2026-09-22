@@ -1,0 +1,6 @@
+{
+  "target": "Retry19S",
+  "pod_id": "32hjzjz44cslte",
+  "nonce": "live-1",
+  "purpose": "non-destructive paid pod readiness/runtime check"
+}
