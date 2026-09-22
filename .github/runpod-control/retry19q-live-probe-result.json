@@ -1,5 +1,16 @@
 {
-  "container_logs": [],
+  "container_logs": [
+    {
+      "line": "Server listening on 0.0.0.0 port 22.",
+      "source": "container",
+      "ts": "2026-09-22T21:27:38.086022499Z"
+    },
+    {
+      "line": "Server listening on :: port 22.",
+      "source": "container",
+      "ts": "2026-09-22T21:27:38.086105249Z"
+    }
+  ],
   "graphql": {
     "container": null,
     "costPerHr": null,
@@ -15,5 +26,35 @@
     "portMappings": null,
     "publicIp": false
   },
-  "stderr": "{\"error\":\"timed out waiting for the log stream to respond. the api sends nothing until it has a line, so this can also mean no logs match --since/--source, or the pod has not started writing yet\",\"code\":\"timeout\"}\n"
+  "runpodctl": {
+    "containerDiskInGb": 40,
+    "costPerHr": 0.49,
+    "createdAt": "2026-09-22 21:23:49.117 +0000 UTC",
+    "desiredStatus": "RUNNING",
+    "env": {
+      "AQLEVON_EXPECTED_W03_HEAD": "ac9435526f47e6e70ad10851f9d3362f7a4aec61",
+      "PUBLIC_KEY": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPR8V41h77GAFd85zdSc99RPOkBy9msOyjML4bUmm+AF runner@runnervmlun5p"
+    },
+    "gpuCount": 1,
+    "id": "fx7vfkq7pxd1sz",
+    "imageName": "ghcr.io/india123445t-pixel/mus-ai@sha256:ac70a74115046be4a866195344c0600ef0b1bb5ec5e897ec02ae8bd1f6c6f555",
+    "lastStatusChange": "Rented by User: Tue Sep 22 2026 21:23:49 GMT+0000 (Coordinated Universal Time)",
+    "memoryInGb": 50,
+    "name": "AQLEVON-P4-A1-Retry19Q",
+    "ports": [
+      "22/tcp"
+    ],
+    "runtimeStatus": "initializing",
+    "runtimeStatusReason": "awaiting_container",
+    "ssh": {
+      "error": "pod not ready: no container reported yet (image pull, container create or boot)",
+      "id": "fx7vfkq7pxd1sz",
+      "name": "AQLEVON-P4-A1-Retry19Q",
+      "status": "RUNNING"
+    },
+    "vcpuCount": 9,
+    "volumeInGb": 20,
+    "volumeMountPath": "/workspace"
+  },
+  "stderr": ""
 }
