@@ -24,7 +24,7 @@ jobs:
         run: |
           set -euo pipefail
           pod="$(jq -r '.pod_id' .github/runpod-control/stop-exact-pod-trigger.json)"
-          test "$pod" = "f1ry7ce3bfxk73"
+          test "$pod" = "32hjzjz44cslte"
           curl -sS -f -X POST "https://rest.runpod.io/v1/pods/$pod/stop" -H "Authorization: Bearer $RUNPOD_API_KEY" -H 'Content-Type: application/json' -d '{}' >/tmp/stop.json
           verified=0
           for i in $(seq 1 10); do
