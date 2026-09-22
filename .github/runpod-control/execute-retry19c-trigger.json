@@ -1,0 +1,13 @@
+{
+  "authorization_id": "P4-A1-RUNPOD-FLEX-20260922-19C-VLLM-LORA-GUARD",
+  "authorization_sha256": "93b3eda5f4f601a9e3c08413fe9f759a9f6be67a150ad5c7195aabc24a4f15ef",
+  "expected_head": "2324ebadef1445ec9392f33d4b15293bd80409f5",
+  "selection_mode": "dynamic_secure_gpu",
+  "min_memory_gb": 24,
+  "request_schema": "runpodctl_graphql_dynamic",
+  "max_total_cost_usd": "0.40",
+  "max_hourly_rate_usd": "0.55",
+  "max_billed_seconds": 1800,
+  "single_use": true,
+  "reason": "Owner authorized one paid GPU attempt; CPU Gate and Exact Contract PASS; choose live secure GPU capacity at execution time within 24GB minimum and 0.55 USD/hr ceiling"
+}
