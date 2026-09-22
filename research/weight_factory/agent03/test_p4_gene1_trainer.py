@@ -484,6 +484,42 @@ class TransformersForMultimodalLM:
         self.assertEqual(once, twice)
 
 
+
+class VllmTransformersMmOutputPatchTests(unittest.TestCase):
+    def _source(self):
+        return """            vision_embeddings = self.model.get_image_features(
+                pixel_values,
+                **{
+                    k: v.flatten(0, 1)
+                    for k, v in kwargs.items()
+                },
+            )
+
+            if isinstance(vision_embeddings, torch.Tensor):
+"""
+
+    def test_patch_unwraps_qwen35_pooler_output(self):
+        patched = compat.patch_vllm_transformers_mm_output(self._source())
+        self.assertIn("AQLEVON_QWEN35_MM_OUTPUT_UNWRAP", patched)
+        self.assertIn('hasattr(vision_embeddings, "pooler_output")', patched)
+        self.assertIn("vision_embeddings = vision_embeddings.pooler_output", patched)
+
+    def test_patch_fails_closed_on_bad_qwen35_output(self):
+        patched = compat.patch_vllm_transformers_mm_output(self._source())
+        self.assertIn("AQLEVON_QWEN35_MM_OUTPUT_UNSUPPORTED", patched)
+        self.assertIn('getattr(self.config, "model_type", None) == "qwen3_5"', patched)
+
+    def test_patch_accepts_tensor_list_or_tuple_only(self):
+        patched = compat.patch_vllm_transformers_mm_output(self._source())
+        self.assertIn("isinstance(vision_embeddings, (list, tuple))", patched)
+        self.assertIn("all(isinstance(x, torch.Tensor) for x in vision_embeddings)", patched)
+
+    def test_patch_is_idempotent(self):
+        once = compat.patch_vllm_transformers_mm_output(self._source())
+        twice = compat.patch_vllm_transformers_mm_output(once)
+        self.assertEqual(once, twice)
+
+
 class RunnerTests(unittest.TestCase):
     def test_a1_command_exact_budget_sampling_lora_and_one_gpu(self):
         p = plan_fixture()
