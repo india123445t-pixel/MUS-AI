@@ -33,14 +33,22 @@ async function providerHealth(){
   ]);
   return {openrouter,groq,gemini,mistral,cerebras,huggingface,self_hosted:selfHosted};
 }
-export async function GET(){
+export async function GET(req){
   const providers=await providerHealth();
-  const ready=Object.values(providers).some(x=>x?.ok===true);
+  const mode=String(req?.nextUrl?.searchParams?.get('runtime_mode')||'').trim();
+  const modeKnown=!!mode;
+  const externalReady=['openrouter','groq','gemini','mistral','cerebras','huggingface'].some(name=>providers[name]?.ok===true);
+  const selfHostedReady=providers.self_hosted?.ok===true;
+  const anyProviderReady=externalReady||selfHostedReady;
+  const ready=modeKnown?(mode==='self_hosted_only'?selfHostedReady:anyProviderReady):false;
   const configured=Object.values(providers).filter(x=>x?.configured===true);
   const primaryError=ready?null:(configured.find(x=>x.error_class&&x.error_class!=='ENV_MISSING')?.error_class||'ENV_MISSING');
   return NextResponse.json({
     providers,
     openrouter:providers.openrouter,
+    runtime_mode:modeKnown?mode:null,
+    mode_known:modeKnown,
+    any_provider_ready:anyProviderReady,
     inference_ready:ready,
     primary_error_class:primaryError,
   },{headers:{'Cache-Control':'no-store'}});
