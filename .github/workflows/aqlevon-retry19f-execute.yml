@@ -4,13 +4,13 @@ on:
   push:
     branches: [ops/runpod-control-v1]
     paths:
-      - ".github/runpod-control/execute-retry19i-trigger.json"
+      - ".github/runpod-control/execute-retry19j-trigger.json"
 
 permissions:
   contents: write
 
 concurrency:
-  group: aqlevon-retry19i-paid-single-use
+  group: aqlevon-retry19j-paid-single-use
   cancel-in-progress: false
 
 jobs:
@@ -35,8 +35,8 @@ jobs:
         run: |
           set -euo pipefail
           test -n "${RUNPOD_API_KEY:-}"
-          trigger=.github/runpod-control/execute-retry19i-trigger.json
-          test ! -f .github/runpod-control/retry19i-result.json || { echo "::error::Retry19I already consumed"; exit 90; }
+          trigger=.github/runpod-control/execute-retry19j-trigger.json
+          test ! -f .github/runpod-control/retry19j-result.json || { echo "::error::Retry19I already consumed"; exit 90; }
           jq -e --arg aid "$AUTH_ID" --arg asha "$AUTH_SHA" '
             .authorization_id==$aid and
             .authorization_sha256==$asha and
@@ -166,12 +166,12 @@ jobs:
             python - <<'PY'
           import json,datetime,os
           err=open('/tmp/create-stderr.txt',errors='replace').read()[-1000:] if os.path.exists('/tmp/create-stderr.txt') else 'runpodctl_create_failed'
-          json.dump({'phase':'create_failed','create_rc':int(os.environ['CREATE_RC']),'error':err,'checked_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat()},open('.github/runpod-control/retry19i-create-diagnostic.json','w'),indent=2)
-          open('.github/runpod-control/retry19i-create-diagnostic.json','a').write('\n')
+          json.dump({'phase':'create_failed','create_rc':int(os.environ['CREATE_RC']),'error':err,'checked_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat()},open('.github/runpod-control/retry19j-create-diagnostic.json','w'),indent=2)
+          open('.github/runpod-control/retry19j-create-diagnostic.json','a').write('\n')
           PY
             git config user.name aqlevon-runpod-bot
             git config user.email actions@users.noreply.github.com
-            git add .github/runpod-control/retry19i-create-diagnostic.json
+            git add .github/runpod-control/retry19j-create-diagnostic.json
             git commit -m "ops: record Retry19I create diagnostic [skip ci]" || true
             git push origin HEAD:ops/runpod-control-v1 || true
             exit "$create_rc"
@@ -234,9 +234,9 @@ jobs:
           if [ "$ready" -ne 1 ]; then
             rc=91
             echo "FAIL_CLOSED_GPU_SSH_READINESS"
-            : > /tmp/retry19i.log
+            : > /tmp/retry19j.log
           else
-            timeout --signal=TERM --kill-after=20s 1800s ssh "${ssh_opts[@]}" root@$host "export AQLEVON_EXPECTED_W03_HEAD=$EXPECTED_HEAD AQLEVON_EXPECTED_IMAGE_DIGEST=$IMAGE_DIGEST; rm -rf /workspace/MUS-AI; git clone -q --branch agent/03-p4-gene1-physical-trainer --single-branch https://github.com/india123445t-pixel/MUS-AI.git /workspace/MUS-AI; git -C /workspace/MUS-AI reset -q --hard $EXPECTED_HEAD; bash /workspace/MUS-AI/research/weight_factory/agent03/p4_runpod_appliance_launch.sh" 2>&1 | tee /tmp/retry19i.log
+            timeout --signal=TERM --kill-after=20s 1800s ssh "${ssh_opts[@]}" root@$host "export AQLEVON_EXPECTED_W03_HEAD=$EXPECTED_HEAD AQLEVON_EXPECTED_IMAGE_DIGEST=$IMAGE_DIGEST; rm -rf /workspace/MUS-AI; git clone -q --branch agent/03-p4-gene1-physical-trainer --single-branch https://github.com/india123445t-pixel/MUS-AI.git /workspace/MUS-AI; git -C /workspace/MUS-AI reset -q --hard $EXPECTED_HEAD; bash /workspace/MUS-AI/research/weight_factory/agent03/p4_runpod_appliance_launch.sh" 2>&1 | tee /tmp/retry19j.log
             rc=${PIPESTATUS[0]}
           fi
 
@@ -255,8 +255,8 @@ jobs:
           echo "rc=$rc" >> "$GITHUB_OUTPUT"
 
           if [ "$ready" -eq 1 ]; then
-            ssh "${ssh_opts[@]}" root@$host 'cd /workspace && tar -czf /tmp/aqlevon-retry19i-evidence.tgz aqlevon_p4 2>/dev/null' || true
-            scp -q "${scp_opts[@]}" root@$host:/tmp/aqlevon-retry19i-evidence.tgz /tmp/aqlevon-retry19i-evidence.tgz || true
+            ssh "${ssh_opts[@]}" root@$host 'cd /workspace && tar -czf /tmp/aqlevon-retry19j-evidence.tgz aqlevon_p4 2>/dev/null' || true
+            scp -q "${scp_opts[@]}" root@$host:/tmp/aqlevon-retry19j-evidence.tgz /tmp/aqlevon-retry19j-evidence.tgz || true
           fi
           exit "$rc"
 
@@ -315,8 +315,8 @@ jobs:
           python - <<'PY'
           import json,os,re,hashlib,datetime
           log=''
-          if os.path.exists('/tmp/retry19i.log'):
-              log=open('/tmp/retry19i.log',errors='replace').read()
+          if os.path.exists('/tmp/retry19j.log'):
+              log=open('/tmp/retry19j.log',errors='replace').read()
           rc=None
           candidates=[os.environ.get('STEP_RC','')]
           if os.path.exists('/tmp/train_rc'):
@@ -342,15 +342,15 @@ jobs:
             'training_exit_code':rc,
             'markers':markers,
             'log_sha256':hashlib.sha256(log.encode()).hexdigest() if log else None,
-            'evidence_archive_present':os.path.exists('/tmp/aqlevon-retry19i-evidence.tgz'),
+            'evidence_archive_present':os.path.exists('/tmp/aqlevon-retry19j-evidence.tgz'),
             'checkpoint_valid':(open('/tmp/checkpoint_valid').read().strip()=='yes') if os.path.exists('/tmp/checkpoint_valid') else False
           }
-          json.dump(out,open('.github/runpod-control/retry19i-result.json','w'),indent=2,sort_keys=True)
-          open('.github/runpod-control/retry19i-result.json','a').write('\n')
+          json.dump(out,open('.github/runpod-control/retry19j-result.json','w'),indent=2,sort_keys=True)
+          open('.github/runpod-control/retry19j-result.json','a').write('\n')
           PY
           git config user.name aqlevon-runpod-bot
           git config user.email actions@users.noreply.github.com
-          git add .github/runpod-control/retry19i-result.json
+          git add .github/runpod-control/retry19j-result.json
           git commit -m "ops: record Retry19I sanitized result [skip ci]" || true
           git push origin HEAD:ops/runpod-control-v1 || true
 
@@ -358,12 +358,12 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: aqlevon-retry19i-evidence
+          name: aqlevon-retry19j-evidence
           path: |
-            /tmp/retry19i.log
+            /tmp/retry19j.log
             /tmp/train_rc
             /tmp/checkpoint_valid
-            /tmp/aqlevon-retry19i-evidence.tgz
+            /tmp/aqlevon-retry19j-evidence.tgz
             /tmp/stop.json
           if-no-files-found: warn
           retention-days: 7
@@ -379,8 +379,8 @@ jobs:
           if ! [[ "$rc" =~ ^[0-9]+$ ]] && [ -s /tmp/train_rc ]; then
             rc="$(cat /tmp/train_rc)"
           fi
-          if ! [[ "$rc" =~ ^[0-9]+$ ]] && [ -s /tmp/retry19i.log ]; then
-            rc="$(grep -oE 'AQLEVON_A1_EXIT_CODE=[0-9]+' /tmp/retry19i.log | tail -n1 | cut -d= -f2 || true)"
+          if ! [[ "$rc" =~ ^[0-9]+$ ]] && [ -s /tmp/retry19j.log ]; then
+            rc="$(grep -oE 'AQLEVON_A1_EXIT_CODE=[0-9]+' /tmp/retry19j.log | tail -n1 | cut -d= -f2 || true)"
           fi
           if ! [[ "$rc" =~ ^[0-9]+$ ]]; then
             echo "::error::Retry19I training exit code missing"
