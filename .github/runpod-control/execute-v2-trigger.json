@@ -1,0 +1,11 @@
+{
+  "action": "execute_retry18h_v2",
+  "authorization_id": "P4-A1-RUNPOD-4090-20260922-18H-API-AUTOMATED",
+  "authorization_sha256": "15393f4a9061e28b08e2fe9d0c27eeb55a83ea26a76fff04bdae259f3df2b937",
+  "worker03_head": "d3ded5159ea66c4364e283fdef355ced46ad20bb",
+  "gpu": "NVIDIA GeForce RTX 4090",
+  "max_rate_usd_per_hr": 0.8,
+  "max_total_usd": 0.4,
+  "max_billed_seconds": 1800,
+  "single_use": true
+}
