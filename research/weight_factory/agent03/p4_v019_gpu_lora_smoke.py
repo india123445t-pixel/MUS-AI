@@ -176,6 +176,11 @@ def run_vllm_smoke(model_path: Path, adapter_dir: Path) -> dict:
     import vllm
     from vllm import LLM, SamplingParams
     from vllm.lora.request import LoRARequest
+    from vllm.model_executor.models.qwen3_5 import Qwen3_5ForCausalLMBase
+
+    packed = Qwen3_5ForCausalLMBase.packed_modules_mapping.get("qkv_proj")
+    if packed != ["q_proj", "k_proj", "v_proj"]:
+        raise RuntimeError(f"AQLEVON_SMOKE_QKV_PACK_MAPPING:{packed}")
 
     if vllm.__version__.split("+")[0] != "0.19.1":
         raise RuntimeError(f"AQLEVON_SMOKE_VLLM_VERSION:{vllm.__version__}")
