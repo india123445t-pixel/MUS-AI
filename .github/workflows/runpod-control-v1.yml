@@ -32,7 +32,12 @@ jobs:
           python - <<'PY'
           import json,datetime,hashlib
           raw=json.load(open('/tmp/pods.json'))
-          pods=raw.get('pods',raw.get('data',raw if isinstance(raw,list) else [])) if isinstance(raw,(dict,list)) else []
+          if isinstance(raw,list):
+              pods=raw
+          elif isinstance(raw,dict):
+              pods=raw.get('pods',raw.get('data',[]))
+          else:
+              pods=[]
           if isinstance(pods,dict): pods=list(pods.values())
           out={'action':'status','api':'v1','ok':True,'checked_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'pod_count':len(pods or []),'pods':[]}
           for p in pods or []:
