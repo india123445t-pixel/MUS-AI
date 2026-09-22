@@ -1,6 +1,6 @@
 {
   "target": "Retry19T",
   "pod_id": "3u1res8nwlqalk",
-  "nonce": "live-1",
-  "purpose": "verify corrected head/image and readiness without mutation"
+  "nonce": "live-2",
+  "purpose": "observe Retry19T readiness after verified corrected head/image"
 }
