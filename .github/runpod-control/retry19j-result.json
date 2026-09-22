@@ -1,0 +1,20 @@
+{
+  "authorization_id": "P4-A1-RUNPOD-4090-20260922-19J-QWEN35-MM-OUTPUT-UNWRAP",
+  "checked_at_utc": "2026-09-22T17:49:24.736458+00:00",
+  "checkpoint_valid": false,
+  "evidence_archive_present": true,
+  "expected_head": "87dcdc5301fac66d004184dfc9eb4638075f432a",
+  "log_sha256": "e1d361b70c7a2391510629ff272de631cdcb84a70a3872356fc7dff198429472",
+  "markers": {
+    "A1_LOCKED_TRAINING_START": true,
+    "APPLIANCE_BINDING_PASS": true,
+    "APPLIANCE_EXACT_AUTHORIZATION_PASS": true,
+    "APPLIANCE_SEED1701_BINDING_PASS": true,
+    "APPLIANCE_SOURCE_DELTA_PASS": true,
+    "AQLEVON_A1_EXIT_CODE": false,
+    "AQLEVON_APPLIANCE_LAUNCH_START": true,
+    "AQLEVON_APPLIANCE_TOTAL_SCRIPT_SECONDS": false,
+    "MODEL_STAGE_PASS": true
+  },
+  "training_exit_code": 124
+}
