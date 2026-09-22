@@ -41,6 +41,7 @@ async function loadRuntime(sb){
       max_model_calls_per_request:3,
       max_history:16,
       temperature:0.4,
+      runtime_mode:'self_hosted_only',
       allow_paid_external:false,
       public_web_search_enabled:false,
     },
@@ -52,7 +53,7 @@ async function loadRuntime(sb){
       sb.rpc('get_aqlevon_runtime_lessons',{p_limit:18}),
     ]);
     return {
-      settings:cfg.error?fallback.settings:{...fallback.settings,...(cfg.data||{})},
+      settings:cfg.error?fallback.settings:{...fallback.settings,...(cfg.data||{}),runtime_mode:'self_hosted_only',allow_paid_external:false,public_web_search_enabled:false},
       lessons:lessons.error?[]:(lessons.data||[]),
     };
   }catch{return fallback}
