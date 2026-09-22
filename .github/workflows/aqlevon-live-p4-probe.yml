@@ -28,9 +28,9 @@ jobs:
           import json
           p=json.load(open('/tmp/pods.json'))
           pods=p if isinstance(p,list) else p.get('pods') or p.get('items') or []
-          active=[x for x in pods if str(x.get('name') or '').startswith('AQLEVON-P4-A1-Retry19H') and str(x.get('desiredStatus') or x.get('status'))!='EXITED']
+          active=[x for x in pods if str(x.get('name') or '').startswith('AQLEVON-P4-A1-Retry19I') and str(x.get('desiredStatus') or x.get('status'))!='EXITED']
           if len(active)!=1:
-              raise SystemExit('active_retry19h_count:'+str(len(active)))
+              raise SystemExit('active_retry19i_count:'+str(len(active)))
           x=active[0]
           open('/tmp/pod_id','w').write(str(x.get('id')))
           open('/tmp/pod_state.json','w').write(json.dumps({'id':x.get('id'),'name':x.get('name'),'desiredStatus':x.get('desiredStatus'),'costPerHr':x.get('costPerHr')},sort_keys=True))
@@ -75,5 +75,5 @@ jobs:
           git config user.name aqlevon-runpod-bot
           git config user.email actions@users.noreply.github.com
           git add .github/runpod-control/live-p4-probe-result.json
-          git commit -m "ops: record live Retry19H probe [skip ci]" || true
+          git commit -m "ops: record live Retry19I probe [skip ci]" || true
           git push origin HEAD:ops/runpod-control-v1
