@@ -1,0 +1,11 @@
+{
+  "authorization_id": "P4-A1-RUNPOD-4090-20260922-18P-TRANSIENT-CREATE-RETRY",
+  "authorization_sha256": "254687987aac9b1df1a56aea011d8d4bc98d1032439d7351c456db8c204f0aab",
+  "max_billed_seconds": 1800,
+  "max_total_cost_usd": "0.40",
+  "single_use": true,
+  "expected_head": "0501c407c5ca9593f93a3012a8aef351ab38e10a",
+  "runtime_appliance_digest": "sha256:83d8074523c0a5535fc2718956f5bf430de400cd1e900030e83c1e4c974e8714",
+  "requested_by": "AQLEVON_MANAGER",
+  "nonce": "2026-09-22T07:39Z"
+}
