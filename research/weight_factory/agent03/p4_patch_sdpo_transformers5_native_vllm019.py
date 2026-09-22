@@ -70,8 +70,6 @@ def main() -> int:
             "            # WorkerWrapperBase.execute_method. Mirror vLLM 0.19's own\n"
             "            # UniProcExecutor collective_rpc dispatch via serial_utils.run_method.\n"
             "            if not hasattr(type(self.inference_engine), \"execute_method\"):\n"
-            "                if isinstance(method, bytes):\n"
-            "                    method = pickle.loads(method)\n"
             "                from vllm.v1.serial_utils import run_method\n"
             "                return run_method(self.inference_engine, method, args, kwargs)\n"
             "            return self.inference_engine.execute_method(method, *args, **kwargs)\n",
