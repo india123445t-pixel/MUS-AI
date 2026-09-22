@@ -1,0 +1,15 @@
+{
+  "authorization_id": "P4-A1-RUNPOD-A40-20260922-19P-VLLM019-RANK4-CAPACITY-REPAIR",
+  "authorization_sha256": "2daca0b400459f866f0b8e83b7a9707b9c9bae780a65053ee69f3e4a26bfda1a",
+  "expected_head": "62620690ab7d2ac3a756e293323ba02990f51685",
+  "image_digest": "sha256:ac70a74115046be4a866195344c0600ef0b1bb5ec5e897ec02ae8bd1f6c6f555",
+  "selection_mode": "dynamic_datacenter",
+  "gpu_type": "NVIDIA A40",
+  "min_memory_gb": 48,
+  "request_schema": "runpodctl_graphql_dynamic_dc",
+  "max_total_cost_usd": "0.55",
+  "max_hourly_rate_usd": "0.55",
+  "max_billed_seconds": 3600,
+  "single_use": true,
+  "reason": "Fresh single-use Retry19P after Retry19O exposed vLLM 0.19.1 max_lora_rank capacity validation; frozen PEFT rank remains 4 while vLLM capacity ceiling is corrected to 8 and exact CPU contract is green"
+}
