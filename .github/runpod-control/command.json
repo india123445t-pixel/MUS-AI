@@ -2,6 +2,6 @@
   "action": "status",
   "requested_by": "AQLEVON_MANAGER",
   "mode": "read_only",
-  "nonce": "2026-09-22T07:23Z",
-  "note": "PR-triggered pod identity + storage status probe"
+  "nonce": "2026-09-22T07:25Z",
+  "note": "verify Retry18H termination and current pod inventory"
 }
