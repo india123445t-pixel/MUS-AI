@@ -32,6 +32,7 @@ export default function WorkPage({ onMenu }) {
   const [detail, setDetail] = useState(null);
   const [show, setShow] = useState(false);
   const [form, setForm] = useState({ prompt: '', type: 'md' });
+  const [runtime, setRuntime] = useState(null);
 
   const load = useCallback(() => {
     api.get('/jobs').then(setJobs).catch(() => {});
@@ -40,12 +41,13 @@ export default function WorkPage({ onMenu }) {
 
   useEffect(() => {
     load();
+    api.get('/bootstrap').then(setRuntime).catch(() => setRuntime({ inferenceReady:false }));
     const timer = setInterval(load, 2500);
     return () => clearInterval(timer);
   }, [load]);
 
   const create = async () => {
-    if (!form.prompt.trim()) return;
+    if (!form.prompt.trim() || runtime?.inferenceReady !== true) return;
     const tp = TYPES.find(x => x.id === form.type);
     const title = form.prompt.trim().slice(0, 60);
     const j = await api.post('/jobs', {
@@ -146,6 +148,12 @@ export default function WorkPage({ onMenu }) {
         <button className="btn" onClick={() => setShow(true)}><Icon name="plus" size={15} /> {t('work.newTask')}</button>
       </div>
       <div className="content narrow" style={{ maxWidth: 760 }}>
+        {runtime?.inferenceReady === false && (
+          <div className="card" style={{ marginBottom: 14 }}>
+            <b>{t('work.runtimeUnavailable')}</b>
+            <p className="muted small" style={{ margin: '6px 0 0' }}>{t('chat.runtimeUnavailable')}</p>
+          </div>
+        )}
         {jobs.length === 0 && (
           <div className="empty">
             <Icon name="work" size={28} />
@@ -185,7 +193,7 @@ export default function WorkPage({ onMenu }) {
             </div>
             <div className="row" style={{ justifyContent: 'flex-end' }}>
               <button className="btn ghost" onClick={() => setShow(false)}>{t('common.cancel')}</button>
-              <button className="btn" disabled={!form.prompt.trim()} onClick={create}>{t('work.start')}</button>
+              <button className="btn" disabled={!form.prompt.trim() || runtime?.inferenceReady !== true} onClick={create}>{t('work.start')}</button>
             </div>
           </div>
         </div>
