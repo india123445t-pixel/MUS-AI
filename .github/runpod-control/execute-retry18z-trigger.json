@@ -1,0 +1,13 @@
+{
+  "authorization_id": "P4-A1-RUNPOD-L4-20260922-18Z-VLLM-LORA-GUARD",
+  "authorization_sha256": "80b8eb0be425e13c01d80b0d317a3291bb3e62b8b368cfc3b693d8ba58bdfb89",
+  "expected_head": "7af35739fb45600bac8828464fbd67307d1aef8d",
+  "gpu_type": "NVIDIA L4",
+  "data_center_id": "US-MO-2",
+  "request_schema": "rest_v1_no_min_memory",
+  "max_total_cost_usd": "0.40",
+  "max_hourly_rate_usd": "0.55",
+  "max_billed_seconds": 1800,
+  "single_use": true,
+  "reason": "Owner explicitly authorized one new paid GPU attempt; Retry18Z after free CPU+Exact gates PASS"
+}
