@@ -1,0 +1,488 @@
+name: AQLEVON Retry18I Physical A1
+
+on:
+  push:
+    branches:
+      - ops/runpod-control-v1
+    paths:
+      - ".github/runpod-control/retry18i-launch-trigger-*.json"
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: aqlevon-retry18i-physical-a1
+  cancel-in-progress: false
+
+jobs:
+  physical-a1:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      POD_NAME: AQLEVON-P4-A1-R18I
+      GPU_ID: NVIDIA GeForce RTX 4090
+      IMAGE: ghcr.io/india123445t-pixel/mus-ai@sha256:ecfe9d199a56333da7655a63a750fc6466d27fd1ed91d60aaa3e2c4b0a3dd69d
+      SOURCE_COMMIT: fa288e74a996a7651f450f257d538de071b02ca1
+      AUTH_SHA: 66dba2ae8815bc3bf6b4bb01442d58be5146fad162d03932f0128e542584c35d
+      RUN_MANIFEST_SHA: 24e3d21155c3f1011ca92f90e6c622fe03f92bfd65656d31d87fa627886fad47
+      COMMAND_LOCK_SHA: b07441e07d0f26191fc5bd20ebf61e61c88003c542205687a2679243d90623c2
+      MAX_RATE: "0.80"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/runpod-control-v1
+
+      - name: Install official runpodctl
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo wget -q https://github.com/runpod/runpodctl/releases/latest/download/runpodctl-linux-amd64 -O /usr/local/bin/runpodctl
+          sudo chmod +x /usr/local/bin/runpodctl
+          runpodctl version
+          runpodctl user >/dev/null
+
+      - name: Fail-closed pre-spend identity and market gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${RUNPOD_API_KEY:-}" || { echo "::error::RUNPOD_API_KEY missing"; exit 1; }
+
+          git fetch -q --no-tags origin agent/03-p4-gene1-physical-trainer
+          git show "origin/agent/03-p4-gene1-physical-trainer:research/weight_factory/agent03/p4_a1_runpod_manager_authorization_retry18i_github_control_v1.json" > /tmp/auth.json
+          git show "origin/agent/03-p4-gene1-physical-trainer:research/weight_factory/agent03/p4_a1_runtime_appliance_binding_retry18i_github_control_v1.json" > /tmp/binding.json
+          git show "${SOURCE_COMMIT}:research/weight_factory/agent03/p4_a1_runpod_manager_authorization_retry18i_github_control_v1.json" > /tmp/source-auth.json
+
+          python - <<'PY'
+          import json, hashlib, os
+          auth=json.load(open('/tmp/auth.json'))
+          src=json.load(open('/tmp/source-auth.json'))
+          binding=json.load(open('/tmp/binding.json'))
+          def canonical_sha(obj, field):
+              x=dict(obj); x.pop(field,None)
+              raw=json.dumps(x,ensure_ascii=False,sort_keys=True,separators=(',',':')).encode()
+              return hashlib.sha256(raw).hexdigest()
+          assert auth == src, "AUTH_SOURCE_MISMATCH"
+          assert canonical_sha(auth,'authorization_sha256') == os.environ['AUTH_SHA']
+          assert auth['authorization_sha256'] == os.environ['AUTH_SHA']
+          assert auth['authorization_id'] == 'P4-A1-RUNPOD-4090-20260922-18I-GITHUB-CONTROL'
+          assert auth['run_manifest_sha256'] == os.environ['RUN_MANIFEST_SHA']
+          assert auth['profile_id'] == 'p4-surrogate-1x24'
+          assert auth['max_billed_seconds'] == 1800
+          assert auth['max_total_cost_usd'] == '0.40'
+          assert auth['max_hourly_rate_usd'] == '0.80'
+          assert auth['single_use'] is True
+          assert binding['authorization_sha256'] == os.environ['AUTH_SHA']
+          assert binding['run_manifest_sha256'] == os.environ['RUN_MANIFEST_SHA']
+          assert binding['command_lock_sha256'] == os.environ['COMMAND_LOCK_SHA']
+          assert binding['worker03_runtime_source_commit'] == os.environ['SOURCE_COMMIT']
+          assert binding['runtime_appliance_image'] == os.environ['IMAGE']
+          print('RETRY18I_IDENTITY_GATE_PASS')
+          PY
+
+          docker manifest inspect "${IMAGE}" >/dev/null
+          echo "RUNTIME_IMAGE_PUBLIC_PULL_PASS"
+
+          runpodctl gpu list > /tmp/gpus.json
+          python - <<'PY'
+          import json, os
+          raw=json.load(open('/tmp/gpus.json'))
+          def walk(x):
+              if isinstance(x,dict):
+                  yield x
+                  for v in x.values(): yield from walk(v)
+              elif isinstance(x,list):
+                  for v in x: yield from walk(v)
+          hits=[]
+          for d in walk(raw):
+              s=' '.join(str(d.get(k,'')) for k in ('gpuId','id','name','displayName','gpuTypeId','gpuTypeName'))
+              if '4090' in s:
+                  hits.append(d)
+          assert hits, 'RTX4090_NOT_LISTED'
+          ok=[]
+          for d in hits:
+              price=d.get('communityPricePerHr')
+              available=d.get('available')
+              if isinstance(price,(int,float)) and price <= float(os.environ['MAX_RATE']) and available is True:
+                  ok.append((price,d.get('stockStatus')))
+          assert ok, ('RTX4090_SECURE_GATE_FAIL',[(d.get('communityPricePerHr'),d.get('available'),d.get('stockStatus')) for d in hits])
+          print('RTX4090_COMMUNITY_MARKET_GATE_PASS',min(ok))
+          PY
+
+          runpodctl pod list > /tmp/running-pods.json
+          python - <<'PY'
+          import json, os
+          raw=json.load(open('/tmp/running-pods.json'))
+          def walk(x):
+              if isinstance(x,dict):
+                  if 'id' in x and ('name' in x or 'podName' in x):
+                      yield x
+                  for v in x.values(): yield from walk(v)
+              elif isinstance(x,list):
+                  for v in x: yield from walk(v)
+          prefix='AQLEVON-P4-A1'
+          bad=[]
+          for p in walk(raw):
+              name=str(p.get('name') or p.get('podName') or '')
+              status=str(p.get('desiredStatus') or p.get('status') or '')
+              if name.startswith(prefix) and status.upper() in ('RUNNING','STARTING','CREATED'):
+                  bad.append((name,status))
+          assert not bad, ('DUPLICATE_AQLEVON_POD',bad)
+          print('NO_DUPLICATE_AQLEVON_POD_PASS')
+          PY
+
+      - name: Run paid Retry18I with guarded cleanup
+        id: physical
+        shell: bash
+        run: |
+          set -uo pipefail
+          RESULT="$GITHUB_WORKSPACE/.github/runpod-control/retry18i-result.json"
+          mkdir -p "$(dirname "$RESULT")"
+          POD_ID=""
+          POD_FP=""
+          KEY_FP=""
+          TRAIN_RC=999
+          ARTIFACT_RETRIEVED=false
+          POD_DELETED=false
+          POD_STOPPED=false
+          ACTUAL_RATE=""
+          PHASE="init"
+          START_UTC="$(date -u +%FT%TZ)"
+
+          write_result() {
+            python - "$RESULT" "$PHASE" "$START_UTC" "$POD_FP" "$ACTUAL_RATE" "$TRAIN_RC" "$ARTIFACT_RETRIEVED" "$POD_STOPPED" "$POD_DELETED" <<'PY'
+          import json,sys,datetime
+          path,phase,start,fp,rate,rc,artifact,stopped,deleted=sys.argv[1:]
+          out={
+            "schema_version":1,
+            "run":"Retry18I",
+            "authorization_sha256":"66dba2ae8815bc3bf6b4bb01442d58be5146fad162d03932f0128e542584c35d",
+            "source_commit":"fa288e74a996a7651f450f257d538de071b02ca1",
+            "run_manifest_sha256":"24e3d21155c3f1011ca92f90e6c622fe03f92bfd65656d31d87fa627886fad47",
+            "command_lock_sha256":"b07441e07d0f26191fc5bd20ebf61e61c88003c542205687a2679243d90623c2",
+            "started_at_utc":start,
+            "updated_at_utc":datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "phase":phase,
+            "pod_fingerprint":fp or None,
+            "actual_rate_usd_per_hr":float(rate) if rate else None,
+            "training_exit_code":int(rc),
+            "artifact_retrieved":artifact=="true",
+            "pod_stopped":stopped=="true",
+            "pod_deleted":deleted=="true"
+          }
+          open(path,'w',encoding='utf-8').write(json.dumps(out,indent=2,sort_keys=True)+'\n')
+          PY
+          }
+
+          cleanup() {
+            set +e
+            if [ -n "$POD_ID" ]; then
+              runpodctl pod stop "$POD_ID" >/tmp/stop.out 2>/tmp/stop.err
+              [ $? -eq 0 ] && POD_STOPPED=true
+              if [ "$ARTIFACT_RETRIEVED" = true ]; then
+                runpodctl pod delete "$POD_ID" >/tmp/delete.out 2>/tmp/delete.err
+                [ $? -eq 0 ] && POD_DELETED=true
+              fi
+            fi
+            if [ -n "$KEY_FP" ]; then
+              runpodctl ssh remove-key --fingerprint "$KEY_FP" >/tmp/remove-key.out 2>/tmp/remove-key.err || true
+            fi
+            write_result
+          }
+          trap cleanup EXIT
+
+          PHASE="ssh_key"
+          mkdir -p /tmp/aqlevon-r18h
+          ssh-keygen -q -t ed25519 -f /tmp/aqlevon-r18h/id_ed25519 -N '' -C "AQLEVON-R18I" </dev/null
+          KEY_FP="$(ssh-keygen -lf /tmp/aqlevon-r18h/id_ed25519.pub -E sha256 | awk '{print $2}')"
+          runpodctl ssh add-key --key-file /tmp/aqlevon-r18h/id_ed25519.pub >/tmp/add-key.json
+          echo "EPHEMERAL_SSH_KEY_REGISTERED"
+
+          PHASE="create"
+          set +e
+          runpodctl pod create             --name "${POD_NAME}"             --image "${IMAGE}"             --gpu-id "${GPU_ID}"             --gpu-count 1             --cloud-type COMMUNITY             --container-disk-in-gb 40             --ports "22/tcp"             --ssh             --stop-after 30m             > /tmp/create.json 2>/tmp/create.err
+          CREATE_RC=$?
+          set -e
+          if [ "$CREATE_RC" -ne 0 ]; then
+            PHASE="create_failed"
+            cat /tmp/create.err >&2 || true
+            exit "$CREATE_RC"
+          fi
+
+          POD_ID="$(python - <<'PY'
+          import json
+          raw=json.load(open('/tmp/create.json'))
+          def find(x):
+              if isinstance(x,dict):
+                  if isinstance(x.get('id'),str) and x.get('id'):
+                      return x['id']
+                  for v in x.values():
+                      y=find(v)
+                      if y:return y
+              elif isinstance(x,list):
+                  for v in x:
+                      y=find(v)
+                      if y:return y
+          v=find(raw)
+          if not v: raise SystemExit('POD_ID_NOT_FOUND')
+          print(v)
+          PY
+          )"
+          POD_FP="$(printf '%s' "$POD_ID" | sha256sum | cut -c1-12)"
+          echo "POD_CREATED fingerprint=$POD_FP"
+
+          PHASE="post_create_gate"
+          cat >/tmp/pod-query.json <<'JSON'
+          {"query":"query { myself { pods { id name desiredStatus costPerHr runtime { uptimeInSeconds } } } }"}
+          JSON
+          for i in $(seq 1 12); do
+            curl -sS --fail -X POST "https://api.runpod.io/graphql?api_key=${RUNPOD_API_KEY}"               -H 'content-type: application/json' --data-binary @/tmp/pod-query.json > /tmp/pods-gql.json || true
+            ACTUAL_RATE="$(python - "$POD_ID" <<'PY'
+          import json,sys
+          pid=sys.argv[1]
+          try: raw=json.load(open('/tmp/pods-gql.json'))
+          except Exception: raise SystemExit(0)
+          pods=((raw.get('data') or {}).get('myself') or {}).get('pods') or []
+          for p in pods:
+              if p.get('id')==pid:
+                  v=p.get('costPerHr')
+                  if v is not None: print(v)
+                  break
+          PY
+            )"
+            [ -n "$ACTUAL_RATE" ] && break
+            sleep 5
+          done
+          python - "$ACTUAL_RATE" <<'PY'
+          import sys
+          v=float(sys.argv[1])
+          assert v <= 0.80, ('ACTUAL_RATE_EXCEEDS_AUTHORIZATION',v)
+          print('ACTUAL_RATE_GATE_PASS',v)
+          PY
+
+          PHASE="wait_ssh"
+          SSH_IP=""
+          SSH_PORT=""
+          for i in $(seq 1 72); do
+            set +e
+            runpodctl ssh info "$POD_ID" > /tmp/ssh-info.json 2>/tmp/ssh-info.err
+            IRC=$?
+            set -e
+            if [ "$IRC" -eq 0 ]; then
+              read -r SSH_IP SSH_PORT < <(python - <<'PY'
+          import json
+          try: d=json.load(open('/tmp/ssh-info.json'))
+          except Exception: raise SystemExit(0)
+          ip=d.get('ip')
+          port=d.get('port')
+          if ip and port: print(ip,port)
+          PY
+              )
+              if [ -n "${SSH_IP:-}" ] && [ -n "${SSH_PORT:-}" ]; then
+                if ssh -i /tmp/aqlevon-r18h/id_ed25519                   -o BatchMode=yes -o ConnectTimeout=8                   -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null                   -p "$SSH_PORT" "root@$SSH_IP" 'echo AQLEVON_SSH_READY' >/tmp/ssh-test.out 2>/tmp/ssh-test.err; then
+                  break
+                fi
+              fi
+            fi
+            sleep 5
+          done
+          test -n "${SSH_IP:-}" -a -n "${SSH_PORT:-}" || { PHASE="ssh_info_failed"; exit 41; }
+          ssh -i /tmp/aqlevon-r18h/id_ed25519             -o BatchMode=yes -o ConnectTimeout=10             -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null             -p "$SSH_PORT" "root@$SSH_IP" 'echo AQLEVON_SSH_AUTH_PASS'
+
+          PHASE="bootstrap"
+          cat > /tmp/retry18i-bootstrap.sh <<'REMOTE'
+          #!/usr/bin/env bash
+          set -uo pipefail
+          START_TS="$(date +%s)"
+          ROOT=/workspace
+          REPO="$ROOT/MUS-AI"
+          SDPO="$ROOT/SDPO"
+          DATA="$ROOT/aqlevon_p4/data"
+          MODEL="$ROOT/models/qwen35-4b-daa9c16f3712"
+          AGENT="$REPO/research/weight_factory/agent03"
+          AUTH="$AGENT/p4_a1_runpod_manager_authorization_retry18i_github_control_v1.json"
+          RUN="$AGENT/p4_a1_seed1701_run_manifest_v1.json"
+          LOCK="$AGENT/p4_a1_seed1701_command_lock_v1.json"
+          PLAN="$AGENT/p4_frozen_training_plan_v1.json"
+          SOURCE_COMMIT=fa288e74a996a7651f450f257d538de071b02ca1
+          mkdir -p "$ROOT/aqlevon_p4" "$ROOT/models"
+
+          finalize() {
+            RC="$1"
+            END_TS="$(date +%s)"
+            export AQLEVON_REMOTE_RC="$RC" AQLEVON_REMOTE_ELAPSED="$((END_TS-START_TS))"
+            python - <<'PY'
+          import json,os,hashlib
+          from pathlib import Path
+          root=Path('/workspace/aqlevon_p4')
+          files=[]
+          runs=root/'runs'
+          if runs.exists():
+              for p in sorted(runs.rglob('*')):
+                  if p.is_file():
+                      try:
+                          size=p.stat().st_size
+                          h=hashlib.sha256(p.read_bytes()).hexdigest() if size <= 128*1024*1024 else None
+                          files.append({"path":str(p.relative_to(root)),"size":size,"sha256":h})
+                      except Exception as e:
+                          files.append({"path":str(p.relative_to(root)),"error":type(e).__name__})
+          out={
+              "run":"Retry18I",
+              "authorization_sha256":"66dba2ae8815bc3bf6b4bb01442d58be5146fad162d03932f0128e542584c35d",
+              "source_commit":"fa288e74a996a7651f450f257d538de071b02ca1",
+              "exit_code":int(os.environ.get("AQLEVON_REMOTE_RC","999")),
+              "elapsed_seconds":int(os.environ.get("AQLEVON_REMOTE_ELAPSED","0")),
+              "files":files
+          }
+          (root/'retry18i-remote-summary.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
+          PY
+            tar -C /workspace -czf /workspace/retry18i-evidence.tgz               aqlevon_p4               MUS-AI/research/weight_factory/agent03/p4_a1_runpod_manager_authorization_retry18i_github_control_v1.json               MUS-AI/research/weight_factory/agent03/p4_a1_seed1701_run_manifest_v1.json               MUS-AI/research/weight_factory/agent03/p4_a1_seed1701_command_lock_v1.json               MUS-AI/research/weight_factory/agent03/p4_frozen_training_plan_v1.json 2>/dev/null || true
+            [ -f /workspace/retry18i-evidence.tgz ] && du -b /workspace/retry18i-evidence.tgz || true
+            exit "$RC"
+          }
+          trap 'finalize $?' EXIT
+
+          echo "AQLEVON_RETRY18I_START $(date -u +%FT%TZ)"
+          rm -rf "$REPO" "$ROOT/SDPO"
+          git clone -q https://github.com/india123445t-pixel/MUS-AI.git "$REPO"
+          git -C "$REPO" checkout -q "$SOURCE_COMMIT"
+          test "$(git -C "$REPO" rev-parse HEAD)" = "$SOURCE_COMMIT"
+          ln -s /opt/aqlevon/runtime/SDPO "$SDPO"
+
+          python /opt/aqlevon/runtime/smoke_runtime.py --build-check --gpu-check
+          cd "$AGENT"
+          python p4_install_runtime_compat_pth.py
+          python p4_surrogate_tournament.py check-runtime --sdpo-root "$SDPO"
+
+          mkdir -p /tmp/p4inputs "$DATA" "$MODEL"
+          git -C "$REPO" fetch -q --no-tags origin             abb94ef134e2e97036b6959dbc9db4278d3736b6             f01e0ba91bbfa43e0d659fba5c0d0c4f64a06cae
+
+          git -C "$REPO" show f01e0ba91bbfa43e0d659fba5c0d0c4f64a06cae:research/evaluation/gene1_worker01_method_tournament_spec_v1.json > /tmp/p4inputs/w01.json
+          git -C "$REPO" show f01e0ba91bbfa43e0d659fba5c0d0c4f64a06cae:research/evaluation/gene1_worker02_public_pack_binding_v1.json > /tmp/p4inputs/w02_binding.json
+          git -C "$REPO" show f01e0ba91bbfa43e0d659fba5c0d0c4f64a06cae:research/evaluation/gene1_evaluation_law_v1.json > /tmp/p4inputs/w05_law.json
+          git -C "$REPO" show abb94ef134e2e97036b6959dbc9db4278d3736b6:research/weight_factory/agent02/gene1_training_shard_manifest_v1.json > /tmp/p4inputs/shard_manifest.json
+          git -C "$REPO" show abb94ef134e2e97036b6959dbc9db4278d3736b6:research/weight_factory/agent02/gene1_training_shard_v1.jsonl > /tmp/p4inputs/shard.jsonl
+          git -C "$REPO" show abb94ef134e2e97036b6959dbc9db4278d3736b6:research/weight_factory/agent02/gene1_training_visible_pack_v1.json > /tmp/p4inputs/pack.json
+          git -C "$REPO" show abb94ef134e2e97036b6959dbc9db4278d3736b6:research/weight_factory/agent02/gene1_split_commitment_v1.json > /tmp/p4inputs/split.json
+
+          python p4_gene1_trainer.py freeze-plan             --method-spec /tmp/p4inputs/w01.json             --training-shard-manifest /tmp/p4inputs/shard_manifest.json             --training-shard /tmp/p4inputs/shard.jsonl             --training-pack /tmp/p4inputs/pack.json             --split /tmp/p4inputs/split.json             --w02-binding /tmp/p4inputs/w02_binding.json             --w05-law /tmp/p4inputs/w05_law.json             --output /tmp/p4inputs/generated_plan.json
+          diff -u "$PLAN" /tmp/p4inputs/generated_plan.json
+
+          python p4_surrogate_tournament.py prepare-data             --training-shard /tmp/p4inputs/shard.jsonl             --training-pack /tmp/p4inputs/pack.json             --output-dir "$DATA"
+
+          python - <<'PY'
+          from huggingface_hub import snapshot_download
+          snapshot_download(
+              repo_id="Qwen/Qwen3.5-4B-Base",
+              revision="daa9c16f371249f9ad1c75a9ed6f956c08ea08f5",
+              local_dir="/workspace/models/qwen35-4b-daa9c16f3712",
+          )
+          print("MODEL_STAGE_PASS")
+          PY
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          import p4_gene1_trainer as c
+          import p4_surrogate_tournament as t
+          run=json.loads(Path("p4_a1_seed1701_run_manifest_v1.json").read_text())
+          lock=json.loads(Path("p4_a1_seed1701_command_lock_v1.json").read_text())
+          auth=json.loads(Path("p4_a1_runpod_manager_authorization_retry18i_github_control_v1.json").read_text())
+          assert run["manifest_sha256"]=="24e3d21155c3f1011ca92f90e6c622fe03f92bfd65656d31d87fa627886fad47"
+          assert lock["lock_sha256"]=="b07441e07d0f26191fc5bd20ebf61e61c88003c542205687a2679243d90623c2"
+          assert auth["authorization_sha256"]=="66dba2ae8815bc3bf6b4bb01442d58be5146fad162d03932f0128e542584c35d"
+          assert c.verify_self_digest(auth,"authorization_sha256")
+          argv=t.build_a1_argv(Path("p4_frozen_training_plan_v1.json"),Path("/workspace"))
+          assert argv==lock["argv"]
+          assert c.canonical_sha256(argv)==run["command_sha256"]
+          errors=c.validate_manager_authorization(auth,lock=lock,run_manifest_sha256=run["manifest_sha256"])
+          assert not errors, errors
+          print("RETRY18I_EXACT_AUTHORIZATION_PASS")
+          PY
+
+          ELAPSED="$(( $(date +%s) - START_TS ))"
+          if [ "$ELAPSED" -ge 720 ]; then
+            echo "FAIL_CLOSED staging consumed ${ELAPSED}s; refusing training"
+            exit 31
+          fi
+
+          echo "A1_LOCKED_TRAINING_START elapsed=${ELAPSED}s"
+          set +e
+          timeout --signal=TERM --kill-after=20s 900s           python - <<'PY' 2>&1 | tee "$ROOT/aqlevon_p4/P4_A1_seed1701_retry18i.log"
+          import json
+          from pathlib import Path
+          import p4_gene1_trainer as c
+          run=json.loads(Path("p4_a1_seed1701_run_manifest_v1.json").read_text())
+          lock=json.loads(Path("p4_a1_seed1701_command_lock_v1.json").read_text())
+          auth=json.loads(Path("p4_a1_runpod_manager_authorization_retry18i_github_control_v1.json").read_text())
+          rc=c.run_locked(
+              lock,
+              paid=True,
+              authorization=auth,
+              run_manifest_sha256=run["manifest_sha256"],
+              cwd=Path("/workspace/MUS-AI"),
+          )
+          raise SystemExit(rc)
+          PY
+          RC=${PIPESTATUS[0]}
+          set -e
+          echo "AQLEVON_A1_EXIT_CODE=$RC"
+          trap - EXIT
+          finalize "$RC"
+          REMOTE
+          chmod +x /tmp/retry18i-bootstrap.sh
+
+          scp -q -i /tmp/aqlevon-r18h/id_ed25519             -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null             -P "$SSH_PORT" /tmp/retry18i-bootstrap.sh "root@$SSH_IP:/workspace/retry18i-bootstrap.sh"
+
+          PHASE="training"
+          set +e
+          ssh -i /tmp/aqlevon-r18h/id_ed25519             -o BatchMode=yes -o ServerAliveInterval=20 -o ServerAliveCountMax=3             -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null             -p "$SSH_PORT" "root@$SSH_IP"             'bash /workspace/retry18i-bootstrap.sh'             2>&1 | tee /tmp/retry18i-controller.log
+          TRAIN_RC=${PIPESTATUS[0]}
+          set -e
+          echo "REMOTE_TRAINING_RC=$TRAIN_RC"
+
+          PHASE="artifact_retrieval"
+          set +e
+          ssh -i /tmp/aqlevon-r18h/id_ed25519             -o BatchMode=yes -o ConnectTimeout=10             -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null             -p "$SSH_PORT" "root@$SSH_IP"             'test -f /workspace/retry18i-evidence.tgz && stat -c %s /workspace/retry18i-evidence.tgz'             > /tmp/remote-size.txt 2>/tmp/remote-size.err
+          SIZE_RC=$?
+          if [ "$SIZE_RC" -eq 0 ]; then
+            REMOTE_SIZE="$(tr -dc '0-9' </tmp/remote-size.txt)"
+            if [ -n "$REMOTE_SIZE" ] && [ "$REMOTE_SIZE" -le 5368709120 ]; then
+              timeout 300s scp -q -i /tmp/aqlevon-r18h/id_ed25519                 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null                 -P "$SSH_PORT" "root@$SSH_IP:/workspace/retry18i-evidence.tgz"                 "$GITHUB_WORKSPACE/retry18i-evidence.tgz"
+              [ $? -eq 0 ] && ARTIFACT_RETRIEVED=true
+            fi
+          fi
+          set -e
+
+          PHASE="completed"
+          write_result
+          if [ "$TRAIN_RC" -ne 0 ]; then
+            exit "$TRAIN_RC"
+          fi
+          test "$ARTIFACT_RETRIEVED" = true || exit 52
+
+      - name: Upload Retry18I evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aqlevon-retry18i-evidence
+          path: |
+            retry18i-evidence.tgz
+            /tmp/retry18i-controller.log
+          if-no-files-found: warn
+          retention-days: 14
+          compression-level: 0
+
+      - name: Commit sanitized Retry18I result
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f .github/runpod-control/retry18i-result.json || exit 0
+          git config user.name "aqlevon-runpod-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add .github/runpod-control/retry18i-result.json
+          git commit -m "ops: record Retry18I physical result [skip ci]" || exit 0
+          git pull --rebase origin ops/runpod-control-v1
+          git push origin HEAD:ops/runpod-control-v1
