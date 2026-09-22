@@ -1,0 +1,9 @@
+{
+  "authorization_id": "P4-A1-RUNPOD-4090-20260922-18X-VLLM-LORA-GUARD",
+  "authorization_sha256": "0ba6031af31df6258a205a67990810229cfd00da2b7f1631b605899bb114a10c",
+  "expected_head": "07954a1e9349bb19c4f6c3a0da5a99e0e2086fb9",
+  "max_total_cost_usd": "0.40",
+  "max_billed_seconds": 1800,
+  "single_use": true,
+  "reason": "Manager-authorized one-shot after BF16 RAM repair and exact vLLM 0.10.2 LoRA guard passed CPU and Exact Contract gates"
+}
