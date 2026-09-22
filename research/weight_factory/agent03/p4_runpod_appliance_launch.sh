@@ -158,8 +158,8 @@ import p4_surrogate_tournament as t
 run=json.loads(Path("p4_a1_seed1701_run_manifest_v1.json").read_text())
 lock=json.loads(Path("p4_a1_seed1701_command_lock_v1.json").read_text())
 auth=json.loads(Path(os.environ["AQLEVON_RESOLVED_AUTH_FILE"]).read_text())
-assert run["manifest_sha256"]=="3959adc602d0ac05c63a2cb6365d85dd7919f5c4d9461a932a512145eedf83f3"
-assert lock["lock_sha256"]=="1bc2913c19b8c3538f5802e6a37f19282161a51a07668647a473337ee49dbf4d"
+assert run["manifest_sha256"]=="c95ad9d40da6837cd4f12c32f9a1873ed73ae9b703fa693c6d74dbfebc1bafcb"
+assert lock["lock_sha256"]=="3b9ca1448ab30636d8dcbfc0ae1e5e836ec2d9584199d0e60f6a69a966b2eb16"
 assert c.verify_self_digest(auth,"authorization_sha256")
 argv=t.build_a1_argv(Path("p4_frozen_training_plan_v1.json"),Path("/workspace"))
 assert argv==lock["argv"]
@@ -173,6 +173,7 @@ required_seed={
 }
 assert required_seed.issubset(set(argv)), sorted(required_seed-set(argv))
 required_memory={
+    "actor_rollout_ref.actor.fsdp_config.model_dtype=bf16",
     "actor_rollout_ref.actor.fsdp_config.param_offload=True",
     "actor_rollout_ref.actor.fsdp_config.optimizer_offload=True",
 }
