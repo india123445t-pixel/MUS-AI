@@ -18,7 +18,6 @@ export default function ChatPage({ onChatsChanged, newChat, onMenu }) {
   const [chat, setChat] = useState(null);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
-  const [thinkLonger, setThinkLonger] = useState(false);
   const [webSearch, setWebSearch] = useState(false);
   const [deepResearch, setDeepResearch] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -92,7 +91,6 @@ export default function ChatPage({ onChatsChanged, newChat, onMenu }) {
     try {
       const resp = await api.streamChat(chatId, {
         content: content || undefined,
-        reasoning: thinkLonger ? 'extended' : 'standard',
         useWebSearch: webSearch || deepResearch,
         ...extra
       }, controller.signal);
@@ -126,12 +124,9 @@ export default function ChatPage({ onChatsChanged, newChat, onMenu }) {
       if (hadError) setLastError(hadError);
     } catch (e) {
       if (e.name === 'AbortError') {
-        // Deterministic stop path: stop() asks the SERVER to abort (see below)
-        // and the stream stays open until the server has persisted the partial
-        // and sent its final `done` event — handled above, so we normally never
-        // land here on Stop. This branch only fires if the fetch itself was
-        // aborted (e.g. component unmount / connection torn down); refetch
-        // best-effort so nothing visible is lost.
+        // Browser-local stop: the client request/stream was cancelled.
+        // The current runtime does not provide a verified external generation-cancel adapter,
+        // so we never claim that upstream model work was cancelled.
         try { const fresh = await api.get('/chats/' + chatId); setChat(fresh); onChatsChanged(); } catch { /* offline */ }
       } else {
         setLastError(e.errorClass ? `${e.message} (${e.errorClass})` : e.message);
@@ -145,16 +140,9 @@ export default function ChatPage({ onChatsChanged, newChat, onMenu }) {
     }
   };
 
-  // Deterministic Stop: tell the server to abort generation, then KEEP READING
-  // the open stream. The server persists the partial reply first and only then
-  // emits the final `done` event, which triggers the normal refetch above — the
-  // stopped partial is guaranteed to be in that refetch (no timing assumptions).
-  // Client-side fetch abort is only a fallback if the stop request itself fails.
-  const stop = () => {
-    const chatId = streamChatIdRef.current;
-    if (!chatId) { abortRef.current?.abort(); return; }
-    api.post(`/chats/${chatId}/stream/stop`, {}).catch(() => abortRef.current?.abort());
-  };
+  // Browser-local stop only. Cancels the current client request/stream.
+  // No external generation-cancel adapter is connected in this edition.
+  const stop = () => abortRef.current?.abort();
   const regenerate = () => send('', { regenerate: true });
   const saveEdit = (msgId, newText) => send(newText, { editMessageId: msgId });
 
@@ -365,10 +353,10 @@ export default function ChatPage({ onChatsChanged, newChat, onMenu }) {
             <div className="spacer" />
 
             <button
-              className={'chip' + (thinkLonger ? ' on' : '')}
-              aria-pressed={thinkLonger}
-              title={t('chat.thinkLongerHint')}
-              onClick={() => setThinkLonger(v => !v)}
+              className="chip"
+              disabled
+              aria-pressed={false}
+              title={t('chat.thinkLongerAutomatic')}
             >
               <Icon name="spark" size={14} /><span className="chip-label">{t('chat.thinkLonger')}</span>
             </button>
