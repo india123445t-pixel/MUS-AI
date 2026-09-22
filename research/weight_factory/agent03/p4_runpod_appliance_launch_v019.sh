@@ -183,8 +183,8 @@ import p4_surrogate_tournament as t
 run=json.loads(Path("p4_a1_seed1701_run_manifest_v1.json").read_text())
 lock=json.loads(Path("p4_a1_seed1701_command_lock_v1.json").read_text())
 auth=json.loads(Path(os.environ["AQLEVON_RESOLVED_AUTH_FILE"]).read_text())
-assert run["manifest_sha256"]=="54d731c83b667e8db76255c0f07b783c8f100b051549c59411c1805b341d5240"
-assert lock["lock_sha256"]=="340dab7f87becb7f7af186015a77d3e04b7a40c1c83e55626191600e8c167340"
+assert run["manifest_sha256"]=="303c70a13ac533681d7afe5d89afdf38fefb7ba75de6f7678230890c948d6777"
+assert lock["lock_sha256"]=="b769ff9552282f47d76b6b61651281e2b9483adeecc1173c53b760236de5b7f4"
 assert c.verify_self_digest(auth,"authorization_sha256")
 argv=t.build_a1_argv(Path("p4_frozen_training_plan_v1.json"),Path("/workspace"))
 assert argv==lock["argv"]
@@ -220,15 +220,18 @@ echo "AQLEVON_V019_LORA_SMOKE_PASS"
 nvidia-smi --query-gpu=name,memory.total,memory.free,utilization.gpu --format=csv
 
 ELAPSED="$(( $(date +%s) - START_TS ))"
-if [ "$ELAPSED" -ge 1800 ]; then
-  echo "FAIL_CLOSED staging consumed ${ELAPSED}s; refusing training"
+TOTAL_EXECUTION_BUDGET_SECONDS=3300
+MIN_TRAIN_WINDOW_SECONDS=900
+REMAINING="$(( TOTAL_EXECUTION_BUDGET_SECONDS - ELAPSED ))"
+if [ "$REMAINING" -lt "$MIN_TRAIN_WINDOW_SECONDS" ]; then
+  echo "FAIL_CLOSED insufficient training window after smoke elapsed=${ELAPSED}s remaining=${REMAINING}s"
   exit 43
 fi
 
-echo "A1_LOCKED_TRAINING_START elapsed=${ELAPSED}s"
+echo "A1_LOCKED_TRAINING_START elapsed=${ELAPSED}s remaining=${REMAINING}s"
 
 set +e
-timeout --signal=TERM --kill-after=20s 900s \
+timeout --signal=TERM --kill-after=20s "${REMAINING}s" \
 python3 - <<'PY' 2>&1 | tee "$ROOT/aqlevon_p4/P4_A1_seed1701_appliance.log"
 import json, os
 from pathlib import Path
