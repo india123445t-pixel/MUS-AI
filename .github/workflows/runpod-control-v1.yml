@@ -48,7 +48,21 @@ jobs:
           for p in pods or []:
               if not isinstance(p,dict): continue
               pid=str(p.get('id',''))
-              out['pods'].append({'fingerprint':hashlib.sha256(pid.encode()).hexdigest()[:12] if pid else None,'status':p.get('desiredStatus') or p.get('status'),'cost_per_hr':p.get('costPerHr'),'created_at':p.get('createdAt')})
+              detail={}
+              if pid:
+                  import urllib.request
+                  req=urllib.request.Request(f'https://rest.runpod.io/v1/pods/{pid}?include=machine',headers={'Authorization':'Bearer '+__import__('os').environ['RUNPOD_API_KEY']})
+                  try:
+                      with urllib.request.urlopen(req,timeout=15) as rr:
+                          detail=json.load(rr)
+                  except Exception:
+                      detail={}
+              m=detail.get('machine') if isinstance(detail.get('machine'),dict) else {}
+              gt=m.get('gpuType') if isinstance(m.get('gpuType'),dict) else {}
+              g=detail.get('gpu') if isinstance(detail.get('gpu'),dict) else {}
+              gpu_fields=[detail.get('gpuTypeId'),detail.get('gpuTypeName'),m.get('gpuTypeId'),m.get('gpuDisplayName'),gt.get('id'),gt.get('displayName'),g.get('displayName'),g.get('name')]
+              gpu_fields=[str(x) for x in gpu_fields if x]
+              out['pods'].append({'fingerprint':hashlib.sha256(pid.encode()).hexdigest()[:12] if pid else None,'status':p.get('desiredStatus') or p.get('status'),'cost_per_hr':p.get('costPerHr'),'created_at':p.get('createdAt'),'gpu_fields':gpu_fields})
           json.dump(out,open('.github/runpod-control/status.json','w'),indent=2,sort_keys=True);open('.github/runpod-control/status.json','a').write('\n')
           PY
       - name: Commit status
