@@ -1,0 +1,20 @@
+{
+  "authorization_id": "P4-A1-RUNPOD-4090-20260922-19D-VLLM-LORA-GUARD",
+  "checked_at_utc": "2026-09-22T15:07:00.852623+00:00",
+  "checkpoint_valid": false,
+  "evidence_archive_present": true,
+  "expected_head": "dd636bb051e2d6435feada0df40c0b2341bb9550",
+  "log_sha256": "aa3d12a9f051331a18e5952407ddaa2e56e7774cbac712edd2d714cb2a5ff7f1",
+  "markers": {
+    "A1_LOCKED_TRAINING_START": true,
+    "APPLIANCE_BINDING_PASS": true,
+    "APPLIANCE_EXACT_AUTHORIZATION_PASS": true,
+    "APPLIANCE_SEED1701_BINDING_PASS": true,
+    "APPLIANCE_SOURCE_DELTA_PASS": true,
+    "AQLEVON_A1_EXIT_CODE": false,
+    "AQLEVON_APPLIANCE_LAUNCH_START": true,
+    "AQLEVON_APPLIANCE_TOTAL_SCRIPT_SECONDS": false,
+    "MODEL_STAGE_PASS": true
+  },
+  "training_exit_code": 255
+}
