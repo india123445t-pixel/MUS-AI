@@ -9,5 +9,5 @@
   "max_hourly_rate_usd": "0.55",
   "max_billed_seconds": 1800,
   "single_use": true,
-  "reason": "Owner explicitly authorized one new paid GPU attempt; prior Retry18Z creates failed before any Pod existed; workflow create implementation now uses official RunPod CLI GraphQL path"
+  "reason": "Owner authorized one paid GPU attempt; all prior Retry18Z runs failed before Pod creation; official RunPod CLI GraphQL create path ready"
 }
