@@ -1,0 +1,11 @@
+{
+  "action": "launch_retry18h",
+  "authorization_id": "P4-A1-RUNPOD-4090-20260922-18H-API-AUTOMATED",
+  "authorization_sha256": "15393f4a9061e28b08e2fe9d0c27eeb55a83ea26a76fff04bdae259f3df2b937",
+  "worker03_head": "d3ded5159ea66c4364e283fdef355ced46ad20bb",
+  "max_hourly_rate_usd": 0.8,
+  "max_total_cost_usd": 0.4,
+  "max_billed_seconds": 1800,
+  "single_use": true,
+  "issued_at_utc": "2026-09-22T05:26:00Z"
+}
