@@ -450,6 +450,40 @@ class VllmLoraCompatPatchTests(unittest.TestCase):
         self.assertEqual(once, twice)
 
 
+class VllmTransformersMmMappingPatchTests(unittest.TestCase):
+    def _source(self):
+        return """from .interfaces import (SupportsLoRA, SupportsMultiModal, SupportsPP,
+                         SupportsQuant)
+from .utils import (AutoWeightsLoader, PPMissingLayer, WeightsMapper,
+                    flatten_bn, make_empty_intermediate_tensors_factory,
+                    maybe_prefix)
+
+class TransformersForMultimodalLM:
+    def __init__(self, *, vllm_config: VllmConfig, prefix: str = ""):
+        super().__init__(vllm_config=vllm_config, prefix=prefix)
+
+        self.dtype = vllm_config.model_config.dtype
+"""
+
+    def test_patch_adds_qwen35_language_vs_vision_mapping(self):
+        patched = compat.patch_vllm_transformers_mm_mapping(self._source())
+        self.assertIn("AQLEVON_QWEN35_MM_LORA_MAPPING", patched)
+        self.assertIn("from .module_mapping import MultiModelKeys", patched)
+        self.assertIn('language_model="model.language_model"', patched)
+        self.assertIn('tower_model="model.visual"', patched)
+
+    def test_patch_fails_closed_outside_exact_qwen35_structure(self):
+        patched = compat.patch_vllm_transformers_mm_mapping(self._source())
+        self.assertIn('getattr(self.config, "model_type", None) != "qwen3_5"', patched)
+        self.assertIn("AQLEVON_TRANSFORMERS_MM_MAPPING_UNSUPPORTED_MODEL", patched)
+        self.assertIn("AQLEVON_QWEN35_MM_MAPPING_STRUCTURE_MISMATCH", patched)
+
+    def test_patch_is_idempotent(self):
+        once = compat.patch_vllm_transformers_mm_mapping(self._source())
+        twice = compat.patch_vllm_transformers_mm_mapping(once)
+        self.assertEqual(once, twice)
+
+
 class RunnerTests(unittest.TestCase):
     def test_a1_command_exact_budget_sampling_lora_and_one_gpu(self):
         p = plan_fixture()
