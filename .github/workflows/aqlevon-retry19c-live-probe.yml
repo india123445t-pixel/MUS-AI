@@ -42,7 +42,17 @@ jobs:
                       'ssh':x.get('ssh'),
                       'lastStatusChange':x.get('lastStatusChange')
                   })
-          json.dump({'checked_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'pods':out},open('.github/runpod-control/retry19c-probe-result.json','w'),indent=2,default=str)
+          rest={}
+          if out and out[0].get('id'):
+              import subprocess
+              pod_id=out[0]['id']
+              raw=subprocess.check_output(['curl','-sS','-H',f'Authorization: Bearer {__import__("os").environ["RUNPOD_API_KEY"]}',f'https://rest.runpod.io/v1/pods/{pod_id}'])
+              try:
+                  rr=json.loads(raw)
+                  rest={k:rr.get(k) for k in ['id','name','desiredStatus','publicIp','portMappings','ports','runtime','machine','costPerHr']}
+              except Exception:
+                  rest={'parse_error':True}
+          json.dump({'checked_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'pods':out,'rest_get':rest},open('.github/runpod-control/retry19c-probe-result.json','w'),indent=2,default=str)
           open('.github/runpod-control/retry19c-probe-result.json','a').write('\n')
           PY
           git config user.name aqlevon-runpod-bot
