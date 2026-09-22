@@ -1,0 +1,13 @@
+{
+  "authorization_id": "P4-A1-RUNPOD-L4-20260922-18Y-VLLM-LORA-GUARD",
+  "authorization_sha256": "2f6dcd5105dd911653dab30feb522c975cbf85dafafc75f7d3c0fc0710eeb466",
+  "expected_head": "1ab52845ac7902ca00b909c432dd4d7ac372aede",
+  "max_total_cost_usd": "0.40",
+  "max_hourly_rate_usd": "0.55",
+  "max_billed_seconds": 1800,
+  "gpu_type": "NVIDIA L4",
+  "data_center_id": "US-MO-2",
+  "min_memory_in_gb": 48,
+  "single_use": true,
+  "reason": "Manager-authorized one-shot on available Secure L4 24GB after Retry18X 4090 stock miss; frozen training recipe unchanged"
+}
