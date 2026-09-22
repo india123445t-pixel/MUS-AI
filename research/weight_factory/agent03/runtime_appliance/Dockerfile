@@ -19,10 +19,12 @@ RUN git clone -q https://github.com/lasgroup/SDPO.git "$AQLEVON_SDPO" \
  && python -m pip install --no-cache-dir --no-deps -e "$AQLEVON_SDPO"
 
 COPY research/weight_factory/agent03/p4_patch_sdpo_transformers5_compat.py /opt/aqlevon/runtime/p4_patch_sdpo_transformers5_compat.py
+COPY research/weight_factory/agent03/p4_patch_vllm_qwen35_transformers_backend.py /opt/aqlevon/runtime/p4_patch_vllm_qwen35_transformers_backend.py
 RUN mkdir -p /workspace \
  && ln -s "$AQLEVON_SDPO" /workspace/SDPO \
  && cd /opt/aqlevon/runtime \
  && python p4_patch_sdpo_transformers5_compat.py \
+ && python p4_patch_vllm_qwen35_transformers_backend.py \
  && rm /workspace/SDPO
 
 RUN python - <<'PY'
