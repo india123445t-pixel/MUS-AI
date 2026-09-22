@@ -1,0 +1,19 @@
+{
+  "authorization_id": "P4-A1-RUNPOD-4090-20260922-18R-IMMUTABLE-HF-BACKEND",
+  "checked_at_utc": "2026-09-22T08:44:53.570304+00:00",
+  "evidence_archive_present": false,
+  "expected_head": "a11d8187e18cbc7d67ea02ebd8351a552df271a2",
+  "log_sha256": "5f52fecad2df9332d3f089565b3aa2c0465aceaa34b421576694c23df275f25b",
+  "markers": {
+    "A1_LOCKED_TRAINING_START": true,
+    "APPLIANCE_BINDING_PASS": true,
+    "APPLIANCE_EXACT_AUTHORIZATION_PASS": true,
+    "APPLIANCE_SEED1701_BINDING_PASS": true,
+    "APPLIANCE_SOURCE_DELTA_PASS": true,
+    "AQLEVON_A1_EXIT_CODE": true,
+    "AQLEVON_APPLIANCE_LAUNCH_START": true,
+    "AQLEVON_APPLIANCE_TOTAL_SCRIPT_SECONDS": true,
+    "MODEL_STAGE_PASS": true
+  },
+  "training_exit_code": null
+}
