@@ -15,7 +15,7 @@ permissions:
   packages: write
 
 concurrency:
-  group: p4-w03-runtime-appliance-v019-${{ github.ref }}
+  group: p4-w03-runtime-appliance-v019-v2-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
