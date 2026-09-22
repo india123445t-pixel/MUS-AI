@@ -1,0 +1,32 @@
+name: RunPod Emergency Cleanup R18H V2
+
+on:
+  push:
+    branches:
+      - ops/runpod-control-v1
+    paths:
+      - ".github/runpod-control/emergency-cleanup-r18h-v2-trigger.json"
+
+permissions:
+  contents: read
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Install runpodctl
+        run: curl -sSL https://cli.runpod.net | sudo bash
+
+      - name: Stop and delete exact Retry18H V2 pod
+        env:
+          RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          POD_ID="k0asg9w5vlhcnr"
+          runpodctl pod stop "$POD_ID" --output json || true
+          sleep 2
+          runpodctl pod delete "$POD_ID" --output json || true
+          echo "POST_CLEANUP_STATE"
+          runpodctl pod list --all --output json | jq '[.[] | select(.id=="k0asg9w5vlhcnr" or .name=="AQLEVON-P4-A1-R18H-V2") | {id,name,status:(.status // .desiredStatus),costPerHr}]'
