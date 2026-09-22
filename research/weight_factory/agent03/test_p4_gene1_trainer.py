@@ -11,6 +11,7 @@ from pathlib import Path
 
 import p4_aqlevon_reward as reward
 import p4_gene1_trainer as c
+import p4_patch_sdpo_transformers5_compat as compat
 import p4_sft_surrogate as sft
 import p4_surrogate_tournament as tour
 
@@ -413,6 +414,40 @@ class RewardTests(unittest.TestCase):
         self.assertEqual(oracle["score"], 1.0)
         self.assertEqual(shortcut["score"], 0.0)
         self.assertEqual(shortcut["feedback"], "side_effect_mismatch")
+
+
+class VllmLoraCompatPatchTests(unittest.TestCase):
+    def _source(self):
+        return """            if self.supports_mm and not isinstance(new_module,
+                                                   BaseLayerWithLoRA):
+                continue
+            self.register_module(module_name, new_module)
+            self._register_packed_modules(module_name)
+            # All lora layers share the same punica_wrapper based on reference.
+            new_module.set_mapping(self.punica_wrapper)
+"""
+
+    def test_patch_never_silently_skips_frozen_self_attn_qv(self):
+        patched = compat.patch_vllm_lora_manager(self._source())
+        self.assertIn("AQLEVON_REQUIRED_ROLLOUT_LORA_MODULE_UNSUPPORTED", patched)
+        self.assertIn('".self_attn.q_proj"', patched)
+        self.assertIn('".self_attn.v_proj"', patched)
+        self.assertIn("expected_32", patched)
+
+    def test_patch_skips_only_non_required_unreplaceable_modules(self):
+        patched = compat.patch_vllm_lora_manager(self._source())
+        guard = patched.index("if not isinstance(new_module, BaseLayerWithLoRA):")
+        required = patched.index("if module_name.endswith", guard)
+        skip = patched.index("continue", required)
+        register = patched.index("self.register_module(module_name, new_module)", skip)
+        self.assertLess(guard, required)
+        self.assertLess(required, skip)
+        self.assertLess(skip, register)
+
+    def test_patch_is_idempotent(self):
+        once = compat.patch_vllm_lora_manager(self._source())
+        twice = compat.patch_vllm_lora_manager(once)
+        self.assertEqual(once, twice)
 
 
 class RunnerTests(unittest.TestCase):
