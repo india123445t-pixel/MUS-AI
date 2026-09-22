@@ -21,17 +21,16 @@ COPY research/weight_factory/agent03/runtime_appliance_v019/requirements-p4-a1-v
 RUN python3 -m pip install --no-cache-dir -r /tmp/requirements-p4-a1-v019.txt
 
 # SDPO's default HF attention implementation is flash_attention_2.
-# Preserve the frozen recipe rather than silently switching to SDPA.
-RUN python3 - <<'PY'
-import importlib.util, os, subprocess, sys
-if importlib.util.find_spec("flash_attn") is None:
-    env=dict(os.environ)
-    env["MAX_JOBS"]="2"
-    subprocess.check_call([
-        sys.executable,"-m","pip","install","--no-cache-dir","--no-build-isolation",
-        "flash-attn==2.8.3"
-    ], env=env)
-PY
+# Preserve the frozen recipe. GitHub-hosted runners repeatedly died compiling
+# flash-attn from source, so use an exact-stack prebuilt wheel and verify bytes.
+ARG FLASH_ATTN_WHEEL_URL=https://github.com/lesj0610/flash-attention/releases/download/v2.8.3-cu12-torch2.10-cp312/flash_attn-2.8.3%2Bcu12torch2.10cxx11abiTRUE-cp312-cp312-linux_x86_64.whl
+ARG FLASH_ATTN_WHEEL_SHA256=d4a497a7bd837bf47f7a8f6a7aa6887695f2ea819fa597f307552552018ee9d7
+RUN if ! python3 -c 'import flash_attn' >/dev/null 2>&1; then \
+      curl -fL "$FLASH_ATTN_WHEEL_URL" -o /tmp/flash_attn.whl && \
+      echo "$FLASH_ATTN_WHEEL_SHA256  /tmp/flash_attn.whl" | sha256sum -c - && \
+      python3 -m pip install --no-cache-dir /tmp/flash_attn.whl && \
+      rm -f /tmp/flash_attn.whl; \
+    fi
 
 RUN git clone -q https://github.com/lasgroup/SDPO.git "$AQLEVON_SDPO" \
  && git -C "$AQLEVON_SDPO" checkout -q "$SDPO_COMMIT" \
