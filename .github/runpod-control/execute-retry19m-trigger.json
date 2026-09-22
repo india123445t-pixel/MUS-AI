@@ -1,0 +1,15 @@
+{
+  "authorization_id": "P4-A1-RUNPOD-A40-20260922-19M-VLLM019-NATIVE-SMOKE-THEN-TRAIN",
+  "authorization_sha256": "ad7274b2b15cbe3a6925506b3a27945d2e74d79c632205d77bb11e5aeafea367",
+  "expected_head": "eccf7fad2a906f76aef9080dc184cb900b69731c",
+  "image_digest": "sha256:ac70a74115046be4a866195344c0600ef0b1bb5ec5e897ec02ae8bd1f6c6f555",
+  "selection_mode": "dynamic_datacenter",
+  "gpu_type": "NVIDIA A40",
+  "min_memory_gb": 48,
+  "request_schema": "runpodctl_graphql_dynamic_dc",
+  "max_total_cost_usd": "0.55",
+  "max_hourly_rate_usd": "0.55",
+  "max_billed_seconds": 3600,
+  "single_use": true,
+  "reason": "Owner authorized a new attempt after accidental Retry19H stop; CPU/Exact gates passed on source head, vLLM 0.19.1 native Qwen3.5 appliance passed build/startup, Retry19M binding sealed on exact launch head"
+}
