@@ -1,6 +1,6 @@
 {
-  "pod_id": "fx7vfkq7pxd1sz",
-  "source": "system",
-  "reason": "Retry19Q non-destructive system-log probe while SSH readiness is pending",
-  "nonce": "19q-live-system-1"
+  "pod_id": "32hjzjz44cslte",
+  "source": "container",
+  "reason": "Retry19S live boot/readiness diagnostic",
+  "nonce": "19s-live-1"
 }
