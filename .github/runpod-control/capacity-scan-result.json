@@ -8,7 +8,7 @@
     "dataCenterAvailability": [
       {
         "dataCenterId": "CA-MTL-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "EU-SE-1",
@@ -20,7 +20,7 @@
       },
       {
         "dataCenterId": "US-IL-1",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       }
     ]
   },
@@ -29,7 +29,7 @@
     "displayName": "A40",
     "memoryInGb": 48,
     "securePricePerHr": 0.49,
-    "stockStatus": "High",
+    "stockStatus": "Medium",
     "dataCenterAvailability": [
       {
         "dataCenterId": "CA-MTL-1",
@@ -37,11 +37,11 @@
       },
       {
         "dataCenterId": "EU-SE-1",
-        "stockStatus": "High"
+        "stockStatus": "Medium"
       },
       {
         "dataCenterId": "US-MO-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       }
     ]
   },
@@ -58,7 +58,7 @@
       },
       {
         "dataCenterId": "EUR-IS-1",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "EUR-IS-2",
@@ -87,6 +87,35 @@
       },
       {
         "dataCenterId": "EUR-IS-2",
+        "stockStatus": "Low"
+      }
+    ]
+  },
+  {
+    "gpuId": "NVIDIA RTX A6000",
+    "displayName": "RTX A6000",
+    "memoryInGb": 48,
+    "securePricePerHr": 0.53,
+    "stockStatus": "Low",
+    "dataCenterAvailability": [
+      {
+        "dataCenterId": "CA-MTL-3",
+        "stockStatus": "none"
+      },
+      {
+        "dataCenterId": "EU-RO-1",
+        "stockStatus": "none"
+      },
+      {
+        "dataCenterId": "EU-SE-1",
+        "stockStatus": "Low"
+      },
+      {
+        "dataCenterId": "US-KS-2",
+        "stockStatus": "none"
+      },
+      {
+        "dataCenterId": "US-TX-1",
         "stockStatus": "none"
       }
     ]
@@ -142,7 +171,7 @@
       },
       {
         "dataCenterId": "EUR-IS-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       }
     ]
   },
@@ -184,7 +213,7 @@
       },
       {
         "dataCenterId": "EUR-IS-2",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "EUR-NO-1",
@@ -196,7 +225,7 @@
       },
       {
         "dataCenterId": "US-IL-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "US-NC-1",
@@ -226,6 +255,31 @@
     ]
   },
   {
+    "gpuId": "NVIDIA RTX 6000 Ada Generation",
+    "displayName": "RTX 6000 Ada",
+    "memoryInGb": 48,
+    "securePricePerHr": 0.84,
+    "stockStatus": "Low",
+    "dataCenterAvailability": [
+      {
+        "dataCenterId": "US-CA-2",
+        "stockStatus": "none"
+      },
+      {
+        "dataCenterId": "US-IL-1",
+        "stockStatus": "none"
+      },
+      {
+        "dataCenterId": "US-KS-3",
+        "stockStatus": "none"
+      },
+      {
+        "dataCenterId": "US-WA-1",
+        "stockStatus": "Low"
+      }
+    ]
+  },
+  {
     "gpuId": "NVIDIA GeForce RTX 5090",
     "displayName": "RTX 5090",
     "memoryInGb": 32,
@@ -242,7 +296,7 @@
       },
       {
         "dataCenterId": "EUR-IS-1",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "EUR-IS-2",
@@ -267,7 +321,7 @@
       },
       {
         "dataCenterId": "EUR-IS-2",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "US-IL-1",
@@ -275,11 +329,11 @@
       },
       {
         "dataCenterId": "US-MO-1",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "US-NC-1",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "US-TX-3",
@@ -312,6 +366,31 @@
       },
       {
         "dataCenterId": "US-WA-1",
+        "stockStatus": "none"
+      }
+    ]
+  },
+  {
+    "gpuId": "NVIDIA A100 80GB PCIe",
+    "displayName": "A100 PCIe",
+    "memoryInGb": 80,
+    "securePricePerHr": 1.59,
+    "stockStatus": "Low",
+    "dataCenterAvailability": [
+      {
+        "dataCenterId": "CA-MTL-3",
+        "stockStatus": "Low"
+      },
+      {
+        "dataCenterId": "EU-RO-1",
+        "stockStatus": "none"
+      },
+      {
+        "dataCenterId": "US-KS-2",
+        "stockStatus": "none"
+      },
+      {
+        "dataCenterId": "US-MO-1",
         "stockStatus": "none"
       }
     ]
@@ -362,7 +441,7 @@
     "dataCenterAvailability": [
       {
         "dataCenterId": "CA-MTL-3",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "EU-CZ-1",
@@ -370,11 +449,11 @@
       },
       {
         "dataCenterId": "EU-NL-1",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "EU-RO-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "EUR-IS-1",
@@ -382,7 +461,7 @@
       },
       {
         "dataCenterId": "EUR-IS-2",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "US-CA-2",
@@ -394,11 +473,11 @@
       },
       {
         "dataCenterId": "US-KS-2",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "US-MD-1",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "US-MO-2",
@@ -414,11 +493,11 @@
       },
       {
         "dataCenterId": "US-NE-1",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "US-PA-1",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       }
     ]
   },
@@ -431,11 +510,11 @@
     "dataCenterAvailability": [
       {
         "dataCenterId": "EU-CZ-1",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "EU-RO-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "EUR-IS-1",
@@ -444,15 +523,23 @@
     ]
   },
   {
-    "gpuId": "AMD Instinct MI300X OAM",
-    "displayName": "MI300X",
-    "memoryInGb": 192,
-    "securePricePerHr": 2.39,
+    "gpuId": "NVIDIA H100 NVL",
+    "displayName": "H100 NVL",
+    "memoryInGb": 94,
+    "securePricePerHr": 3.19,
     "stockStatus": "Low",
     "dataCenterAvailability": [
       {
-        "dataCenterId": "EU-RO-1",
+        "dataCenterId": "US-CA-2",
+        "stockStatus": "none"
+      },
+      {
+        "dataCenterId": "US-GA-2",
         "stockStatus": "Low"
+      },
+      {
+        "dataCenterId": "US-KS-2",
+        "stockStatus": "none"
       }
     ]
   },
@@ -473,15 +560,15 @@
       },
       {
         "dataCenterId": "AP-JP-1",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "CA-MTL-1",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "EU-FR-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "EU-NL-1",
@@ -489,15 +576,15 @@
       },
       {
         "dataCenterId": "EUR-IS-3",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "EUR-NO-2",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "US-CA-2",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "US-GA-2",
@@ -509,7 +596,7 @@
       },
       {
         "dataCenterId": "US-MO-1",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "US-NE-1",
@@ -526,7 +613,7 @@
     "dataCenterAvailability": [
       {
         "dataCenterId": "AP-JP-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "CA-MTL-3",
@@ -538,7 +625,7 @@
       },
       {
         "dataCenterId": "EU-FR-1",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "EUR-IS-2",
@@ -546,7 +633,7 @@
       },
       {
         "dataCenterId": "EUR-IS-4",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "EUR-IS-5",
@@ -554,15 +641,15 @@
       },
       {
         "dataCenterId": "US-CA-2",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "US-CO-1",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "US-GA-2",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "US-NC-1",
@@ -583,7 +670,7 @@
     "dataCenterAvailability": [
       {
         "dataCenterId": "EU-RO-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "US-CA-2",
