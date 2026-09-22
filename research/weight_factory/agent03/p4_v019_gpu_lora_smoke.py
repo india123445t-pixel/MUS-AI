@@ -130,7 +130,7 @@ def run_vllm_smoke(model_path: Path, adapter_dir: Path) -> dict:
         tensor_parallel_size=1,
         max_model_len=4096,
         max_num_batched_tokens=4096,
-        gpu_memory_utilization=0.20,
+        gpu_memory_utilization=0.25,
         enable_lora=True,
         max_loras=1,
         # vLLM 0.19.1 accepts discrete capacity ceilings; rank-4 adapters use ceiling 8.
