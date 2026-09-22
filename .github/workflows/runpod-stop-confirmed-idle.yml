@@ -1,0 +1,115 @@
+name: RunPod Stop Confirmed Idle
+
+on:
+  push:
+    branches:
+      - ops/runpod-control-v1
+    paths:
+      - ".github/runpod-control/stop-idle-trigger-*.json"
+
+permissions:
+  contents: write
+
+jobs:
+  stop-confirmed-idle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/runpod-control-v1
+
+      - name: Double-check idle state and stop only if still idle
+        shell: bash
+        env:
+          RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "${RUNPOD_API_KEY:-}" || { echo "::error::RUNPOD_API_KEY missing"; exit 1; }
+
+          cat > /tmp/query.json <<'JSON'
+          {"query":"query { myself { pods { id desiredStatus costPerHr runtime { uptimeInSeconds gpus { gpuUtilPercent memoryUtilPercent } container { cpuPercent memoryPercent } } } } }"}
+          JSON
+
+          probe() {
+            curl --silent --show-error --fail               --request POST               --url "https://api.runpod.io/graphql?api_key=${RUNPOD_API_KEY}"               --header "content-type: application/json"               --data-binary @/tmp/query.json
+          }
+
+          probe > /tmp/probe1.json
+          sleep 30
+          probe > /tmp/probe2.json
+
+          python - <<'PY'
+          import json, sys, hashlib
+          def load(path):
+              with open(path,'r',encoding='utf-8') as f: return json.load(f)
+          def running(raw):
+              pods=((raw.get('data') or {}).get('myself') or {}).get('pods') or []
+              return [p for p in pods if isinstance(p,dict) and p.get('desiredStatus')=='RUNNING']
+
+          a=running(load('/tmp/probe1.json'))
+          b=running(load('/tmp/probe2.json'))
+          if len(a)!=1 or len(b)!=1:
+              print("SAFE_ABORT: expected exactly one running pod in both probes")
+              sys.exit(2)
+          if a[0].get('id') != b[0].get('id'):
+              print("SAFE_ABORT: running pod changed between probes")
+              sys.exit(2)
+
+          def idle(p):
+              rt=p.get('runtime') if isinstance(p.get('runtime'),dict) else {}
+              gs=rt.get('gpus') if isinstance(rt.get('gpus'),list) else []
+              gu=[g.get('gpuUtilPercent') for g in gs if isinstance(g,dict) and isinstance(g.get('gpuUtilPercent'),(int,float))]
+              gm=[g.get('memoryUtilPercent') for g in gs if isinstance(g,dict) and isinstance(g.get('memoryUtilPercent'),(int,float))]
+              c=rt.get('container') if isinstance(rt.get('container'),dict) else {}
+              cpu=c.get('cpuPercent')
+              mem=c.get('memoryPercent')
+              uptime=rt.get('uptimeInSeconds') or 0
+              return bool(gu) and max(gu)==0 and bool(gm) and max(gm)==0 and cpu==0 and mem==0 and uptime>=60
+
+          if not idle(a[0]) or not idle(b[0]):
+              print("SAFE_ABORT: pod is not confirmed idle twice")
+              sys.exit(2)
+
+          pid=a[0]['id']
+          with open('/tmp/pod_id','w',encoding='utf-8') as f: f.write(pid)
+          fp=hashlib.sha256(pid.encode()).hexdigest()[:12]
+          with open('/tmp/fingerprint','w',encoding='utf-8') as f: f.write(fp)
+          PY
+
+          POD_ID="$(cat /tmp/pod_id)"
+          cat > /tmp/stop.json <<JSON
+          {"query":"mutation { podStop(input: {podId: \"$POD_ID\"}) { id desiredStatus } }"}
+          JSON
+
+          curl --silent --show-error --fail             --request POST             --url "https://api.runpod.io/graphql?api_key=${RUNPOD_API_KEY}"             --header "content-type: application/json"             --data-binary @/tmp/stop.json             --output /tmp/stop-response.json
+
+          python - <<'PY'
+          import json, datetime
+          with open('/tmp/stop-response.json','r',encoding='utf-8') as f:
+              raw=json.load(f)
+          pod=((raw.get('data') or {}).get('podStop') or {})
+          desired=pod.get('desiredStatus')
+          if desired != 'EXITED':
+              raise SystemExit("RunPod stop did not return EXITED")
+          fp=open('/tmp/fingerprint',encoding='utf-8').read().strip()
+          out={
+              "ok": True,
+              "action": "stop_confirmed_idle",
+              "fingerprint": fp,
+              "desired_status": desired,
+              "checked_at_utc": datetime.datetime.now(datetime.timezone.utc).isoformat()
+          }
+          with open('.github/runpod-control/stop-result.json','w',encoding='utf-8') as f:
+              json.dump(out,f,indent=2,sort_keys=True); f.write("\n")
+          PY
+
+      - name: Commit sanitized stop result
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "aqlevon-runpod-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add .github/runpod-control/stop-result.json
+          git commit -m "ops: record confirmed idle RunPod stop [skip ci]" || exit 0
+          git push origin HEAD:ops/runpod-control-v1
