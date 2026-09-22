@@ -1,0 +1,35 @@
+name: RunPod Runtime V4 ReadOnly
+
+on:
+  push:
+    branches:
+      - ops/runpod-control-v1
+    paths:
+      - ".github/runpod-control/runtime-v4-trigger.json"
+
+permissions:
+  contents: read
+
+jobs:
+  runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Query sanitized RunPod runtime
+        env:
+          RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > /tmp/q.json <<'JSON'
+          {"query":"query { myself { pods { id name desiredStatus costPerHr runtime { uptimeInSeconds gpus { gpuUtilPercent memoryUtilPercent } container { cpuPercent memoryPercent } } } } }"}
+          JSON
+          curl -sS --fail -X POST             "https://api.runpod.io/graphql?api_key=$RUNPOD_API_KEY"             -H "content-type: application/json"             --data-binary @/tmp/q.json > /tmp/r.json
+          jq '[.data.myself.pods[] | select(.name=="AQLEVON-P4-A1-R18H-V2") | {
+            name,desiredStatus,costPerHr,
+            uptimeInSeconds:.runtime.uptimeInSeconds,
+            gpuUtilPercent:[.runtime.gpus[].gpuUtilPercent],
+            memoryUtilPercent:[.runtime.gpus[].memoryUtilPercent],
+            cpuPercent:.runtime.container.cpuPercent,
+            memoryPercent:.runtime.container.memoryPercent
+          }]' /tmp/r.json
