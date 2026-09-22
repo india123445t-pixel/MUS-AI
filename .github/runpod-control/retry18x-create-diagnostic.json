@@ -1,0 +1,6 @@
+{
+  "phase": "create_failed",
+  "http_code": 500,
+  "error": "create pod: There are no instances currently available",
+  "checked_at_utc": "2026-09-22T13:43:45.106588+00:00"
+}
