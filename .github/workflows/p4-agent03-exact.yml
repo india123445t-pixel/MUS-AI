@@ -233,6 +233,8 @@ jobs:
           qwen=Path("/workspace/SDPO/verl/workers/rollout/vllm_rollout/vllm_async_server.py").read_text()
           assert 'getattr(self.model_config.hf_config, "model_type", None) == "qwen3_5"' in qwen
           assert 'engine_kwargs["model_impl"] = "transformers"' in qwen
+          assert '"TransformersForMultimodalLM"' in qwen
+          assert 'engine_kwargs["hf_overrides"] = required_hf_overrides' in qwen
           assert "AQLEVON_QWEN35_VLLM_TRANSFORMERS_BACKEND_PASS" in qwen
           print("QWEN35_VLLM_TRANSFORMERS_BACKEND_PATCH_PASS")
           PY
