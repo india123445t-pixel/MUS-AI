@@ -9,6 +9,56 @@
       "line": "Server listening on :: port 22.",
       "source": "container",
       "ts": "2026-09-22T21:27:38.086105249Z"
+    },
+    {
+      "line": "Accepted publickey for root from 20.102.46.146 port 9152 ssh2: ED25519 SHA256:xYdVk85K5SDFbq55V3+HFw+9GV5iz2ExwH3k65BU/3g",
+      "source": "container",
+      "ts": "2026-09-22T21:28:06.166970802Z"
+    },
+    {
+      "line": "Received disconnect from 20.102.46.146 port 9152:11: disconnected by user",
+      "source": "container",
+      "ts": "2026-09-22T21:28:06.436733123Z"
+    },
+    {
+      "line": "Disconnected from user root 20.102.46.146 port 9152",
+      "source": "container",
+      "ts": "2026-09-22T21:28:06.436967434Z"
+    },
+    {
+      "line": "Accepted publickey for root from 20.102.46.146 port 9153 ssh2: ED25519 SHA256:xYdVk85K5SDFbq55V3+HFw+9GV5iz2ExwH3k65BU/3g",
+      "source": "container",
+      "ts": "2026-09-22T21:28:06.762865231Z"
+    },
+    {
+      "line": "Received disconnect from 20.102.46.146 port 9153:11: disconnected by user",
+      "source": "container",
+      "ts": "2026-09-22T21:28:07.002542220Z"
+    },
+    {
+      "line": "Disconnected from user root 20.102.46.146 port 9153",
+      "source": "container",
+      "ts": "2026-09-22T21:28:07.002602112Z"
+    },
+    {
+      "line": "Accepted publickey for root from 20.102.46.146 port 9154 ssh2: ED25519 SHA256:xYdVk85K5SDFbq55V3+HFw+9GV5iz2ExwH3k65BU/3g",
+      "source": "container",
+      "ts": "2026-09-22T21:28:07.354710379Z"
+    },
+    {
+      "line": "Received disconnect from 20.102.46.146 port 9154:11: disconnected by user",
+      "source": "container",
+      "ts": "2026-09-22T21:28:07.518609755Z"
+    },
+    {
+      "line": "Disconnected from user root 20.102.46.146 port 9154",
+      "source": "container",
+      "ts": "2026-09-22T21:28:07.518686325Z"
+    },
+    {
+      "line": "Accepted publickey for root from 20.102.46.146 port 9155 ssh2: ED25519 SHA256:xYdVk85K5SDFbq55V3+HFw+9GV5iz2ExwH3k65BU/3g",
+      "source": "container",
+      "ts": "2026-09-22T21:28:07.851217294Z"
     }
   ],
   "graphql": {
@@ -23,8 +73,10 @@
     "desiredStatus": "RUNNING",
     "id": "fx7vfkq7pxd1sz",
     "name": "AQLEVON-P4-A1-Retry19Q",
-    "portMappings": null,
-    "publicIp": false
+    "portMappings": {
+      "22": 22169
+    },
+    "publicIp": true
   },
   "runpodctl": {
     "containerDiskInGb": 40,
@@ -44,14 +96,21 @@
     "ports": [
       "22/tcp"
     ],
-    "runtimeStatus": "initializing",
-    "runtimeStatusReason": "awaiting_container",
+    "runtimeStatus": "running",
     "ssh": {
-      "error": "pod not ready: no container reported yet (image pull, container create or boot)",
       "id": "fx7vfkq7pxd1sz",
+      "ip": "69.30.85.117",
       "name": "AQLEVON-P4-A1-Retry19Q",
-      "status": "RUNNING"
+      "port": 22169,
+      "setup": "runpodctl doctor",
+      "ssh_command": "ssh root@69.30.85.117 -p 22169",
+      "ssh_key": {
+        "exists": false,
+        "path": "/home/runner/.runpod/ssh/runpodctl-ssh-key",
+        "source": "runpodctl doctor"
+      }
     },
+    "uptimeSeconds": 49,
     "vcpuCount": 9,
     "volumeInGb": 20,
     "volumeMountPath": "/workspace"
