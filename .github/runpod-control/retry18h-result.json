@@ -1,0 +1,17 @@
+{
+  "actual_rate_usd_per_hr": null,
+  "artifact_retrieved": false,
+  "authorization_sha256": "cc2d431dba8bf40c9dc25583ab7d0d99586296644810e2bba64c925156b3fa79",
+  "command_lock_sha256": "b07441e07d0f26191fc5bd20ebf61e61c88003c542205687a2679243d90623c2",
+  "phase": "create_failed",
+  "pod_deleted": false,
+  "pod_fingerprint": null,
+  "pod_stopped": false,
+  "run": "Retry18H",
+  "run_manifest_sha256": "24e3d21155c3f1011ca92f90e6c622fe03f92bfd65656d31d87fa627886fad47",
+  "schema_version": 1,
+  "source_commit": "e1981e10ffd6629713108db7047c6cd3d7757771",
+  "started_at_utc": "2026-09-22T04:49:18Z",
+  "training_exit_code": 999,
+  "updated_at_utc": "2026-09-22T04:49:19.841294+00:00"
+}
