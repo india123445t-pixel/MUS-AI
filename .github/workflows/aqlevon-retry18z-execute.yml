@@ -42,8 +42,8 @@ jobs:
             .authorization_sha256==$asha and
             .max_total_cost_usd=="0.40" and
             .max_hourly_rate_usd=="0.55" and
-            .gpu_type=="NVIDIA L4" and
-            .data_center_id=="US-MO-2" and
+            .gpu_type==env.GPU_TYPE and
+            .data_center_id=="EU-SE-1" and
             .request_schema=="rest_v1_no_min_memory" and
             .max_billed_seconds==1800 and
             .single_use==true and
