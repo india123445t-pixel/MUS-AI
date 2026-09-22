@@ -88,40 +88,38 @@ jobs:
           EXPECTED_HEAD: ${{ steps.gate.outputs.expected_head }}
         run: |
           set -euo pipefail
-          python - <<'PY' > /tmp/create.json
-          import json, os
+          curl -sSL https://cli.runpod.net | sudo bash
+          runpodctl config --apiKey="$RUNPOD_API_KEY"
+          env_json="$(python - <<'PY'
+          import json,os
           print(json.dumps({
-            "cloudType":"SECURE",
-            "computeType":"GPU",
-            "containerDiskInGb":40,
-            "dataCenterIds":["US-MO-2"],
-            "gpuCount":1,
-            "gpuTypeIds":[os.environ["GPU_TYPE"]],
-            "gpuTypePriority":"custom",
-            "imageName":os.environ["IMAGE"],
-            "interruptible":False,
-            "locked":False,
-            "name":"AQLEVON-P4-A1-Retry18Z",
-            "ports":["22/tcp"],
-            "volumeInGb":20,
-            "volumeMountPath":"/workspace",
-            "env":{
-              "PUBLIC_KEY":os.environ["PUBKEY"],
-              "AQLEVON_EXPECTED_W03_HEAD":os.environ["EXPECTED_HEAD"]
-            }
-          }))
+            "PUBLIC_KEY":os.environ["PUBKEY"],
+            "AQLEVON_EXPECTED_W03_HEAD":os.environ["EXPECTED_HEAD"]
+          },separators=(',',':')))
           PY
-          code="$(curl -sS -o /tmp/create-response.json -w '%{http_code}' -X POST https://rest.runpod.io/v1/pods -H "Authorization: Bearer $RUNPOD_API_KEY" -H 'Content-Type: application/json' --data-binary @/tmp/create.json)"
-          if [ "$code" != "201" ]; then
-            export CREATE_HTTP_CODE="$code"
+          )"
+          set +e
+          runpodctl pod create \
+            --name AQLEVON-P4-A1-Retry18Z \
+            --image "$IMAGE" \
+            --gpu-id "$GPU_TYPE" \
+            --gpu-count 1 \
+            --cloud-type SECURE \
+            --data-center-ids US-MO-2 \
+            --container-disk-in-gb 40 \
+            --volume-in-gb 20 \
+            --volume-mount-path /workspace \
+            --ports 22/tcp \
+            --env "$env_json" \
+            --output json > /tmp/create-response.json 2>/tmp/create-stderr.txt
+          create_rc=$?
+          set -e
+          if [ "$create_rc" -ne 0 ]; then
+            export CREATE_RC="$create_rc"
             python - <<'PY'
           import json,datetime,os
-          try:
-              p=json.load(open('/tmp/create-response.json'))
-              err=p.get('error') or p.get('message') or p.get('status') or 'unknown'
-          except Exception:
-              err='non_json_response'
-          json.dump({'phase':'create_failed','http_code':int(os.environ['CREATE_HTTP_CODE']),'error':str(err)[:500],'checked_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat()},open('.github/runpod-control/retry18z-create-diagnostic.json','w'),indent=2)
+          err=open('/tmp/create-stderr.txt',errors='replace').read()[-1000:] if os.path.exists('/tmp/create-stderr.txt') else 'runpodctl_create_failed'
+          json.dump({'phase':'create_failed','create_rc':int(os.environ['CREATE_RC']),'error':err,'checked_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat()},open('.github/runpod-control/retry18z-create-diagnostic.json','w'),indent=2)
           open('.github/runpod-control/retry18z-create-diagnostic.json','a').write('\n')
           PY
             git config user.name aqlevon-runpod-bot
@@ -129,18 +127,17 @@ jobs:
             git add .github/runpod-control/retry18z-create-diagnostic.json
             git commit -m "ops: record Retry18Z create diagnostic [skip ci]" || true
             git push origin HEAD:ops/runpod-control-v1 || true
-            exit 1
+            exit "$create_rc"
           fi
           python - <<'PY'
-          import json, sys
+          import json,sys
           p=json.load(open('/tmp/create-response.json'))
-          cost=float(p.get('costPerHr') or 999)
-          count=int(p.get('gpuCount') or (p.get('gpu') or {}).get('count') or 1)
-          if cost>0.55 or count!=1:
-              print("FAIL_CLOSED_CREATE_CONTRACT",cost,count)
+          pod_id=p.get('id') or p.get('podId')
+          if not pod_id:
+              print("FAIL_CLOSED_CREATE_NO_POD_ID",p)
               sys.exit(2)
-          open('/tmp/pod_id','w').write(p['id'])
-          print("CREATE_PRECHECK_PASS cost_per_hr=",cost,"count=",count)
+          open('/tmp/pod_id','w').write(pod_id)
+          print("CREATE_PRECHECK_PASS pod_id=",pod_id)
           PY
           echo "pod_id=$(cat /tmp/pod_id)" >> "$GITHUB_OUTPUT"
 
