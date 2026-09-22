@@ -1,13 +1,13 @@
 {
   "authorization_sha256": "fe859b43849d15a167a8f9d0ab8f927b137486be7e8e06624203dae1ad3bb346",
   "binding_kind": "AQLEVON_RUNTIME_APPLIANCE_BINDING_V1",
-  "binding_sha256": "267e6adcb71dd7f8b126494e1dc5ae3c4ba441053c30f1fc965601d3da86a5f0",
+  "binding_sha256": "5638ba472408067d898cc2b5e4c987d689742df816dfd19a9927d6ee33373ac4",
   "command_lock_sha256": "b769ff9552282f47d76b6b61651281e2b9483adeecc1173c53b760236de5b7f4",
   "hash_profile": "AQLEVON_CANONICAL_JSON_SHA256_V1",
   "run_manifest_sha256": "303c70a13ac533681d7afe5d89afdf38fefb7ba75de6f7678230890c948d6777",
-  "runtime_appliance_digest": "sha256:fe7037009a3bc63b034ba4239c6fc022fa6f5bf904bc360a268cb23499161e52",
-  "runtime_appliance_image": "ghcr.io/india123445t-pixel/mus-ai@sha256:fe7037009a3bc63b034ba4239c6fc022fa6f5bf904bc360a268cb23499161e52",
+  "runtime_appliance_digest": "sha256:ac70a74115046be4a866195344c0600ef0b1bb5ec5e897ec02ae8bd1f6c6f555",
+  "runtime_appliance_image": "ghcr.io/india123445t-pixel/mus-ai@sha256:ac70a74115046be4a866195344c0600ef0b1bb5ec5e897ec02ae8bd1f6c6f555",
   "schema_version": 1,
-  "worker03_runtime_source_commit": "5b79390c5f75012d19eb5dd70f37524fd8d5f228",
-  "workflow_run_id": 35788703787
+  "worker03_runtime_source_commit": "917dfe68ebb735b0b125bf4fdd0efbdae45ac586",
+  "workflow_run_id": 35774100940
 }
