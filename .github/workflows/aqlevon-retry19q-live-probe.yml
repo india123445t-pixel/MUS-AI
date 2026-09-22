@@ -1,0 +1,78 @@
+name: AQLEVON Retry19Q Live Probe
+
+on:
+  push:
+    branches: [ops/runpod-control-v1]
+    paths:
+      - ".github/runpod-control/retry19q-live-probe-trigger.json"
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/runpod-control-v1
+      - name: Capture Retry19Q runtime state
+        shell: bash
+        run: |
+          set -euo pipefail
+          trigger=.github/runpod-control/retry19q-live-probe-trigger.json
+          pod="$(jq -r '.pod_id' "$trigger")"
+          test -n "$pod"
+          curl -sS -f "https://rest.runpod.io/v1/pods/$pod" -H "Authorization: Bearer $RUNPOD_API_KEY" > /tmp/pod.json
+          curl -sSL https://cli.runpod.net | sudo bash
+          python - <<'PY' > /tmp/graphql-body.json
+          import json
+          pod_id=json.load(open('.github/runpod-control/retry19q-live-probe-trigger.json'))['pod_id']
+          q='query { pod(input: {podId: "'+pod_id+'"}) { id name desiredStatus costPerHr publicIp portMappings runtime { uptimeInSeconds gpus { id gpuUtilPercent memoryUtilPercent } container { cpuPercent memoryPercent } } } }'
+          print(json.dumps({'query':q},separators=(',',':')))
+          PY
+          set +e
+          curl -sS https://api.runpod.io/graphql -H "Authorization: Bearer $RUNPOD_API_KEY" -H 'Content-Type: application/json' --data-binary @/tmp/graphql-body.json > /tmp/graphql.json
+          runpodctl pod logs "$pod" --tail 120 --source container --max-wait 10s > /tmp/live.jsonl 2>/tmp/live.err
+          logs_rc=$?
+          set -e
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          rest=json.loads(Path('/tmp/pod.json').read_text())
+          try: gql=json.loads(Path('/tmp/graphql.json').read_text())
+          except Exception: gql={}
+          pod=(gql.get('data') or {}).get('pod') or {}
+          runtime=pod.get('runtime') or {}
+          rows=[]
+          for line in Path('/tmp/live.jsonl').read_text(errors='replace').splitlines() if Path('/tmp/live.jsonl').exists() else []:
+              try:
+                  x=json.loads(line); rows.append({'ts':x.get('ts'),'source':x.get('source'),'line':str(x.get('line',''))[-1800:]})
+              except Exception:
+                  pass
+          out={
+            'rest':{
+              'id':rest.get('id'),'name':rest.get('name'),'desiredStatus':rest.get('desiredStatus'),
+              'costPerHr':rest.get('costPerHr'),'publicIp':bool(rest.get('publicIp')),
+              'portMappings':rest.get('portMappings')
+            },
+            'graphql':{
+              'desiredStatus':pod.get('desiredStatus'),'costPerHr':pod.get('costPerHr'),
+              'uptimeInSeconds':runtime.get('uptimeInSeconds'),
+              'gpus':runtime.get('gpus'),
+              'container':runtime.get('container')
+            },
+            'container_logs':rows,
+            'stderr':Path('/tmp/live.err').read_text(errors='replace')[-1500:] if Path('/tmp/live.err').exists() else ''
+          }
+          Path('.github/runpod-control/retry19q-live-probe-result.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
+          PY
+          git config user.name aqlevon-runpod-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/runpod-control/retry19q-live-probe-result.json
+          git commit -m "ops: record Retry19Q live probe [skip ci]" || true
+          git pull --rebase origin ops/runpod-control-v1
+          git push origin HEAD:ops/runpod-control-v1
