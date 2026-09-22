@@ -1,6 +1,6 @@
 {
   "target": "Retry19Q",
   "pod_id": "fx7vfkq7pxd1sz",
-  "nonce": "live-2",
-  "purpose": "non-destructive runtime check while paid workflow is waiting for readiness"
+  "nonce": "live-3",
+  "purpose": "observe Retry19Q smoke/training progress non-destructively"
 }
