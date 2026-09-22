@@ -72,6 +72,13 @@ test -f "$AUTH" || { echo "FAIL_CLOSED_AUTH_FILE_MISSING=$AUTH_FILE"; exit 42; }
 test -f "$BINDING" || { echo "FAIL_CLOSED_BINDING_FILE_MISSING=$BINDING_FILE"; exit 44; }
 rm -rf "$SDPO"
 ln -s "$SDPO_IMAGE" "$SDPO"
+
+# Apply the source-pinned compatibility patch to the live runtime as root.
+# This includes the vLLM LoRA manager guard in site-packages; the immutable
+# appliance image predates that guard even though SDPO backend fixes are present.
+python "$AGENT/p4_patch_sdpo_transformers5_compat.py"
+echo "APPLIANCE_LIVE_VLLM_LORA_PATCH_PASS"
+
 rm -rf "$ROOT/aqlevon_p4"
 mkdir -p "$DATA" "$MODEL" /tmp/p4inputs
 
