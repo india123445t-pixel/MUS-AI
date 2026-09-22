@@ -24,7 +24,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          curl -fL --retry 3             https://github.com/runpod/runpodctl/releases/download/v2.8.0/runpodctl-linux-amd64             -o /tmp/runpodctl
+          curl -fL --retry 3 \
+            https://github.com/runpod/runpodctl/releases/download/v2.8.0/runpodctl-linux-amd64 \
+            -o /tmp/runpodctl
           echo "33184eb9b4ede3524582d81dfb84a0a632402cec11feb97d9ae46e26d3090c4c  /tmp/runpodctl" | sha256sum -c -
           chmod +x /tmp/runpodctl
           sudo mv /tmp/runpodctl /usr/local/bin/runpodctl
@@ -37,14 +39,14 @@ jobs:
           test -n "${RUNPOD_API_KEY:-}"
           echo "RUNPOD_API_KEY_PRESENT"
 
-      - name: Read account identity
+      - name: Read billing summary
         shell: bash
-        run: runpodctl user
+        run: runpodctl user | jq '{clientBalance,currentSpendPerHr,spendLimit}'
 
-      - name: List all Pods
+      - name: List Pods concise
         shell: bash
-        run: runpodctl pod list --all
+        run: runpodctl pod list --all | jq '[.[] | {id,name,desiredStatus,costPerHr,gpuCount,imageName,volumeInGb}]'
 
-      - name: List GPU inventory
+      - name: Inspect RTX 4090 only
         shell: bash
-        run: runpodctl gpu list
+        run: runpodctl gpu list | jq '[.[] | select(.gpuId == "NVIDIA GeForce RTX 4090")]'
