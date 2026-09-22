@@ -1,0 +1,45 @@
+name: Workspace Sovereign Readiness CI
+
+on:
+  push:
+    branches:
+      - fix/workspace-readiness-truth-20260922
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  readiness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact branch head
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Sovereign runtime tests
+        run: node --test tests/sovereign-runtime.test.mjs
+
+      - name: Workspace truth/readiness tests
+        run: node --test tests/workspace-truth-readiness.test.mjs
+
+      - name: Owner Core contract tests
+        run: node --test tests/owner-core-dashboard.test.mjs
+
+      - name: Security regression tests
+        run: node --test tests/security-regression.test.mjs
+
+      - name: Production build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: test-only-placeholder
+        run: npm run build
