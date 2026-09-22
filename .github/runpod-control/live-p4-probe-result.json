@@ -6,7 +6,7 @@
     },
     "desired_status": "RUNNING",
     "gpus": [],
-    "runtime_status": "initializing",
+    "runtime_status": "running",
     "uptime_seconds": null
   },
   "lines": [
