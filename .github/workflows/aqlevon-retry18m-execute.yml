@@ -28,7 +28,7 @@ jobs:
         run: |
           set -euo pipefail
           test -n "${RUNPOD_API_KEY:-}"
-          jq -e '.authorization_id=="P4-A1-RUNPOD-4090-20260922-18M-API-AUTOMATED" and .authorization_sha256=="24a13abaf9f611c492ad36ae2899740d366934a80b14423f7d1b98f3a765b1af" and .max_total_cost_usd=="0.40" and .max_billed_seconds==1800 and .single_use==true' .github/runpod-control/execute-retry18m-trigger.json >/dev/null
+          jq -e '.authorization_id=="P4-A1-RUNPOD-4090-20260922-18M-QWEN35-VLLM-COMPAT" and .authorization_sha256=="24a13abaf9f611c492ad36ae2899740d366934a80b14423f7d1b98f3a765b1af" and .max_total_cost_usd=="0.40" and .max_billed_seconds==1800 and .single_use==true' .github/runpod-control/execute-retry18m-trigger.json >/dev/null
 
       - name: Generate ephemeral SSH key
         shell: bash
@@ -170,7 +170,7 @@ jobs:
               try: rc=int(open('/tmp/train_rc').read().strip())
               except: pass
           out={
-            'authorization_id':'P4-A1-RUNPOD-4090-20260922-18M-API-AUTOMATED',
+            'authorization_id':'P4-A1-RUNPOD-4090-20260922-18M-QWEN35-VLLM-COMPAT',
             'expected_head':os.environ['EXPECTED_HEAD'],
             'checked_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),
             'training_exit_code':rc,
