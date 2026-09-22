@@ -1,16 +1,16 @@
 {
-  "checked_at_utc": "2026-09-22T09:58:12.423492+00:00",
+  "checked_at_utc": "2026-09-22T10:00:08.767630+00:00",
   "ok": true,
   "running": [
     {
       "cost_per_hr": 0.74,
-      "cpu_percent": 11,
+      "cpu_percent": 5,
       "created_at": "2026-09-22T09:55:14.092Z",
       "fingerprint": "6b50da9fdfb9",
-      "gpu_memory_util_percent_max": 7,
-      "gpu_util_percent_max": 28,
-      "memory_percent": 7,
-      "uptime_seconds": 87
+      "gpu_memory_util_percent_max": 0,
+      "gpu_util_percent_max": 0,
+      "memory_percent": 19,
+      "uptime_seconds": 214
     }
   ]
 }
