@@ -1,0 +1,34 @@
+name: AQLEVON Retry18F Executor Syntax
+
+on:
+  push:
+    branches:
+      - ops/runpod-retry18f-execute-20260922
+    paths:
+      - .github/workflows/runpod-r18f-executor-syntax.yml
+
+permissions:
+  contents: write
+
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - name: Bash syntax check only
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n ops/runpod-retry18f-execute.sh
+          mkdir -p ops
+          printf '%s\n' '{"schema_version":1,"executor_bash_syntax":"PASS","paid_action_performed":false}' > ops/runpod-r18f-executor-syntax.json
+      - name: Persist receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "aqlevon-runpod-control"
+          git config user.email "aqlevon-runpod-control@users.noreply.github.com"
+          git add ops/runpod-r18f-executor-syntax.json
+          git commit -m "ops: record Retry18F executor syntax check" || exit 0
+          git push origin "HEAD:${GITHUB_REF_NAME}"
