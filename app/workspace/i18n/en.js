@@ -30,7 +30,7 @@ export default {
   'chat.starter.code': 'Explain code', 'chat.starter.code.d': 'Paste a snippet for a walkthrough',
   'chat.starter.email': 'Draft an email', 'chat.starter.email.d': 'Compose a clear, well-toned message',
   'chat.attached': 'Attached', 'chat.codeSheetTitle': 'Paste the code to explain',
-  'chat.fileContext': 'Use the following text-file content as context for the request:', 'chat.fileEnd': 'End of file', 'chat.fileUnsupported': 'This file type is not supported in the current chat. Text files only; PDFs and images require a dedicated adapter.', 'chat.fileTooLarge': 'The text file exceeds the current chat limit (100 KB).', 'chat.fileEmpty': 'The text file is empty.', 'chat.fileReadError': 'The file could not be read locally.', 'chat.imageUnavailable': 'Images are not connected to the current chat; a Multimodal Adapter is required.',
+  'chat.fileContext': 'Use the following text-file content as context for the request:', 'chat.fileEnd': 'End of file', 'chat.fileUnsupported': 'This file type is not supported in the current chat. Text files only; PDFs and images require a dedicated adapter.', 'chat.fileTooLarge': 'The text file exceeds the current safe chat limit (32 KB file / 12,000 content characters).', 'chat.fileEmpty': 'The text file is empty.', 'chat.fileReadError': 'The file could not be read locally.', 'chat.imageUnavailable': 'Images are not connected to the current chat; a Multimodal Adapter is required.',
   'chat.planTemplate': 'Help me plan this project:\n\nGoal: \nDeadline: \nTeam size: \nConstraints: ',
   'chat.emailTemplate': 'Draft an email for me:\n\nTo: \nGoal: \nTone: professional\nKey points: ',
   // work
