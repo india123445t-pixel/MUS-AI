@@ -51,8 +51,7 @@ def build_ephemeral_adapter(model_path: Path, adapter_dir: Path) -> tuple[list[s
         device_map={"": "cpu"},
         low_cpu_mem_usage=True,
     )
-    text_model = base.language_model
-    layer_types = list(text_model.config.layer_types)
+    layer_types = list(base.config.text_config.layer_types)
     full_layers = [i for i, kind in enumerate(layer_types) if kind == "full_attention"]
     if full_layers != EXPECTED_FULL_ATTN_LAYERS:
         raise RuntimeError(
@@ -68,7 +67,7 @@ def build_ephemeral_adapter(model_path: Path, adapter_dir: Path) -> tuple[list[s
         task_type=TaskType.CAUSAL_LM,
         init_lora_weights=False,  # PEFT documents False as non-noop debug init.
     )
-    peft_model = get_peft_model(text_model, cfg)
+    peft_model = get_peft_model(base, cfg)
     targets = sorted(
         name
         for name, module in peft_model.named_modules()
@@ -108,7 +107,7 @@ def build_ephemeral_adapter(model_path: Path, adapter_dir: Path) -> tuple[list[s
     if target_cfg != {"q_proj", "v_proj"}:
         raise RuntimeError(f"AQLEVON_SMOKE_ADAPTER_TARGET_CONFIG:{sorted(target_cfg)}")
 
-    del peft_model, text_model, base
+    del peft_model, base
     gc.collect()
     return targets, full_layers
 
