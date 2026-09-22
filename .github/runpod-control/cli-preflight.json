@@ -1,0 +1,56 @@
+{
+  "account_balance": null,
+  "checked_at_utc": "2026-09-22T04:29:45.939081+00:00",
+  "ok": true,
+  "rtx4090": [
+    {
+      "community_price_per_hr": 0.34,
+      "datacenters": [
+        {
+          "id": "CA-MTL-3",
+          "stock": "none"
+        },
+        {
+          "id": "EU-CZ-1",
+          "stock": "Low"
+        },
+        {
+          "id": "EU-RO-1",
+          "stock": "Low"
+        },
+        {
+          "id": "EUR-IS-1",
+          "stock": "Low"
+        },
+        {
+          "id": "EUR-IS-2",
+          "stock": "none"
+        },
+        {
+          "id": "EUR-NO-1",
+          "stock": "Low"
+        },
+        {
+          "id": "US-CA-2",
+          "stock": "none"
+        },
+        {
+          "id": "US-IL-1",
+          "stock": "Low"
+        },
+        {
+          "id": "US-NC-1",
+          "stock": "none"
+        },
+        {
+          "id": "US-TX-3",
+          "stock": "none"
+        }
+      ],
+      "display_name": "RTX 4090",
+      "id": null,
+      "secure_price_per_hr": 0.74,
+      "stock_status": "Low"
+    }
+  ]
+}
