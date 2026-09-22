@@ -21,8 +21,8 @@ jobs:
       RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
       IMAGE: ghcr.io/india123445t-pixel/mus-ai@sha256:ac5c13b4ded6a529c03d334632fe2f2bd51205630b5b3950be8b0f4f061bf3c8
       IMAGE_DIGEST: sha256:ac5c13b4ded6a529c03d334632fe2f2bd51205630b5b3950be8b0f4f061bf3c8
-      AUTH_ID: P4-A1-RUNPOD-4090-20260922-19H-QWEN35-MM-LORA-MAPPING
-      AUTH_SHA: 62ff5d1b4cf5acc0cbfc0dc76c927d998b9ae133906b545cea9497b548e33809
+      AUTH_ID: P4-A1-RUNPOD-4090-20260922-19I-QWEN35-MM-LORA-MAPPING
+      AUTH_SHA: 014a36014765d49a55a8aa469d2325fe911132b8e0ee4f746672248b906d1e28
       GPU_TYPE: NVIDIA GeForce RTX 4090
     steps:
       - uses: actions/checkout@v4
@@ -51,7 +51,7 @@ jobs:
             (.expected_head|test("^[0-9a-f]{40}$"))
           ' "$trigger" >/dev/null
           expected_head="$(jq -r '.expected_head' "$trigger")"
-          test "$expected_head" = "32beeb90f35a0821acb2778a7ba972596b504d46"
+          test "$expected_head" = "738117ec522a6e109fd92e7440fa937403bfb4ed"
           echo "expected_head=$expected_head" >> "$GITHUB_OUTPUT"
 
       - name: Confirm no active AQLEVON P4 A1 Pod before new spend
