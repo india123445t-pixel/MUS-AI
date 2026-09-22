@@ -1,0 +1,8 @@
+{
+  "reason": "stale Retry19S bound to old head/image; pod already emergency-stopped",
+  "requested_at_utc": "2026-09-22T22:22:29.383830+00:00",
+  "runs": [
+    35791328635,
+    35791523237
+  ]
+}
