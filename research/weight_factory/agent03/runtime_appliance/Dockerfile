@@ -20,11 +20,13 @@ RUN git clone -q https://github.com/lasgroup/SDPO.git "$AQLEVON_SDPO" \
 
 COPY research/weight_factory/agent03/p4_patch_sdpo_transformers5_compat.py /opt/aqlevon/runtime/p4_patch_sdpo_transformers5_compat.py
 COPY research/weight_factory/agent03/p4_patch_vllm_qwen35_transformers_backend.py /opt/aqlevon/runtime/p4_patch_vllm_qwen35_transformers_backend.py
+COPY research/weight_factory/agent03/p4_patch_vllm_transformers5_tokenizer_compat.py /opt/aqlevon/runtime/p4_patch_vllm_transformers5_tokenizer_compat.py
 RUN mkdir -p /workspace \
  && ln -s "$AQLEVON_SDPO" /workspace/SDPO \
  && cd /opt/aqlevon/runtime \
  && python p4_patch_sdpo_transformers5_compat.py \
  && python p4_patch_vllm_qwen35_transformers_backend.py \
+ && python p4_patch_vllm_transformers5_tokenizer_compat.py \
  && rm /workspace/SDPO
 
 RUN python - <<'PY'
@@ -68,7 +70,5 @@ LABEL org.opencontainers.image.title="AQLEVON P4 A1 Runtime Appliance" \
       aqlevon.cuda="12.8" \
       aqlevon.flash_attn="2.8.3"
 
-
 # RunPod Pod startup contract: the official base expects /start.sh as the long-lived CMD.
-# Without this, the inherited non-interactive "bash" command exits immediately and the Pod never becomes reachable.
 CMD ["/start.sh"]
