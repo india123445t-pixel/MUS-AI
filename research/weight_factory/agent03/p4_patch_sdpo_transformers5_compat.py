@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import hashlib
 import subprocess
+import sysconfig
 from pathlib import Path
 
 SDPO = Path("/workspace/SDPO")
@@ -20,7 +21,7 @@ EXPECTED_COMMIT = "7c457fc1b1f636ae794eb0362ba37d4743b06fbc"
 MODEL = SDPO / "verl/utils/model.py"
 FSDP = SDPO / "verl/workers/fsdp_workers.py"
 VLLM_ASYNC = SDPO / "verl/workers/rollout/vllm_rollout/vllm_async_server.py"
-VLLM_LORA_MODELS = Path("/usr/local/lib/python3.12/dist-packages/vllm/lora/models.py")
+VLLM_LORA_MODELS = Path(sysconfig.get_paths()["purelib"]) / "vllm/lora/models.py"
 REQUIRED_ROLLOUT_LORA_SUFFIXES = (".self_attn.q_proj", ".self_attn.v_proj")
 EXPECTED_REQUIRED_ROLLOUT_LORA_MODULES = 32
 
