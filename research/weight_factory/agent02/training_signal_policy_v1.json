@@ -1,0 +1,77 @@
+{
+  "schema_version": 2,
+  "policy_id": "AQLEVON_TRAINING_SIGNAL_ADMISSION_V1",
+  "policy_revision": 2,
+  "default_decision": "DENY",
+  "trainable_source_kinds": [
+    "dataset",
+    "generated_dataset",
+    "synthetic_dataset",
+    "curated_dataset"
+  ],
+  "recipe_only_source_kinds": [
+    "code_recipe",
+    "model_recipe",
+    "paper_recipe",
+    "dataset_recipe",
+    "paper_dataset_recipe",
+    "model_recipe_collection",
+    "recipe"
+  ],
+  "trainable_source_admissions": [
+    "allow",
+    "candidate_allow",
+    "allow_with_conditions"
+  ],
+  "allowed_license_statuses": [
+    "cleared",
+    "cleared_with_conditions"
+  ],
+  "allowed_provenance_statuses": [
+    "complete",
+    "audited",
+    "audited_with_conditions"
+  ],
+  "hard_verifier_types": [
+    "exact",
+    "regex",
+    "numeric",
+    "symbolic",
+    "unit_tests",
+    "compiler",
+    "schema",
+    "tool_state",
+    "citation_span",
+    "long_context_key",
+    "formal_constraints"
+  ],
+  "verifier": {
+    "min_hard_verifier_passes": 1,
+    "learned_semantic_only_is_insufficient": true,
+    "require_target_failure_modes": true,
+    "require_fault_injection": true,
+    "require_independent_observation": true
+  },
+  "contamination": {
+    "protected_ngram_size": 8,
+    "deny_on_any_protected_overlap": true,
+    "require_hash_only_protected_manifest": true,
+    "max_semantic_duplicate_score": 0.96
+  },
+  "learnability": {
+    "mode": "research_heuristic",
+    "min_attempts": 4,
+    "min_student_success_rate": 0.05,
+    "max_student_success_rate": 0.85,
+    "note": "Configurable curriculum heuristic only; not a release threshold or canonical truth. Tune from measured learning-progress ablations."
+  },
+  "language_quality": {
+    "lanes_requiring_audit": [
+      "darija",
+      "arabizi",
+      "darija_fr_codeswitch",
+      "msa_darija_codeswitch"
+    ],
+    "require_for_synthetic_only": true
+  }
+}
