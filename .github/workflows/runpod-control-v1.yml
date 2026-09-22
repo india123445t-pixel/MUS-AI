@@ -15,7 +15,7 @@ permissions:
 jobs:
   runpod-control:
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
         with:
@@ -26,10 +26,10 @@ jobs:
         run: |
           set -euo pipefail
           ACTION="$(jq -r '.action // "status"' .github/runpod-control/command.json)"
-          if [ "$ACTION" != "status" ] && [ "$ACTION" != "inventory" ]; then
-            echo "::error::Unsupported action in V1: $ACTION"
-            exit 1
-          fi
+          case "$ACTION" in
+            status|inventory|launch_retry18h) ;;
+            *) echo "::error::Unsupported action: $ACTION"; exit 1 ;;
+          esac
           echo "ACTION=$ACTION" >> "$GITHUB_ENV"
 
       - name: Verify RunPod secret exists
@@ -41,8 +41,29 @@ jobs:
           test -n "${RUNPOD_API_KEY:-}" || { echo "::error::RUNPOD_API_KEY missing"; exit 1; }
           echo "RunPod secret present; value not printed."
 
-      - name: Install official runpodctl for inventory
-        if: env.ACTION == 'inventory'
+      - name: Read RunPod status
+        if: env.ACTION == 'status'
+        shell: bash
+        env:
+          RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+        run: |
+          set -euo pipefail
+          curl --silent --show-error --fail             --request GET             --url "https://rest.runpod.io/v1/pods"             --header "Authorization: Bearer ${RUNPOD_API_KEY}"             --output /tmp/pods.json
+          mkdir -p .github/runpod-control
+          python - <<'PY'
+          import json, datetime
+          raw=json.load(open('/tmp/pods.json',encoding='utf-8'))
+          pods=raw.get('pods',raw.get('data',raw if isinstance(raw,list) else [])) if isinstance(raw,(dict,list)) else []
+          if isinstance(pods,dict): pods=list(pods.values())
+          out={"ok":True,"action":"status","checked_at_utc":datetime.datetime.now(datetime.timezone.utc).isoformat(),"pod_count":len(pods or []),"pods":[]}
+          for p in pods or []:
+              if isinstance(p,dict):
+                  out["pods"].append({"id":p.get("id"),"name":p.get("name"),"status":p.get("desiredStatus") or p.get("status"),"cost_per_hr":p.get("costPerHr")})
+          open('.github/runpod-control/status.json','w',encoding='utf-8').write(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          PY
+
+      - name: Install official runpodctl
+        if: env.ACTION == 'inventory' || env.ACTION == 'launch_retry18h'
         shell: bash
         run: |
           set -euo pipefail
@@ -50,7 +71,7 @@ jobs:
           export PATH="$HOME/.local/bin:$PATH"
           runpodctl version
 
-      - name: Build sanitized inventory
+      - name: Read RunPod inventory
         if: env.ACTION == 'inventory'
         shell: bash
         env:
@@ -60,122 +81,215 @@ jobs:
           export PATH="$HOME/.local/bin:$PATH"
           runpodctl config --apiKey "$RUNPOD_API_KEY" >/dev/null
           mkdir -p .github/runpod-control
-          {
-            echo '### REGISTRY'
-            runpodctl registry list || true
-            echo '### GPU'
-            runpodctl gpu list || true
-            echo '### PODS'
-            runpodctl pod list --all || true
-            echo '### CREATE_HELP'
-            runpodctl pod create --help || true
-          } > /tmp/inventory.txt
+          runpodctl registry list --output json > /tmp/registry.json
+          runpodctl gpu list --output json > /tmp/gpus.json
+          runpodctl pod list --all --output json > /tmp/pods.json
           python - <<'PY'
-          import re, json, datetime
-          text=open('/tmp/inventory.txt',encoding='utf-8',errors='replace').read()
-          # Redact token-like strings and URLs with query secrets if any appear unexpectedly.
-          text=re.sub(r'rpa_[A-Za-z0-9_-]+','[REDACTED_API_KEY]',text)
-          text=re.sub(r'api_key=[^\s&]+','api_key=[REDACTED]',text,flags=re.I)
+          import json, datetime
+          regs=json.load(open('/tmp/registry.json'))
+          gpus=json.load(open('/tmp/gpus.json'))
+          pods=json.load(open('/tmp/pods.json'))
           out={
-            "ok":True,
-            "action":"inventory",
+            "ok":True,"action":"inventory",
             "checked_at_utc":datetime.datetime.now(datetime.timezone.utc).isoformat(),
-            "text":text[-30000:]
+            "registries":[{"id":x.get("id"),"name":x.get("name"),"username":x.get("username")} for x in regs],
+            "rtx4090":[x for x in gpus if "RTX 4090" in str(x.get("displayName",""))],
+            "pods":[{"id":p.get("id"),"name":p.get("name"),"status":p.get("status") or p.get("desiredStatus"),"gpu":p.get("gpuId"),"costPerHr":p.get("costPerHr")} for p in pods]
           }
           open('.github/runpod-control/inventory.json','w',encoding='utf-8').write(json.dumps(out,indent=2,sort_keys=True)+"\n")
           PY
 
-      - name: Read RunPod pod status via API v1 with machine metadata
-        if: env.ACTION == 'status'
+      - name: Execute paid Retry18H with hard guards
+        if: env.ACTION == 'launch_retry18h'
+        id: launch
         shell: bash
         env:
           RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+          EXPECTED_HEAD: d3ded5159ea66c4364e283fdef355ced46ad20bb
+          IMAGE: ghcr.io/india123445t-pixel/mus-ai@sha256:ecfe9d199a56333da7655a63a750fc6466d27fd1ed91d60aaa3e2c4b0a3dd69d
+          MAX_RATE: "0.80"
+          MAX_EGRESS: "5368709120"
         run: |
-          set -euo pipefail
-          CODE="$(curl --silent --show-error             --output /tmp/pods.json             --write-out "%{http_code}"             --request GET             --url "https://rest.runpod.io/v1/pods?include=machine"             --header "Authorization: Bearer ${RUNPOD_API_KEY}")"
+          set -uo pipefail
+          export PATH="$HOME/.local/bin:$PATH"
+          mkdir -p .github/runpod-control /tmp/retry18h
+          runpodctl config --apiKey "$RUNPOD_API_KEY" >/dev/null
 
-          if [ "$CODE" != "200" ]; then
-            echo "::error::RunPod v1 status query failed with HTTP $CODE"
-            exit 1
-          fi
+          POD_ID=""
+          KEY_FP=""
+          CREATED_AT=""
+          COST_PER_HR=""
+          REMOTE_RC="999"
+          EGRESS_BYTES="0"
+          TRAINING_START_SEEN="false"
+          CLEANUP_STATUS="not_started"
 
-          mkdir -p .github/runpod-control
-          python - <<'PY'
-          import json, datetime, hashlib
-          with open('/tmp/pods.json','r',encoding='utf-8') as f:
-              data=json.load(f)
-
-          pods=data.get('pods', data.get('items', data.get('data', []))) if isinstance(data,dict) else (data if isinstance(data,list) else [])
-          if not isinstance(pods,list):
-              pods=[]
-
-          def first(*vals):
-              for v in vals:
-                  if v not in (None,"",[],{}):
-                      return v
-              return None
-
+          write_result() {
+            POD_ID="$POD_ID" KEY_FP="$KEY_FP" CREATED_AT="$CREATED_AT" COST_PER_HR="$COST_PER_HR" REMOTE_RC="$REMOTE_RC" EGRESS_BYTES="$EGRESS_BYTES" TRAINING_START_SEEN="$TRAINING_START_SEEN" CLEANUP_STATUS="$CLEANUP_STATUS" python - <<'PY'
+          import json, os, datetime
+          def num(x):
+              try: return float(x)
+              except: return None
+          created=os.environ.get("CREATED_AT","")
+          now=datetime.datetime.now(datetime.timezone.utc)
           out={
-              "ok": True,
-              "api": "v1",
-              "action": "status",
-              "checked_at_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-              "pod_count": len(pods),
-              "pods": []
+            "action":"launch_retry18h",
+            "github_run_id":os.environ.get("GITHUB_RUN_ID"),
+            "checked_at_utc":now.isoformat(),
+            "pod_id":os.environ.get("POD_ID") or None,
+            "created_at":created or None,
+            "cost_per_hr":num(os.environ.get("COST_PER_HR")),
+            "remote_rc":int(os.environ.get("REMOTE_RC","999")),
+            "training_start_seen":os.environ.get("TRAINING_START_SEEN")=="true",
+            "egress_bytes":int(os.environ.get("EGRESS_BYTES","0")),
+            "cleanup_status":os.environ.get("CLEANUP_STATUS"),
+            "authorization_id":"P4-A1-RUNPOD-4090-20260922-18H-API-AUTOMATED",
+            "authorization_sha256":"15393f4a9061e28b08e2fe9d0c27eeb55a83ea26a76fff04bdae259f3df2b937",
+            "worker03_head":"d3ded5159ea66c4364e283fdef355ced46ad20bb"
+          }
+          open(".github/runpod-control/retry18h-result.json","w",encoding="utf-8").write(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          PY
           }
 
-          for p in pods:
-              if not isinstance(p,dict):
-                  continue
-              pid=str(p.get('id') or '')
-              fp=hashlib.sha256(pid.encode()).hexdigest()[:12] if pid else None
-              machine=p.get('machine') if isinstance(p.get('machine'),dict) else {}
-              gpu_type=p.get('gpuType') if isinstance(p.get('gpuType'),dict) else {}
-              machine_gpu_type=machine.get('gpuType') if isinstance(machine.get('gpuType'),dict) else {}
-              gpu=first(
-                  p.get('gpuTypeId'),
-                  p.get('gpuTypeName'),
-                  gpu_type.get('displayName'),
-                  gpu_type.get('id'),
-                  machine.get('gpuTypeId'),
-                  machine.get('gpuDisplayName'),
-                  machine_gpu_type.get('displayName'),
-                  machine_gpu_type.get('id')
-              ) or "unknown"
-              status=first(p.get('desiredStatus'),p.get('status'),p.get('runtimeStatus')) or "UNKNOWN"
-              cost=first(p.get('costPerHr'),p.get('costPerHour'),p.get('pricePerHr'),machine.get('costPerHr'))
-              created=first(p.get('createdAt'),p.get('created_at'),p.get('lastStartedAt'))
-              runtime=p.get('runtime') if isinstance(p.get('runtime'),dict) else {}
-              rgpus=runtime.get('gpus') if isinstance(runtime.get('gpus'),list) else []
-              utils=[g.get('gpuUtilPercent') for g in rgpus if isinstance(g,dict) and isinstance(g.get('gpuUtilPercent'),(int,float))]
-              mems=[g.get('memoryUtilPercent') for g in rgpus if isinstance(g,dict) and isinstance(g.get('memoryUtilPercent'),(int,float))]
-              out["pods"].append({
-                  "fingerprint": fp,
-                  "status": status,
-                  "gpu": gpu,
-                  "cost_per_hr": cost,
-                  "created_at": created,
-                  "uptime_seconds": runtime.get('uptimeInSeconds'),
-                  "gpu_util_percent_max": max(utils) if utils else None,
-                  "gpu_memory_util_percent_max": max(mems) if mems else None
-              })
+          cleanup() {
+            set +e
+            if [ -n "$POD_ID" ]; then
+              runpodctl pod stop "$POD_ID" >/dev/null 2>&1 || true
+              runpodctl pod delete "$POD_ID" >/dev/null 2>&1 || true
+            fi
+            if [ -n "$KEY_FP" ]; then
+              runpodctl ssh remove-key --fingerprint "$KEY_FP" >/dev/null 2>&1 || true
+            fi
+            CLEANUP_STATUS="attempted_stop_delete_and_key_remove"
+            write_result
+          }
+          trap cleanup EXIT
 
-          with open('.github/runpod-control/status.json','w',encoding='utf-8') as f:
-              json.dump(out,f,indent=2,sort_keys=True)
-              f.write("\n")
-          print(f"RUNPOD_STATUS_PASS pod_count={len(pods)}")
+          # Fail closed if anything is already running.
+          runpodctl pod list --output json > /tmp/running.json || exit 70
+          python - <<'PY'
+          import json
+          p=json.load(open('/tmp/running.json'))
+          if len(p)!=0:
+              raise SystemExit("FAIL_CLOSED: existing RUNNING pod(s) present")
+          print("NO_EXISTING_RUNNING_PODS_PASS")
           PY
+          test $? -eq 0 || exit 71
 
-      - name: Commit sanitized status back to control branch
+          # Resolve the exact private-registry credential by name.
+          runpodctl registry list --output json > /tmp/registry.json || exit 72
+          REGISTRY_ID="$(python - <<'PY'
+          import json
+          xs=[x for x in json.load(open('/tmp/registry.json')) if x.get('name')=='ghcr-mus-ai']
+          assert len(xs)==1, f"expected exactly one ghcr-mus-ai registry auth, got {len(xs)}"
+          print(xs[0]['id'])
+          PY
+          )" || exit 73
+          test -n "$REGISTRY_ID" || exit 74
+
+          # Verify exact RTX4090 Secure Cloud availability and hourly ceiling.
+          runpodctl gpu list --output json > /tmp/gpus.json || exit 75
+          GPU_ID="$(python - <<'PY'
+          import json
+          xs=[x for x in json.load(open('/tmp/gpus.json')) if 'RTX 4090' in str(x.get('displayName','')) and int(x.get('memoryInGb') or 0)==24 and x.get('secureCloud') and x.get('available')]
+          assert xs, "no available Secure Cloud RTX 4090 24GB"
+          xs=sorted(xs,key=lambda x: float(x.get('securePricePerHr') or 999))
+          x=xs[0]
+          price=float(x['securePricePerHr'])
+          assert price <= 0.80, f"price ceiling exceeded: {price}"
+          print(x['gpuId'])
+          PY
+          )" || exit 76
+          test -n "$GPU_ID" || exit 77
+          echo "RTX4090_PRICE_AND_AVAILABILITY_PASS"
+
+          # Ephemeral SSH key exists only for this workflow/run.
+          mkdir -p "$HOME/.ssh"
+          ssh-keygen -q -t ed25519 -N "" -C "aqlevon-retry18h-$GITHUB_RUN_ID" -f "$HOME/.ssh/aqlevon_retry18h"
+          PUBKEY="$(cat "$HOME/.ssh/aqlevon_retry18h.pub")"
+          KEY_FP="$(ssh-keygen -lf "$HOME/.ssh/aqlevon_retry18h.pub" -E sha256 | awk '{print $2}')"
+          runpodctl ssh add-key --key-file "$HOME/.ssh/aqlevon_retry18h.pub" --output json >/tmp/key-add.json || exit 78
+
+          ENV_JSON="$(jq -nc --arg head "$EXPECTED_HEAD" --arg pk "$PUBKEY" '{AQLEVON_EXPECTED_W03_HEAD:$head,PUBLIC_KEY:$pk}')"
+
+          CREATED_AT="$(date -u +%FT%TZ)"
+          set +e
+          runpodctl pod create             --name "AQLEVON-P4-A1-R18H"             --image "$IMAGE"             --gpu-id "$GPU_ID"             --gpu-count 1             --compute-type GPU             --cloud-type SECURE             --container-disk-in-gb 40             --volume-in-gb 0             --ports "22/tcp"             --env "$ENV_JSON"             --registry-auth-id "$REGISTRY_ID"             --stop-after 30m             --terminate-after 35m             --wait             --output json > /tmp/pod-create.json
+          CREATE_RC=$?
+          set -e
+          if [ "$CREATE_RC" -ne 0 ]; then
+            REMOTE_RC="998"
+            exit 79
+          fi
+
+          POD_ID="$(jq -r '.id // empty' /tmp/pod-create.json)"
+          test -n "$POD_ID" || exit 80
+
+          runpodctl pod get "$POD_ID" --output json > /tmp/pod-get.json || exit 81
+          COST_PER_HR="$(jq -r '.costPerHr // empty' /tmp/pod-get.json)"
+          ACTUAL_GPU="$(jq -r '.gpuId // .gpuTypeId // empty' /tmp/pod-get.json)"
+          ACTUAL_COUNT="$(jq -r '.gpuCount // empty' /tmp/pod-get.json)"
+          python - "$COST_PER_HR" "$ACTUAL_GPU" "$ACTUAL_COUNT" <<'PY'
+          import sys
+          cost=float(sys.argv[1])
+          gpu=sys.argv[2]
+          count=int(sys.argv[3])
+          assert cost <= 0.80, cost
+          assert '4090' in gpu, gpu
+          assert count == 1, count
+          print("LIVE_POD_IDENTITY_AND_RATE_PASS")
+          PY
+          test $? -eq 0 || exit 82
+
+          runpodctl ssh info "$POD_ID" --output json > /tmp/ssh.json || exit 83
+          SSH_IP="$(jq -r '.ip // empty' /tmp/ssh.json)"
+          SSH_PORT="$(jq -r '.port // empty' /tmp/ssh.json)"
+          test -n "$SSH_IP" -a -n "$SSH_PORT" || exit 84
+
+          SSH=(ssh -i "$HOME/.ssh/aqlevon_retry18h" -p "$SSH_PORT" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=15 root@"$SSH_IP")
+          SCP=(scp -i "$HOME/.ssh/aqlevon_retry18h" -P "$SSH_PORT" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null)
+
+          # Launch exact locked appliance run in foreground so GitHub observes the real exit code.
+          set +e
+          "${SSH[@]}" "export AQLEVON_EXPECTED_W03_HEAD='$EXPECTED_HEAD'; if [ ! -d /workspace/MUS-AI/.git ]; then git clone -q --branch agent/03-p4-gene1-physical-trainer --single-branch https://github.com/india123445t-pixel/MUS-AI.git /workspace/MUS-AI; fi; git -C /workspace/MUS-AI fetch -q origin agent/03-p4-gene1-physical-trainer; git -C /workspace/MUS-AI checkout -q agent/03-p4-gene1-physical-trainer; git -C /workspace/MUS-AI reset -q --hard origin/agent/03-p4-gene1-physical-trainer; bash /workspace/MUS-AI/research/weight_factory/agent03/p4_runpod_appliance_launch.sh; RC=\$?; mkdir -p /workspace/aqlevon_p4; echo \$RC > /workspace/aqlevon_p4/manager_remote_rc.txt; exit \$RC"
+          REMOTE_RC="$?"
+          set -e
+
+          # Detect the key evidence marker and prepare bounded egress even on failure.
+          set +e
+          "${SSH[@]}" "grep -q 'A1_LOCKED_TRAINING_START' /workspace/aqlevon_p4/P4_A1_seed1701_appliance.log 2>/dev/null"
+          [ "$?" -eq 0 ] && TRAINING_START_SEEN="true"
+          "${SSH[@]}" "cd /workspace && tar -czf /tmp/aqlevon_retry18h_egress.tgz aqlevon_p4 2>/dev/null || true; stat -c %s /tmp/aqlevon_retry18h_egress.tgz 2>/dev/null || echo 0" > /tmp/egress-size.txt
+          EGRESS_BYTES="$(tail -n1 /tmp/egress-size.txt | tr -dc '0-9')"
+          [ -z "$EGRESS_BYTES" ] && EGRESS_BYTES="0"
+          if [ "$EGRESS_BYTES" -gt 0 ] && [ "$EGRESS_BYTES" -le "$MAX_EGRESS" ]; then
+            "${SCP[@]}" root@"$SSH_IP":/tmp/aqlevon_retry18h_egress.tgz /tmp/retry18h/aqlevon_retry18h_egress.tgz
+          fi
+          set -e
+
+          write_result
+          exit "$REMOTE_RC"
+
+      - name: Upload Retry18H evidence
+        if: always() && env.ACTION == 'launch_retry18h'
+        uses: actions/upload-artifact@v4
+        with:
+          name: aqlevon-retry18h-evidence
+          path: /tmp/retry18h/
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Commit sanitized control result
+        if: always()
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "aqlevon-runpod-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add .github/runpod-control/status.json .github/runpod-control/inventory.json 2>/dev/null || true
+          git add .github/runpod-control/status.json .github/runpod-control/inventory.json .github/runpod-control/retry18h-result.json 2>/dev/null || true
           if git diff --cached --quiet; then
-            echo "No status change to commit."
+            echo "No control result change to commit."
             exit 0
           fi
-          git commit -m "ops: record sanitized RunPod v2 status [skip ci]"
+          git commit -m "ops: record sanitized RunPod control result [skip ci]"
           git push origin HEAD:ops/runpod-control-v1
