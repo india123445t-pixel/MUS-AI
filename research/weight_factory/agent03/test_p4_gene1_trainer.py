@@ -432,7 +432,7 @@ class VllmLoraCompatPatchTests(unittest.TestCase):
         self.assertIn("AQLEVON_REQUIRED_ROLLOUT_LORA_MODULE_UNSUPPORTED", patched)
         self.assertIn('".self_attn.q_proj"', patched)
         self.assertIn('".self_attn.v_proj"', patched)
-        self.assertIn("expected_32", patched)
+        self.assertIn("expected_16", patched)
 
     def test_patch_skips_only_non_required_unreplaceable_modules(self):
         patched = compat.patch_vllm_lora_manager(self._source())
