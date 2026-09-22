@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 import argparse
+import asyncio
+import cloudpickle
 import importlib
 import inspect
 import json
@@ -45,6 +47,23 @@ def build_check():
     patched_loader=LRUCacheWorkerLoRAManager._load_adapter
     assert patched_loader.__name__=="hijack__load_adapter", patched_loader.__name__
     assert issubclass(TensorLoRARequest, __import__("vllm.lora.request",fromlist=["LoRARequest"]).LoRARequest)
+    # vLLM 0.19 removed WorkerWrapperBase.execute_method. Verify AQLEVON's
+    # SDPO bridge dispatches strings and serialized callables through the same
+    # vllm.v1.serial_utils.run_method primitive used by UniProcExecutor.
+    from vllm.v1.worker.worker_base import WorkerWrapperBase
+    from verl.workers.rollout.vllm_rollout.vllm_rollout import vLLMAsyncRollout
+    assert not hasattr(WorkerWrapperBase, "execute_method")
+    class _DispatchProbe:
+        def ping(self, x):
+            return x + 1
+    probe=object.__new__(vLLMAsyncRollout)
+    probe.inference_engine=_DispatchProbe()
+    assert asyncio.run(probe._execute_method("ping", 41)) == 42
+    def _callable_probe(worker, x):
+        return worker.ping(x)
+    payload=cloudpickle.dumps(_callable_probe)
+    assert asyncio.run(probe._execute_method(payload, 41)) == 42
+
     from verl.utils.groupwise import as_torch_index, group_mean_std
     idx=as_torch_index(np.array([10.0,10.0,20.0,20.0],dtype=np.float64),device="cpu")
     mean,std,count=group_mean_std(torch.tensor([1.0,3.0,2.0,4.0]),idx,device="cpu")
@@ -71,6 +90,7 @@ def build_check():
       "vllm_lora_target_modules_arg":"pass",
       "sdpo_imports":"pass",
       "sdpo_tensor_lora_v019_contract":"pass",
+      "sdpo_vllm019_worker_dispatch":"pass",
     }
 
 def main():
