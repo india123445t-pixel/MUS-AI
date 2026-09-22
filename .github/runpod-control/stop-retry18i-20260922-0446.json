@@ -1,0 +1,6 @@
+{
+  "action": "stop_retry18i",
+  "requested_by": "AQLEVON_MANAGER",
+  "reason": "runtime_not_started_after_six_minute_guard",
+  "expected_pod_fingerprint": "3b722f097abc"
+}
