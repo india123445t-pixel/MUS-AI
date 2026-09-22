@@ -4,6 +4,8 @@ import importlib
 import inspect
 import json
 import subprocess
+import shutil
+import sys
 from dataclasses import fields
 
 def build_check():
@@ -49,6 +51,8 @@ def build_check():
     assert idx.tolist()==[10,10,20,20] or idx.tolist()==[0,0,1,1]
     assert count.numel()>=2
 
+    assert shutil.which("python"), "python_launcher_missing"
+    subprocess.run(["python","-c","import sys; assert sys.version_info[:2] == (3, 12); print('AQLEVON_PYTHON_LAUNCHER_PASS', sys.executable)"],check=True)
     subprocess.run(["python3","-m","pip","check"],check=True)
     return {
       "torch":torch.__version__,
