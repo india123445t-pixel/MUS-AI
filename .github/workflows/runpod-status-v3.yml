@@ -1,0 +1,28 @@
+name: RunPod Status V3 ReadOnly
+
+on:
+  push:
+    branches:
+      - ops/runpod-control-v1
+    paths:
+      - ".github/runpod-control/status-v3-trigger.json"
+
+permissions:
+  contents: read
+
+jobs:
+  status:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Install runpodctl
+        run: curl -sSL https://cli.runpod.net | sudo bash
+
+      - name: Print sanitized pod status
+        env:
+          RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          runpodctl pod list --all --output json > /tmp/pods.json
+          jq '[.[] | {id,name,status:(.status // .desiredStatus),gpuId,costPerHr}]' /tmp/pods.json
