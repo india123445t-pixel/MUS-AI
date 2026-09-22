@@ -2,6 +2,6 @@
   "action": "status",
   "requested_by": "AQLEVON_MANAGER",
   "mode": "read_only",
-  "nonce": "2026-09-22T03:50Z",
-  "note": "Trigger closed-loop RunPod status probe"
+  "nonce": "2026-09-22T04:20Z",
+  "note": "Refresh sanitized RunPod status with pod fingerprints"
 }
