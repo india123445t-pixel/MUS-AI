@@ -170,7 +170,7 @@ export async function POST(req){
     modelCalls++;
     if(!first||first.unavailable){
       const errorClass=first?.error_class||'UNKNOWN_PROVIDER_ERROR';
-      console.warn('AQLEVON_INFERENCE_UNAVAILABLE',{error_class:errorClass,route:settings?.runtime_mode||'openrouter_primary'});
+      console.warn('AQLEVON_INFERENCE_UNAVAILABLE',{error_class:errorClass,route:settings?.runtime_mode||'self_hosted_only'});
       return NextResponse.json({message:'لا يوجد محرك استدلال متاح الآن.',error_class:errorClass},{status:503});
     }
     candidates.push(first);
