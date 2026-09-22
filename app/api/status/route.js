@@ -52,7 +52,16 @@ export async function GET(req){
     }catch(e){return NextResponse.json({message:e?.message||'تعذر تحميل ملخص الذكاء.'},{status:500})}
   }
   let settings=defaultSettings;
-  try{if(client){const r=await client.rpc('get_aqlevon_runtime_config');if(r.data){const {openrouter_model,...runtimeData}=r.data||{};settings={...defaultSettings,...runtimeData,runtime_mode:'self_hosted_only',allow_paid_external:false,public_web_search_enabled:false}}}}catch{}
+  try{
+    if(client){
+      const r=await client.rpc('get_aqlevon_runtime_config');
+      if(r.data){
+        const allowed=['temperature','max_history','save_training_candidates','public_chat_enabled','public_training_enabled','public_rate_limit_per_hour','public_daily_limit','install_enabled','verification_enabled','deep_reasoning_enabled','intelligence_router_enabled','max_model_calls_per_request','learning_gate_min_confidence'];
+        const runtimeData=Object.fromEntries(allowed.filter(k=>Object.prototype.hasOwnProperty.call(r.data,k)).map(k=>[k,r.data[k]]));
+        settings={...defaultSettings,...runtimeData,runtime_mode:'self_hosted_only',allow_paid_external:false,public_web_search_enabled:false};
+      }
+    }
+  }catch{}
   const providers={
     self_hosted:!!(process.env.AQLEVON_MODEL_URL||process.env.LOCAL_MODEL_URL)
   };
