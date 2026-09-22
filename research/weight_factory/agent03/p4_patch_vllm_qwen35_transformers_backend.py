@@ -7,7 +7,7 @@ from pathlib import Path
 SDPO = Path("/workspace/SDPO")
 EXPECTED_COMMIT = "7c457fc1b1f636ae794eb0362ba37d4743b06fbc"
 TARGET = SDPO / "verl/workers/rollout/vllm_rollout/vllm_async_server.py"
-MARKER = "AQLEVON_QWEN35_VLLM_TRANSFORMERS_BACKEND_PASS"
+MARKER = "AQLEVON_QWEN35_VLLM_TRANSFORMERS_BACKEND_PASS"\n# Rebuild marker: runtime appliance must include the HF architecture override below.
 
 OLD = '''        engine_kwargs = self.config.get("engine_kwargs", {}).get("vllm", {}) or {}
         engine_kwargs = {key: val for key, val in engine_kwargs.items() if val is not None}
