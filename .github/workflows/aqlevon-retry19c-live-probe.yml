@@ -1,0 +1,52 @@
+name: AQLEVON Retry19C Live Pod Probe
+
+on:
+  push:
+    branches: [ops/runpod-control-v1]
+    paths:
+      - ".github/runpod-control/retry19c-probe-trigger.json"
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/runpod-control-v1
+      - name: Probe active Retry19C pod
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -sSL https://cli.runpod.net | sudo bash
+          runpodctl pod list --output json > /tmp/pods.json
+          python - <<'PY'
+          import json,datetime
+          p=json.load(open('/tmp/pods.json'))
+          pods=p if isinstance(p,list) else p.get('pods') or p.get('items') or []
+          out=[]
+          for x in pods:
+              if str(x.get('name') or '')=='AQLEVON-P4-A1-Retry19C':
+                  out.append({
+                      'id':x.get('id'),
+                      'name':x.get('name'),
+                      'desiredStatus':x.get('desiredStatus'),
+                      'runtimeStatus':x.get('runtimeStatus'),
+                      'runtimeStatusReason':x.get('runtimeStatusReason'),
+                      'gpu':x.get('gpu') or x.get('gpuDisplayName') or x.get('machine'),
+                      'ssh':x.get('ssh'),
+                      'lastStatusChange':x.get('lastStatusChange')
+                  })
+          json.dump({'checked_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'pods':out},open('.github/runpod-control/retry19c-probe-result.json','w'),indent=2,default=str)
+          open('.github/runpod-control/retry19c-probe-result.json','a').write('\n')
+          PY
+          git config user.name aqlevon-runpod-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/runpod-control/retry19c-probe-result.json
+          git commit -m "ops: record Retry19C live pod probe [skip ci]" || exit 0
+          git push origin HEAD:ops/runpod-control-v1
