@@ -402,5 +402,5 @@ jobs:
           rc="${STEP_RC:-}"
           if ! [[ "$rc" =~ ^[0-9]+$ ]] && [ -s /tmp/train_rc ]; then rc="$(cat /tmp/train_rc)"; fi
           if ! [[ "$rc" =~ ^[0-9]+$ ]]; then echo "::error::Retry19R training exit code missing"; exit 255; fi
-          echo "AQLEVON_RETRY19P_TRUE_EXIT_CODE=$rc"
+          echo "AQLEVON_RETRY19R_TRUE_EXIT_CODE=$rc"
           test "$rc" -eq 0 || exit "$rc"
