@@ -133,10 +133,7 @@ fi
 
 POD_ID="$(printf '%s' "$CREATE_OUT" | jq -r '.id // empty')"
 test -n "$POD_ID" || { RESULT="POD_ID_MISSING"; exit 44; }
-echo "::add-mask::$POD_ID"
-POD_BIRTH="$(date +%s)"
-
-POD_JSON="$(runpodctl pod get "$POD_ID")"
+echo "::add-mask::$POD_ID"\n\nPOD_JSON="$(runpodctl pod get "$POD_ID")"
 POST_RATE="$(printf '%s' "$POD_JSON" | jq -r '.costPerHr // .costPerHrGpu // empty')"
 if [ -n "$POST_RATE" ] && [ "$POST_RATE" != "null" ]; then
   awk -v p="$POST_RATE" -v m="$MAX_RATE" 'BEGIN { exit !(p <= m) }' || { RESULT="POST_CREATE_RATE_ABOVE_CEILING"; exit 45; }
