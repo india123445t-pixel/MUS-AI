@@ -24,10 +24,12 @@ jobs:
         run: |
           set -euo pipefail
           pod="$(jq -r '.pod_id' .github/runpod-control/pod-log-diagnostic-trigger.json)"
+          source="$(jq -r '.source // "system"' .github/runpod-control/pod-log-diagnostic-trigger.json)"
           test -n "$pod"
+          test "$source" = "system" -o "$source" = "container"
           curl -sSL https://cli.runpod.net | sudo bash
           set +e
-          runpodctl pod logs "$pod" --tail 150 --source system --max-wait 15s > /tmp/pod-system.jsonl 2>/tmp/pod-system.err
+          runpodctl pod logs "$pod" --tail 150 --source "$source" --max-wait 15s > /tmp/pod-system.jsonl 2>/tmp/pod-system.err
           rc=$?
           set -e
           python - <<'PY'
