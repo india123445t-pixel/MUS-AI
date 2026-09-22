@@ -108,7 +108,7 @@ export default {
   'set.export': 'تصدير بيانات Workspace الوصفية (دون محتوى الملفات)', 'set.clearChats': 'حذف كل المحادثات',
   'set.clearConfirmWord': 'حذف', 'set.clearConfirm': 'اكتب {word} لتأكيد حذف كل المحادثات.',
   'set.diagnostics': 'التشخيصات', 'set.save': 'حفظ', 'set.savedOk': 'حُفظ',
-  'set.aboutText': 'AQLEVON — مساحة عمل متصفح محلية مع محادثة خادمية عند توفر محرك الاستدلال؛ الميزات غير الموصولة تُعرض بوضوح.',
+  'set.aboutText': 'AQLEVON — مساحة عمل مرتبطة بمحرك AQLEVON السيادي عند توفره. لا يعتمد تشغيل النموذج الأساسي على مزود ذكاء خارجي.',
   // misc
   'common.close': 'إغلاق', 'common.create': 'إنشاء', 'common.delete': 'حذف', 'common.cancel': 'إلغاء',
   'common.save': 'حفظ', 'common.open': 'فتح', 'common.loading': 'جارٍ التحميل…', 'common.error': 'حدث خطأ ما',
@@ -137,7 +137,7 @@ export default {
   'apps.authError': 'يتطلب انتباهك', 'apps.reconnect': 'إعادة الربط',
   'apps.serverSide': 'لا تُدخل أسرارًا هنا. الربط الحقيقي للتطبيقات يتم فقط من Runtime موثوق عند توفر Adapter.',
   'apps.token': 'رمز الوصول', 'apps.githubHint': 'ربط GitHub الحقيقي غير متاح من نسخة المتصفح الحالية.',
-  'apps.n.web-search': 'بحث الويب', 'apps.d.web-search': 'دَع AQLEVON يبحث في الويب عن معلومات حديثة مع مصادر موثقة.',
+  'apps.n.web-search': 'بحث الويب', 'apps.d.web-search': 'غير متصل حاليًا؛ سيُربط لاحقًا كأداة لـAQLEVON دون تغيير محرك النموذج الأساسي.',
   'apps.n.code-interpreter': 'مفسّر الكود', 'apps.d.code-interpreter': 'غير متصل في نسخة المتصفح؛ يحتاج Code Sandbox Adapter موثوقًا للتنفيذ الحقيقي.',
   'apps.n.image-gen': 'توليد الصور', 'apps.d.image-gen': 'غير متصل في نسخة المتصفح؛ يحتاج Image Generation Adapter موثوقًا.',
   'apps.n.github': 'GitHub', 'apps.d.github': 'غير متصل في نسخة المتصفح؛ يحتاج GitHub Adapter موثوقًا.',
@@ -151,8 +151,8 @@ export default {
   'set.advancedHint': 'معلومات تقنية لاستكشاف الأخطاء. لا يلزم أي منها للاستخدام اليومي.',
   'set.runDiagnostics': 'تشغيل التشخيصات',
   'set.aboutVersion': 'الإصدار 1.0',
-  'chat.runtimeUnavailable': 'محرك الاستدلال غير جاهز الآن. لا يمكن إرسال الرسائل حتى يتوفر مزود صالح أو عامل AQLEVON.',
-  'chat.runtimeAuthError': 'محرك الاستدلال متوقف لأن اعتماد مزود الذكاء مرفوض. يلزم إصلاح اعتماد المزود.',
+  'chat.runtimeUnavailable': 'نموذج AQLEVON غير متصل بعد. ستُفعّل المحادثة تلقائيًا عند اتصال Runtime الخاص بالنموذج أو عامل AQLEVON Commons.',
+  'chat.runtimeAuthError': 'Runtime الخاص بنموذج AQLEVON رفض الاتصال. يلزم إصلاح اتصال النموذج نفسه، وليس إضافة مزود خارجي.',
   'chat.runtimeChecking': 'جارٍ فحص محرك الاستدلال…',
   'chat.webUnavailable': 'بحث الويب والبحث المعمق غير متصلين في هذه النسخة.',
   'work.browserOnly': 'Markdown فقط',
@@ -166,5 +166,5 @@ export default {
   'apps.adapterRequired': 'يحتاج Adapter',
   'lib.browserOnly': 'محلي على الجهاز',
   'lib.browserNotice': 'الملفات في هذه النسخة تُخزن داخل بيانات المتصفح على هذا الجهاز (حتى 4 MB للملف)، وليست مكتبة خادمية.',
-  'set.webUnavailable': 'بحث الويب غير متصل حاليًا، لذلك هذه الإعدادات معطلة حتى يتوفر Runtime Adapter صالح.'
+  'set.webUnavailable': 'بحث الويب أداة اختيارية غير متصلة حاليًا. لا يعتمد تشغيل نموذج AQLEVON الأساسي عليها.'
 };
