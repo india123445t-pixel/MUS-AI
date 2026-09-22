@@ -108,7 +108,7 @@ export default {
   'set.export': 'Export Workspace metadata (file contents excluded)', 'set.clearChats': 'Delete all conversations',
   'set.clearConfirmWord': 'DELETE', 'set.clearConfirm': 'Type {word} to confirm deleting all conversations.',
   'set.diagnostics': 'Diagnostics', 'set.save': 'Save', 'set.savedOk': 'Saved',
-  'set.aboutText': 'AQLEVON — a browser-local workspace with server chat when an inference engine is available; unconnected features are labeled explicitly.',
+  'set.aboutText': 'AQLEVON — a workspace designed to connect to the sovereign AQLEVON model runtime. Core model operation does not depend on an external AI provider.',
   // misc
   'common.close': 'Close', 'common.create': 'Create', 'common.delete': 'Delete', 'common.cancel': 'Cancel',
   'common.save': 'Save', 'common.open': 'Open', 'common.loading': 'Loading…', 'common.error': 'Something went wrong',
@@ -137,7 +137,7 @@ export default {
   'apps.authError': 'Needs attention', 'apps.reconnect': 'Reconnect',
   'apps.serverSide': 'Do not enter secrets here. Real app connections are made only from a trusted runtime when an adapter is available.',
   'apps.token': 'Access token', 'apps.githubHint': 'Real GitHub connection is not available from the current browser edition.',
-  'apps.n.web-search': 'Web search', 'apps.d.web-search': 'Let AQLEVON search the web for current information with cited sources.',
+  'apps.n.web-search': 'Web search', 'apps.d.web-search': 'Not connected yet; this can be added later as an AQLEVON tool without changing the sovereign model runtime.',
   'apps.n.code-interpreter': 'Code interpreter', 'apps.d.code-interpreter': 'Not connected in the browser edition; real execution requires a trusted Code Sandbox Adapter.',
   'apps.n.image-gen': 'Image generation', 'apps.d.image-gen': 'Not connected in the browser edition; requires a trusted Image Generation Adapter.',
   'apps.n.github': 'GitHub', 'apps.d.github': 'Not connected in the browser edition; requires a trusted GitHub Adapter.',
@@ -151,8 +151,8 @@ export default {
   'set.advancedHint': 'Technical information for troubleshooting. Nothing here is needed for everyday use.',
   'set.runDiagnostics': 'Run diagnostics',
   'set.aboutVersion': 'Version 1.0',
-  'chat.runtimeUnavailable': 'The inference engine is not ready. Messages are disabled until a valid provider or AQLEVON worker is available.',
-  'chat.runtimeAuthError': 'Inference is unavailable because the AI provider credential was rejected. The provider credential needs repair.',
+  'chat.runtimeUnavailable': 'The AQLEVON model is not connected yet. Chat will enable automatically when the AQLEVON model runtime or an AQLEVON Commons worker is online.',
+  'chat.runtimeAuthError': 'The AQLEVON model runtime rejected the connection. Repair the AQLEVON runtime connection; no external AI provider is required.',
   'chat.runtimeChecking': 'Checking the inference engine…',
   'chat.webUnavailable': 'Web search and deep research are not connected in this edition.',
   'work.browserOnly': 'Markdown only',
@@ -166,5 +166,5 @@ export default {
   'apps.adapterRequired': 'Adapter required',
   'lib.browserOnly': 'Local on this device',
   'lib.browserNotice': 'Files in this edition are stored in browser data on this device (up to 4 MB per file), not in a server library.',
-  'set.webUnavailable': 'Web search is not connected, so these settings are disabled until a valid runtime adapter is available.'
+  'set.webUnavailable': 'Web search is an optional tool and is not connected yet. The core AQLEVON model does not depend on it.'
 };
