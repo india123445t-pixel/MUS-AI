@@ -1,0 +1,106 @@
+name: P4 W03 Runtime Appliance v019 Native Qwen35
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/03-p4-gene1-physical-trainer
+    paths:
+      - 'research/weight_factory/agent03/runtime_appliance_v019/**'
+      - 'research/weight_factory/agent03/p4_patch_sdpo_transformers5_native_vllm019.py'
+      - '.github/workflows/p4-w03-runtime-appliance-v019.yml'
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: p4-w03-runtime-appliance-v019-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contract:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Static prototype contract
+        run: |
+          set -euo pipefail
+          python -m py_compile research/weight_factory/agent03/p4_patch_sdpo_transformers5_native_vllm019.py
+          python -m py_compile research/weight_factory/agent03/runtime_appliance_v019/smoke_runtime_v019.py
+          python - <<'PY'
+          from pathlib import Path
+          docker=Path("research/weight_factory/agent03/runtime_appliance_v019/Dockerfile").read_text()
+          req=Path("research/weight_factory/agent03/runtime_appliance_v019/requirements-p4-a1-v019.txt").read_text()
+          smoke=Path("research/weight_factory/agent03/runtime_appliance_v019/smoke_runtime_v019.py").read_text()
+          patch=Path("research/weight_factory/agent03/p4_patch_sdpo_transformers5_native_vllm019.py").read_text()
+          for x in (
+              "vllm/vllm-openai:v0.19.0",
+              "7c457fc1b1f636ae794eb0362ba37d4743b06fbc",
+              "flash-attn==2.8.3",
+              'ENTRYPOINT []',
+              'CMD ["/start.sh"]',
+          ):
+              assert x in docker,x
+          for x in (
+              "transformers==5.17.0","peft==0.21.0","accelerate==1.15.0",
+              "ray[default]==2.53.0","pyarrow==22.0.0"
+          ):
+              assert x in req,x
+          assert "Qwen3_5ForConditionalGeneration" in smoke
+          assert "AQLEVON_SDPO_TF5_NATIVE_VLLM019_PATCH_PASS" in patch
+          assert "model_impl" not in patch
+          assert "TransformersForMultimodalLM" not in patch
+          print("AQLEVON_V019_STATIC_CONTRACT_PASS")
+          PY
+
+  build-publish:
+    needs: contract
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Free disk
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc || true
+          docker system prune -af || true
+          df -h
+      - uses: docker/setup-buildx-action@v3
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and publish v019 prototype
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: research/weight_factory/agent03/runtime_appliance_v019/Dockerfile
+          push: true
+          provenance: false
+          sbom: false
+          tags: |
+            ghcr.io/india123445t-pixel/mus-ai:p4-a1-w03-v019-${{ github.sha }}
+            ghcr.io/india123445t-pixel/mus-ai:p4-a1-w03-v019-latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Verify startup and immutable digest
+        env:
+          IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          set -euo pipefail
+          IMG="ghcr.io/india123445t-pixel/mus-ai@${IMAGE_DIGEST}"
+          docker pull "$IMG"
+          ssh-keygen -q -t ed25519 -N '' -f /tmp/k
+          docker rm -f aqlevon-v019-startup >/dev/null 2>&1 || true
+          docker run -d --name aqlevon-v019-startup -e PUBLIC_KEY="$(cat /tmp/k.pub)" "$IMG" >/dev/null
+          sleep 8
+          test "$(docker inspect aqlevon-v019-startup --format '{{.State.Running}}')" = "true"
+          docker exec aqlevon-v019-startup pgrep -x sshd >/dev/null
+          docker exec aqlevon-v019-startup python3 /opt/aqlevon/runtime/smoke_runtime_v019.py --build-check
+          docker rm -f aqlevon-v019-startup >/dev/null
+          echo "AQLEVON_V019_APPLIANCE_DIGEST=${IMAGE_DIGEST}"
