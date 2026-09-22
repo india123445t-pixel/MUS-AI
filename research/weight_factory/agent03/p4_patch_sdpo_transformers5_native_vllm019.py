@@ -76,6 +76,24 @@ def main() -> int:
             "vllm019_worker_dispatch",
         )
 
+    if "AQLEVON_VLLM019_PRESERVE_MAX_MODEL_LEN" not in vllm_async:
+        vllm_async=replace_once(
+            vllm_async,
+            "        self.config.max_model_len = get_max_position_embeddings(self.model_config.hf_config)\n",
+            "        # AQLEVON_VLLM019_PRESERVE_MAX_MODEL_LEN: pinned SDPO used to\n"
+            "        # overwrite an explicit rollout max_model_len with the HF model maximum.\n"
+            "        # Preserve the frozen 4096 contract; only infer when config is None.\n"
+            "        max_position_embeddings = get_max_position_embeddings(self.model_config.hf_config)\n"
+            "        if self.config.max_model_len is None:\n"
+            "            self.config.max_model_len = max_position_embeddings\n"
+            "        elif self.config.max_model_len > max_position_embeddings:\n"
+            "            raise ValueError(\n"
+            "                f\"max_model_len ({self.config.max_model_len}) should be less than or equal to \"\n"
+            "                f\"max_position_embeddings ({max_position_embeddings})\"\n"
+            "            )\n",
+            "vllm019_preserve_max_model_len",
+        )
+
     if "AQLEVON_QWEN35_NATIVE_V019_TEXT_LORA_BINDING" not in vllm_async:
         vllm_async=replace_once(
             vllm_async,
@@ -105,6 +123,8 @@ def main() -> int:
         raise SystemExit("tf5_alias_missing_after_patch")
     if "AQLEVON_QWEN35_NATIVE_V019_TEXT_LORA_BINDING" not in vllm_async:
         raise SystemExit("qwen35_native_v019_binding_missing_after_patch")
+    if "AQLEVON_VLLM019_PRESERVE_MAX_MODEL_LEN" not in vllm_async:
+        raise SystemExit("vllm019_preserve_max_model_len_missing_after_patch")
     if "AQLEVON_VLLM019_WORKER_DISPATCH" not in vllm_rollout:
         raise SystemExit("vllm019_worker_dispatch_missing_after_patch")
 
