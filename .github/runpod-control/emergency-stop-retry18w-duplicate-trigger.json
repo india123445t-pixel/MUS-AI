@@ -1,0 +1,6 @@
+{
+  "action": "emergency_stop_retry18w_duplicates",
+  "requested_by": "AQLEVON_MANAGER",
+  "reason": "Enforce single-use Retry18W after concurrent duplicate workflow run 35726313329",
+  "target_name": "AQLEVON-P4-A1-Retry18W"
+}
