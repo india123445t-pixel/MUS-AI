@@ -218,7 +218,9 @@ jobs:
           set -euo pipefail
           cd /workspace/MUS-AI
           curl -fsSL https://raw.githubusercontent.com/vllm-project/vllm/v0.10.2/vllm/lora/models.py -o /tmp/vllm-0.10.2-lora-models.py
+          curl -fsSL https://raw.githubusercontent.com/vllm-project/vllm/v0.10.2/vllm/model_executor/models/transformers.py -o /tmp/vllm-0.10.2-transformers.py
           AQLEVON_VLLM_LORA_MODELS_PATH=/tmp/vllm-0.10.2-lora-models.py \
+          AQLEVON_VLLM_TRANSFORMERS_MODELS_PATH=/tmp/vllm-0.10.2-transformers.py \
             python research/weight_factory/agent03/p4_patch_sdpo_transformers5_compat.py
           python research/weight_factory/agent03/p4_patch_vllm_qwen35_transformers_backend.py
           python - <<'PY'
@@ -238,6 +240,14 @@ jobs:
           assert "AQLEVON_REQUIRED_ROLLOUT_LORA_MODULE_COUNT" in vllm_lora
           assert "expected_16" in vllm_lora
           print("QWEN35_VLLM_LORA_GUARD_PATCH_PASS")
+          vllm_tf=Path("/tmp/vllm-0.10.2-transformers.py").read_text()
+          assert "AQLEVON_QWEN35_MM_LORA_MAPPING" in vllm_tf
+          assert "from .module_mapping import MultiModelKeys" in vllm_tf
+          assert 'language_model="model.language_model"' in vllm_tf
+          assert 'tower_model="model.visual"' in vllm_tf
+          assert "AQLEVON_TRANSFORMERS_MM_MAPPING_UNSUPPORTED_MODEL" in vllm_tf
+          assert "AQLEVON_QWEN35_MM_MAPPING_STRUCTURE_MISMATCH" in vllm_tf
+          print("QWEN35_VLLM_MM_LORA_MAPPING_PATCH_PASS")
           qwen=Path("/workspace/SDPO/verl/workers/rollout/vllm_rollout/vllm_async_server.py").read_text()
           assert 'getattr(self.model_config.hf_config, "model_type", None) == "qwen3_5"' in qwen
           assert 'engine_kwargs["model_impl"] = "transformers"' in qwen
