@@ -259,7 +259,7 @@ def run_vllm_smoke(model_path: Path, adapter_dir: Path) -> dict:
         "language_model_only": True,
         "max_model_len": 4096,
         "peft_lora_target_modules": ["q_proj", "v_proj"],
-        "vllm_lora_target_modules": null,
+        "vllm_lora_target_modules": None,
         "peft_lora_rank": 4,
         "vllm_max_lora_rank_capacity": 8,
         "base_repeat_common_logprob_tokens": len(base_common),
