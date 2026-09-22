@@ -113,6 +113,12 @@ test('Work fails closed when inference is unavailable and Library stays browser-
   assert.doesNotMatch(library,/\/api\/files\/\$\{preview\.file\.id\}\/content/);
 });
 
+test('PWA cache rotates on the sovereign runtime cutover',()=>{
+  assert.match(statusRoute,/aqlevon-ai-shell-v7-sovereign/);
+  assert.match(statusRoute,/x!==C/);
+  assert.match(statusRoute,/no-cache, no-store, must-revalidate/);
+});
+
 test('new users default to Arabic and persistence claims are truthful',()=>{
   assert.match(i18n,/\|\| 'ar'\) : 'ar'/);
   assert.match(ar,/بيانات Workspace المحلية تُحفظ على هذا الجهاز/);
