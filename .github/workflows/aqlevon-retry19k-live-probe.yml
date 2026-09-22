@@ -51,7 +51,7 @@ jobs:
               details={
                   'runtime_status':raw.get('runtimeStatus') or raw.get('runtime_status'),
                   'desired_status':raw.get('desiredStatus') or raw.get('desired_status'),
-                  'uptime_seconds':runtime.get('uptimeInSeconds') or runtime.get('uptime_in_seconds'),
+                  'uptime_seconds':raw.get('uptimeSeconds') or runtime.get('uptimeInSeconds') or runtime.get('uptime_in_seconds'),
                   'gpus':[{
                       'gpu_util_percent':g.get('gpuUtilPercent') or g.get('gpu_util_percent'),
                       'memory_util_percent':g.get('memoryUtilPercent') or g.get('memory_util_percent')
