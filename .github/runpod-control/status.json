@@ -1,7 +1,7 @@
 {
   "action": "status",
   "api": "v1",
-  "checked_at_utc": "2026-09-22T07:23:30.707098+00:00",
+  "checked_at_utc": "2026-09-22T07:23:55.222495+00:00",
   "ok": true,
   "pod_count": 1,
   "pods": [
@@ -9,10 +9,7 @@
       "cost_per_hr": 0.74,
       "created_at": "2026-09-22 04:39:10.708 +0000 UTC",
       "fingerprint": "3b722f097abc",
-      "gpu_fields": [],
-      "name": "AQLEVON-P4-A1-R18I",
-      "status": "EXITED",
-      "volume_in_gb": 0
+      "status": "EXITED"
     }
   ]
 }
