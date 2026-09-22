@@ -27,6 +27,14 @@ NEW = '''        engine_kwargs = self.config.get("engine_kwargs", {}).get("vllm"
                     + str(requested_model_impl)
                 )
             engine_kwargs["model_impl"] = "transformers"
+            required_hf_overrides = {"architectures": ["TransformersForMultimodalLM"]}
+            requested_hf_overrides = engine_kwargs.get("hf_overrides")
+            if requested_hf_overrides not in (None, required_hf_overrides):
+                raise RuntimeError(
+                    "AQLEVON_QWEN35_HF_OVERRIDES_CONFLICT:"
+                    + str(requested_hf_overrides)
+                )
+            engine_kwargs["hf_overrides"] = required_hf_overrides
             logger.info("AQLEVON_QWEN35_VLLM_TRANSFORMERS_BACKEND_PASS")
         if self.config.get("limit_images", None):  # support for multi-image data
 '''
@@ -49,8 +57,11 @@ def main() -> int:
     for required in (
         'getattr(self.model_config.hf_config, "model_type", None) == "qwen3_5"',
         'engine_kwargs["model_impl"] = "transformers"',
+        '"TransformersForMultimodalLM"',
+        'engine_kwargs["hf_overrides"] = required_hf_overrides',
         MARKER,
         "AQLEVON_QWEN35_MODEL_IMPL_CONFLICT",
+        "AQLEVON_QWEN35_HF_OVERRIDES_CONFLICT",
     ):
         if required not in patched:
             raise SystemExit("qwen35_backend_patch_missing:" + required)
