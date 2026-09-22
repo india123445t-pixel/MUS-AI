@@ -106,7 +106,7 @@ async function get(path){
     }catch{}
     const providerConfigured=Object.values(status?.providers||{}).some(Boolean);
     const inferenceReady=!!commons?.available||health?.inference_ready===true;
-    return {mode:'public-browser',workspace:{id:'local',name:'AQLEVON Workspace',created_at:now()},aiConfigured:providerConfigured,inferenceReady,inferenceError:health?.primary_error_class||null,webSearchAvailable:!!status?.settings?.public_web_search_enabled&&health?.openrouter?.ok===true,runtime:{provider:'AQLEVON',browserStorage:true,commonsAvailable:!!commons?.available,activeWorkers:Number(commons?.active_workers||0),providerHealth:health}};
+    return {mode:'public-browser',workspace:{id:'local',name:'AQLEVON Workspace',created_at:now()},aiConfigured:providerConfigured,inferenceReady,inferenceError:health?.primary_error_class||null,webSearchAvailable:status?.settings?.allow_paid_external===true&&!!status?.settings?.public_web_search_enabled&&health?.openrouter?.ok===true,runtime:{provider:'AQLEVON',browserStorage:true,commonsAvailable:!!commons?.available,activeWorkers:Number(commons?.active_workers||0),providerHealth:health}};
   }
   if(p==='/chats'){
     const q=(u.searchParams.get('q')||'').toLowerCase();
