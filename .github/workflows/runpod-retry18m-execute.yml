@@ -22,9 +22,9 @@ jobs:
       RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
       POD_NAME: AQLEVON-Retry18M-Seed1701
       GPU_ID: NVIDIA GeForce RTX 4090
-      P4_HEAD: 9a65088ec7499a8b393aa60fdc36b9c3a3e480b0
+      P4_HEAD: 74deae5637771d06a7bdf3b0bd271e614a617fea
       IMAGE: ghcr.io/india123445t-pixel/mus-ai@sha256:62576b7892e2ccc7caeaf1de4e70f2a185294c00113571a32dbbd0656cbd0a61
-      AUTH_SHA: 7d6896bc5555f513248d77a12b597738b718dbe8ed2b421c6e90bc8197db6f15
+      AUTH_SHA: 8fc3f9467250ed4ecfa125098ea7e5645b918b76dba3e07f90a43106313cafdf
       RUN_SHA: 24e3d21155c3f1011ca92f90e6c622fe03f92bfd65656d31d87fa627886fad47
       LOCK_SHA: b07441e07d0f26191fc5bd20ebf61e61c88003c542205687a2679243d90623c2
       MAX_RATE: "0.80"
@@ -60,9 +60,9 @@ jobs:
           import json
           p=json.load(open("ops/runpod-control/retry18m.request.json"))
           expected={
-            "authorization_id":"P4-A1-RUNPOD-4090-20260922-18M-VLLM-TF-BACKEND",
-            "authorization_sha256":"7d6896bc5555f513248d77a12b597738b718dbe8ed2b421c6e90bc8197db6f15",
-            "worker03_head":"9a65088ec7499a8b393aa60fdc36b9c3a3e480b0",
+            "authorization_id":"P4-A1-RUNPOD-4090-20260922-18M-QWEN35-VLLM-TF-BACKEND",
+            "authorization_sha256":"8fc3f9467250ed4ecfa125098ea7e5645b918b76dba3e07f90a43106313cafdf",
+            "worker03_head":"74deae5637771d06a7bdf3b0bd271e614a617fea",
             "run_manifest_sha256":"24e3d21155c3f1011ca92f90e6c622fe03f92bfd65656d31d87fa627886fad47",
             "command_lock_sha256":"b07441e07d0f26191fc5bd20ebf61e61c88003c542205687a2679243d90623c2",
             "runtime_image":"ghcr.io/india123445t-pixel/mus-ai@sha256:62576b7892e2ccc7caeaf1de4e70f2a185294c00113571a32dbbd0656cbd0a61",
@@ -93,9 +93,9 @@ jobs:
           run=json.loads(Path("p4_a1_seed1701_run_manifest_v1.json").read_text())
           lock=json.loads(Path("p4_a1_seed1701_command_lock_v1.json").read_text())
           assert c.verify_self_digest(auth,"authorization_sha256")
-          assert auth["authorization_sha256"]=="7d6896bc5555f513248d77a12b597738b718dbe8ed2b421c6e90bc8197db6f15"
+          assert auth["authorization_sha256"]=="8fc3f9467250ed4ecfa125098ea7e5645b918b76dba3e07f90a43106313cafdf"
           assert c.verify_self_digest(binding,"binding_sha256")
-          assert binding["binding_sha256"]=="c25d39d57274d61df189dd4f0ea7c7797006bdfaee300527a829fc9798ccf18c"
+          assert binding["binding_sha256"]=="0fa5701bdc00b831052a5f9184c136cf9668678a74172107e3fd5916ffadca66"
           assert run["manifest_sha256"]=="24e3d21155c3f1011ca92f90e6c622fe03f92bfd65656d31d87fa627886fad47"
           assert lock["lock_sha256"]=="b07441e07d0f26191fc5bd20ebf61e61c88003c542205687a2679243d90623c2"
           errors=c.validate_manager_authorization(auth,lock=lock,run_manifest_sha256=run["manifest_sha256"])
