@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import importlib
+import inspect
 import json
 import subprocess
 from dataclasses import fields
@@ -31,6 +32,17 @@ def build_check():
     import verl.workers.fsdp_workers
     import verl.workers.rollout.vllm_rollout.vllm_rollout
     import verl.workers.rollout.vllm_rollout.vllm_async_server
+    from vllm.lora.lora_model import LoRAModel
+    from vllm.lora.worker_manager import LRUCacheWorkerLoRAManager
+    from verl.utils.vllm import TensorLoRARequest, VLLMHijack
+    tensor_loader_params=set(inspect.signature(LoRAModel.from_lora_tensors).parameters)
+    required_tensor_loader={"lora_model_id","tensors","peft_helper","device","dtype","model_vocab_size","weights_mapper"}
+    assert required_tensor_loader.issubset(tensor_loader_params), sorted(required_tensor_loader-tensor_loader_params)
+    assert hasattr(LRUCacheWorkerLoRAManager,"_load_adapter")
+    VLLMHijack.hijack()
+    patched_loader=LRUCacheWorkerLoRAManager._load_adapter
+    assert patched_loader.__name__=="hijack__load_adapter", patched_loader.__name__
+    assert issubclass(TensorLoRARequest, __import__("vllm.lora.request",fromlist=["LoRARequest"]).LoRARequest)
     from verl.utils.groupwise import as_torch_index, group_mean_std
     idx=as_torch_index(np.array([10.0,10.0,20.0,20.0],dtype=np.float64),device="cpu")
     mean,std,count=group_mean_std(torch.tensor([1.0,3.0,2.0,4.0]),idx,device="cpu")
@@ -54,6 +66,7 @@ def build_check():
       "vllm_language_model_only_arg":"pass",
       "vllm_lora_target_modules_arg":"pass",
       "sdpo_imports":"pass",
+      "sdpo_tensor_lora_v019_contract":"pass",
     }
 
 def main():
