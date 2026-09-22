@@ -184,10 +184,11 @@ export default function ChatPage({ onChatsChanged, newChat, onMenu }) {
   const uploadFile = async (f, thenSummarize = false) => {
     const textLike = /^(text\/|application\/(json|xml|javascript))/.test(f.type || '') || /\.(md|txt|json|csv|js|jsx|ts|tsx|css|html|xml|yaml|yml)$/i.test(f.name || '');
     if (!textLike) { setLastError(t('chat.fileUnsupported')); return; }
-    if (f.size > 100 * 1024) { setLastError(t('chat.fileTooLarge')); return; }
+    if (f.size > 32 * 1024) { setLastError(t('chat.fileTooLarge')); return; }
     try {
       const text = await f.text();
       if (!text.trim()) { setLastError(t('chat.fileEmpty')); return; }
+      if (text.length > 12000) { setLastError(t('chat.fileTooLarge')); return; }
       const payload = `${thenSummarize ? t('chat.starter.summarize') : t('chat.fileContext')}\n\n--- ${f.name} ---\n${text}\n--- ${t('chat.fileEnd')} ---`;
       if (thenSummarize) send(payload);
       else {
