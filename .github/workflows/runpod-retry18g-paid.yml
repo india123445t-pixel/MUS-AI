@@ -1,0 +1,127 @@
+name: AQLEVON RunPod Retry18G SSH TCP22 Execute
+
+on:
+  push:
+    branches:
+      - ops/runpod-retry18g-execute-20260922
+    paths:
+      - .github/workflows/runpod-retry18g-paid.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aqlevon-runpod-retry18g-single-use
+  cancel-in-progress: false
+
+env:
+  RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+  POD_NAME: "AQLEVON-P4-A1-R18G-SSH-TCP22"
+
+jobs:
+  execute:
+    runs-on: ubuntu-latest
+    timeout-minutes: 32
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install pinned runpodctl
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL https://github.com/runpod/runpodctl/releases/download/v2.14.0/runpodctl-linux-amd64.tar.gz -o /tmp/runpodctl.tgz
+          tar -xzf /tmp/runpodctl.tgz -C /tmp runpodctl
+          sudo install -m 0755 /tmp/runpodctl /usr/local/bin/runpodctl
+          runpodctl version
+
+      - name: Materialize reviewed executor for Retry18G
+        shell: bash
+        run: |
+          set -euo pipefail
+          git show origin/ops/runpod-retry18f-execute-20260922:ops/runpod-retry18f-execute.sh > /tmp/retry18g-execute.sh
+          sed -i             -e 's/3d305380ec124c2acb40070ed9e0b7c9cb95d7af/19224632842d4c638cc83b515d3149566b8fad8e/g'             -e 's/p4_a1_runpod_manager_authorization_retry18f_api_control_v1.json/p4_a1_runpod_manager_authorization_retry18g_ssh_tcp22_repair_v1.json/g'             -e 's/p4_a1_runtime_appliance_binding_retry18f_api_control_v1.json/p4_a1_runtime_appliance_binding_retry18g_ssh_tcp22_repair_v1.json/g'             -e 's/P4-A1-RUNPOD-4090-20260922-18F-API-CONTROL/P4-A1-RUNPOD-4090-20260922-18G-SSH-TCP22-REPAIR/g'             -e 's/1230f46291e2d1be22c7ac4c4d758666ef41348872488e528faceb3f21c69b57/5b2782e5a0c9ec9c67d23d999ec523d2f10adabb6e56d1033ce3bf176df4f72b/g'             -e 's/AQLEVON-P4-A1-R18F-API/AQLEVON-P4-A1-R18G-SSH-TCP22/g'             -e 's/Retry18F/Retry18G/g'             -e 's/retry18f/retry18g/g'             -e 's/R18F/R18G/g'             -e 's/r18f/r18g/g'             /tmp/retry18g-execute.sh
+          chmod +x /tmp/retry18g-execute.sh
+          bash -n /tmp/retry18g-execute.sh
+
+          POD_HELP="$(runpodctl pod create --help)"
+          SSH_HELP="$(runpodctl ssh remove-key --help)"
+          grep -F -- '--wait' <<<"$POD_HELP" >/dev/null
+          grep -F -- '--docker-args' <<<"$POD_HELP" >/dev/null
+          grep -F -- '--fingerprint' <<<"$SSH_HELP" >/dev/null
+
+          grep -Fq '19224632842d4c638cc83b515d3149566b8fad8e' /tmp/retry18g-execute.sh
+          grep -Fq '5b2782e5a0c9ec9c67d23d999ec523d2f10adabb6e56d1033ce3bf176df4f72b' /tmp/retry18g-execute.sh
+          ! grep -Fq '18F-API-CONTROL' /tmp/retry18g-execute.sh
+
+      - name: Execute exact single-use Retry18G
+        shell: bash
+        run: bash /tmp/retry18g-execute.sh
+
+      - name: Upload candidate and evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aqlevon-retry18g-result
+          path: retry18g-local/**
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Persist sanitized final receipt
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p ops
+          if [ -f retry18g-local/result.json ]; then
+            cp retry18g-local/result.json ops/runpod-retry18g-final-receipt.json
+          else
+            printf '%s\n' '{"schema_version":1,"run":"Retry18G","result":"WORKFLOW_FAILED_BEFORE_RECEIPT","artifact_received":false,"secret_exposed":false,"main_modified":false}' > ops/runpod-retry18g-final-receipt.json
+          fi
+          git config user.name "aqlevon-runpod-control"
+          git config user.email "aqlevon-runpod-control@users.noreply.github.com"
+          git add ops/runpod-retry18g-final-receipt.json
+          git commit -m "ops: record sanitized Retry18G final receipt" || exit 0
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+
+  watchdog:
+    runs-on: ubuntu-latest
+    timeout-minutes: 38
+    steps:
+      - name: Install pinned runpodctl
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL https://github.com/runpod/runpodctl/releases/download/v2.14.0/runpodctl-linux-amd64.tar.gz -o /tmp/runpodctl.tgz
+          tar -xzf /tmp/runpodctl.tgz -C /tmp runpodctl
+          sudo install -m 0755 /tmp/runpodctl /usr/local/bin/runpodctl
+
+      - name: Independent exact-name cleanup guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          START="$(date +%s)"
+          FIRST_SEEN=""
+          SEEN=false
+          while true; do
+            NOW="$(date +%s)"
+            PODS="$(runpodctl pod list --all --name "$POD_NAME" 2>/dev/null || printf '[]')"
+            IDS="$(printf '%s' "$PODS" | jq -r '.[]?.id // empty')"
+            if [ -n "$IDS" ]; then
+              if [ "$SEEN" = false ]; then SEEN=true; FIRST_SEEN="$NOW"; fi
+              if [ "$((NOW-FIRST_SEEN))" -ge 1710 ]; then
+                while IFS= read -r id; do
+                  [ -n "$id" ] || continue
+                  echo "::add-mask::$id"
+                  runpodctl pod delete "$id" >/dev/null 2>&1 || true
+                done <<< "$IDS"
+                exit 0
+              fi
+            elif [ "$SEEN" = true ]; then
+              exit 0
+            elif [ "$((NOW-START))" -ge 600 ]; then
+              exit 0
+            fi
+            sleep 15
+          done
