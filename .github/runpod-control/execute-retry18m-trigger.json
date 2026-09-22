@@ -1,0 +1,11 @@
+{
+  "authorization_id": "P4-A1-RUNPOD-4090-20260922-18M-QWEN35-VLLM-COMPAT",
+  "authorization_sha256": "24a13abaf9f611c492ad36ae2899740d366934a80b14423f7d1b98f3a765b1af",
+  "max_billed_seconds": 1800,
+  "max_total_cost_usd": "0.40",
+  "single_use": true,
+  "expected_head": "2b8b42fff6f3c6433d289d508bfe427bdf317fb7",
+  "runtime_appliance_digest": "sha256:83d8074523c0a5535fc2718956f5bf430de400cd1e900030e83c1e4c974e8714",
+  "requested_by": "AQLEVON_MANAGER",
+  "nonce": "2026-09-22T07:23Z"
+}
