@@ -84,3 +84,5 @@ jobs:
           git add ops/runpod-retry18g-monitor.json
           git commit -m "ops: record sanitized Retry18G monitor" || exit 0
           git push origin "HEAD:${GITHUB_REF_NAME}"
+
+# probe: 2
