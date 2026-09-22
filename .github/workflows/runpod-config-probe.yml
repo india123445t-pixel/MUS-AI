@@ -1,0 +1,66 @@
+name: RunPod Pod Config Probe
+
+on:
+  push:
+    branches:
+      - ops/runpod-control-v1
+    paths:
+      - ".github/runpod-control/config-trigger-*.json"
+
+permissions:
+  contents: write
+
+jobs:
+  config-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/runpod-control-v1
+
+      - name: Read sanitized Pod configs
+        shell: bash
+        env:
+          RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+        run: |
+          set -euo pipefail
+          curl --silent --show-error --fail             --request GET             --url "https://rest.runpod.io/v1/pods"             --header "Authorization: Bearer ${RUNPOD_API_KEY}"             --output /tmp/pods.json
+
+          python - <<'PY'
+          import json, hashlib, datetime
+          raw=json.load(open('/tmp/pods.json',encoding='utf-8'))
+          pods=raw.get('pods', raw.get('data', raw if isinstance(raw,list) else [])) if isinstance(raw,(dict,list)) else []
+          if isinstance(pods,dict): pods=list(pods.values())
+          out={"checked_at_utc":datetime.datetime.now(datetime.timezone.utc).isoformat(),"pods":[]}
+          for p in pods or []:
+              if not isinstance(p,dict): continue
+              pid=str(p.get('id') or '')
+              machine=p.get('machine') if isinstance(p.get('machine'),dict) else {}
+              env=p.get('env') if isinstance(p.get('env'),dict) else {}
+              out["pods"].append({
+                  "fingerprint":hashlib.sha256(pid.encode()).hexdigest()[:12] if pid else None,
+                  "name":p.get('name'),
+                  "status":p.get('desiredStatus') or p.get('status'),
+                  "image_name":p.get('imageName') or p.get('image'),
+                  "gpu_type_id":p.get('gpuTypeId') or machine.get('gpuTypeId'),
+                  "gpu_count":p.get('gpuCount'),
+                  "container_disk_gb":p.get('containerDiskInGb'),
+                  "volume_gb":p.get('volumeInGb'),
+                  "volume_mount_path":p.get('volumeMountPath'),
+                  "ports":p.get('ports'),
+                  "cloud_type":p.get('cloudType'),
+                  "cost_per_hr":p.get('costPerHr'),
+                  "env_keys":sorted([str(k) for k in env.keys()]),
+              })
+          open('.github/runpod-control/config.json','w',encoding='utf-8').write(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          PY
+
+      - name: Commit result
+        shell: bash
+        run: |
+          git config user.name "aqlevon-runpod-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add .github/runpod-control/config.json
+          git commit -m "ops: record sanitized RunPod pod config [skip ci]" || exit 0
+          git push origin HEAD:ops/runpod-control-v1
