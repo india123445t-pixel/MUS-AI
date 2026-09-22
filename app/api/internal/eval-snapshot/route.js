@@ -6,12 +6,6 @@ const KEY=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||'';
 
 function providerFlags(){
   return {
-    openrouter:!!process.env.OPENROUTER_API_KEY,
-    groq:!!process.env.GROQ_API_KEY,
-    gemini:!!(process.env.GEMINI_API_KEY||process.env.GOOGLE_API_KEY),
-    mistral:!!process.env.MISTRAL_API_KEY,
-    cerebras:!!process.env.CEREBRAS_API_KEY,
-    huggingface:!!process.env.HF_TOKEN&&process.env.HF_FREE_FALLBACK_ENABLED==='true',
     self_hosted:!!(process.env.AQLEVON_MODEL_URL||process.env.LOCAL_MODEL_URL)
   };
 }
@@ -47,9 +41,15 @@ export async function GET(req){
       snapshot:snapshotResult.data||{},
       runtime:{
         ...settings,
+        runtime_mode:'self_hosted_only',
+        allow_paid_external:false,
+        public_web_search_enabled:false,
         zero_cost_guard:paidBlocked,
+        sovereign_runtime:true,
+        inference_target:'aqlevon-engine',
+        external_provider_routing:false,
         provider_flags:providers,
-        configured_zero_cost_provider_count:Object.values(providers).filter(Boolean).length
+        configured_aqlevon_runtime_count:Object.values(providers).filter(Boolean).length
       },
       evidence_policy:{
         unseen_first_exposure_required:true,
