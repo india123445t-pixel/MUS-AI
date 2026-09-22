@@ -164,9 +164,9 @@ export default function LibraryPage({ onMenu }) {
             </div>
             <div style={{ marginTop: 12, maxHeight: '60vh', overflow: 'auto' }}>
               {isImg(preview.file) ? (
-                <img src={`/api/files/${preview.file.id}/content`} alt={preview.file.name} style={{ maxWidth: '100%', borderRadius: 10 }} />
+                <img src={api.fileUrl(preview.file.id)} alt={preview.file.name} style={{ maxWidth: '100%', borderRadius: 10 }} />
               ) : preview.binary ? (
-                <p className="muted">{t('lib.noPreview')} <a href={`/api/files/${preview.file.id}/content`} download={preview.file.name}>{t('lib.download')}</a></p>
+                <p className="muted">{t('lib.noPreview')} <a href={api.fileUrl(preview.file.id)} download={preview.file.name}>{t('lib.download')}</a></p>
               ) : (
                 <pre className="preview-pre">{preview.text}</pre>
               )}
