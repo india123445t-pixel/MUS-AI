@@ -1,0 +1,109 @@
+name: RunPod Paid Preflight V1
+
+on:
+  push:
+    branches:
+      - ops/runpod-control-v1
+    paths:
+      - ".github/runpod-control/preflight-command.json"
+
+permissions:
+  contents: write
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/runpod-control-v1
+
+      - name: Run read-only RunPod preflight
+        shell: bash
+        env:
+          RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "${RUNPOD_API_KEY:-}" || { echo "::error::RUNPOD_API_KEY missing"; exit 1; }
+
+          curl --silent --show-error --fail             --url "https://rest.runpod.io/v1/containerregistryauth"             --header "Authorization: Bearer ${RUNPOD_API_KEY}"             --output /tmp/registry.json
+
+          cat > /tmp/gpu-query.json <<'JSON'
+          {"query":"query { gpuTypes(input: {id: \"NVIDIA GeForce RTX 4090\"}) { id displayName memoryInGb secureCloud communityCloud lowestPrice(input: {gpuCount: 1, secureCloud: true}) { stockStatus uninterruptablePrice availableGpuCounts } } }"}
+          JSON
+
+          curl --silent --show-error --fail             --request POST             --url "https://api.runpod.io/graphql"             --header "Authorization: Bearer ${RUNPOD_API_KEY}"             --header "Content-Type: application/json"             --data-binary @/tmp/gpu-query.json             --output /tmp/gpu.json
+
+          curl --silent --show-error --fail             --url "https://rest.runpod.io/v1/pods"             --header "Authorization: Bearer ${RUNPOD_API_KEY}"             --output /tmp/pods.json
+
+          python - <<'PY'
+          import json, datetime, sys
+          registry=json.load(open('/tmp/registry.json',encoding='utf-8'))
+          gpu=json.load(open('/tmp/gpu.json',encoding='utf-8'))
+          pods=json.load(open('/tmp/pods.json',encoding='utf-8'))
+
+          if gpu.get('errors'):
+              print("GPU_QUERY_ERRORS", gpu['errors'])
+              raise SystemExit(2)
+
+          regs=registry if isinstance(registry,list) else []
+          matches=[r for r in regs if isinstance(r,dict) and r.get('name')=='ghcr-mus-ai']
+          if len(matches)!=1:
+              print(f"REGISTRY_AUTH_FAIL count={len(matches)}")
+              raise SystemExit(3)
+
+          gpus=((gpu.get('data') or {}).get('gpuTypes') or [])
+          if len(gpus)!=1:
+              print(f"GPU_TYPE_FAIL count={len(gpus)}")
+              raise SystemExit(4)
+          g=gpus[0]
+          lp=g.get('lowestPrice') or {}
+          price=lp.get('uninterruptablePrice')
+          stock=lp.get('stockStatus')
+          counts=lp.get('availableGpuCounts') or []
+
+          plist=pods.get('pods', pods.get('items', pods.get('data', []))) if isinstance(pods,dict) else pods
+          if not isinstance(plist,list): plist=[]
+          running=[p for p in plist if isinstance(p,dict) and (p.get('desiredStatus') or p.get('status'))=='RUNNING']
+
+          ok=(
+            g.get('id')=='NVIDIA GeForce RTX 4090'
+            and g.get('memoryInGb')==24
+            and g.get('secureCloud') is True
+            and isinstance(price,(int,float))
+            and price <= 0.80
+            and stock not in (None,'None')
+            and 1 in counts
+            and len(running)==0
+          )
+
+          out={
+            "checked_at_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "ok": ok,
+            "registry_auth_name": "ghcr-mus-ai",
+            "registry_auth_id": matches[0].get('id'),
+            "gpu_type_id": g.get('id'),
+            "gpu_display_name": g.get('displayName'),
+            "memory_in_gb": g.get('memoryInGb'),
+            "secure_cloud": g.get('secureCloud'),
+            "stock_status": stock,
+            "available_gpu_counts": counts,
+            "on_demand_price_usd_per_hr": price,
+            "running_pod_count": len(running)
+          }
+          open('.github/runpod-control/preflight.json','w',encoding='utf-8').write(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print(json.dumps(out,sort_keys=True))
+          if not ok:
+              raise SystemExit(5)
+          PY
+
+      - name: Commit sanitized preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "aqlevon-runpod-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add .github/runpod-control/preflight.json
+          git commit -m "ops: record sanitized RunPod paid preflight [skip ci]" || exit 0
+          git push origin HEAD:ops/runpod-control-v1
