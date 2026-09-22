@@ -1,0 +1,18 @@
+{
+  "classification": "SYSTEM_LOG_ENDPOINT_TIMEOUT_OR_TRANSPORT_ERROR",
+  "cost_per_hr": 0.74,
+  "desired_status": "EXITED",
+  "logs_http_status": "200",
+  "logs_transport_rc": 28,
+  "ok": true,
+  "pod_fingerprint": "3b722f097abc",
+  "recorded_at_utc": "2026-09-22T04:49:17.790386+00:00",
+  "run": "Retry18I",
+  "signals": {
+    "container_create": true,
+    "container_start": true,
+    "disk_error": false,
+    "image_pull": true,
+    "image_pull_error": false
+  }
+}
