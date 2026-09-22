@@ -26,10 +26,11 @@ jobs:
         run: |
           set -euo pipefail
           ACTION="$(jq -r '.action // "status"' .github/runpod-control/command.json)"
-          if [ "$ACTION" != "status" ]; then
+          if [ "$ACTION" != "status" ] && [ "$ACTION" != "inventory" ]; then
             echo "::error::Unsupported action in V1: $ACTION"
             exit 1
           fi
+          echo "ACTION=$ACTION" >> "$GITHUB_ENV"
 
       - name: Verify RunPod secret exists
         shell: bash
@@ -40,7 +41,52 @@ jobs:
           test -n "${RUNPOD_API_KEY:-}" || { echo "::error::RUNPOD_API_KEY missing"; exit 1; }
           echo "RunPod secret present; value not printed."
 
+      - name: Install official runpodctl for inventory
+        if: env.ACTION == 'inventory'
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -sSL https://cli.runpod.net | bash
+          export PATH="$HOME/.local/bin:$PATH"
+          runpodctl version
+
+      - name: Build sanitized inventory
+        if: env.ACTION == 'inventory'
+        shell: bash
+        env:
+          RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+        run: |
+          set -euo pipefail
+          export PATH="$HOME/.local/bin:$PATH"
+          runpodctl config --apiKey "$RUNPOD_API_KEY" >/dev/null
+          mkdir -p .github/runpod-control
+          {
+            echo '### REGISTRY'
+            runpodctl registry list || true
+            echo '### GPU'
+            runpodctl gpu list || true
+            echo '### PODS'
+            runpodctl pod list --all || true
+            echo '### CREATE_HELP'
+            runpodctl pod create --help || true
+          } > /tmp/inventory.txt
+          python - <<'PY'
+          import re, json, datetime
+          text=open('/tmp/inventory.txt',encoding='utf-8',errors='replace').read()
+          # Redact token-like strings and URLs with query secrets if any appear unexpectedly.
+          text=re.sub(r'rpa_[A-Za-z0-9_-]+','[REDACTED_API_KEY]',text)
+          text=re.sub(r'api_key=[^\s&]+','api_key=[REDACTED]',text,flags=re.I)
+          out={
+            "ok":True,
+            "action":"inventory",
+            "checked_at_utc":datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "text":text[-30000:]
+          }
+          open('.github/runpod-control/inventory.json','w',encoding='utf-8').write(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          PY
+
       - name: Read RunPod pod status via API v1 with machine metadata
+        if: env.ACTION == 'status'
         shell: bash
         env:
           RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
@@ -126,7 +172,7 @@ jobs:
           set -euo pipefail
           git config user.name "aqlevon-runpod-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add .github/runpod-control/status.json
+          git add .github/runpod-control/status.json .github/runpod-control/inventory.json 2>/dev/null || true
           if git diff --cached --quiet; then
             echo "No status change to commit."
             exit 0
