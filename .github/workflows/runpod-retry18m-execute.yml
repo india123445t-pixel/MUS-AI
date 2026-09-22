@@ -88,8 +88,8 @@ jobs:
           import json
           import p4_gene1_trainer as c
           from pathlib import Path
-          auth=json.loads(Path("p4_a1_runpod_manager_authorization_retry18m_ssh_tcp22_repair_v1.json").read_text())
-          binding=json.loads(Path("p4_a1_runtime_appliance_binding_retry18m_ssh_tcp22_repair_v1.json").read_text())
+          auth=json.loads(Path("p4_a1_runpod_manager_authorization_retry18m_qwen35_vllm_tf_backend_v1.json").read_text())
+          binding=json.loads(Path("p4_a1_runtime_appliance_binding_retry18m_qwen35_vllm_tf_backend_v1.json").read_text())
           run=json.loads(Path("p4_a1_seed1701_run_manifest_v1.json").read_text())
           lock=json.loads(Path("p4_a1_seed1701_command_lock_v1.json").read_text())
           assert c.verify_self_digest(auth,"authorization_sha256")
@@ -252,8 +252,8 @@ jobs:
             cd /workspace
             tar -czf /workspace/retry18m-evidence.tgz \
               aqlevon_p4 \
-              MUS-AI/research/weight_factory/agent03/p4_a1_runpod_manager_authorization_retry18m_ssh_tcp22_repair_v1.json \
-              MUS-AI/research/weight_factory/agent03/p4_a1_runtime_appliance_binding_retry18m_ssh_tcp22_repair_v1.json \
+              MUS-AI/research/weight_factory/agent03/p4_a1_runpod_manager_authorization_retry18m_qwen35_vllm_tf_backend_v1.json \
+              MUS-AI/research/weight_factory/agent03/p4_a1_runtime_appliance_binding_retry18m_qwen35_vllm_tf_backend_v1.json \
               MUS-AI/research/weight_factory/agent03/p4_a1_seed1701_run_manifest_v1.json \
               MUS-AI/research/weight_factory/agent03/p4_a1_seed1701_command_lock_v1.json \
               MUS-AI/research/weight_factory/agent03/p4_frozen_training_plan_v1.json
