@@ -7,5 +7,5 @@
   "max_total_cost_usd": "0.40",
   "max_billed_seconds": 1800,
   "single_use": true,
-  "reason": "Retry18W one-shot after free-validated BF16 actor initialization repair for Retry18V host RAM OOM"
+  "reason": "Retry18W one-shot after free-validated BF16 actor initialization repair; guarded by old Retry18V pod EXITED preflight commit be632a2a24e336e2d60d0ab8176c0aa5dca452f2"
 }
