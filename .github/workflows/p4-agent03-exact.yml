@@ -247,7 +247,11 @@ jobs:
           assert 'tower_model="model.visual"' in vllm_tf
           assert "AQLEVON_TRANSFORMERS_MM_MAPPING_UNSUPPORTED_MODEL" in vllm_tf
           assert "AQLEVON_QWEN35_MM_MAPPING_STRUCTURE_MISMATCH" in vllm_tf
+          assert "AQLEVON_QWEN35_MM_OUTPUT_UNWRAP" in vllm_tf
+          assert "AQLEVON_QWEN35_MM_OUTPUT_UNSUPPORTED" in vllm_tf
+          assert 'vision_embeddings = vision_embeddings.pooler_output' in vllm_tf
           print("QWEN35_VLLM_MM_LORA_MAPPING_PATCH_PASS")
+          print("QWEN35_VLLM_MM_OUTPUT_UNWRAP_PATCH_PASS")
           qwen=Path("/workspace/SDPO/verl/workers/rollout/vllm_rollout/vllm_async_server.py").read_text()
           assert 'getattr(self.model_config.hf_config, "model_type", None) == "qwen3_5"' in qwen
           assert 'engine_kwargs["model_impl"] = "transformers"' in qwen
