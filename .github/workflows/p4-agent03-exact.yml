@@ -236,6 +236,9 @@ jobs:
               "LoRARequest",
               "AQLEVON_LORA_FUNCTIONALLY_INERT",
               "max_tokens=8",
+              "max_lora_rank=8",
+              '"peft_lora_rank": 4',
+              '"vllm_max_lora_rank_capacity": 8',
           ):
               assert token in smoke,token
           for token in (
