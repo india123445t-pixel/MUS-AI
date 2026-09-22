@@ -236,7 +236,7 @@ jobs:
           assert "AQLEVON_QWEN35_VLLM_LORA_GUARD" in vllm_lora
           assert "AQLEVON_REQUIRED_ROLLOUT_LORA_MODULE_UNSUPPORTED" in vllm_lora
           assert "AQLEVON_REQUIRED_ROLLOUT_LORA_MODULE_COUNT" in vllm_lora
-          assert "expected_32" in vllm_lora
+          assert "expected_16" in vllm_lora
           print("QWEN35_VLLM_LORA_GUARD_PATCH_PASS")
           qwen=Path("/workspace/SDPO/verl/workers/rollout/vllm_rollout/vllm_async_server.py").read_text()
           assert 'getattr(self.model_config.hf_config, "model_type", None) == "qwen3_5"' in qwen
