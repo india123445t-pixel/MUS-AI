@@ -1,0 +1,6 @@
+{
+  "target": "Retry19R",
+  "pod_id": "vjrygfp8pswmmw",
+  "nonce": "live-1",
+  "purpose": "non-destructive runtime check while Retry19R paid workflow waits for readiness"
+}
