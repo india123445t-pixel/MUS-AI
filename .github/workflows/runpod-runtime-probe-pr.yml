@@ -1,0 +1,58 @@
+name: RunPod Runtime Probe PR
+
+on:
+  pull_request:
+    branches: [ops/runpod-control-base-v1]
+    paths:
+      - ".github/runpod-control/runtime-probe-trigger.json"
+
+permissions:
+  contents: read
+
+jobs:
+  runtime-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - name: Query sanitized RunPod runtime metrics
+        env:
+          RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "${RUNPOD_API_KEY:-}"
+          cat > /tmp/query.json <<'JSON'
+          {"query":"query { myself { pods { id desiredStatus costPerHr createdAt runtime { uptimeInSeconds gpus { gpuUtilPercent memoryUtilPercent } container { cpuPercent memoryPercent } } } } }"}
+          JSON
+          curl -sS --fail -X POST "https://api.runpod.io/graphql?api_key=$RUNPOD_API_KEY"             -H "content-type: application/json" --data-binary @/tmp/query.json -o /tmp/runtime.json
+          python - <<'PY'
+          import json,hashlib,datetime
+          raw=json.load(open('/tmp/runtime.json'))
+          pods=((raw.get('data') or {}).get('myself') or {}).get('pods') or []
+          out={'checked_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'running':[]}
+          for p in pods:
+              if not isinstance(p,dict) or p.get('desiredStatus')!='RUNNING': continue
+              pid=str(p.get('id') or '')
+              rt=p.get('runtime') if isinstance(p.get('runtime'),dict) else {}
+              gs=rt.get('gpus') if isinstance(rt.get('gpus'),list) else []
+              utils=[g.get('gpuUtilPercent') for g in gs if isinstance(g,dict) and isinstance(g.get('gpuUtilPercent'),(int,float))]
+              mems=[g.get('memoryUtilPercent') for g in gs if isinstance(g,dict) and isinstance(g.get('memoryUtilPercent'),(int,float))]
+              c=rt.get('container') if isinstance(rt.get('container'),dict) else {}
+              out['running'].append({
+                'fingerprint':hashlib.sha256(pid.encode()).hexdigest()[:12] if pid else None,
+                'cost_per_hr':p.get('costPerHr'),
+                'created_at':p.get('createdAt'),
+                'uptime_seconds':rt.get('uptimeInSeconds'),
+                'gpu_util_percent_max':max(utils) if utils else None,
+                'gpu_memory_util_percent_max':max(mems) if mems else None,
+                'cpu_percent':c.get('cpuPercent'),
+                'memory_percent':c.get('memoryPercent')
+              })
+          print(json.dumps(out,sort_keys=True))
+          open('/tmp/runtime-sanitized.json','w').write(json.dumps(out,indent=2,sort_keys=True)+'\n')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: runpod-runtime-sanitized
+          path: /tmp/runtime-sanitized.json
+          retention-days: 1
