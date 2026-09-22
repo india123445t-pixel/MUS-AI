@@ -1,0 +1,193 @@
+name: AQLEVON Retry18M Paid Execute
+
+on:
+  pull_request:
+    branches:
+      - ops/runpod-control-base-20260922
+    paths:
+      - 'ops/runpod-control/retry18m.request.json'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aqlevon-retry18m-single-use
+  cancel-in-progress: false
+
+jobs:
+  execute:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      POD_NAME: AQLEVON-P4-A1-R18M
+      GPU_ID: NVIDIA GeForce RTX 4090
+      P4_HEAD: 74deae5637771d06a7bdf3b0bd271e614a617fea
+      IMAGE: ghcr.io/india123445t-pixel/mus-ai@sha256:62576b7892e2ccc7caeaf1de4e70f2a185294c00113571a32dbbd0656cbd0a61
+      AUTH_ID: P4-A1-RUNPOD-4090-20260922-18M-QWEN35-VLLM-TF-BACKEND
+      AUTH_SHA: 8fc3f9467250ed4ecfa125098ea7e5645b918b76dba3e07f90a43106313cafdf
+      BINDING_SHA: 0fa5701bdc00b831052a5f9184c136cf9668678a74172107e3fd5916ffadca66
+      MAX_RATE: "0.80"
+      MAX_SECONDS: "1800"
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install pinned runpodctl
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fL --retry 3 https://github.com/runpod/runpodctl/releases/download/v2.8.0/runpodctl-linux-amd64 -o /tmp/runpodctl
+          echo "33184eb9b4ede3524582d81dfb84a0a632402cec11feb97d9ae46e26d3090c4c  /tmp/runpodctl" | sha256sum -c -
+          chmod +x /tmp/runpodctl
+          sudo mv /tmp/runpodctl /usr/local/bin/runpodctl
+          runpodctl version
+
+      - name: Validate exact single-use request
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${GITHUB_RUN_ATTEMPT}" = "1" || { echo "::error::Retry18M cannot be rerun"; exit 20; }
+          test -n "${RUNPOD_API_KEY:-}" || { echo "::error::RUNPOD_API_KEY missing"; exit 21; }
+          python - <<'PY'
+          import json
+          p=json.load(open("ops/runpod-control/retry18m.request.json"))
+          expected={
+            "authorization_id":"P4-A1-RUNPOD-4090-20260922-18M-QWEN35-VLLM-TF-BACKEND",
+            "authorization_sha256":"8fc3f9467250ed4ecfa125098ea7e5645b918b76dba3e07f90a43106313cafdf",
+            "binding_sha256":"0fa5701bdc00b831052a5f9184c136cf9668678a74172107e3fd5916ffadca66",
+            "worker03_head":"74deae5637771d06a7bdf3b0bd271e614a617fea",
+            "runtime_image":"ghcr.io/india123445t-pixel/mus-ai@sha256:62576b7892e2ccc7caeaf1de4e70f2a185294c00113571a32dbbd0656cbd0a61",
+            "gpu_id":"NVIDIA GeForce RTX 4090",
+            "gpu_count":1,
+            "cloud_type":"SECURE",
+            "max_hourly_rate_usd":"0.80",
+            "max_billed_seconds":1800,
+            "max_total_cost_usd":"0.40",
+            "single_use":True,
+          }
+          assert p==expected,(p,expected)
+          print("RETRY18M_REQUEST_EXACT_PASS")
+          PY
+          remote_head="$(git ls-remote https://github.com/india123445t-pixel/MUS-AI.git refs/heads/agent/03-p4-gene1-physical-trainer | awk '{print $1}')"
+          test "$remote_head" = "$P4_HEAD" || { echo "::error::Worker03 head drifted: $remote_head"; exit 22; }
+
+      - name: Execute bounded Retry18M
+        id: execute
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          mkdir -p "$GITHUB_WORKSPACE/retry18m-artifact"
+          POD_ID=""
+          SSH_FP=""
+          cleanup() {
+            rc=$?
+            set +e
+            if [ -n "${POD_ID:-}" ]; then runpodctl pod delete "$POD_ID" || true; fi
+            if [ -n "${SSH_FP:-}" ]; then runpodctl ssh remove-key --fingerprint "$SSH_FP" || true; fi
+            runpodctl user | jq '{clientBalance,currentSpendPerHr,spendLimit}' > "$GITHUB_WORKSPACE/retry18m-artifact/post-run-billing.json" || true
+            exit $rc
+          }
+          trap cleanup EXIT INT TERM
+
+          existing="$(runpodctl pod list --all --name "$POD_NAME" | jq 'length')"
+          test "$existing" = "0" || { echo "::error::Retry18M pod already exists"; exit 30; }
+
+          user_json="$(runpodctl user)"
+          echo "$user_json" | jq '{clientBalance,currentSpendPerHr,spendLimit}' | tee "$GITHUB_WORKSPACE/retry18m-artifact/pre-run-billing.json"
+          balance="$(echo "$user_json" | jq -r '.clientBalance')"
+          python - "$balance" <<'PY'
+          import sys
+          assert float(sys.argv[1]) >= 0.50
+          PY
+
+          gpu_json="$(runpodctl gpu list | jq '[.[] | select(.gpuId == "NVIDIA GeForce RTX 4090")][0]')"
+          echo "$gpu_json" | jq '{gpuId,available,securePricePerHr,stockStatus,dataCenterAvailability}' | tee "$GITHUB_WORKSPACE/retry18m-artifact/rtx4090-preflight.json"
+          available="$(echo "$gpu_json" | jq -r '.available')"
+          rate="$(echo "$gpu_json" | jq -r '.securePricePerHr')"
+          test "$available" = "true" || { echo "::error::RTX4090 unavailable"; exit 31; }
+          python - "$rate" <<'PY'
+          import sys
+          r=float(sys.argv[1])
+          assert 0 < r <= 0.80
+          assert r*0.5 <= 0.40 + 1e-12
+          PY
+
+          ssh-keygen -q -t ed25519 -N "" -f /tmp/aqlevon_retry18m_key
+          SSH_FP="$(ssh-keygen -lf /tmp/aqlevon_retry18m_key.pub -E sha256 | awk '{print $2}')"
+          runpodctl ssh add-key --key-file /tmp/aqlevon_retry18m_key.pub >/dev/null
+
+          terminate_at="$(date -u -d '+30 minutes' +%Y-%m-%dT%H:%M:%SZ)"
+          set +e
+          create_json="$(runpodctl pod create             --name "$POD_NAME"             --image "$IMAGE"             --gpu-id "$GPU_ID"             --gpu-count 1             --cloud-type SECURE             --container-disk-in-gb 40             --volume-in-gb 20             --volume-mount-path /workspace             --min-cuda-version 12.8             --ports "22/tcp"             --ssh             --terminate-after "$terminate_at"             --docker-args "/start.sh" 2>&1)"
+          create_rc=$?
+          set -e
+          printf '%s\n' "$create_json" > "$GITHUB_WORKSPACE/retry18m-artifact/pod-create.txt"
+          test "$create_rc" = "0" || { echo "::error::Pod allocation failed"; exit 32; }
+
+          POD_ID="$(printf '%s' "$create_json" | jq -r '.id // .podId // .pod.id // empty' 2>/dev/null || true)"
+          if [ -z "$POD_ID" ]; then POD_ID="$(runpodctl pod list --all --name "$POD_NAME" | jq -r '.[0].id // empty')"; fi
+          test -n "$POD_ID" || { echo "::error::Pod ID unresolved"; exit 33; }
+
+          pod_json="$(runpodctl pod get "$POD_ID")"
+          echo "$pod_json" > "$GITHUB_WORKSPACE/retry18m-artifact/pod-initial.json"
+          actual_rate="$(echo "$pod_json" | jq -r '.costPerHr // .costPerHrGpu // 0')"
+          actual_gpu="$(echo "$pod_json" | jq -r '.gpuCount // 0')"
+          actual_image="$(echo "$pod_json" | jq -r '.imageName // .image // empty')"
+          python - "$actual_rate" <<'PY'
+          import sys
+          r=float(sys.argv[1]); assert 0 < r <= 0.80
+          PY
+          test "$actual_gpu" = "1" || exit 34
+          test "$actual_image" = "$IMAGE" || exit 35
+          echo "$pod_json" | jq -e '[.. | strings | select(test("4090";"i"))] | length > 0' >/dev/null || { echo "::error::Allocated GPU is not verified RTX4090"; exit 36; }
+
+          IP=""
+          PORT=""
+          for _ in $(seq 1 60); do
+            set +e
+            ssh_json="$(runpodctl ssh info "$POD_ID" 2>/dev/null)"
+            src=$?
+            set -e
+            if [ "$src" = "0" ]; then
+              IP="$(printf '%s' "$ssh_json" | jq -r '.ip // empty' 2>/dev/null || true)"
+              PORT="$(printf '%s' "$ssh_json" | jq -r '.port // empty' 2>/dev/null || true)"
+              if [ -n "$IP" ] && [ -n "$PORT" ] && [ "$IP" != "null" ] && [ "$PORT" != "null" ]; then break; fi
+            fi
+            sleep 5
+          done
+          test -n "$IP" -a -n "$PORT" || { echo "::error::SSH readiness failed"; exit 37; }
+
+          SSH_OPTS=(-i /tmp/aqlevon_retry18m_key -p "$PORT" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=4)
+
+          set +e
+          timeout --signal=TERM --kill-after=20s 1500s             ssh "${SSH_OPTS[@]}" root@"$IP" "P4_HEAD='$P4_HEAD' bash -s"             2>&1 <<'REMOTE' | tee "$GITHUB_WORKSPACE/retry18m-artifact/retry18m-console.log"
+          set -euo pipefail
+          rm -rf /workspace/MUS-AI
+          git clone -q --branch agent/03-p4-gene1-physical-trainer --single-branch https://github.com/india123445t-pixel/MUS-AI.git /workspace/MUS-AI
+          git -C /workspace/MUS-AI reset -q --hard "$P4_HEAD"
+          test "$(git -C /workspace/MUS-AI rev-parse HEAD)" = "$P4_HEAD"
+          export AQLEVON_EXPECTED_W03_HEAD="$P4_HEAD"
+          bash /workspace/MUS-AI/research/weight_factory/agent03/p4_runpod_appliance_launch.sh
+REMOTE
+          run_rc=${PIPESTATUS[0]}
+          set -e
+          echo "$run_rc" > "$GITHUB_WORKSPACE/retry18m-artifact/launcher-exit-code.txt"
+
+          set +e
+          ssh "${SSH_OPTS[@]}" root@"$IP" 'cd /workspace && tar -czf /workspace/retry18m-evidence.tgz aqlevon_p4 2>/dev/null'
+          scp "${SSH_OPTS[@]}" root@"$IP":/workspace/retry18m-evidence.tgz "$GITHUB_WORKSPACE/retry18m-artifact/retry18m-evidence.tgz"
+          set -e
+
+          exit "$run_rc"
+
+      - name: Upload Retry18M evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aqlevon-retry18m-evidence
+          path: retry18m-artifact/
+          if-no-files-found: ignore
+          retention-days: 7
