@@ -1,20 +1,25 @@
 {
   "available_gpu_counts": [],
-  "checked_at_utc": "2026-09-22T05:09:50.017165+00:00",
+  "checked_at_utc": "2026-09-22T05:13:33.352168+00:00",
   "error": "policy_gate_failed",
   "gpu_display_name": "RTX 4090",
   "gpu_type_id": "NVIDIA GeForce RTX 4090",
+  "has_single_gpu_capacity": false,
   "http": {
     "gpu_query": "200",
     "pods": "200",
     "registry": "200"
   },
+  "max_gpu_count": null,
+  "max_unreserved_gpu_count": null,
   "memory_in_gb": 24,
   "ok": false,
   "on_demand_price_usd_per_hr": 0.74,
   "registry_auth_id": "cmua94x9g00fq13znucbukmvc",
   "registry_auth_name": "ghcr-mus-ai",
+  "rented_count": null,
   "running_pod_count": 0,
   "secure_cloud": true,
-  "stock_status": "Low"
+  "stock_status": "Low",
+  "total_count": null
 }
