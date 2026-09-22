@@ -1,0 +1,6 @@
+{
+  "action": "stop_confirmed_idle",
+  "requested_by": "AQLEVON_MANAGER",
+  "guard": "two_idle_probes_30s_apart",
+  "nonce": "2026-09-22T04:45Z"
+}
