@@ -520,6 +520,37 @@ class VllmTransformersMmOutputPatchTests(unittest.TestCase):
         self.assertEqual(once, twice)
 
 
+
+class VllmQwen35TextRolloutPatchTests(unittest.TestCase):
+    def _source(self):
+        return """        hidden_states = self.model(
+            input_ids=input_ids,
+            inputs_embeds=inputs_embeds,
+            use_cache=False,
+            position_ids=position_ids,
+            attention_instances=self.attention_instances,
+            return_dict=False)[0][0, ...]  # we remove batch dimension for now
+"""
+
+    def test_patch_routes_only_qwen35_to_language_model(self):
+        patched = compat.patch_vllm_qwen35_text_rollout(self._source())
+        self.assertIn("AQLEVON_QWEN35_TEXT_ROLLOUT_3D", patched)
+        self.assertIn('getattr(self.config, "model_type", None) == "qwen3_5"', patched)
+        self.assertIn('language_model = getattr(self.model, "language_model", None)', patched)
+        self.assertIn("target_model = language_model", patched)
+
+    def test_patch_fails_closed_on_wrong_tensor_rank(self):
+        patched = compat.patch_vllm_qwen35_text_rollout(self._source())
+        self.assertIn("AQLEVON_QWEN35_INPUT_IDS_RANK", patched)
+        self.assertIn("AQLEVON_QWEN35_INPUT_EMBEDS_RANK", patched)
+        self.assertIn("AQLEVON_QWEN35_LANGUAGE_MODEL_MISSING", patched)
+
+    def test_patch_is_idempotent(self):
+        once = compat.patch_vllm_qwen35_text_rollout(self._source())
+        twice = compat.patch_vllm_qwen35_text_rollout(once)
+        self.assertEqual(once, twice)
+
+
 class RunnerTests(unittest.TestCase):
     def test_a1_command_exact_budget_sampling_lora_and_one_gpu(self):
         p = plan_fixture()
