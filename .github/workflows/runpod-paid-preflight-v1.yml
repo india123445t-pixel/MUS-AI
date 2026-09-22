@@ -5,7 +5,7 @@ on:
     branches:
       - ops/runpod-control-v1
     paths:
-      - ".github/runpod-control/preflight-command.json"
+      - ".github/runpod-control/preflight-command.json"\n      - ".github/runpod-control/preflight-trigger-*.json"
 
 permissions:
   contents: write
