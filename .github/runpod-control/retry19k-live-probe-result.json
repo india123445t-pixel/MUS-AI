@@ -1,0 +1,163 @@
+{
+  "details": {
+    "container": {
+      "cpu_percent": null,
+      "memory_percent": null
+    },
+    "desired_status": "RUNNING",
+    "gpus": [],
+    "raw_gpu_runtime": null,
+    "runtime_keys": [],
+    "runtime_status": "running",
+    "uptime_seconds": null
+  },
+  "lines": [
+    {
+      "line": "==========",
+      "ts": "2026-09-22T18:03:46.677234544Z"
+    },
+    {
+      "line": "== CUDA ==",
+      "ts": "2026-09-22T18:03:46.677240415Z"
+    },
+    {
+      "line": "==========",
+      "ts": "2026-09-22T18:03:46.677295314Z"
+    },
+    {
+      "line": "CUDA Version 12.8.1",
+      "ts": "2026-09-22T18:03:46.682240884Z"
+    },
+    {
+      "line": "Container image Copyright (c) 2016-2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.",
+      "ts": "2026-09-22T18:03:46.683704306Z"
+    },
+    {
+      "line": "This container image and its contents are governed by the NVIDIA Deep Learning Container License.",
+      "ts": "2026-09-22T18:03:46.684841682Z"
+    },
+    {
+      "line": "By pulling and using the container, you accept the terms and conditions of this license:",
+      "ts": "2026-09-22T18:03:46.684846702Z"
+    },
+    {
+      "line": "https://developer.nvidia.com/ngc/nvidia-deep-learning-container-license",
+      "ts": "2026-09-22T18:03:46.684850652Z"
+    },
+    {
+      "line": "A copy of this license is made available in this container at /NGC-DL-CONTAINER-LICENSE for your convenience.",
+      "ts": "2026-09-22T18:03:46.684858172Z"
+    },
+    {
+      "line": "Starting Nginx service...",
+      "ts": "2026-09-22T18:03:46.698184749Z"
+    },
+    {
+      "line": " * Starting nginx nginx",
+      "ts": "2026-09-22T18:03:46.711256110Z"
+    },
+    {
+      "line": "   ...done.",
+      "ts": "2026-09-22T18:03:46.721725183Z"
+    },
+    {
+      "line": "Pod Started",
+      "ts": "2026-09-22T18:03:46.722158648Z"
+    },
+    {
+      "line": "Setting up SSH...",
+      "ts": "2026-09-22T18:03:46.722179097Z"
+    },
+    {
+      "line": "RSA key fingerprint:",
+      "ts": "2026-09-22T18:03:47.227752603Z"
+    },
+    {
+      "line": "3072 SHA256:T87DdecAlfmezYGt/VitVY35CfTSkHuKchnTV6lQNHM root@660529f127bc (RSA)",
+      "ts": "2026-09-22T18:03:47.232750362Z"
+    },
+    {
+      "line": "DSA key fingerprint:",
+      "ts": "2026-09-22T18:03:47.259455147Z"
+    },
+    {
+      "line": "1024 SHA256:J7XBM8tV4ZV+i4J/wi6zTI7uGdxFntM9koX8HY/U28k root@660529f127bc (DSA)",
+      "ts": "2026-09-22T18:03:47.264942680Z"
+    },
+    {
+      "line": "ECDSA key fingerprint:",
+      "ts": "2026-09-22T18:03:47.270325335Z"
+    },
+    {
+      "line": "256 SHA256:QuL0P2yU5WwD83OA2Shi3NjilgQCn25so/08BZBBqkg root@660529f127bc (ECDSA)",
+      "ts": "2026-09-22T18:03:47.274341456Z"
+    },
+    {
+      "line": "ED25519 key fingerprint:",
+      "ts": "2026-09-22T18:03:47.280999465Z"
+    },
+    {
+      "line": "256 SHA256:4GrH9U2/5hzzgoSuoM1UxuS6Fz3ypFa5uAN/djKvNa0 root@660529f127bc (ED25519)",
+      "ts": "2026-09-22T18:03:47.286638536Z"
+    },
+    {
+      "line": " * Starting OpenBSD Secure Shell server sshd",
+      "ts": "2026-09-22T18:03:47.303789068Z"
+    },
+    {
+      "line": "   ...done.",
+      "ts": "2026-09-22T18:03:47.313554558Z"
+    },
+    {
+      "line": "SSH host keys:",
+      "ts": "2026-09-22T18:03:47.313905684Z"
+    },
+    {
+      "line": "Key: /etc/ssh/ssh_host_dsa_key.pub",
+      "ts": "2026-09-22T18:03:47.314017913Z"
+    },
+    {
+      "line": "1024 SHA256:J7XBM8tV4ZV+i4J/wi6zTI7uGdxFntM9koX8HY/U28k root@660529f127bc (DSA)",
+      "ts": "2026-09-22T18:03:47.318531968Z"
+    },
+    {
+      "line": "Key: /etc/ssh/ssh_host_ecdsa_key.pub",
+      "ts": "2026-09-22T18:03:47.318832984Z"
+    },
+    {
+      "line": "256 SHA256:QuL0P2yU5WwD83OA2Shi3NjilgQCn25so/08BZBBqkg root@660529f127bc (ECDSA)",
+      "ts": "2026-09-22T18:03:47.323272390Z"
+    },
+    {
+      "line": "Key: /etc/ssh/ssh_host_ed25519_key.pub",
+      "ts": "2026-09-22T18:03:47.323602816Z"
+    },
+    {
+      "line": "256 SHA256:4GrH9U2/5hzzgoSuoM1UxuS6Fz3ypFa5uAN/djKvNa0 root@660529f127bc (ED25519)",
+      "ts": "2026-09-22T18:03:47.327899244Z"
+    },
+    {
+      "line": "Key: /etc/ssh/ssh_host_rsa_key.pub",
+      "ts": "2026-09-22T18:03:47.328219060Z"
+    },
+    {
+      "line": "3072 SHA256:T87DdecAlfmezYGt/VitVY35CfTSkHuKchnTV6lQNHM root@660529f127bc (RSA)",
+      "ts": "2026-09-22T18:03:47.333063511Z"
+    },
+    {
+      "line": "Exporting environment variables...",
+      "ts": "2026-09-22T18:03:47.333527295Z"
+    },
+    {
+      "line": "Start script(s) finished, Pod is ready to use.",
+      "ts": "2026-09-22T18:03:47.342057822Z"
+    }
+  ],
+  "pod": {
+    "costPerHr": 0.74,
+    "desiredStatus": "RUNNING",
+    "id": "f1ry7ce3bfxk73",
+    "name": "AQLEVON-P4-A1-Retry19K"
+  },
+  "stderr": ""
+}
