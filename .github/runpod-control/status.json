@@ -1,7 +1,7 @@
 {
   "action": "status",
   "api": "v1",
-  "checked_at_utc": "2026-09-22T07:16:17.911491+00:00",
+  "checked_at_utc": "2026-09-22T07:21:32.020962+00:00",
   "ok": true,
   "pod_count": 2,
   "pods": [
@@ -10,14 +10,18 @@
       "created_at": "2026-09-22 05:32:34.647 +0000 UTC",
       "fingerprint": "52fa3da236d2",
       "gpu_fields": [],
-      "status": "EXITED"
+      "name": "AQLEVON-P4-A1-Retry18H",
+      "status": "EXITED",
+      "volume_in_gb": 20
     },
     {
       "cost_per_hr": 0.74,
       "created_at": "2026-09-22 04:39:10.708 +0000 UTC",
       "fingerprint": "3b722f097abc",
       "gpu_fields": [],
-      "status": "EXITED"
+      "name": "AQLEVON-P4-A1-R18I",
+      "status": "EXITED",
+      "volume_in_gb": 0
     }
   ]
 }
