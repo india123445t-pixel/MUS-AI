@@ -1,0 +1,14 @@
+{
+  "authorization_id": "P4-A1-RUNPOD-4090-20260922-19I-QWEN35-MM-LORA-MAPPING",
+  "authorization_sha256": "014a36014765d49a55a8aa469d2325fe911132b8e0ee4f746672248b906d1e28",
+  "expected_head": "738117ec522a6e109fd92e7440fa937403bfb4ed",
+  "selection_mode": "dynamic_datacenter",
+  "gpu_type": "NVIDIA GeForce RTX 4090",
+  "min_memory_gb": 24,
+  "request_schema": "runpodctl_graphql_dynamic_dc",
+  "max_total_cost_usd": "0.60",
+  "max_hourly_rate_usd": "0.80",
+  "max_billed_seconds": 2400,
+  "single_use": true,
+  "reason": "Fresh single-use Retry19I explicitly authorized after owner manually stopped Retry19H; same frozen recipe and source, no silent fallback"
+}
