@@ -36,6 +36,7 @@ jobs:
           PY
           set +e
           curl -sS https://api.runpod.io/graphql -H "Authorization: Bearer $RUNPOD_API_KEY" -H 'Content-Type: application/json' --data-binary @/tmp/graphql-body.json > /tmp/graphql.json
+          runpodctl pod get "$pod" --output json > /tmp/pod-get.json 2>/tmp/pod-get.err
           runpodctl pod logs "$pod" --tail 120 --source container --max-wait 10s > /tmp/live.jsonl 2>/tmp/live.err
           logs_rc=$?
           set -e
@@ -53,7 +54,10 @@ jobs:
                   x=json.loads(line); rows.append({'ts':x.get('ts'),'source':x.get('source'),'line':str(x.get('line',''))[-1800:]})
               except Exception:
                   pass
+          try: pod_get=json.loads(Path('/tmp/pod-get.json').read_text())
+          except Exception: pod_get={'error':Path('/tmp/pod-get.err').read_text(errors='replace')[-1200:] if Path('/tmp/pod-get.err').exists() else 'unavailable'}
           out={
+            'runpodctl':pod_get,
             'rest':{
               'id':rest.get('id'),'name':rest.get('name'),'desiredStatus':rest.get('desiredStatus'),
               'costPerHr':rest.get('costPerHr'),'publicIp':bool(rest.get('publicIp')),
