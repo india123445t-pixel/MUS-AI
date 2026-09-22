@@ -1,0 +1,229 @@
+name: AQLEVON Retry18J RunPod Execute
+
+on:
+  pull_request:
+    branches: [ops/runpod-control-base-v1]
+    paths:
+      - ".github/runpod-control/execute-retry18j-trigger.json"
+
+permissions:
+  contents: read
+
+jobs:
+  execute:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      EXPECTED_HEAD: 5a0a3694e0c60f9d2577358b1f62a1af1ec0b6cb
+      IMAGE: ghcr.io/india123445t-pixel/mus-ai@sha256:ecfe9d199a56333da7655a63a750fc6466d27fd1ed91d60aaa3e2c4b0a3dd69d
+      GPU_TYPE: NVIDIA GeForce RTX 4090
+      POD_NAME: AQLEVON-P4-A1-Retry18J
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate single-use trigger and secret
+        run: |
+          set -euo pipefail
+          test -n "${RUNPOD_API_KEY:-}"
+          jq -e '.authorization_id=="P4-A1-RUNPOD-4090-20260922-18J-API-AUTOMATED" and
+                 .authorization_sha256=="fbdc7642dc0749caef0db2680f162d3790afb78f24a72a0944d6622d1efe5efe" and
+                 .binding_sha256=="7c2268c29cb374f3137e4b775064207ba02fcdd3a42aa762bd24697389ff7bca" and
+                 .expected_head=="5a0a3694e0c60f9d2577358b1f62a1af1ec0b6cb" and
+                 .max_total_cost_usd=="0.40" and .max_billed_seconds==1800 and .single_use==true'                  .github/runpod-control/execute-retry18j-trigger.json >/dev/null
+
+      - name: Fail closed on duplicate or active AQLEVON Pod
+        run: |
+          set -euo pipefail
+          curl -sS --fail https://rest.runpod.io/v1/pods -H "Authorization: Bearer $RUNPOD_API_KEY" -o /tmp/prepods.json
+          python - <<'PY'
+          import json,sys
+          raw=json.load(open('/tmp/prepods.json'))
+          pods=raw if isinstance(raw,list) else raw.get('pods',raw.get('data',[]))
+          if isinstance(pods,dict): pods=list(pods.values())
+          dup=[p for p in pods if isinstance(p,dict) and p.get('name')=='AQLEVON-P4-A1-Retry18J']
+          active=[p for p in pods if isinstance(p,dict) and str(p.get('name','')).startswith('AQLEVON-P4-A1-') and (p.get('desiredStatus') or p.get('status')) in ('RUNNING','CREATED','STARTING')]
+          if dup or active:
+              print('FAIL_CLOSED_EXISTING_POD',len(dup),len(active))
+              sys.exit(2)
+          print('PRECREATE_INVENTORY_PASS')
+          PY
+
+      - name: Generate ephemeral SSH key
+        run: |
+          set -euo pipefail
+          ssh-keygen -q -t ed25519 -N '' -f /tmp/aqlevon_key
+          echo "PUBKEY=$(cat /tmp/aqlevon_key.pub)" >> "$GITHUB_ENV"
+
+      - name: Create exactly one authorized RTX 4090 Pod
+        id: create
+        run: |
+          set -euo pipefail
+          python - <<'PY' > /tmp/create.json
+          import json,os
+          print(json.dumps({
+            "name":os.environ["POD_NAME"],
+            "imageName":os.environ["IMAGE"],
+            "gpuTypeIds":[os.environ["GPU_TYPE"]],
+            "gpuCount":1,
+            "computeType":"GPU",
+            "cloudType":"COMMUNITY",
+            "containerDiskInGb":40,
+            "volumeInGb":0,
+            "ports":["22/tcp"],
+            "supportPublicIp":True,
+            "env":{
+              "PUBLIC_KEY":os.environ["PUBKEY"],
+              "AQLEVON_EXPECTED_W03_HEAD":os.environ["EXPECTED_HEAD"]
+            }
+          }))
+          PY
+          code="$(curl -sS -o /tmp/create-response.json -w '%{http_code}' -X POST https://rest.runpod.io/v1/pods             -H "Authorization: Bearer $RUNPOD_API_KEY" -H 'Content-Type: application/json' --data-binary @/tmp/create.json)"
+          echo "$code" >/tmp/create_http_code
+          test "$code" = "201"
+          python - <<'PY'
+          import json,sys,hashlib
+          p=json.load(open('/tmp/create-response.json'))
+          pid=str(p.get('id') or '')
+          if not pid:
+              print('FAIL_CLOSED_NO_POD_ID')
+              sys.exit(2)
+          open('/tmp/pod_id','w').write(pid)
+          open('/tmp/pod_fingerprint','w').write(hashlib.sha256(pid.encode()).hexdigest()[:12])
+          PY
+          echo "pod_id=$(cat /tmp/pod_id)" >> "$GITHUB_OUTPUT"
+          python - <<'PY'
+          import json,sys
+          p=json.load(open('/tmp/create-response.json'))
+          cost=float(p.get('costPerHr') if p.get('costPerHr') is not None else 999)
+          count=int(p.get('gpuCount') if p.get('gpuCount') is not None else 1)
+          print('CREATE_COST_PER_HR',cost,'GPU_COUNT',count)
+          if cost>0.80 or count!=1:
+              print('FAIL_CLOSED_CREATE_CEILING')
+              sys.exit(2)
+          PY
+
+      - name: Wait for SSH mapping
+        id: ssh
+        run: |
+          set -euo pipefail
+          pod="${{ steps.create.outputs.pod_id }}"
+          for i in $(seq 1 60); do
+            curl -sS "https://rest.runpod.io/v1/pods/$pod" -H "Authorization: Bearer $RUNPOD_API_KEY" > /tmp/pod.json
+            python - <<'PY' && break || true
+          import json,sys
+          p=json.load(open('/tmp/pod.json'))
+          ip=p.get('publicIp')
+          m=p.get('portMappings') or {}
+          port=m.get('22') or m.get(22) or m.get('22/tcp')
+          if (p.get('desiredStatus') or p.get('status'))=='RUNNING' and ip and port:
+              open('/tmp/ssh_target','w').write(f"{ip}|{port}")
+              sys.exit(0)
+          sys.exit(1)
+          PY
+            sleep 5
+          done
+          test -s /tmp/ssh_target
+          echo "host=$(cut -d'|' -f1 /tmp/ssh_target)" >> "$GITHUB_OUTPUT"
+          echo "port=$(cut -d'|' -f2 /tmp/ssh_target)" >> "$GITHUB_OUTPUT"
+
+      - name: Verify physical RTX 4090 before training
+        run: |
+          set -euo pipefail
+          host="${{ steps.ssh.outputs.host }}"
+          port="${{ steps.ssh.outputs.port }}"
+          opts="-i /tmp/aqlevon_key -p $port -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10"
+          for i in $(seq 1 36); do
+            ssh $opts root@$host 'echo SSH_READY' && break
+            sleep 5
+          done
+          ssh $opts root@$host 'nvidia-smi --query-gpu=name,memory.total --format=csv,noheader,nounits' > /tmp/gpu.txt
+          cat /tmp/gpu.txt
+          python - <<'PY'
+          import re,sys
+          lines=[x.strip() for x in open('/tmp/gpu.txt') if x.strip()]
+          if len(lines)!=1:
+              print('FAIL_CLOSED_GPU_COUNT',len(lines)); sys.exit(2)
+          parts=[p.strip() for p in lines[0].split(',')]
+          name=parts[0]
+          mem=int(re.sub(r'[^0-9]','',parts[1])) if len(parts)>1 else 0
+          if 'RTX 4090' not in name or mem < 23000:
+              print('FAIL_CLOSED_PHYSICAL_GPU',name,mem); sys.exit(2)
+          print('PHYSICAL_GPU_PASS',name,mem)
+          PY
+
+      - name: Execute locked Retry18J and retrieve evidence
+        id: train
+        continue-on-error: true
+        run: |
+          set -uo pipefail
+          host="${{ steps.ssh.outputs.host }}"
+          port="${{ steps.ssh.outputs.port }}"
+          opts="-i /tmp/aqlevon_key -p $port -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10"
+          ssh $opts root@$host "export AQLEVON_EXPECTED_W03_HEAD=$EXPECTED_HEAD; rm -rf /workspace/MUS-AI; git clone -q --branch agent/03-p4-gene1-physical-trainer --single-branch https://github.com/india123445t-pixel/MUS-AI.git /workspace/MUS-AI; git -C /workspace/MUS-AI reset -q --hard $EXPECTED_HEAD; bash /workspace/MUS-AI/research/weight_factory/agent03/p4_runpod_appliance_launch.sh" 2>&1 | tee /tmp/retry18j.log
+          rc=${PIPESTATUS[0]}
+          echo "$rc" >/tmp/train_rc
+          ssh $opts root@$host 'cd /workspace && tar -czf /tmp/aqlevon-retry18j-evidence.tgz aqlevon_p4 2>/dev/null || true'
+          scp -q $opts root@$host:/tmp/aqlevon-retry18j-evidence.tgz /tmp/aqlevon-retry18j-evidence.tgz || true
+          exit "$rc"
+
+      - name: Stop and terminate Pod
+        if: always()
+        run: |
+          set +e
+          pod="${{ steps.create.outputs.pod_id }}"
+          if [ -n "$pod" ]; then
+            curl -sS -X POST "https://rest.runpod.io/v1/pods/$pod/stop" -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/stop.json
+            sleep 2
+            curl -sS -X DELETE "https://rest.runpod.io/v1/pods/$pod" -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/delete.json
+          fi
+
+      - name: Build sanitized result
+        if: always()
+        run: |
+          python - <<'PY'
+          import json,os,hashlib,datetime
+          log=open('/tmp/retry18j.log',errors='replace').read() if os.path.exists('/tmp/retry18j.log') else ''
+          gpu=open('/tmp/gpu.txt',errors='replace').read().strip() if os.path.exists('/tmp/gpu.txt') else None
+          rc=None
+          if os.path.exists('/tmp/train_rc'):
+              try: rc=int(open('/tmp/train_rc').read().strip())
+              except: pass
+          cost=None
+          if os.path.exists('/tmp/create-response.json'):
+              try: cost=json.load(open('/tmp/create-response.json')).get('costPerHr')
+              except: pass
+          markers={k:(k in log) for k in [
+            'AQLEVON_APPLIANCE_LAUNCH_START','APPLIANCE_BINDING_PASS','APPLIANCE_SOURCE_DELTA_PASS',
+            'APPLIANCE_SEED1701_BINDING_PASS','APPLIANCE_EXACT_AUTHORIZATION_PASS','MODEL_STAGE_PASS',
+            'A1_LOCKED_TRAINING_START','AQLEVON_A1_EXIT_CODE','AQLEVON_APPLIANCE_TOTAL_SCRIPT_SECONDS']}
+          out={
+            'authorization_id':'P4-A1-RUNPOD-4090-20260922-18J-API-AUTOMATED',
+            'expected_head':os.environ['EXPECTED_HEAD'],
+            'checked_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            'pod_fingerprint':open('/tmp/pod_fingerprint').read().strip() if os.path.exists('/tmp/pod_fingerprint') else None,
+            'cost_per_hr':cost,
+            'physical_gpu':gpu,
+            'training_exit_code':rc,
+            'markers':markers,
+            'log_sha256':hashlib.sha256(log.encode()).hexdigest() if log else None,
+            'evidence_archive_present':os.path.exists('/tmp/aqlevon-retry18j-evidence.tgz')
+          }
+          json.dump(out,open('/tmp/retry18j-result.json','w'),indent=2,sort_keys=True)
+          open('/tmp/retry18j-result.json','a').write('\n')
+          print(json.dumps(out,sort_keys=True))
+          PY
+
+      - name: Upload Retry18J evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aqlevon-retry18j-evidence
+          path: |
+            /tmp/retry18j-result.json
+            /tmp/retry18j.log
+            /tmp/gpu.txt
+            /tmp/aqlevon-retry18j-evidence.tgz
+          if-no-files-found: warn
+          retention-days: 7
