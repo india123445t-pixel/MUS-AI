@@ -1,0 +1,7 @@
+{
+  "action": "retry18h_preflight",
+  "requested_by": "AQLEVON_MANAGER",
+  "mode": "read_only_no_spend",
+  "source_pr": 30,
+  "source_head": "1dc1d1d993aae8985c9e3f4aa472627547dd9b01"
+}
