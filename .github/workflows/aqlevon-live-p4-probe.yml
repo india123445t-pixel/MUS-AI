@@ -1,0 +1,58 @@
+name: AQLEVON Live P4 Probe
+
+on:
+  push:
+    branches: [ops/runpod-control-v1]
+    paths:
+      - ".github/runpod-control/live-p4-probe-trigger.json"
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/runpod-control-v1
+      - name: Capture active P4 pod log tail
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -sS -f "https://rest.runpod.io/v1/pods" -H "Authorization: Bearer $RUNPOD_API_KEY" > /tmp/pods.json
+          python - <<'PY'
+          import json
+          p=json.load(open('/tmp/pods.json'))
+          pods=p if isinstance(p,list) else p.get('pods') or p.get('items') or []
+          active=[x for x in pods if str(x.get('name') or '').startswith('AQLEVON-P4-A1-Retry19H') and str(x.get('desiredStatus') or x.get('status'))!='EXITED']
+          if len(active)!=1:
+              raise SystemExit('active_retry19h_count:'+str(len(active)))
+          x=active[0]
+          open('/tmp/pod_id','w').write(str(x.get('id')))
+          open('/tmp/pod_state.json','w').write(json.dumps({'id':x.get('id'),'name':x.get('name'),'desiredStatus':x.get('desiredStatus'),'costPerHr':x.get('costPerHr')},sort_keys=True))
+          PY
+          curl -sSL https://cli.runpod.net | sudo bash
+          set +e
+          runpodctl pod logs "$(cat /tmp/pod_id)" --tail 100 --source container --max-wait 12s > /tmp/live.jsonl 2>/tmp/live.err
+          set -e
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          out={'pod':json.loads(Path('/tmp/pod_state.json').read_text()),'lines':[],'stderr':Path('/tmp/live.err').read_text(errors='replace')[-1000:]}
+          for line in Path('/tmp/live.jsonl').read_text(errors='replace').splitlines():
+              try:
+                  x=json.loads(line)
+                  out['lines'].append({'ts':x.get('ts'),'line':str(x.get('line',''))[-1600:]})
+              except Exception:
+                  pass
+          Path('.github/runpod-control/live-p4-probe-result.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
+          PY
+          git config user.name aqlevon-runpod-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/runpod-control/live-p4-probe-result.json
+          git commit -m "ops: record live Retry19H probe [skip ci]" || true
+          git push origin HEAD:ops/runpod-control-v1
