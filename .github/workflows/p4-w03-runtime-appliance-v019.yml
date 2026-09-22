@@ -15,7 +15,7 @@ permissions:
   packages: write
 
 concurrency:
-  group: p4-w03-runtime-appliance-v019-final-qkv-tensor-${{ github.ref }}
+  group: p4-w03-runtime-appliance-v019-python-launcher-final-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
