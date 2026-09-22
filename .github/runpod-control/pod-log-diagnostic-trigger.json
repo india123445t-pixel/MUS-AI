@@ -1,5 +1,6 @@
 {
   "pod_id": "cbymrg61ro1rcp",
-  "reason": "Retry19P live startup probe 2; verify image extraction continues",
-  "nonce": "19p-live-startup-2"
+  "source": "container",
+  "reason": "Retry19P live container log probe during smoke-then-train",
+  "nonce": "19p-live-container-1"
 }
