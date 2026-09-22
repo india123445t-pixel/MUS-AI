@@ -4,10 +4,10 @@
   "expected_head": "7af35739fb45600bac8828464fbd67307d1aef8d",
   "gpu_type": "NVIDIA L4",
   "data_center_id": "US-MO-2",
-  "request_schema": "rest_v1_no_min_memory",
+  "request_schema": "official_runpodctl_graphql",
   "max_total_cost_usd": "0.40",
   "max_hourly_rate_usd": "0.55",
   "max_billed_seconds": 1800,
   "single_use": true,
-  "reason": "Owner explicitly authorized one new paid GPU attempt; Retry18Z after free CPU+Exact gates PASS"
+  "reason": "Owner explicitly authorized one new paid GPU attempt; Retry18Z prior creates failed before any Pod existed; official RunPod CLI GraphQL create path now used"
 }
