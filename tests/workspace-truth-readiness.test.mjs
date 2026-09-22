@@ -29,6 +29,13 @@ test('browser workspace fails closed for unavailable adapters',()=>{
 
 test('chat exposes real inference readiness and disables unavailable actions',()=>{
   assert.match(health,/openrouter\.ai\/api\/v1\/key/);
+  assert.match(health,/api\.groq\.com\/openai\/v1\/models/);
+  assert.match(health,/generativelanguage\.googleapis\.com\/v1beta\/models/);
+  assert.match(health,/api\.mistral\.ai\/v1\/models/);
+  assert.match(health,/api\.cerebras\.ai\/v1\/models/);
+  assert.match(health,/huggingface\.co\/api\/whoami-v2/);
+  assert.match(health,/checkSelfHostedHealth/);
+  assert.match(health,/Object\.values\(providers\)\.some\(x=>x\?\.ok===true\)/);
   assert.match(health,/AUTH_ERROR/);
   assert.match(api,/\/api\/inference-health/);
   assert.match(chat,/runtime\.inferenceReady !== true/);
