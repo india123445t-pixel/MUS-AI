@@ -1,0 +1,76 @@
+name: Retry18I Emergency Stop
+
+on:
+  push:
+    branches:
+      - ops/runpod-control-v1
+    paths:
+      - ".github/runpod-control/stop-retry18i-*.json"
+
+permissions:
+  contents: write
+
+jobs:
+  stop:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/runpod-control-v1
+
+      - name: Stop exactly one matching Retry18I Pod
+        shell: bash
+        env:
+          RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+        run: |
+          set -euo pipefail
+          cat > /tmp/q.json <<'JSON'
+          {"query":"query { myself { pods { id name desiredStatus costPerHr } } }"}
+          JSON
+          curl -fsS             -X POST "https://api.runpod.io/graphql?api_key=${RUNPOD_API_KEY}"             -H "content-type: application/json"             --data-binary @/tmp/q.json > /tmp/pods.json
+
+          POD_ID="$(python - <<'PY'
+          import json
+          d=json.load(open('/tmp/pods.json',encoding='utf-8'))
+          pods=((d.get('data') or {}).get('myself') or {}).get('pods') or []
+          m=[p for p in pods if isinstance(p,dict) and p.get('name')=='AQLEVON-P4-A1-R18I' and p.get('desiredStatus')=='RUNNING']
+          if len(m)!=1:
+              raise SystemExit(f"FAIL_CLOSED_MATCH_COUNT:{len(m)}")
+          p=m[0]
+          rate=p.get('costPerHr')
+          if not isinstance(rate,(int,float)) or rate>0.80:
+              raise SystemExit(f"FAIL_CLOSED_RATE:{rate}")
+          print(p['id'],end='')
+          PY
+          )"
+
+          cat > /tmp/stop.json <<JSON
+          {"query":"mutation { podStop(input: {podId: \"$POD_ID\"}) { id desiredStatus } }"}
+          JSON
+          curl -fsS             -X POST "https://api.runpod.io/graphql?api_key=${RUNPOD_API_KEY}"             -H "content-type: application/json"             --data-binary @/tmp/stop.json > /tmp/stop-response.json
+
+          python - <<'PY'
+          import json,hashlib,datetime
+          d=json.load(open('/tmp/stop-response.json',encoding='utf-8'))
+          p=((d.get('data') or {}).get('podStop') or {})
+          if p.get('desiredStatus')!='EXITED':
+              raise SystemExit(f"STOP_FAILED:{p}")
+          pid=str(p.get('id') or '')
+          out={
+            "ok":True,
+            "run":"Retry18I",
+            "action":"emergency_stop",
+            "pod_fingerprint":hashlib.sha256(pid.encode()).hexdigest()[:12] if pid else None,
+            "desired_status":"EXITED",
+            "recorded_at_utc":datetime.datetime.now(datetime.timezone.utc).isoformat()
+          }
+          with open('.github/runpod-control/retry18i-emergency-stop.json','w',encoding='utf-8') as f:
+              json.dump(out,f,indent=2,sort_keys=True); f.write('\n')
+          PY
+
+          git config user.name "aqlevon-runpod-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add .github/runpod-control/retry18i-emergency-stop.json
+          git commit -m "ops: record Retry18I emergency stop [skip ci]"
+          git push origin HEAD:ops/runpod-control-v1
