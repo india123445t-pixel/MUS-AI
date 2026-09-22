@@ -1,0 +1,8 @@
+{
+  "action": "terminate_exact_exited_retry18h",
+  "expected_created_at": "2026-09-22 05:32:34.647 +0000 UTC",
+  "expected_name": "AQLEVON-P4-A1-Retry18H",
+  "expected_status": "EXITED",
+  "requested_by": "AQLEVON_MANAGER",
+  "reason": "Retry18H consumed without candidate; release residual 20GB Pod volume storage"
+}
