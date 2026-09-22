@@ -1,0 +1,14 @@
+{
+  "authorization_id": "P4-A1-RUNPOD-4090-20260922-19H-RESUME-CACHED-APPLIANCE",
+  "authorization_sha256": "3acf1e2a2a599453d66166897a63fb181e439c39d274e2f41d18f9cb0f5851bb",
+  "expected_head": "224ba7c8631146ceca4f1d622b4507716bcc536a",
+  "selection_mode": "dynamic_datacenter",
+  "gpu_type": "NVIDIA GeForce RTX 4090",
+  "min_memory_gb": 24,
+  "request_schema": "runpodctl_graphql_dynamic_dc",
+  "max_total_cost_usd": "0.60",
+  "max_hourly_rate_usd": "0.80",
+  "max_billed_seconds": 1800,
+  "single_use": true,
+  "reason": "Fresh single-use Retry19H after exact system-log diagnosis showed Retry19G spent its readiness window only pulling the pinned appliance image; readiness extended to 10 minutes"
+}
