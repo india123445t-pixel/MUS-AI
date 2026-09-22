@@ -1,0 +1,7 @@
+{
+  "action": "emergency_stop_retry18u",
+  "expected_fingerprint": "6b50da9fdfb9",
+  "reason": "User requested stop to prevent useless paid GPU burn",
+  "requested_by": "AQLEVON_MANAGER",
+  "nonce": "2026-09-22T10:03Z"
+}
