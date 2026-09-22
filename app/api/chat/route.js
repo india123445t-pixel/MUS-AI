@@ -133,6 +133,9 @@ export async function POST(req){
     if(rawInput.length>20000)return NextResponse.json({message:'الرسالة طويلة جدًا.'},{status:413});
 
     const redactedInput=redactSecrets(rawInput);
+    if(!SUPABASE_URL||!SUPABASE_KEY){
+      return NextResponse.json({message:'قاعدة بيانات AQLEVON غير مهيأة.',error_class:'ENV_MISSING'},{status:503});
+    }
     const sb=client();
     const {settings,lessons}=await loadRuntime(sb);
     if(settings.public_chat_enabled===false)return NextResponse.json({message:'AQLEVON AI في وضع صيانة مؤقتًا.'},{status:503});
