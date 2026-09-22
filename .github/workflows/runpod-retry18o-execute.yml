@@ -22,9 +22,9 @@ jobs:
       RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
       POD_NAME: AQLEVON-Retry18O-Seed1701
       GPU_ID: NVIDIA GeForce RTX 4090
-      P4_HEAD: 0aa39340b1eaf0934299daabb2e5bc30c32c0925
+      P4_HEAD: ca5780eaa4f40b5a656953213385b63b118ffbf8
       IMAGE: ghcr.io/india123445t-pixel/mus-ai@sha256:fd612fd98f4faf0340d8a5cf51e71a0cc3a46b8f89631698e071e4391c30fa53
-      AUTH_SHA: 79bc2d225663837cd2df236b2275886a8c6989b0fbb03d7b3a340b90e06a6b0f
+      AUTH_SHA: f284b379f9323bcae34517e8840c9b9169182a61b529014288532d200f87039c
       RUN_SHA: 24e3d21155c3f1011ca92f90e6c622fe03f92bfd65656d31d87fa627886fad47
       LOCK_SHA: b07441e07d0f26191fc5bd20ebf61e61c88003c542205687a2679243d90623c2
       MAX_RATE: "0.80"
@@ -60,9 +60,9 @@ jobs:
           import json
           p=json.load(open("ops/runpod-control/retry18o.request.json"))
           expected={
-            "authorization_id":"P4-A1-RUNPOD-4090-20260922-18O-QWEN35-HF-OVERRIDE",
-            "authorization_sha256":"79bc2d225663837cd2df236b2275886a8c6989b0fbb03d7b3a340b90e06a6b0f",
-            "worker03_head":"0aa39340b1eaf0934299daabb2e5bc30c32c0925",
+            "authorization_id":"P4-A1-RUNPOD-4090-20260922-18O-IMMUTABLE-HEAD",
+            "authorization_sha256":"f284b379f9323bcae34517e8840c9b9169182a61b529014288532d200f87039c",
+            "worker03_head":"ca5780eaa4f40b5a656953213385b63b118ffbf8",
             "run_manifest_sha256":"24e3d21155c3f1011ca92f90e6c622fe03f92bfd65656d31d87fa627886fad47",
             "command_lock_sha256":"b07441e07d0f26191fc5bd20ebf61e61c88003c542205687a2679243d90623c2",
             "runtime_image":"ghcr.io/india123445t-pixel/mus-ai@sha256:fd612fd98f4faf0340d8a5cf51e71a0cc3a46b8f89631698e071e4391c30fa53",
@@ -78,8 +78,9 @@ jobs:
           print("RETRY18O_REQUEST_EXACT_PASS")
           PY
 
-          remote_head="$(git ls-remote https://github.com/india123445t-pixel/MUS-AI.git refs/heads/agent/03-p4-gene1-physical-trainer | awk '{print $1}')"
-          test "$remote_head" = "$P4_HEAD" || { echo "::error::P4 branch drifted: $remote_head"; exit 23; }
+          # Freeze paid execution to the authorized commit; later branch advances are irrelevant.
+          git fetch -q origin "$P4_HEAD" || true
+          git cat-file -e "$P4_HEAD^{commit}" || { echo "::error::Authorized P4 commit unavailable"; exit 23; }
 
           rm -rf /tmp/p4source
           git worktree add --detach /tmp/p4source "$P4_HEAD"
@@ -88,14 +89,14 @@ jobs:
           import json
           import p4_gene1_trainer as c
           from pathlib import Path
-          auth=json.loads(Path("p4_a1_runpod_manager_authorization_retry18o_qwen35_hf_override_v1.json").read_text())
-          binding=json.loads(Path("p4_a1_runtime_appliance_binding_retry18o_qwen35_hf_override_v1.json").read_text())
+          auth=json.loads(Path("p4_a1_runpod_manager_authorization_retry18o_immutable_head_v1.json").read_text())
+          binding=json.loads(Path("p4_a1_runtime_appliance_binding_retry18o_immutable_head_v1.json").read_text())
           run=json.loads(Path("p4_a1_seed1701_run_manifest_v1.json").read_text())
           lock=json.loads(Path("p4_a1_seed1701_command_lock_v1.json").read_text())
           assert c.verify_self_digest(auth,"authorization_sha256")
-          assert auth["authorization_sha256"]=="79bc2d225663837cd2df236b2275886a8c6989b0fbb03d7b3a340b90e06a6b0f"
+          assert auth["authorization_sha256"]=="f284b379f9323bcae34517e8840c9b9169182a61b529014288532d200f87039c"
           assert c.verify_self_digest(binding,"binding_sha256")
-          assert binding["binding_sha256"]=="70b7da4377b304d5059337a5c087e16db49a8be26b3988116af15aae8f064be4"
+          assert binding["binding_sha256"]=="d122b14fb2e7c96eab4a579b2d37dd68d09eb049606d2762a6ae8a6e81b7d827"
           assert run["manifest_sha256"]=="24e3d21155c3f1011ca92f90e6c622fe03f92bfd65656d31d87fa627886fad47"
           assert lock["lock_sha256"]=="b07441e07d0f26191fc5bd20ebf61e61c88003c542205687a2679243d90623c2"
           errors=c.validate_manager_authorization(auth,lock=lock,run_manifest_sha256=run["manifest_sha256"])
@@ -252,8 +253,8 @@ jobs:
             cd /workspace
             tar -czf /workspace/retry18o-evidence.tgz \
               aqlevon_p4 \
-              MUS-AI/research/weight_factory/agent03/p4_a1_runpod_manager_authorization_retry18o_qwen35_hf_override_v1.json \
-              MUS-AI/research/weight_factory/agent03/p4_a1_runtime_appliance_binding_retry18o_qwen35_hf_override_v1.json \
+              MUS-AI/research/weight_factory/agent03/p4_a1_runpod_manager_authorization_retry18o_immutable_head_v1.json \
+              MUS-AI/research/weight_factory/agent03/p4_a1_runtime_appliance_binding_retry18o_immutable_head_v1.json \
               MUS-AI/research/weight_factory/agent03/p4_a1_seed1701_run_manifest_v1.json \
               MUS-AI/research/weight_factory/agent03/p4_a1_seed1701_command_lock_v1.json \
               MUS-AI/research/weight_factory/agent03/p4_frozen_training_plan_v1.json
