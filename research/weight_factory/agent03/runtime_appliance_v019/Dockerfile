@@ -15,6 +15,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       git curl ca-certificates openssh-server ninja-build python3-cairo \
     && mkdir -p /run/sshd /root/.ssh \
     && chmod 700 /root/.ssh \
+    && ln -sf "$(command -v python3)" /usr/local/bin/python \
+    && python --version \
     && rm -rf /var/lib/apt/lists/*
 
 COPY research/weight_factory/agent03/runtime_appliance_v019/requirements-p4-a1-v019.txt /tmp/requirements-p4-a1-v019.txt
