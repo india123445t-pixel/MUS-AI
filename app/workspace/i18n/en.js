@@ -40,6 +40,7 @@ export default {
   'work.queued': 'Queued', 'work.cancelled': 'Cancelled', 'work.cancel': 'Cancel', 'work.retryTask': 'Retry',
   'work.activity': 'Activity', 'work.result': 'Result', 'work.details': 'Details',
   'work.empty': 'No tasks yet. The browser edition currently creates Markdown drafts only; PDF, Excel and PowerPoint renderers are not connected.',
+  'work.runtimeUnavailable': 'A task cannot be started because the inference engine is not ready.',
   'work.openResult': 'Open result', 'work.sources': 'Sources',
   'step.persist': 'Saving task', 'step.plan': 'Planning', 'step.search': 'Searching sources',
   'step.generate': 'Generating content', 'step.render': 'Rendering file', 'step.verify': 'Verifying result',
