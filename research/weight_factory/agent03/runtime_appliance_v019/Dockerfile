@@ -1,4 +1,4 @@
-FROM vllm/vllm-openai:v0.19.0
+FROM vllm/vllm-openai:v0.19.1
 
 ARG SDPO_COMMIT=7c457fc1b1f636ae794eb0362ba37d4743b06fbc
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -23,12 +23,14 @@ RUN python3 -m pip install --no-cache-dir -r /tmp/requirements-p4-a1-v019.txt
 # SDPO's default HF attention implementation is flash_attention_2.
 # Preserve the frozen recipe rather than silently switching to SDPA.
 RUN python3 - <<'PY'
-import importlib.util, subprocess, sys
+import importlib.util, os, subprocess, sys
 if importlib.util.find_spec("flash_attn") is None:
+    env=dict(os.environ)
+    env["MAX_JOBS"]="2"
     subprocess.check_call([
         sys.executable,"-m","pip","install","--no-cache-dir","--no-build-isolation",
         "flash-attn==2.8.3"
-    ])
+    ], env=env)
 PY
 
 RUN git clone -q https://github.com/lasgroup/SDPO.git "$AQLEVON_SDPO" \
@@ -46,7 +48,7 @@ RUN chmod +x /start.sh
 
 LABEL org.opencontainers.image.title="AQLEVON P4 A1 Native Qwen3.5 Runtime Appliance" \
       aqlevon.sdpo.commit="7c457fc1b1f636ae794eb0362ba37d4743b06fbc" \
-      aqlevon.vllm="0.19.0" \
+      aqlevon.vllm="0.19.1" \
       aqlevon.qwen35.backend="native"
 
 ENTRYPOINT []
