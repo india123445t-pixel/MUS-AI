@@ -1,0 +1,82 @@
+name: RunPod Control V1
+
+on:
+  push:
+    branches:
+      - ops/runpod-control-v1
+    paths:
+      - ".github/runpod-control/command.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  runpod-control:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read command
+        id: cmd
+        shell: bash
+        run: |
+          set -euo pipefail
+          ACTION="$(jq -r '.action // "status"' .github/runpod-control/command.json)"
+          if [ "$ACTION" != "status" ]; then
+            echo "::error::Unsupported action in V1: $ACTION"
+            exit 1
+          fi
+          echo "action=$ACTION" >> "$GITHUB_OUTPUT"
+
+      - name: Verify RunPod secret exists
+        shell: bash
+        env:
+          RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "${RUNPOD_API_KEY:-}" || { echo "::error::RUNPOD_API_KEY missing"; exit 1; }
+          echo "RunPod secret present; value not printed."
+
+      - name: Read RunPod pod status
+        shell: bash
+        env:
+          RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+        run: |
+          set -euo pipefail
+          CODE="$(curl --silent --show-error             --output /tmp/pods.json             --write-out "%{http_code}"             --request GET             --url "https://rest.runpod.io/v1/pods"             --header "Authorization: Bearer ${RUNPOD_API_KEY}")"
+
+          if [ "$CODE" != "200" ]; then
+            echo "::error::RunPod status query failed with HTTP $CODE"
+            exit 1
+          fi
+
+          python - <<'PY'
+          import json
+          with open('/tmp/pods.json','r',encoding='utf-8') as f:
+              data=json.load(f)
+
+          if isinstance(data, dict):
+              pods=data.get('pods', data.get('items', data.get('data', [])))
+              if isinstance(pods, dict):
+                  pods=list(pods.values())
+          elif isinstance(data, list):
+              pods=data
+          else:
+              pods=[]
+
+          if not isinstance(pods, list):
+              pods=[]
+
+          print(f"RUNPOD_STATUS_PASS pod_count={len(pods)}")
+          for i,p in enumerate(pods,1):
+              if not isinstance(p,dict):
+                  continue
+              status=p.get('desiredStatus') or p.get('status') or p.get('runtimeStatus') or 'UNKNOWN'
+              gpu=p.get('gpu',{})
+              gpu_name=(gpu.get('displayName') if isinstance(gpu,dict) else None) or p.get('gpuTypeId') or p.get('gpuType') or 'unknown'
+              cost=p.get('costPerHr') or p.get('costPerHour') or p.get('pricePerHr')
+              cost_txt=f" cost_per_hr={cost}" if cost is not None else ""
+              print(f"pod_{i}: status={status} gpu={gpu_name}{cost_txt}")
+          PY
