@@ -9,6 +9,6 @@
   "max_billed_seconds": 1800,
   "single_use": true,
   "approved_by_owner": true,
-  "attempt_nonce": "2026-09-22T05:33:00Z",
-  "repair": "post_create_gpu_metadata_verification"
+  "attempt_nonce": "2026-09-22T05:38:00Z",
+  "repair": "sanitized_create_diagnostics"
 }
