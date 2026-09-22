@@ -39,16 +39,16 @@ jobs:
           test -n "${RUNPOD_API_KEY:-}" || { echo "::error::RUNPOD_API_KEY missing"; exit 1; }
           echo "RunPod secret present; value not printed."
 
-      - name: Read RunPod pod status via API v2 and write sanitized result
+      - name: Read RunPod pod status via API v1 with machine metadata
         shell: bash
         env:
           RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
         run: |
           set -euo pipefail
-          CODE="$(curl --silent --show-error             --output /tmp/pods.json             --write-out "%{http_code}"             --request GET             --url "https://rest.runpod.io/v2/pods"             --header "Authorization: Bearer ${RUNPOD_API_KEY}")"
+          CODE="$(curl --silent --show-error             --output /tmp/pods.json             --write-out "%{http_code}"             --request GET             --url "https://rest.runpod.io/v1/pods?include=machine"             --header "Authorization: Bearer ${RUNPOD_API_KEY}")"
 
           if [ "$CODE" != "200" ]; then
-            echo "::error::RunPod v2 status query failed with HTTP $CODE"
+            echo "::error::RunPod v1 status query failed with HTTP $CODE"
             exit 1
           fi
 
@@ -58,7 +58,7 @@ jobs:
           with open('/tmp/pods.json','r',encoding='utf-8') as f:
               data=json.load(f)
 
-          pods=data.get('pods', []) if isinstance(data,dict) else (data if isinstance(data,list) else [])
+          pods=data.get('pods', data.get('items', data.get('data', []))) if isinstance(data,dict) else (data if isinstance(data,list) else [])
           if not isinstance(pods,list):
               pods=[]
 
@@ -70,7 +70,7 @@ jobs:
 
           out={
               "ok": True,
-              "api": "v2",
+              "api": "v1",
               "action": "status",
               "checked_at_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
               "pod_count": len(pods),
