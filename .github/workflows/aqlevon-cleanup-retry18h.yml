@@ -1,0 +1,49 @@
+name: AQLEVON Cleanup Retry18H Exited Pod
+
+on:
+  pull_request:
+    branches: [ops/runpod-control-base-v1]
+    paths:
+      - ".github/runpod-control/cleanup-retry18h-trigger.json"
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate trigger and terminate only exact exited Retry18H pod
+        env:
+          RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "${RUNPOD_API_KEY:-}"
+          jq -e '.action=="terminate_exact_exited_retry18h" and .expected_name=="AQLEVON-P4-A1-Retry18H" and .expected_created_at=="2026-09-22 05:32:34.647 +0000 UTC" and .expected_status=="EXITED"' .github/runpod-control/cleanup-retry18h-trigger.json >/dev/null
+          curl -sS --fail https://rest.runpod.io/v1/pods -H "Authorization: Bearer $RUNPOD_API_KEY" -o /tmp/pods.json
+          python - <<'PY'
+          import json,sys
+          raw=json.load(open('/tmp/pods.json'))
+          pods=raw if isinstance(raw,list) else raw.get('pods',raw.get('data',[]))
+          if isinstance(pods,dict): pods=list(pods.values())
+          hits=[p for p in pods if isinstance(p,dict) and p.get('name')=='AQLEVON-P4-A1-Retry18H' and (p.get('desiredStatus') or p.get('status'))=='EXITED' and p.get('createdAt')=='2026-09-22 05:32:34.647 +0000 UTC']
+          if len(hits)!=1:
+              print('FAIL_CLOSED_MATCH_COUNT',len(hits))
+              sys.exit(2)
+          open('/tmp/pod_id','w').write(hits[0]['id'])
+          PY
+          pod="$(cat /tmp/pod_id)"
+          curl -sS --fail -X DELETE "https://rest.runpod.io/v1/pods/$pod" -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/delete.json || true
+          python - <<'PY'
+          import json,datetime
+          out={'action':'terminate_exact_exited_retry18h','target_name':'AQLEVON-P4-A1-Retry18H','target_created_at':'2026-09-22 05:32:34.647 +0000 UTC','completed_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat()}
+          open('.github/runpod-control/cleanup-retry18h-result.json','w').write(json.dumps(out,indent=2,sort_keys=True)+'\n')
+          PY
+      - name: Commit sanitized cleanup result
+        run: |
+          git config user.name aqlevon-runpod-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/runpod-control/cleanup-retry18h-result.json
+          git commit -m "ops: record Retry18H pod cleanup [skip ci]" || true
+          git push origin HEAD:ops/runpod-control-v1 || true
