@@ -59,7 +59,9 @@ jobs:
                   'container':{
                       'cpu_percent':(runtime.get('container') or {}).get('cpuPercent'),
                       'memory_percent':(runtime.get('container') or {}).get('memoryPercent')
-                  }
+                  },
+                  'runtime_keys': sorted(runtime.keys()),
+                  'raw_gpu_runtime': runtime.get('gpus') or runtime.get('gpu') or raw.get('gpus') or raw.get('gpu')
               }
           except Exception:
               details={'pod_get_error':Path('/tmp/pod-get.err').read_text(errors='replace')[-800:]}
