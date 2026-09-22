@@ -1,0 +1,18 @@
+{
+  "action": "launch_retry18i_physical_a1",
+  "requested_by": "AQLEVON_MANAGER",
+  "owner_authorized": true,
+  "authorization_id": "P4-A1-RUNPOD-4090-20260922-18I-GITHUB-CONTROL",
+  "authorization_sha256": "66dba2ae8815bc3bf6b4bb01442d58be5146fad162d03932f0128e542584c35d",
+  "run_manifest_sha256": "24e3d21155c3f1011ca92f90e6c622fe03f92bfd65656d31d87fa627886fad47",
+  "source_commit": "fa288e74a996a7651f450f257d538de071b02ca1",
+  "max_billed_seconds": 1800,
+  "max_hourly_rate_usd": "0.80",
+  "max_total_cost_usd": "0.40",
+  "selected_cloud_type": "COMMUNITY",
+  "preflight_community_price_usd_per_hr": 0.34,
+  "gpu": "NVIDIA GeForce RTX 4090",
+  "gpu_count": 1,
+  "automatic_fallback": false,
+  "g1_rerun": false
+}
