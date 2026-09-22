@@ -23,7 +23,7 @@ export default {
   'chat.add': 'Add', 'chat.attachFile': 'Attach text file', 'chat.addImage': 'Add image', 'chat.pasteCode': 'Paste code',
   'chat.webSearch': 'Web search', 'chat.deepResearch': 'Deep research',
   'chat.researchHint': 'Runs a multi-step research task with sources.',
-  'chat.dictate': 'Dictate', 'chat.thinkLonger': 'Automatic deep reasoning', 'chat.thinkLongerHint': 'AQLEVON chooses reasoning effort automatically', 'chat.thinkLongerAutomatic': 'AQLEVON currently chooses deep reasoning automatically from task difficulty; manual override is not connected.',
+  'chat.dictate': 'Dictate', 'chat.dictateUnavailable': 'Voice dictation is not supported by this browser.', 'chat.thinkLonger': 'Automatic deep reasoning', 'chat.thinkLongerHint': 'AQLEVON chooses reasoning effort automatically', 'chat.thinkLongerAutomatic': 'AQLEVON currently chooses deep reasoning automatically from task difficulty; manual override is not connected.',
   'chat.errorStrip': 'AQLEVON could not complete the request.',
   'chat.starter.summarize': 'Summarize a text file', 'chat.starter.summarize.d': 'Sends the actual content of a small text file to the inference engine.',
   'chat.starter.plan': 'Plan a project', 'chat.starter.plan.d': 'Break a goal into phases and tasks',
