@@ -141,6 +141,57 @@ def patch_vllm_transformers_mm_mapping(text: str) -> str:
     return replace_once(text, old, new, "vllm_transformers_mm_mapping_method")
 
 
+
+def patch_vllm_transformers_mm_output(text: str) -> str:
+    """Normalize Transformers 5 Qwen3.5 vision outputs for vLLM 0.10.2.
+
+    Transformers 5 returns a BaseModelOutputWithPooling from Qwen3.5
+    get_image_features(), while vLLM 0.10.2 expects the embeddings themselves.
+    Qwen3.5 stores the already split image embedding tensors in pooler_output.
+    """
+    if "AQLEVON_QWEN35_MM_OUTPUT_UNWRAP" in text:
+        return text
+
+    old = """            vision_embeddings = self.model.get_image_features(
+                pixel_values,
+                **{
+                    k: v.flatten(0, 1)
+                    for k, v in kwargs.items()
+                },
+            )
+
+            if isinstance(vision_embeddings, torch.Tensor):
+"""
+    new = """            vision_embeddings = self.model.get_image_features(
+                pixel_values,
+                **{
+                    k: v.flatten(0, 1)
+                    for k, v in kwargs.items()
+                },
+            )
+
+            # AQLEVON_QWEN35_MM_OUTPUT_UNWRAP: Transformers 5 Qwen3.5 returns
+            # BaseModelOutputWithPooling; vLLM expects tensor/list/tuple embeds.
+            if getattr(self.config, "model_type", None) == "qwen3_5":
+                if hasattr(vision_embeddings, "pooler_output"):
+                    vision_embeddings = vision_embeddings.pooler_output
+                valid_qwen35_mm = (
+                    isinstance(vision_embeddings, torch.Tensor)
+                    or (
+                        isinstance(vision_embeddings, (list, tuple))
+                        and all(isinstance(x, torch.Tensor) for x in vision_embeddings)
+                    )
+                )
+                if not valid_qwen35_mm:
+                    raise RuntimeError(
+                        "AQLEVON_QWEN35_MM_OUTPUT_UNSUPPORTED:"
+                        + type(vision_embeddings).__name__
+                    )
+
+            if isinstance(vision_embeddings, torch.Tensor):
+"""
+    return replace_once(text, old, new, "vllm_transformers_mm_output")
+
 def main() -> int:
     head = subprocess.check_output(
         ["git", "-C", str(SDPO), "rev-parse", "HEAD"], text=True
@@ -213,6 +264,7 @@ def main() -> int:
 
     vllm_lora_models = patch_vllm_lora_manager(vllm_lora_models)
     vllm_transformers_models = patch_vllm_transformers_mm_mapping(vllm_transformers_models)
+    vllm_transformers_models = patch_vllm_transformers_mm_output(vllm_transformers_models)
 
     MODEL.write_text(model, encoding="utf-8")
     FSDP.write_text(fsdp, encoding="utf-8")
@@ -240,6 +292,8 @@ def main() -> int:
         raise SystemExit("vllm_lora_guard_missing_after_patch")
     if "AQLEVON_QWEN35_MM_LORA_MAPPING" not in vllm_transformers_models:
         raise SystemExit("vllm_transformers_mm_mapping_missing_after_patch")
+    if "AQLEVON_QWEN35_MM_OUTPUT_UNWRAP" not in vllm_transformers_models:
+        raise SystemExit("vllm_transformers_mm_output_missing_after_patch")
 
     print("AQLEVON_SDPO_TF5_COMPAT_PATCH_PASS")
     print("MODEL_SHA256:", sha256(MODEL))
