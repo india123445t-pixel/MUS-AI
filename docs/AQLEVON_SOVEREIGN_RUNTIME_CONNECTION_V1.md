@@ -5,7 +5,7 @@ Status: deployment/runtime contract for the public Workspace and Owner Core inte
 ## 1. Runtime authority
 AQLEVON's production inference authority is the owned AQLEVON model runtime.
 
-The public application MUST NOT require OpenRouter, Groq, Gemini, Mistral, Cerebras, Hugging Face, or any other external AI-provider API key in order to operate its core chat/work features.
+The public application MUST NOT require or route to any external AI model, external inference service, or third-party AI-provider API key in order to operate its core chat/work features.
 
 The enforced public runtime mode is:
 
@@ -77,7 +77,7 @@ and return an AQLEVON Chat Runtime Protocol V1 response containing:
 ```
 
 ## 5. Commons worker contract
-AQLEVON Commons is a transport/fallback for the same owned AQLEVON model, not a third-party inference provider.
+AQLEVON Commons is a transport path for the same owned AQLEVON model. It must never select or invoke another model.
 
 Worker variables:
 
@@ -97,7 +97,7 @@ Until the owned model runtime is healthy:
 - Chat Send remains disabled.
 - Work task Start remains disabled.
 - UI must say AQLEVON model/runtime is not connected yet.
-- It must not ask the user for OpenRouter or another external AI-provider key.
+- It must not ask the user for any external AI-provider key.
 - Web Search, Deep Research, image generation, code execution, GitHub, scheduler, browser execution, and other adapters remain separately fail-closed unless their own trusted adapters are connected.
 
 ## 7. Deployment acceptance
