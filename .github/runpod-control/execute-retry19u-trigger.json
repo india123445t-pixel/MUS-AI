@@ -1,0 +1,15 @@
+{
+  "authorization_id": "P4-A1-RUNPOD-A40-20260923-19U-VLLM019-BOUNDED-SCHEDULER-SMOKE-THEN-TRAIN",
+  "authorization_sha256": "85b4ad3db0b8b0a71e517f7ad770bb73dd0d60f6d4135a15ff9d7f0ffbb8f6c3",
+  "expected_head": "85500c4ffec058b22d876fe029a47c3c6d5b5b63",
+  "image_digest": "sha256:97e5672c03c5d98638fb6d2ac4de59018a1c19e8c0c99fc288e742bf99e35ba6",
+  "gpu_type": "NVIDIA A40",
+  "min_memory_gb": 48,
+  "selection_mode": "dynamic_datacenter",
+  "request_schema": "runpodctl_graphql_dynamic_dc",
+  "max_billed_seconds": 3600,
+  "max_total_cost_usd": "0.55",
+  "max_hourly_rate_usd": "0.55",
+  "single_use": true,
+  "attempt_nonce": "retry19u-bounded-scheduler-1"
+}
