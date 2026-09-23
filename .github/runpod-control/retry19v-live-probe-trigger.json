@@ -1,6 +1,6 @@
 {
   "target": "Retry19V",
   "pod_id": "de0xyagqodd2gw",
-  "nonce": "live-2",
-  "purpose": "observe Retry19V transition from awaiting_container to SSH/training"
+  "nonce": "live-3",
+  "purpose": "observe Retry19V GPU/runtime while durable training is active"
 }
