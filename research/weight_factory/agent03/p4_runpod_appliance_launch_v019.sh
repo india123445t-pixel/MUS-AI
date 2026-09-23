@@ -277,6 +277,28 @@ fi
 
 echo "A1_LOCKED_TRAINING_START elapsed=${ELAPSED}s remaining=${REMAINING}s"
 
+# Diagnostic-only sampler: preserve enough evidence to distinguish host/cgroup OOM,
+# GPU pressure, or an abrupt worker crash during first rollout wake/weight sync.
+DIAG="$ROOT/aqlevon_p4/runtime_resource_diag.tsv"
+(
+  echo -e "utc\tcgroup_current\tcgroup_peak\tcgroup_events\tmem_available_kb\tgpu_used_mib\tgpu_free_mib\tworker_rss_kb"
+  while true; do
+    ts="$(date -u +%FT%TZ)"
+    cur="$(cat /sys/fs/cgroup/memory.current 2>/dev/null || echo NA)"
+    peak="$(cat /sys/fs/cgroup/memory.peak 2>/dev/null || echo NA)"
+    events="$(tr '\n' ',' < /sys/fs/cgroup/memory.events 2>/dev/null || echo NA)"
+    avail="$(awk '/MemAvailable:/ {print $2}' /proc/meminfo 2>/dev/null || echo NA)"
+    gpu="$(nvidia-smi --query-gpu=memory.used,memory.free --format=csv,noheader,nounits 2>/dev/null | head -n1 | tr -d ' ' || echo NA,NA)"
+    used="${gpu%%,*}"; free="${gpu#*,}"
+    rss="$(ps -eo comm=,rss= 2>/dev/null | awk '$1 ~ /ray::WorkerDict|python/ {s+=$2} END {print s+0}')"
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$ts" "$cur" "$peak" "$events" "$avail" "$used" "$free" "$rss"
+    sleep 1
+  done
+) >> "$DIAG" 2>&1 &
+DIAG_PID=$!
+cleanup_diag() { kill "$DIAG_PID" 2>/dev/null || true; wait "$DIAG_PID" 2>/dev/null || true; }
+trap cleanup_diag EXIT
+
 set +e
 timeout --signal=TERM --kill-after=20s "${REMAINING}s" \
 python3 - <<'PY' 2>&1 | tee "$ROOT/aqlevon_p4/P4_A1_seed1701_appliance.log"
@@ -297,8 +319,12 @@ raise SystemExit(rc)
 PY
 RC=${PIPESTATUS[0]}
 set -e
+cleanup_diag
+trap - EXIT
 
 echo "AQLEVON_A1_EXIT_CODE=$RC"
+echo "AQLEVON_RUNTIME_RESOURCE_DIAG=$DIAG"
+tail -n 30 "$DIAG" 2>/dev/null || true
 find "$ROOT/aqlevon_p4/runs" -maxdepth 5 -type f -printf '%p %s bytes\\n' 2>/dev/null | tail -n 100 || true
 echo "AQLEVON_APPLIANCE_TOTAL_SCRIPT_SECONDS=$(( $(date +%s) - START_TS ))"
 exit "$RC"
