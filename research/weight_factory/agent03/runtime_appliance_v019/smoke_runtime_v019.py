@@ -70,6 +70,15 @@ def _real_zmq_control_path_check(torch):
         def reset_mm_cache(self):
             self.events.append(("reset_mm_cache",))
             return None
+        def execute_model(self, scheduler_output):
+            self.events.append(("execute_model", scheduler_output))
+            return {"fake":"model_runner_output"}
+        def sample_tokens(self, grammar_output):
+            self.events.append(("sample_tokens", grammar_output))
+            return {"fake":"sample_output"}
+        def list_loras(self):
+            self.events.append(("list_loras",))
+            return {1}
 
     probe=object.__new__(vLLMAsyncRollout)
     probe.inference_engine=_FakeInferenceEngine()
@@ -128,6 +137,9 @@ def _real_zmq_control_path_check(torch):
         assert rpc("compile_or_warm_up_model") == 0.125
         assert rpc("load_model") is None
         assert rpc("reset_mm_cache") is None
+        assert rpc("execute_model", {"fake":"scheduler"}) == {"fake":"model_runner_output"}
+        assert rpc("sample_tokens", {"fake":"grammar"}) == {"fake":"sample_output"}
+        assert rpc("list_loras") == {1}
         assert rpc("sleep", level=2) is None
         assert rpc("wake_up", tags=["weights","kv_cache"]) is None
         assert rpc("ping", 41) == 42
@@ -166,7 +178,7 @@ def _real_zmq_control_path_check(torch):
     required=[
         "init_device","determine_available_memory","get_kv_cache_spec",
         "initialize_from_config","compile_or_warm_up_model","load_model",
-        "reset_mm_cache","sleep","wake_up",
+        "reset_mm_cache","execute_model","sample_tokens","list_loras","sleep","wake_up",
     ]
     for name in required:
         assert name in names, (name,names)
