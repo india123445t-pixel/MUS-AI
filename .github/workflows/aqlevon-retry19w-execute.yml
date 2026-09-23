@@ -1,0 +1,19 @@
+name: AQLEVON Retry19W A40 v019 Smoke Then Train
+
+on:
+  push:
+    branches: [ops/runpod-control-v1]
+    paths:
+      - ".github/runpod-control/execute-retry19w-trigger.json"
+
+permissions:
+  contents: read
+
+jobs:
+  not-armed:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Fail closed until Retry19W binding is installed
+        run: |
+          echo "RETRY19W_NOT_ARMED"
+          exit 92
