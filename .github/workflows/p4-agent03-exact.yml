@@ -256,6 +256,10 @@ jobs:
           assert 'command -v python' in launch
           assert 'ln -sf "$PY3" /usr/local/bin/python' in launch
           assert "AQLEVON_SDPO_PYTHON_LAUNCHER_PASS" in launch
+          assert 'b277b41d3d67be1180b4d0600ab6f533f6dbf7b69163980ef5ecc6f0677195b7' in launch
+          assert '10f333cf453f5896402066d7c483ae170688909ca82a08a0adb1e90766213fcb' in launch
+          assert 'AQLEVON_V019_EFFECTIVE_SCHEDULER_PASS' in launch
+          assert 'max_num_seqs=16' in launch
           assert "python3 /opt/aqlevon/runtime/smoke_runtime_v019.py --build-check" in launch
           assert 'assert gib >= 44.0' in launch
           assert 'assert gib >= 45.0' not in launch
