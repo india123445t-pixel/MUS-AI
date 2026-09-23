@@ -4,7 +4,7 @@ import http from 'node:http';
 import {once} from 'node:events';
 import {checkSelfHostedHealth,generateModelResponse,getSelfHostedRuntimeDescriptor,resolveSelfHostedConfig} from '../lib/aqlevon/providers.js';
 
-const TARGET='Qwen/Qwen3.8-27B-FP8';
+const TARGET='AQLEVON';
 
 function saveEnv(keys){return Object.fromEntries(keys.map(k=>[k,process.env[k]]))}
 function restoreEnv(saved){for(const [k,v] of Object.entries(saved)){if(v===undefined)delete process.env[k];else process.env[k]=v}}
@@ -30,13 +30,12 @@ async function mockEndpoint({chatStatus=200}={}){
   return {server,requests,base:`http://127.0.0.1:${port}`};
 }
 
-test('Qwen sovereign target is selectable through settings or env without provider hard-code',()=>{
+test('AQLEVON sovereign target is selected only from AQLEVON runtime env',()=>{
   const saved=saveEnv(['AQLEVON_MODEL_NAME','AQLEVON_MODEL_URL']);
   try{
     process.env.AQLEVON_MODEL_NAME=TARGET;process.env.AQLEVON_MODEL_URL='http://127.0.0.1:9999/v1';
     assert.equal(resolveSelfHostedConfig({}).model,TARGET);
-    assert.equal(resolveSelfHostedConfig({self_hosted_model:'custom/model'}).model,'custom/model');
-    assert.equal(resolveSelfHostedConfig({self_hosted_url:'http://localhost:8000/v1'}).endpoint,'http://localhost:8000/v1/chat/completions');
+    assert.equal(resolveSelfHostedConfig({}).endpoint,'http://127.0.0.1:9999/v1/chat/completions');
   }finally{restoreEnv(saved)}
 });
 
@@ -50,7 +49,7 @@ test('mock AQLEVON runtime endpoint proves owned request/response without extern
     process.env.AQLEVON_MODEL_KEY='local-test-key';
     globalThis.fetch=async(url,init)=>{
       seen.push(String(url));
-      assert.ok(String(url).startsWith(mock.base),`external provider attempted in self_hosted_only: ${url}`);
+      assert.ok(String(url).startsWith(mock.base),`non-AQLEVON runtime attempted: ${url}`);
       return originalFetch(url,init);
     };
     const result=await generateModelResponse([{role:'user',content:'ping'}],false,{runtime_mode:'self_hosted_only',self_hosted_model:TARGET},{includeDiagnostics:true});
