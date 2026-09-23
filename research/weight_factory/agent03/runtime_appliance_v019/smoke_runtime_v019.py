@@ -26,20 +26,11 @@ def _real_zmq_control_path_check(torch):
         def compute_logits(self, *args, **kwargs):
             return torch.zeros((1, 1, 8), dtype=torch.float32)
 
+    from vllm.v1.worker.worker_base import WorkerWrapperBase
+
     class _FakeWorker:
         def __init__(self):
             self.model_runner=types.SimpleNamespace(model=_FakeModel())
-            self.events=[]
-        def remove_lora(self, lora_id):
-            self.events.append(("remove_lora", lora_id))
-            return False
-        def add_lora(self, request):
-            self.events.append(("add_lora", request))
-            return True
-
-    class _FakeInferenceEngine:
-        def __init__(self):
-            self.worker=_FakeWorker()
             self.events=[]
         def ping(self, x):
             return x + 1
@@ -79,9 +70,27 @@ def _real_zmq_control_path_check(torch):
         def list_loras(self):
             self.events.append(("list_loras",))
             return {1}
+        def remove_lora(self, lora_id):
+            self.events.append(("remove_lora", lora_id))
+            return False
+        def add_lora(self, request):
+            self.events.append(("add_lora", request))
+            return True
+
+    worker=_FakeWorker()
+    engine=WorkerWrapperBase()
+    engine.worker=worker
+    engine.events=worker.events
+    # These wrapper-owned methods require a real VllmConfig/MM cache. For the
+    # CPU-only transport test bind them to the fake worker; all other worker
+    # RPCs intentionally resolve through WorkerWrapperBase.__getattr__.
+    engine.init_device=worker.init_device
+    engine.initialize_from_config=worker.initialize_from_config
+    engine.reset_mm_cache=worker.reset_mm_cache
+    engine.execute_model=worker.execute_model
 
     probe=object.__new__(vLLMAsyncRollout)
-    probe.inference_engine=_FakeInferenceEngine()
+    probe.inference_engine=engine
     probe.tokenizer=list(range(8))
 
     endpoint=f"ipc:///tmp/aqlevon_v019_zmq_{os.getpid()}.ipc"
@@ -171,10 +180,10 @@ def _real_zmq_control_path_check(torch):
     second_weights=iter([("model.layers.3.self_attn.q_proj.lora_A.default.weight", torch.full((1,),2.0))])
     asyncio.run(probe.update_weights(first_weights, peft_config=_PeftProbe(), base_sync_done=True))
     asyncio.run(probe.update_weights(second_weights, peft_config=_PeftProbe(), base_sync_done=True))
-    worker_events=[e[0] for e in probe.inference_engine.worker.events]
+    worker_events=[e[0] for e in worker.events if e[0] in ("remove_lora","add_lora")]
     assert worker_events==["remove_lora","add_lora","remove_lora","add_lora"], worker_events
 
-    names=[e[0] for e in probe.inference_engine.events]
+    names=[e[0] for e in worker.events]
     required=[
         "init_device","determine_available_memory","get_kv_cache_spec",
         "initialize_from_config","compile_or_warm_up_model","load_model",
