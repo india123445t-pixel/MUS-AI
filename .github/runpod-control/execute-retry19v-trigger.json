@@ -1,0 +1,15 @@
+{
+  "authorization_id": "P4-A1-RUNPOD-A40-20260923-19V-VLLM019-FIRST-WAKE-MEMORY-DEDUP-SMOKE-THEN-TRAIN",
+  "authorization_sha256": "0166524652e9e03f7e2354f543d67977e645bae49713bafb034fe99b5659c899",
+  "expected_head": "7e25d1dd295e28a649317cf16b95965bd163845b",
+  "image_digest": "sha256:4ac5eb0afc00a14a1c5fc2970d2034dfcedf67c16bae84a361f0ce88e93a5917",
+  "gpu_type": "NVIDIA A40",
+  "min_memory_gb": 48,
+  "selection_mode": "dynamic_datacenter",
+  "request_schema": "runpodctl_graphql_dynamic_dc",
+  "max_billed_seconds": 3600,
+  "max_total_cost_usd": "0.55",
+  "max_hourly_rate_usd": "0.55",
+  "single_use": true,
+  "attempt_nonce": "retry19v-first-wake-dedup-1"
+}
