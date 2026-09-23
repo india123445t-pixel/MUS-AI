@@ -11,6 +11,7 @@ MODEL=SDPO/"verl/utils/model.py"
 FSDP=SDPO/"verl/workers/fsdp_workers.py"
 VLLM_ASYNC=SDPO/"verl/workers/rollout/vllm_rollout/vllm_async_server.py"
 VLLM_ROLLOUT=SDPO/"verl/workers/rollout/vllm_rollout/vllm_rollout.py"
+AGENT_LOOP=SDPO/"verl/experimental/agent_loop/agent_loop.py"
 VLLM_SPEC=importlib.util.find_spec("vllm")
 VLLM_ROOT=(
     Path(next(iter(VLLM_SPEC.submodule_search_locations)))
@@ -109,6 +110,7 @@ def main() -> int:
     fsdp=FSDP.read_text()
     vllm_async=VLLM_ASYNC.read_text()
     vllm_rollout=VLLM_ROLLOUT.read_text()
+    agent_loop=AGENT_LOOP.read_text()
     vllm_lora_base=VLLM_LORA_BASE.read_text()
     vllm_lora_logits=VLLM_LORA_LOGITS.read_text()
     vllm_lora_manager=VLLM_LORA_MANAGER.read_text()
@@ -145,6 +147,60 @@ def main() -> int:
         )
 
     fsdp = patch_sdpo_first_wake_base_sync_dedup(fsdp)
+
+    if "AQLEVON_QWEN35_TF5_MM_TOKEN_TYPE_IDS" not in agent_loop:
+        old_rope = (
+            '        image_grid_thw = multi_modal_inputs.get("image_grid_thw")\n'
+            '        video_grid_thw = multi_modal_inputs.get("video_grid_thw")\n'
+            '\n'
+            "        # Model's get_rope_index has been dynamically bind to the processor.\n"
+            '        vision_position_ids, _ = self.processor.get_rope_index(\n'
+            '            input_ids=input_ids,\n'
+            '            image_grid_thw=image_grid_thw,\n'
+            '            video_grid_thw=video_grid_thw,\n'
+            '            attention_mask=attention_mask,\n'
+            '        )\n'
+        )
+        new_rope = (
+            '        image_grid_thw = multi_modal_inputs.get("image_grid_thw")\n'
+            '        video_grid_thw = multi_modal_inputs.get("video_grid_thw")\n'
+            '        multi_modal_kwargs = {\n'
+            '            "image_grid_thw": image_grid_thw,\n'
+            '            "video_grid_thw": video_grid_thw,\n'
+            '        }\n'
+            '        # AQLEVON_QWEN35_TF5_MM_TOKEN_TYPE_IDS: Transformers 5.17 Qwen3.5\n'
+            '        # requires mm_token_type_ids for get_rope_index. Mirror current VERL:\n'
+            '        # rebuild modality IDs against the final padded input_ids instead of\n'
+            '        # reusing processor-length tensors that may no longer align.\n'
+            '        if multi_modal_inputs.pop("mm_token_type_ids", None) is not None:\n'
+            '            mm_token_type_ids = torch.zeros_like(input_ids)\n'
+            '            def _processor_token_id(token_name):\n'
+            '                token_id = getattr(self.processor, f"{token_name}_token_id", None)\n'
+            '                if token_id is not None:\n'
+            '                    return int(token_id)\n'
+            '                token = getattr(self.processor, f"{token_name}_token", None)\n'
+            '                tokenizer = getattr(self.processor, "tokenizer", None)\n'
+            '                if token is not None and tokenizer is not None:\n'
+            '                    converted = tokenizer.convert_tokens_to_ids(token)\n'
+            '                    if converted is not None:\n'
+            '                        return int(converted)\n'
+            '                return None\n'
+            '            image_token_id = _processor_token_id("image")\n'
+            '            video_token_id = _processor_token_id("video")\n'
+            '            if image_token_id is not None:\n'
+            '                mm_token_type_ids[0][input_ids[0] == image_token_id] = 1\n'
+            '            if video_token_id is not None:\n'
+            '                mm_token_type_ids[0][input_ids[0] == video_token_id] = 2\n'
+            '            multi_modal_kwargs["mm_token_type_ids"] = mm_token_type_ids\n'
+            '\n'
+            "        # Model's get_rope_index has been dynamically bind to the processor.\n"
+            '        vision_position_ids, _ = self.processor.get_rope_index(\n'
+            '            input_ids=input_ids,\n'
+            '            attention_mask=attention_mask,\n'
+            '            **multi_modal_kwargs,\n'
+            '        )\n'
+        )
+        agent_loop=replace_once(agent_loop, old_rope, new_rope, "qwen35_tf5_mm_token_type_ids")
 
     if "AQLEVON_VLLM019_WORKER_DISPATCH" not in vllm_rollout:
         vllm_rollout=replace_once(
@@ -309,6 +365,7 @@ def main() -> int:
     FSDP.write_text(fsdp)
     VLLM_ASYNC.write_text(vllm_async)
     VLLM_ROLLOUT.write_text(vllm_rollout)
+    AGENT_LOOP.write_text(agent_loop)
     VLLM_LORA_BASE.write_text(vllm_lora_base)
     VLLM_LORA_LOGITS.write_text(vllm_lora_logits)
     VLLM_LORA_MANAGER.write_text(vllm_lora_manager)
@@ -317,6 +374,7 @@ def main() -> int:
     py_compile.compile(str(FSDP),doraise=True)
     py_compile.compile(str(VLLM_ASYNC),doraise=True)
     py_compile.compile(str(VLLM_ROLLOUT),doraise=True)
+    py_compile.compile(str(AGENT_LOOP),doraise=True)
     py_compile.compile(str(VLLM_LORA_BASE),doraise=True)
     py_compile.compile(str(VLLM_LORA_LOGITS),doraise=True)
     py_compile.compile(str(VLLM_LORA_MANAGER),doraise=True)
@@ -330,6 +388,8 @@ def main() -> int:
         raise SystemExit("vllm019_preserve_max_model_len_missing_after_patch")
     if "AQLEVON_VLLM019_WORKER_DISPATCH" not in vllm_rollout:
         raise SystemExit("vllm019_worker_dispatch_missing_after_patch")
+    if "AQLEVON_QWEN35_TF5_MM_TOKEN_TYPE_IDS" not in agent_loop:
+        raise SystemExit("qwen35_tf5_mm_token_type_ids_missing_after_patch")
     if "AQLEVON_VLLM019_LORA_WRAPPER_LOAD_WEIGHTS" not in vllm_lora_base:
         raise SystemExit("vllm019_lora_wrapper_load_weights_missing_after_patch")
     if "AQLEVON_VLLM019_LORA_LOGITS_MAPPING_RESET" not in vllm_lora_logits:
@@ -346,6 +406,7 @@ def main() -> int:
     print("FSDP_SHA256:",sha256(FSDP))
     print("VLLM_ASYNC_SHA256:",sha256(VLLM_ASYNC))
     print("VLLM_ROLLOUT_SHA256:",sha256(VLLM_ROLLOUT))
+    print("AGENT_LOOP_SHA256:",sha256(AGENT_LOOP))
     print("VLLM_LORA_BASE_SHA256:",sha256(VLLM_LORA_BASE))
     print("VLLM_LORA_LOGITS_SHA256:",sha256(VLLM_LORA_LOGITS))
     print("VLLM_LORA_MANAGER_SHA256:",sha256(VLLM_LORA_MANAGER))
