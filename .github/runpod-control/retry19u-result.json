@@ -1,0 +1,22 @@
+{
+  "authorization_id": "P4-A1-RUNPOD-A40-20260923-19U-VLLM019-BOUNDED-SCHEDULER-SMOKE-THEN-TRAIN",
+  "checked_at_utc": "2026-09-23T01:30:30.442391+00:00",
+  "evidence_archive_present": true,
+  "expected_head": "85500c4ffec058b22d876fe029a47c3c6d5b5b63",
+  "image_digest": "sha256:97e5672c03c5d98638fb6d2ac4de59018a1c19e8c0c99fc288e742bf99e35ba6",
+  "log_sha256": "5a67f6b60fb53c8e97cf4885aa5dde0c5ddc09463e76674d8e09bb961bf21f2f",
+  "markers": {
+    "A1_LOCKED_TRAINING_START": true,
+    "APPLIANCE_BINDING_PASS": true,
+    "APPLIANCE_EXACT_AUTHORIZATION_PASS": true,
+    "APPLIANCE_NATIVE_QWEN35_VLLM019_PASS": true,
+    "APPLIANCE_SEED1701_BINDING_PASS": true,
+    "APPLIANCE_SOURCE_DELTA_PASS": true,
+    "AQLEVON_A1_EXIT_CODE": true,
+    "AQLEVON_V019_LORA_SMOKE_PASS": true,
+    "AQLEVON_V019_NATIVE_LORA_FUNCTIONAL_SMOKE_PASS": true,
+    "MODEL_STAGE_PASS": true
+  },
+  "stop_status": "exited",
+  "training_exit_code": 1
+}
