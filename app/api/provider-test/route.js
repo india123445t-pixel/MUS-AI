@@ -15,7 +15,7 @@ export async function GET(req){
 
   if(!['aqlevon','self_hosted','aqlevon-engine'].includes(requested)){
     return NextResponse.json({
-      message:'external provider tests are disabled; AQLEVON sovereign runtime only',
+      message:'AQLEVON runtime only',
       provider:requested,
       external_provider_routing:false
     },{status:410});
