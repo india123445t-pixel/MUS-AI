@@ -197,8 +197,78 @@ def _real_zmq_control_path_check(torch):
     return True
 
 
+
+def _cpu_fsdp_peft_explicit_state_check(torch):
+    """Exercise PEFT 0.21 explicit state_dict extraction through a real FSDP wrapper."""
+    import os
+    import tempfile
+    import torch.distributed as dist
+    from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
+    from peft import LoraConfig, get_peft_model
+    from peft.utils.save_and_load import get_peft_model_state_dict
+
+    class _TinyQv(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.q_proj=torch.nn.Linear(8,8,bias=False)
+            self.v_proj=torch.nn.Linear(8,8,bias=False)
+        def forward(self,x):
+            return self.v_proj(self.q_proj(x))
+
+    created_pg=False
+    tmp_path=None
+    try:
+        if not dist.is_initialized():
+            fd,tmp_path=tempfile.mkstemp(prefix="aqlevon-fsdp-peft-")
+            os.close(fd)
+            os.unlink(tmp_path)
+            dist.init_process_group(
+                "gloo",
+                init_method="file://"+tmp_path,
+                rank=0,
+                world_size=1,
+            )
+            created_pg=True
+        peft_model=get_peft_model(
+            _TinyQv(),
+            LoraConfig(
+                r=2,
+                lora_alpha=2,
+                target_modules=["q_proj","v_proj"],
+                bias="none",
+            ),
+        )
+        fsdp=FSDP(
+            peft_model,
+            device_id=torch.device("cpu"),
+            use_orig_params=False,
+        )
+        inner=fsdp._fsdp_wrapped_module
+        with FSDP.summon_full_params(fsdp,writeback=False):
+            full_state=fsdp.state_dict()
+            explicit=get_peft_model_state_dict(inner,state_dict=full_state)
+        keys=sorted(explicit)
+        a=[k for k in keys if ".lora_A." in k]
+        b=[k for k in keys if ".lora_B." in k]
+        assert len(keys)==4, keys
+        assert len(a)==2 and len(b)==2, keys
+        print(
+            "AQLEVON_CPU_FSDP_PEFT_EXPLICIT_STATE_PASS "
+            f"count={len(keys)} A={len(a)} B={len(b)} keys={keys}",
+            flush=True,
+        )
+        return True
+    finally:
+        if created_pg and dist.is_initialized():
+            dist.destroy_process_group()
+        if tmp_path and os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+
+
+
 def build_check():
     import torch, vllm, ray, transformers, peft, accelerate, flash_attn, numpy as np
+    assert _cpu_fsdp_peft_explicit_state_check(torch) is True
     assert vllm.__version__.split("+")[0] == "0.19.1", vllm.__version__
     assert transformers.__version__ == "5.17.0", transformers.__version__
     assert peft.__version__ == "0.21.0", peft.__version__
@@ -507,6 +577,7 @@ def build_check():
       "sdpo_tensor_lora_replace_path":"pass",
       "sdpo_sleep_wake_path":"pass",
       "sdpo_second_wake_lora_sync_guard":"pass",
+      "cpu_fsdp_peft_explicit_state":"pass",
       "vllm019_level2_lora_backport":"pass",
       "qwen35_tf5_rope_mm_token_type_ids":"pass",
       "reward_optimizer_mock":"pass",
