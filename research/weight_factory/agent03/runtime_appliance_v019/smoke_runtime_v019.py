@@ -234,8 +234,12 @@ def build_check():
     load_params=inspect.signature(GPUWorker.load_model).parameters
     assert "load_dummy_weights" in load_params
     assert load_params["load_dummy_weights"].default is False
-    for name in ("determine_available_memory","get_kv_cache_spec","initialize_from_config","compile_or_warm_up_model","load_model"):
-        assert hasattr(WorkerWrapperBase, name), name
+    # WorkerWrapperBase intentionally delegates most worker RPCs through __getattr__.
+    # Gate the methods on the real GPU Worker, and gate wrapper-owned lifecycle separately.
+    assert hasattr(WorkerWrapperBase, "__getattr__")
+    assert hasattr(WorkerWrapperBase, "initialize_from_config")
+    for name in ("determine_available_memory","get_kv_cache_spec","compile_or_warm_up_model","load_model"):
+        assert hasattr(GPUWorker, name), name
     from vllm.v1.engine.async_llm import AsyncLLM
     generate_params=inspect.signature(AsyncLLM.generate).parameters
     for name in ("prompt","sampling_params","request_id","lora_request","priority"):
