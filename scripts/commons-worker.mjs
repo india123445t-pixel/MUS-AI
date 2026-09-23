@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 const COMMONS_URL=process.env.AQLEVON_COMMONS_URL||'https://qkoscgdegnqcypkjrefn.supabase.co/functions/v1/aqlevon-commons';
 const WORKER_TOKEN=process.env.AQLEVON_COMMONS_WORKER_TOKEN||'';
-const MODEL_URL=(process.env.AQLEVON_MODEL_URL||process.env.LOCAL_MODEL_URL||'http://127.0.0.1:8080').replace(/\/$/,'');
-const MODEL_KEY=process.env.AQLEVON_MODEL_KEY||process.env.LOCAL_MODEL_KEY||'';
+const MODEL_URL=String(process.env.AQLEVON_MODEL_URL||'').replace(/\/$/,'');
+const MODEL_KEY=process.env.AQLEVON_MODEL_KEY||'';
 const MODEL_NAME=process.env.AQLEVON_MODEL_NAME||'AQLEVON-27B';
 const POLL_MS=Math.max(500,Number(process.env.AQLEVON_COMMONS_POLL_MS||1500));
 const ONCE=process.env.AQLEVON_COMMONS_ONCE==='1';
