@@ -156,7 +156,7 @@ test('benchmark evaluation and owner core stay bound to AQLEVON runtime',()=>{
   assert.match(evalRoute,/runtime_mode:'self_hosted_only'/);
   assert.match(ownerCoreChat,/allow_paid_external:false/);
   assert.match(ownerCoreChat,/public_web_search_enabled:false/);
-  assert.match(en,/no external AI provider is required/);
+  assert.match(en,/AQLEVON is the sole model runtime/);
   assert.match(ar,/وليس إضافة مزود خارجي/);
 });
 test('public runtime never silently falls back to the legacy Supabase project',()=>{
