@@ -238,10 +238,19 @@ def _cpu_fsdp_peft_explicit_state_check(torch):
                 bias="none",
             ),
         )
+        # Match pinned SDPO's production LoRA FSDP wrapping: trainable LoRA
+        # leaf modules are auto-wrapped separately from the frozen base.
+        from verl.utils.fsdp_utils import get_fsdp_wrap_policy
+        auto_wrap_policy=get_fsdp_wrap_policy(
+            module=peft_model,
+            config={},
+            is_lora=True,
+        )
         fsdp=FSDP(
             peft_model,
             device_id=torch.device("cpu"),
             use_orig_params=False,
+            auto_wrap_policy=auto_wrap_policy,
         )
         inner=fsdp._fsdp_wrapped_module
         with FSDP.summon_full_params(fsdp,writeback=False):
