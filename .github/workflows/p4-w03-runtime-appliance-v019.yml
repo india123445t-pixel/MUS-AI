@@ -61,6 +61,8 @@ jobs:
           assert "AQLEVON_VLLM019_LORA_MANAGER_MAPPING_RESET" in patch
           assert "AQLEVON_VLLM019_RESET_LORA_STATE" in patch
           assert "AQLEVON_VLLM019_RESET_AFTER_DIRECT_BASE_LOAD" in patch
+          assert "AQLEVON_QWEN35_TF5_MM_TOKEN_TYPE_IDS" in patch
+          assert "AQLEVON_QWEN35_TF5_ROPE_MM_TOKEN_TYPE_IDS_PASS" in smoke
           assert "sdpo_vllm019_worker_dispatch" in smoke
           assert "sdpo_preserves_explicit_max_model_len" in smoke
           assert "vllm019_level2_lora_backport" in smoke
