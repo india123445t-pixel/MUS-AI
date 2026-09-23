@@ -391,6 +391,43 @@ def build_check():
     assert direct_events==["base_load","reset_lora_state"], direct_events
     print("AQLEVON_V019_LEVEL2_LORA_BACKPORT_CPU_PASS")
 
+    # Reproduce Retry19V's exact Qwen3.5/Transformers 5.17 RoPE boundary.
+    # The old pinned SDPO call omitted mm_token_type_ids and raised TypeError.
+    from verl.experimental.agent_loop.agent_loop import AgentLoopWorker
+    class _FakeTokenizer:
+        def convert_tokens_to_ids(self, token):
+            return {"<image>":901,"<video>":902}.get(token)
+    class _StrictQwen35Processor:
+        image_token="<image>"
+        video_token="<video>"
+        tokenizer=_FakeTokenizer()
+        def get_rope_index(
+            self,
+            input_ids,
+            mm_token_type_ids,
+            image_grid_thw=None,
+            video_grid_thw=None,
+            attention_mask=None,
+            **kwargs,
+        ):
+            assert mm_token_type_ids is not None
+            assert mm_token_type_ids.shape == input_ids.shape
+            assert mm_token_type_ids.dtype == input_ids.dtype
+            assert mm_token_type_ids[0,1].item() == 1
+            assert mm_token_type_ids[0,3].item() == 2
+            seq=input_ids.shape[1]
+            pos=torch.arange(seq,dtype=input_ids.dtype).view(1,1,seq).expand(3,input_ids.shape[0],seq)
+            return pos, torch.zeros((input_ids.shape[0],1),dtype=input_ids.dtype)
+    rope_probe=object.__new__(AgentLoopWorker)
+    rope_probe.processor=_StrictQwen35Processor()
+    rope_input=torch.tensor([[10,901,11,902,12]],dtype=torch.long)
+    rope_mask=torch.ones_like(rope_input)
+    rope_mmi={"mm_token_type_ids":torch.zeros_like(rope_input)}
+    rope_pos=rope_probe._compute_position_ids(rope_input,rope_mask,rope_mmi)
+    assert rope_pos.shape == (1,4,5), rope_pos.shape
+    assert "mm_token_type_ids" not in rope_mmi
+    print("AQLEVON_QWEN35_TF5_ROPE_MM_TOKEN_TYPE_IDS_PASS")
+
     # Zero-GPU mock of the first objective-reward -> optimizer boundary.
     # This is not a training substitute; it only proves the pinned runtime can
     # produce a finite objective score and execute one finite AdamW update on
@@ -456,6 +493,7 @@ def build_check():
       "sdpo_tensor_lora_replace_path":"pass",
       "sdpo_sleep_wake_path":"pass",
       "vllm019_level2_lora_backport":"pass",
+      "qwen35_tf5_rope_mm_token_type_ids":"pass",
       "reward_optimizer_mock":"pass",
     }
 
