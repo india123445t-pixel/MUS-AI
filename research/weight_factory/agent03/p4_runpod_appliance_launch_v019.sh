@@ -284,9 +284,21 @@ DIAG="$ROOT/aqlevon_p4/runtime_resource_diag.tsv"
   echo -e "utc\tcgroup_current\tcgroup_peak\tcgroup_events\tmem_available_kb\tgpu_used_mib\tgpu_free_mib\tworker_rss_kb"
   while true; do
     ts="$(date -u +%FT%TZ)"
-    cur="$(cat /sys/fs/cgroup/memory.current 2>/dev/null || echo NA)"
-    peak="$(cat /sys/fs/cgroup/memory.peak 2>/dev/null || echo NA)"
-    events="$(tr '\n' ',' < /sys/fs/cgroup/memory.events 2>/dev/null || echo NA)"
+    if [ -r /sys/fs/cgroup/memory.events ]; then
+      cur="$(cat /sys/fs/cgroup/memory.current 2>/dev/null || echo NA)"
+      peak="$(cat /sys/fs/cgroup/memory.peak 2>/dev/null || echo NA)"
+      events="cgroup_v2,$(tr '\n' ',' < /sys/fs/cgroup/memory.events 2>/dev/null)"
+    elif [ -r /sys/fs/cgroup/memory/memory.usage_in_bytes ]; then
+      cur="$(cat /sys/fs/cgroup/memory/memory.usage_in_bytes 2>/dev/null || echo NA)"
+      peak="$(cat /sys/fs/cgroup/memory/memory.max_usage_in_bytes 2>/dev/null || echo NA)"
+      failcnt="$(cat /sys/fs/cgroup/memory/memory.failcnt 2>/dev/null || echo NA)"
+      oomctl="$(tr '\n' ',' < /sys/fs/cgroup/memory/memory.oom_control 2>/dev/null || true)"
+      events="cgroup_v1,failcnt $failcnt,$oomctl"
+    else
+      cur=NA
+      peak=NA
+      events="cgroup_unknown"
+    fi
     avail="$(awk '/MemAvailable:/ {print $2}' /proc/meminfo 2>/dev/null || echo NA)"
     gpu="$(nvidia-smi --query-gpu=memory.used,memory.free --format=csv,noheader,nounits 2>/dev/null | head -n1 | tr -d ' ' || echo NA,NA)"
     used="${gpu%%,*}"; free="${gpu#*,}"
