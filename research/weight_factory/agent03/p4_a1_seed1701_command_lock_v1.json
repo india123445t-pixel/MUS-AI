@@ -4,7 +4,7 @@
   "hash_profile": "AQLEVON_CANONICAL_JSON_SHA256_V1",
   "task_id": "P4-A03-GENE1-PHYSICAL-TRAINER",
   "training_plan_sha256": "3cd6e0bada2535a80f83f400f45f5d0fdc5ad8d938f42757785335959f331095",
-  "run_manifest_sha256": "303c70a13ac533681d7afe5d89afdf38fefb7ba75de6f7678230890c948d6777",
+  "run_manifest_sha256": "b277b41d3d67be1180b4d0600ab6f533f6dbf7b69163980ef5ecc6f0677195b7",
   "arm_id": "P4_A1_RLVR_CONTROL",
   "seed": 1701,
   "profile": "p4-surrogate-1x24",
@@ -50,6 +50,7 @@
     "actor_rollout_ref.rollout.tensor_model_parallel_size=1",
     "actor_rollout_ref.rollout.max_model_len=4096",
     "actor_rollout_ref.rollout.max_num_batched_tokens=4096",
+    "actor_rollout_ref.rollout.max_num_seqs=16",
     "actor_rollout_ref.rollout.gpu_memory_utilization=0.25",
     "algorithm.rollout_correction.rollout_is=token",
     "custom_reward_function.path=/workspace/MUS-AI/research/weight_factory/agent03/p4_aqlevon_reward.py",
@@ -69,8 +70,8 @@
     "trainer.default_local_dir=/workspace/aqlevon_p4/runs/P4_A1_RLVR_CONTROL_seed1701/checkpoints",
     "trainer.max_actor_ckpt_to_keep=1"
   ],
-  "command_sha256": "85af2e24f88d21558328d0bf2ae11d928ba6c7de77bde8e81c3010a7122c00cd",
+  "command_sha256": "2502bb06398b6500a282b41bc6c5f23eb20c717d3798cbf280ce8bca242a0862",
   "automatic_fallback": false,
   "g1_rerun": false,
-  "lock_sha256": "b769ff9552282f47d76b6b61651281e2b9483adeecc1173c53b760236de5b7f4"
+  "lock_sha256": "10f333cf453f5896402066d7c483ae170688909ca82a08a0adb1e90766213fcb"
 }
