@@ -1,5 +1,301 @@
 {
-  "container_logs": [],
+  "container_logs": [
+    {
+      "line": "Server listening on 0.0.0.0 port 22.",
+      "source": "container",
+      "ts": "2026-09-23T22:03:25.087490948Z"
+    },
+    {
+      "line": "Server listening on :: port 22.",
+      "source": "container",
+      "ts": "2026-09-23T22:03:25.087554952Z"
+    },
+    {
+      "line": "Accepted publickey for root from 135.119.38.208 port 39936 ssh2: ED25519 SHA256:2OxROTNJ/zZ/JqvGEwToiL99/DRsqn9CmxaxkfbxQfA",
+      "source": "container",
+      "ts": "2026-09-23T22:03:34.659914921Z"
+    },
+    {
+      "line": "Received disconnect from 135.119.38.208 port 39936:11: disconnected by user",
+      "source": "container",
+      "ts": "2026-09-23T22:03:35.206453944Z"
+    },
+    {
+      "line": "Disconnected from user root 135.119.38.208 port 39936",
+      "source": "container",
+      "ts": "2026-09-23T22:03:35.206788965Z"
+    },
+    {
+      "line": "Accepted publickey for root from 135.119.38.208 port 39937 ssh2: ED25519 SHA256:2OxROTNJ/zZ/JqvGEwToiL99/DRsqn9CmxaxkfbxQfA",
+      "source": "container",
+      "ts": "2026-09-23T22:03:35.636232654Z"
+    },
+    {
+      "line": "Received disconnect from 135.119.38.208 port 39937:11: disconnected by user",
+      "source": "container",
+      "ts": "2026-09-23T22:03:35.891340869Z"
+    },
+    {
+      "line": "Disconnected from user root 135.119.38.208 port 39937",
+      "source": "container",
+      "ts": "2026-09-23T22:03:35.891651084Z"
+    },
+    {
+      "line": "Accepted publickey for root from 135.119.38.208 port 39938 ssh2: ED25519 SHA256:2OxROTNJ/zZ/JqvGEwToiL99/DRsqn9CmxaxkfbxQfA",
+      "source": "container",
+      "ts": "2026-09-23T22:03:36.347410762Z"
+    },
+    {
+      "line": "Received disconnect from 135.119.38.208 port 39938:11: disconnected by user",
+      "source": "container",
+      "ts": "2026-09-23T22:03:36.565036768Z"
+    },
+    {
+      "line": "Disconnected from user root 135.119.38.208 port 39938",
+      "source": "container",
+      "ts": "2026-09-23T22:03:36.565251918Z"
+    },
+    {
+      "line": "Accepted publickey for root from 135.119.38.208 port 39939 ssh2: ED25519 SHA256:2OxROTNJ/zZ/JqvGEwToiL99/DRsqn9CmxaxkfbxQfA",
+      "source": "container",
+      "ts": "2026-09-23T22:03:37.074241945Z"
+    },
+    {
+      "line": "Received disconnect from 135.119.38.208 port 39939:11: disconnected by user",
+      "source": "container",
+      "ts": "2026-09-23T22:03:37.612479045Z"
+    },
+    {
+      "line": "Disconnected from user root 135.119.38.208 port 39939",
+      "source": "container",
+      "ts": "2026-09-23T22:03:37.612667505Z"
+    },
+    {
+      "line": "Accepted publickey for root from 135.119.38.208 port 39940 ssh2: ED25519 SHA256:2OxROTNJ/zZ/JqvGEwToiL99/DRsqn9CmxaxkfbxQfA",
+      "source": "container",
+      "ts": "2026-09-23T22:03:38.009056951Z"
+    },
+    {
+      "line": "Received disconnect from 135.119.38.208 port 39940:11: disconnected by user",
+      "source": "container",
+      "ts": "2026-09-23T22:03:38.175355102Z"
+    },
+    {
+      "line": "Disconnected from user root 135.119.38.208 port 39940",
+      "source": "container",
+      "ts": "2026-09-23T22:03:38.175596611Z"
+    },
+    {
+      "line": "Accepted publickey for root from 135.119.38.208 port 39941 ssh2: ED25519 SHA256:2OxROTNJ/zZ/JqvGEwToiL99/DRsqn9CmxaxkfbxQfA",
+      "source": "container",
+      "ts": "2026-09-23T22:03:38.610577995Z"
+    },
+    {
+      "line": "Received disconnect from 135.119.38.208 port 39941:11: disconnected by user",
+      "source": "container",
+      "ts": "2026-09-23T22:03:38.783744994Z"
+    },
+    {
+      "line": "Disconnected from user root 135.119.38.208 port 39941",
+      "source": "container",
+      "ts": "2026-09-23T22:03:38.784054326Z"
+    },
+    {
+      "line": "Accepted publickey for root from 135.119.38.208 port 39942 ssh2: ED25519 SHA256:2OxROTNJ/zZ/JqvGEwToiL99/DRsqn9CmxaxkfbxQfA",
+      "source": "container",
+      "ts": "2026-09-23T22:03:39.178243027Z"
+    },
+    {
+      "line": "Received disconnect from 135.119.38.208 port 39942:11: disconnected by user",
+      "source": "container",
+      "ts": "2026-09-23T22:03:39.344753874Z"
+    },
+    {
+      "line": "Disconnected from user root 135.119.38.208 port 39942",
+      "source": "container",
+      "ts": "2026-09-23T22:03:39.344991356Z"
+    },
+    {
+      "line": "Accepted publickey for root from 135.119.38.208 port 39937 ssh2: ED25519 SHA256:2OxROTNJ/zZ/JqvGEwToiL99/DRsqn9CmxaxkfbxQfA",
+      "source": "container",
+      "ts": "2026-09-23T22:03:54.765377146Z"
+    },
+    {
+      "line": "Received disconnect from 135.119.38.208 port 39937:11: disconnected by user",
+      "source": "container",
+      "ts": "2026-09-23T22:03:54.945209360Z"
+    },
+    {
+      "line": "Disconnected from user root 135.119.38.208 port 39937",
+      "source": "container",
+      "ts": "2026-09-23T22:03:54.945440895Z"
+    },
+    {
+      "line": "Accepted publickey for root from 135.119.38.208 port 39939 ssh2: ED25519 SHA256:2OxROTNJ/zZ/JqvGEwToiL99/DRsqn9CmxaxkfbxQfA",
+      "source": "container",
+      "ts": "2026-09-23T22:03:55.445594269Z"
+    },
+    {
+      "line": "Received disconnect from 135.119.38.208 port 39939:11: disconnected by user",
+      "source": "container",
+      "ts": "2026-09-23T22:03:55.657769009Z"
+    },
+    {
+      "line": "Disconnected from user root 135.119.38.208 port 39939",
+      "source": "container",
+      "ts": "2026-09-23T22:03:55.658044764Z"
+    },
+    {
+      "line": "Accepted publickey for root from 135.119.38.208 port 39937 ssh2: ED25519 SHA256:2OxROTNJ/zZ/JqvGEwToiL99/DRsqn9CmxaxkfbxQfA",
+      "source": "container",
+      "ts": "2026-09-23T22:04:11.067902273Z"
+    },
+    {
+      "line": "Received disconnect from 135.119.38.208 port 39937:11: disconnected by user",
+      "source": "container",
+      "ts": "2026-09-23T22:04:11.249237717Z"
+    },
+    {
+      "line": "Disconnected from user root 135.119.38.208 port 39937",
+      "source": "container",
+      "ts": "2026-09-23T22:04:11.249555883Z"
+    },
+    {
+      "line": "Accepted publickey for root from 135.119.38.208 port 39939 ssh2: ED25519 SHA256:2OxROTNJ/zZ/JqvGEwToiL99/DRsqn9CmxaxkfbxQfA",
+      "source": "container",
+      "ts": "2026-09-23T22:04:11.744074415Z"
+    },
+    {
+      "line": "Received disconnect from 135.119.38.208 port 39939:11: disconnected by user",
+      "source": "container",
+      "ts": "2026-09-23T22:04:11.959527713Z"
+    },
+    {
+      "line": "Disconnected from user root 135.119.38.208 port 39939",
+      "source": "container",
+      "ts": "2026-09-23T22:04:11.959865249Z"
+    },
+    {
+      "line": "Accepted publickey for root from 135.119.38.208 port 39939 ssh2: ED25519 SHA256:2OxROTNJ/zZ/JqvGEwToiL99/DRsqn9CmxaxkfbxQfA",
+      "source": "container",
+      "ts": "2026-09-23T22:04:27.458305793Z"
+    },
+    {
+      "line": "Received disconnect from 135.119.38.208 port 39939:11: disconnected by user",
+      "source": "container",
+      "ts": "2026-09-23T22:04:27.669636651Z"
+    },
+    {
+      "line": "Disconnected from user root 135.119.38.208 port 39939",
+      "source": "container",
+      "ts": "2026-09-23T22:04:27.669828677Z"
+    },
+    {
+      "line": "Accepted publickey for root from 135.119.38.208 port 39941 ssh2: ED25519 SHA256:2OxROTNJ/zZ/JqvGEwToiL99/DRsqn9CmxaxkfbxQfA",
+      "source": "container",
+      "ts": "2026-09-23T22:04:28.095154550Z"
+    },
+    {
+      "line": "Received disconnect from 135.119.38.208 port 39941:11: disconnected by user",
+      "source": "container",
+      "ts": "2026-09-23T22:04:28.271761397Z"
+    },
+    {
+      "line": "Disconnected from user root 135.119.38.208 port 39941",
+      "source": "container",
+      "ts": "2026-09-23T22:04:28.272009659Z"
+    },
+    {
+      "line": "Accepted publickey for root from 135.119.38.208 port 39939 ssh2: ED25519 SHA256:2OxROTNJ/zZ/JqvGEwToiL99/DRsqn9CmxaxkfbxQfA",
+      "source": "container",
+      "ts": "2026-09-23T22:04:43.800069855Z"
+    },
+    {
+      "line": "Received disconnect from 135.119.38.208 port 39939:11: disconnected by user",
+      "source": "container",
+      "ts": "2026-09-23T22:04:44.010824508Z"
+    },
+    {
+      "line": "Disconnected from user root 135.119.38.208 port 39939",
+      "source": "container",
+      "ts": "2026-09-23T22:04:44.011254600Z"
+    },
+    {
+      "line": "Accepted publickey for root from 135.119.38.208 port 39941 ssh2: ED25519 SHA256:2OxROTNJ/zZ/JqvGEwToiL99/DRsqn9CmxaxkfbxQfA",
+      "source": "container",
+      "ts": "2026-09-23T22:04:44.419154265Z"
+    },
+    {
+      "line": "Received disconnect from 135.119.38.208 port 39941:11: disconnected by user",
+      "source": "container",
+      "ts": "2026-09-23T22:04:44.594550949Z"
+    },
+    {
+      "line": "Disconnected from user root 135.119.38.208 port 39941",
+      "source": "container",
+      "ts": "2026-09-23T22:04:44.594845239Z"
+    },
+    {
+      "line": "Accepted publickey for root from 135.119.38.208 port 39941 ssh2: ED25519 SHA256:2OxROTNJ/zZ/JqvGEwToiL99/DRsqn9CmxaxkfbxQfA",
+      "source": "container",
+      "ts": "2026-09-23T22:05:00.010732166Z"
+    },
+    {
+      "line": "Received disconnect from 135.119.38.208 port 39941:11: disconnected by user",
+      "source": "container",
+      "ts": "2026-09-23T22:05:00.179786909Z"
+    },
+    {
+      "line": "Disconnected from user root 135.119.38.208 port 39941",
+      "source": "container",
+      "ts": "2026-09-23T22:05:00.180135140Z"
+    },
+    {
+      "line": "Accepted publickey for root from 135.119.38.208 port 39943 ssh2: ED25519 SHA256:2OxROTNJ/zZ/JqvGEwToiL99/DRsqn9CmxaxkfbxQfA",
+      "source": "container",
+      "ts": "2026-09-23T22:05:00.582587731Z"
+    },
+    {
+      "line": "Received disconnect from 135.119.38.208 port 39943:11: disconnected by user",
+      "source": "container",
+      "ts": "2026-09-23T22:05:00.746684209Z"
+    },
+    {
+      "line": "Disconnected from user root 135.119.38.208 port 39943",
+      "source": "container",
+      "ts": "2026-09-23T22:05:00.747000032Z"
+    },
+    {
+      "line": "Accepted publickey for root from 135.119.38.208 port 39941 ssh2: ED25519 SHA256:2OxROTNJ/zZ/JqvGEwToiL99/DRsqn9CmxaxkfbxQfA",
+      "source": "container",
+      "ts": "2026-09-23T22:05:16.180191584Z"
+    },
+    {
+      "line": "Received disconnect from 135.119.38.208 port 39941:11: disconnected by user",
+      "source": "container",
+      "ts": "2026-09-23T22:05:16.348726189Z"
+    },
+    {
+      "line": "Disconnected from user root 135.119.38.208 port 39941",
+      "source": "container",
+      "ts": "2026-09-23T22:05:16.348880343Z"
+    },
+    {
+      "line": "Accepted publickey for root from 135.119.38.208 port 39943 ssh2: ED25519 SHA256:2OxROTNJ/zZ/JqvGEwToiL99/DRsqn9CmxaxkfbxQfA",
+      "source": "container",
+      "ts": "2026-09-23T22:05:16.738019278Z"
+    },
+    {
+      "line": "Received disconnect from 135.119.38.208 port 39943:11: disconnected by user",
+      "source": "container",
+      "ts": "2026-09-23T22:05:16.902070095Z"
+    },
+    {
+      "line": "Disconnected from user root 135.119.38.208 port 39943",
+      "source": "container",
+      "ts": "2026-09-23T22:05:16.902347476Z"
+    }
+  ],
   "graphql": {
     "container": null,
     "costPerHr": null,
@@ -12,8 +308,10 @@
     "desiredStatus": "RUNNING",
     "id": "de0xyagqodd2gw",
     "name": "AQLEVON-P4-A1-Retry19V",
-    "portMappings": null,
-    "publicIp": false
+    "portMappings": {
+      "22": 22128
+    },
+    "publicIp": true
   },
   "runpodctl": {
     "containerDiskInGb": 40,
@@ -33,17 +331,24 @@
     "ports": [
       "22/tcp"
     ],
-    "runtimeStatus": "initializing",
-    "runtimeStatusReason": "awaiting_container",
+    "runtimeStatus": "running",
     "ssh": {
-      "error": "pod not ready: no container reported yet (image pull, container create or boot)",
       "id": "de0xyagqodd2gw",
+      "ip": "69.30.85.4",
       "name": "AQLEVON-P4-A1-Retry19V",
-      "status": "RUNNING"
+      "port": 22128,
+      "setup": "runpodctl doctor",
+      "ssh_command": "ssh root@69.30.85.4 -p 22128",
+      "ssh_key": {
+        "exists": false,
+        "path": "/home/runner/.runpod/ssh/runpodctl-ssh-key",
+        "source": "runpodctl doctor"
+      }
     },
+    "uptimeSeconds": 90,
     "vcpuCount": 9,
     "volumeInGb": 20,
     "volumeMountPath": "/workspace"
   },
-  "stderr": "{\"error\":\"timed out waiting for the log stream to respond. the api sends nothing until it has a line, so this can also mean no logs match --since/--source, or the pod has not started writing yet\",\"code\":\"timeout\"}\n"
+  "stderr": ""
 }
