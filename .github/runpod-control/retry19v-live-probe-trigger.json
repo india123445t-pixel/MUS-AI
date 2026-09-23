@@ -1,0 +1,6 @@
+{
+  "target": "Retry19V",
+  "pod_id": "de0xyagqodd2gw",
+  "nonce": "live-1",
+  "purpose": "observe Retry19V boot and execution non-destructively"
+}
