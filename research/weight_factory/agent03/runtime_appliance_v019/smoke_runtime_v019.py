@@ -276,6 +276,38 @@ def build_check():
 
     assert _real_zmq_control_path_check(torch) is True
 
+    # Zero-GPU mock of the first objective-reward -> optimizer boundary.
+    # This is not a training substitute; it only proves the pinned runtime can
+    # produce a finite objective score and execute one finite AdamW update on
+    # rank-4 LoRA-shaped parameters at the frozen learning rate.
+    import p4_aqlevon_reward as aq_reward
+    gt=json.dumps({
+        "initial_state":{"x":1},
+        "oracle_program":[{"op":"increment","key":"x","by":2}],
+    })
+    rr=aq_reward.compute_score(
+        solution_str='[{"op":"increment","key":"x","by":2}]',
+        ground_truth=gt,
+    )
+    assert rr["score"] == 1.0 and rr["feedback"] == "", rr
+    torch.manual_seed(1701)
+    lora_a=torch.nn.Parameter(torch.full((4,8),0.01,dtype=torch.float32))
+    lora_b=torch.nn.Parameter(torch.zeros((8,4),dtype=torch.float32))
+    opt=torch.optim.AdamW([lora_a,lora_b],lr=1e-5)
+    x=torch.arange(8,dtype=torch.float32)/8.0
+    pred=(lora_b @ (lora_a @ x)).mean()
+    loss=(pred-torch.tensor(rr["score"],dtype=torch.float32)).pow(2)
+    assert torch.isfinite(loss), loss
+    before=lora_b.detach().clone()
+    opt.zero_grad(set_to_none=True)
+    loss.backward()
+    assert lora_a.grad is not None and torch.isfinite(lora_a.grad).all()
+    assert lora_b.grad is not None and torch.isfinite(lora_b.grad).all()
+    opt.step()
+    assert torch.isfinite(lora_a).all() and torch.isfinite(lora_b).all()
+    assert not torch.equal(before,lora_b.detach())
+    print("AQLEVON_V019_REWARD_OPTIMIZER_MOCK_PASS",float(loss.detach()))
+
     from verl.utils.groupwise import as_torch_index, group_mean_std
     idx=as_torch_index(np.array([10.0,10.0,20.0,20.0],dtype=np.float64),device="cpu")
     mean,std,count=group_mean_std(torch.tensor([1.0,3.0,2.0,4.0]),idx,device="cpu")
@@ -308,6 +340,7 @@ def build_check():
       "vllm019_post_init_api_signatures":"pass",
       "sdpo_tensor_lora_replace_path":"pass",
       "sdpo_sleep_wake_path":"pass",
+      "reward_optimizer_mock":"pass",
     }
 
 def main():
