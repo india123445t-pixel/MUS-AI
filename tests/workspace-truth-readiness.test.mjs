@@ -142,7 +142,9 @@ test('AQLEVON public chat cannot silently reactivate external-key routing',()=>{
   assert.match(providerTestRoute,/external provider tests are disabled/);
   assert.match(providerTestRoute,/runtime_mode:'self_hosted_only'/);
   assert.doesNotMatch(providerTestRoute,/api\.groq\.com|generativelanguage\.googleapis\.com|api\.mistral\.ai/);
-  assert.match(providers,/Sovereign guarantee: self_hosted_only never evaluates tryExternal/);
+  assert.match(providers,/AQLEVON_CHAT_RUNTIME_PROTOCOL/);
+  assert.doesNotMatch(providers,/OPENROUTER_API_KEY|GROQ_API_KEY|GEMINI_API_KEY|MISTRAL_API_KEY|CEREBRAS_API_KEY|HF_TOKEN/);
+  assert.doesNotMatch(providers,/openRouter\(|groq\(|gemini\(|mistral\(|cerebras\(|huggingFace\(/);
 });
 
 
