@@ -229,6 +229,7 @@ def build_check():
     assert issubclass(TensorLoRARequest, __import__("vllm.lora.request",fromlist=["LoRARequest"]).LoRARequest)
 
     # Gate exact vLLM 0.19.1 APIs used after init_device by pinned SDPO.
+    from vllm.v1.worker.worker_base import WorkerWrapperBase
     from vllm.v1.worker.gpu_worker import Worker as GPUWorker
     load_params=inspect.signature(GPUWorker.load_model).parameters
     assert "load_dummy_weights" in load_params
@@ -247,7 +248,6 @@ def build_check():
     # vLLM 0.19 removed WorkerWrapperBase.execute_method. Verify AQLEVON's
     # SDPO bridge dispatches strings and serialized callables through the same
     # vllm.v1.serial_utils.run_method primitive used by UniProcExecutor.
-    from vllm.v1.worker.worker_base import WorkerWrapperBase
     from verl.workers.rollout.vllm_rollout.vllm_rollout import vLLMAsyncRollout
     assert not hasattr(WorkerWrapperBase, "execute_method")
     class _DispatchProbe:
