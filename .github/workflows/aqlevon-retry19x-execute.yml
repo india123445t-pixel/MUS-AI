@@ -318,7 +318,7 @@ jobs:
           scp -q "${scp_opts[@]}" /tmp/retry19x-bootstrap.sh root@$host:/tmp/retry19x-bootstrap.sh
 
           ssh "${ssh_opts[@]}" root@$host "export AQLEVON_EXPECTED_W03_HEAD='$EXPECTED_HEAD' AQLEVON_EXPECTED_IMAGE_DIGEST='$IMAGE_DIGEST'; nohup setsid bash /tmp/retry19x-bootstrap.sh >/workspace/aqlevon_retry19x-supervisor.log 2>&1 < /dev/null & echo \$! >/workspace/aqlevon_retry19x-supervisor.pid"
-          echo "AQLEVON_RETRY19W_DURABLE_REMOTE_START_PASS"
+          echo "AQLEVON_RETRY19X_DURABLE_REMOTE_START_PASS"
 
           # Poll for at most 45 minutes. Transient SSH failures do not kill or duplicate the remote job.
           finished=0
@@ -339,7 +339,7 @@ jobs:
           done
 
           if [ "$finished" -ne 1 ]; then
-            echo "FAIL_CLOSED_RETRY19W_RUNTIME_CEILING"
+            echo "FAIL_CLOSED_RETRY19X_RUNTIME_CEILING"
             rc=124
           elif [ -z "${rc:-}" ]; then
             rc="$(ssh "${ssh_opts[@]}" root@$host 'cat /workspace/aqlevon_retry19x.rc' 2>/dev/null | tail -n1)"
@@ -361,6 +361,7 @@ jobs:
           required=[
             'AQLEVON_SDPO_FIRST_WAKE_BASE_SNAPSHOT_REUSED',
             'AQLEVON_SDPO_FIRST_WAKE_DUPLICATE_BASE_LOAD_SKIPPED',
+            'AQLEVON_SDPO_LORA_STATE_EXTRACTED count=32 A=16 B=16',
             'AQLEVON_TENSOR_LORA_SYNC_PASS count=32 A=16 B=16',
           ]
           missing=[m for m in required if m not in log]
@@ -397,7 +398,7 @@ jobs:
           if bad:
               print('FAIL_CLOSED_CGROUP_OOM_NONZERO',bad)
               sys.exit(95)
-          print('AQLEVON_RETRY19W_FIRST_WAKE_EVIDENCE_PASS')
+          print('AQLEVON_RETRY19X_SECOND_WAKE_EVIDENCE_PASS')
           PY
           evidence_rc=$?
           if [ "$evidence_rc" -ne 0 ] && [ "$rc" -eq 0 ]; then rc="$evidence_rc"; fi
@@ -461,6 +462,7 @@ jobs:
             'A1_LOCKED_TRAINING_START',
             'AQLEVON_SDPO_FIRST_WAKE_BASE_SNAPSHOT_REUSED',
             'AQLEVON_SDPO_FIRST_WAKE_DUPLICATE_BASE_LOAD_SKIPPED',
+            'AQLEVON_SDPO_LORA_STATE_EXTRACTED count=32 A=16 B=16',
             'AQLEVON_TENSOR_LORA_SYNC_PASS count=32 A=16 B=16',
             'AQLEVON_A1_EXIT_CODE'
           ]}
@@ -512,5 +514,5 @@ jobs:
           rc="${STEP_RC:-}"
           if ! [[ "$rc" =~ ^[0-9]+$ ]] && [ -s /tmp/train_rc ]; then rc="$(cat /tmp/train_rc)"; fi
           if ! [[ "$rc" =~ ^[0-9]+$ ]]; then echo "::error::Retry19X training exit code missing"; exit 255; fi
-          echo "AQLEVON_RETRY19W_TRUE_EXIT_CODE=$rc"
+          echo "AQLEVON_RETRY19X_TRUE_EXIT_CODE=$rc"
           test "$rc" -eq 0 || exit "$rc"
