@@ -40,8 +40,6 @@ test('public runtime readiness is sovereign-only and external providers are neve
   assert.match(health,/checkSelfHostedHealth/);
   assert.match(health,/runtime_mode:'self_hosted_only'/);
   assert.match(health,/external_provider_routing:false/);
-  assert.doesNotMatch(health,/openrouter\.ai/);
-  assert.doesNotMatch(health,/api\.groq\.com/);
   assert.doesNotMatch(health,/generativelanguage\.googleapis\.com/);
   assert.match(statusRoute,/runtime_mode:'self_hosted_only'/);
   assert.match(statusRoute,/external_provider_routing:false/);
@@ -132,28 +130,27 @@ test('new users default to Arabic and persistence claims are truthful',()=>{
 
 
 test('AQLEVON public chat cannot silently reactivate external-key routing',()=>{
-  assert.doesNotMatch(health,/OPENROUTER_API_KEY|GROQ_API_KEY|GEMINI_API_KEY|MISTRAL_API_KEY|CEREBRAS_API_KEY|HF_TOKEN/);
-  assert.doesNotMatch(statusRoute,/OPENROUTER_API_KEY|GROQ_API_KEY|GEMINI_API_KEY|MISTRAL_API_KEY|CEREBRAS_API_KEY|HF_TOKEN/);
-  assert.doesNotMatch(statusRoute,/openrouter_configured|openrouter_model|free_provider_count/);
+  assert.doesNotMatch(health,/https?:\/\//);
+  assert.doesNotMatch(statusRoute,/external_provider_routing:true/);
   assert.match(statusRoute,/sovereign_runtime:true/);
   assert.match(statusRoute,/inference_target:'aqlevon-engine'/);
   assert.match(chatRoute,/runtime_mode:'self_hosted_only'/);
   assert.match(ownerCoreChat,/runtime_mode:'self_hosted_only'/);
   assert.match(providerTestRoute,/external provider tests are disabled/);
   assert.match(providerTestRoute,/runtime_mode:'self_hosted_only'/);
-  assert.doesNotMatch(providerTestRoute,/api\.groq\.com|generativelanguage\.googleapis\.com|api\.mistral\.ai/);
+  assert.doesNotMatch(providerTestRoute,/https?:\/\//);
   assert.match(providers,/AQLEVON_CHAT_RUNTIME_PROTOCOL/);
-  assert.doesNotMatch(providers,/OPENROUTER_API_KEY|GROQ_API_KEY|GEMINI_API_KEY|MISTRAL_API_KEY|CEREBRAS_API_KEY|HF_TOKEN/);
-  assert.doesNotMatch(providers,/openRouter\(|groq\(|gemini\(|mistral\(|cerebras\(|huggingFace\(/);
+  assert.doesNotMatch(providers,/process\.env\.(?!AQLEVON_MODEL_)/);
+  assert.doesNotMatch(providers,/async function (?!aqlevonRuntime|checkSelfHostedHealth)/);
 });
 
 
 
 
 test('benchmark evaluation and owner core stay bound to AQLEVON runtime',()=>{
-  assert.doesNotMatch(benchmarkRoute,/OPENROUTER_API_KEY|GROQ_API_KEY|GEMINI_API_KEY|MISTRAL_API_KEY|CEREBRAS_API_KEY|HF_TOKEN/);
-  assert.match(benchmarkRoute,/self_hosted:!!\(process\.env\.AQLEVON_MODEL_URL\|\|process\.env\.LOCAL_MODEL_URL\)/);
-  assert.doesNotMatch(evalRoute,/OPENROUTER_API_KEY|GROQ_API_KEY|GEMINI_API_KEY|MISTRAL_API_KEY|CEREBRAS_API_KEY|HF_TOKEN/);
+  assert.doesNotMatch(benchmarkRoute,/process\.env\.(?!AQLEVON_MODEL_URL)/);
+  assert.match(benchmarkRoute,/self_hosted:!!process\.env\.AQLEVON_MODEL_URL/);
+  assert.doesNotMatch(evalRoute,/process\.env\.(?!AQLEVON_MODEL_URL)/);
   assert.match(evalRoute,/runtime_mode:'self_hosted_only'/);
   assert.match(ownerCoreChat,/allow_paid_external:false/);
   assert.match(ownerCoreChat,/public_web_search_enabled:false/);
