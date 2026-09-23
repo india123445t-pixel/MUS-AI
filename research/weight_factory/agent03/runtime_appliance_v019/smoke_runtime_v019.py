@@ -278,6 +278,112 @@ def build_check():
 
     assert _real_zmq_control_path_check(torch) is True
 
+    # CPU-only regression for upstream vLLM PR #39935 semantics adapted to
+    # v0.19.1: LoRA wrapper checkpoint delegation + stale-state invalidation.
+    from vllm.lora.layers.base import BaseLayerWithLoRA
+    from vllm.lora.layers.logits_processor import LogitsProcessorWithLoRA
+    from vllm.lora.model_manager import LoRAModelManager
+    from vllm.v1.worker.lora_model_runner_mixin import LoRAModelRunnerMixin
+
+    class _DelegatingBase(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.weight=torch.nn.Parameter(torch.zeros(2))
+            self.calls=[]
+        def load_weights(self, weights):
+            loaded=set()
+            for name,value in weights:
+                self.calls.append(name)
+                assert name=="weight", name
+                with torch.no_grad():
+                    self.weight.copy_(value)
+                loaded.add(name)
+            return loaded
+
+    wrapped=BaseLayerWithLoRA()
+    wrapped.base_layer=_DelegatingBase()
+    loaded=wrapped.load_weights(iter([("weight",torch.tensor([3.0,4.0]))]))
+    assert loaded=={"weight"}, loaded
+    assert wrapped.base_layer.calls==["weight"]
+    assert torch.equal(wrapped.base_layer.weight.detach(),torch.tensor([3.0,4.0]))
+
+    # AutoWeightsLoader fallback when wrapped base layer has no custom loader.
+    fallback=BaseLayerWithLoRA()
+    fallback.base_layer=torch.nn.Linear(2,1,bias=False)
+    loaded=fallback.load_weights(iter([("weight",torch.tensor([[5.0,6.0]]))]))
+    assert "weight" in set(loaded), loaded
+    assert torch.equal(
+        fallback.base_layer.weight.detach(),
+        torch.tensor([[5.0,6.0]],dtype=fallback.base_layer.weight.dtype),
+    )
+
+    fake_mgr=types.SimpleNamespace(
+        _registered_adapters={1:"adapter"},
+        lora_index_to_id=[1],
+        lora_slots=1,
+        _active_adapters={1:None},
+        _last_mapping="stale",
+    )
+    LoRAModelManager.remove_all_adapters(fake_mgr)
+    assert fake_mgr._registered_adapters=={}
+    assert fake_mgr._active_adapters=={}
+    assert fake_mgr.lora_index_to_id==[None]
+    assert fake_mgr._last_mapping is None
+
+    lp=object.__new__(LogitsProcessorWithLoRA)
+    torch.nn.Module.__init__(lp)
+    lp.sharded_to_full_mapping=[1,0]
+    lp.sharded_to_full_mapping_gpu=torch.tensor([-1,-1],dtype=torch.long)
+    class _ResetRunner(LoRAModelRunnerMixin):
+        def __init__(self):
+            self.lora_config=object()
+            self.reset_calls=0
+            outer=self
+            class _Mgr:
+                def remove_all_adapters(self):
+                    outer.reset_calls += 1
+            self.lora_manager=_Mgr()
+            self._model=torch.nn.Module()
+            self._model.add_module("lp",lp)
+        def get_model(self):
+            return self._model
+    rr=_ResetRunner()
+    rr.reset_lora_state()
+    assert rr.reset_calls==1
+    assert lp.sharded_to_full_mapping_gpu.tolist()==[1,0]
+
+    # Gate the exact pinned-SDPO direct-load ordering: base load must complete,
+    # then LoRA state is invalidated, before any tensor adapter add.
+    class _DirectLoadModel(torch.nn.Module):
+        def __init__(self,events):
+            super().__init__()
+            self.events=events
+            self.model=types.SimpleNamespace(layers=[])
+        def load_weights(self,weights):
+            self.events.append("base_load")
+            list(weights)
+            return {"weight"}
+    direct_events=[]
+    direct_model=_DirectLoadModel(direct_events)
+    direct_runner=types.SimpleNamespace(
+        model=direct_model,
+        vllm_config=types.SimpleNamespace(quant_config=None),
+        reset_lora_state=lambda: direct_events.append("reset_lora_state"),
+    )
+    direct_worker=types.SimpleNamespace(model_runner=direct_runner)
+    direct_engine=types.SimpleNamespace(worker=direct_worker)
+    direct_probe=object.__new__(vLLMAsyncRollout)
+    direct_probe.inference_engine=direct_engine
+    asyncio.run(
+        direct_probe.update_weights(
+            iter([("weight",torch.ones(1))]),
+            peft_config=None,
+            base_sync_done=False,
+        )
+    )
+    assert direct_events==["base_load","reset_lora_state"], direct_events
+    print("AQLEVON_V019_LEVEL2_LORA_BACKPORT_CPU_PASS")
+
     # Zero-GPU mock of the first objective-reward -> optimizer boundary.
     # This is not a training substitute; it only proves the pinned runtime can
     # produce a finite objective score and execute one finite AdamW update on
@@ -342,6 +448,7 @@ def build_check():
       "vllm019_post_init_api_signatures":"pass",
       "sdpo_tensor_lora_replace_path":"pass",
       "sdpo_sleep_wake_path":"pass",
+      "vllm019_level2_lora_backport":"pass",
       "reward_optimizer_mock":"pass",
     }
 
