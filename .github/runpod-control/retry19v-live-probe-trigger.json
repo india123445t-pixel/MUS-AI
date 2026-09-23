@@ -1,6 +1,6 @@
 {
   "target": "Retry19V",
   "pod_id": "de0xyagqodd2gw",
-  "nonce": "live-3",
-  "purpose": "observe Retry19V GPU/runtime while durable training is active"
+  "nonce": "live-4",
+  "purpose": "confirm Retry19V pod remains running during durable execution"
 }
