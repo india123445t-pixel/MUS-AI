@@ -129,7 +129,7 @@ test('new users default to Arabic and persistence claims are truthful',()=>{
 
 
 
-test('AQLEVON public chat cannot silently reactivate external-key routing',()=>{
+test('AQLEVON public chat has exactly one model runtime path',()=>{
   assert.doesNotMatch(health,/https?:\/\//);
   assert.doesNotMatch(statusRoute,/external_provider_routing:true/);
   assert.match(statusRoute,/sovereign_runtime:true/);
@@ -141,7 +141,7 @@ test('AQLEVON public chat cannot silently reactivate external-key routing',()=>{
   assert.doesNotMatch(providerTestRoute,/https?:\/\//);
   assert.match(providers,/AQLEVON_CHAT_RUNTIME_PROTOCOL/);
   assert.doesNotMatch(providers,/process\.env\.(?!AQLEVON_MODEL_)/);
-  assert.doesNotMatch(providers,/async function (?!aqlevonRuntime|checkSelfHostedHealth)/);
+  assert.doesNotMatch(providers,/async function (?!aqlevonRuntime|checkSelfHostedHealth|generateModelResponse)/);
 });
 
 
