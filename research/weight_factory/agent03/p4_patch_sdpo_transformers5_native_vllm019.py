@@ -9,6 +9,8 @@ SDPO=Path("/opt/aqlevon/runtime/SDPO")
 EXPECTED_COMMIT="7c457fc1b1f636ae794eb0362ba37d4743b06fbc"
 MODEL=SDPO/"verl/utils/model.py"
 FSDP=SDPO/"verl/workers/fsdp_workers.py"
+FSDP_UTILS=SDPO/"verl/utils/fsdp_utils.py"
+VLLM_UTILS=SDPO/"verl/utils/vllm/utils.py"
 VLLM_ASYNC=SDPO/"verl/workers/rollout/vllm_rollout/vllm_async_server.py"
 VLLM_ROLLOUT=SDPO/"verl/workers/rollout/vllm_rollout/vllm_rollout.py"
 AGENT_LOOP=SDPO/"verl/experimental/agent_loop/agent_loop.py"
@@ -98,6 +100,134 @@ def patch_sdpo_first_wake_base_sync_dedup(text: str) -> str:
     text = replace_once(text, old_lora_update, new_lora_update, "sdpo_first_wake_duplicate_load")
     return text
 
+
+def patch_sdpo_lora_state_sync(text: str) -> str:
+    """Make FSDP LoRA export explicit and fail closed on the frozen 16-target contract.
+
+    Retry19W reached optimizer step 1, then its second wake constructed a
+    TensorLoRARequest that vLLM reduced to an empty LoRA model. With FSDP1
+    use_orig_params=False, inferencing PEFT state from the unwrapped model can
+    bypass the FSDP state-dict path. Gather the full FSDP state dict inside the
+    summon context and pass it explicitly to PEFT, then require exactly A+B for
+    all 16 frozen q/v targets.
+    """
+    marker="AQLEVON_SDPO_FSDP_EXPLICIT_LORA_STATE"
+    if marker in text:
+        return text
+    old=(
+        "                if base_sync_done:\n"
+        "                    lora_params = get_peft_model_state_dict(peft_model)\n"
+        "                    lora_params = {\n"
+        "                        name: param.full_tensor().detach().cpu()\n"
+        "                        if hasattr(param, \"full_tensor\")\n"
+        "                        else param.detach().cpu()\n"
+        "                        for name, param in lora_params.items()\n"
+        "                    }\n"
+    )
+    new=(
+        "                if base_sync_done:\n"
+        "                    # AQLEVON_SDPO_FSDP_EXPLICIT_LORA_STATE: PEFT documents that\n"
+        "                    # callers may supply an accelerator-produced state_dict. Use\n"
+        "                    # the FSDP root state dict while full params are summoned rather\n"
+        "                    # than asking the unwrapped PEFT model to infer one itself.\n"
+        "                    full_state_dict = module.state_dict()\n"
+        "                    raw_lora_keys = sorted(k for k in full_state_dict if \"lora_\" in k)\n"
+        "                    lora_params = get_peft_model_state_dict(\n"
+        "                        peft_model, state_dict=full_state_dict\n"
+        "                    )\n"
+        "                    expected_lora_tensors = 32  # 16 frozen targets × (A,B)\n"
+        "                    if len(lora_params) != expected_lora_tensors:\n"
+        "                        raise RuntimeError(\n"
+        "                            \"AQLEVON_FSDP_LORA_STATE_COUNT:\"\n"
+        "                            f\"peft={len(lora_params)}:raw={len(raw_lora_keys)}:\"\n"
+        "                            f\"expected_{expected_lora_tensors}:\"\n"
+        "                            f\"raw_sample={raw_lora_keys[:8]}\"\n"
+        "                        )\n"
+        "                    a_count = sum(\".lora_A.\" in k for k in lora_params)\n"
+        "                    b_count = sum(\".lora_B.\" in k for k in lora_params)\n"
+        "                    if (a_count, b_count) != (16, 16):\n"
+        "                        raise RuntimeError(\n"
+        "                            f\"AQLEVON_FSDP_LORA_AB_COUNT:A={a_count}:B={b_count}:expected_16_16\"\n"
+        "                        )\n"
+        "                    print(\n"
+        "                        f\"AQLEVON_SDPO_LORA_STATE_EXTRACTED count={len(lora_params)} A={a_count} B={b_count}\",\n"
+        "                        flush=True,\n"
+        "                    )\n"
+        "                    lora_params = {\n"
+        "                        name: param.full_tensor().detach().cpu()\n"
+        "                        if hasattr(param, \"full_tensor\")\n"
+        "                        else param.detach().cpu()\n"
+        "                        for name, param in lora_params.items()\n"
+        "                    }\n"
+    )
+    return replace_once(text, old, new, "sdpo_fsdp_explicit_lora_state")
+
+
+def patch_sdpo_tensor_lora_sender(text: str) -> str:
+    marker="AQLEVON_TENSOR_LORA_SYNC_COUNT"
+    if marker in text:
+        return text
+    old=(
+        "            weights = dict(weights)\n"
+        "            lora_request = TensorLoRARequest(\n"
+    )
+    new=(
+        "            weights = dict(weights)\n"
+        "            # AQLEVON_TENSOR_LORA_SYNC_COUNT: fail before vLLM if FSDP/PEFT\n"
+        "            # extraction or key conversion lost any frozen adapter tensor.\n"
+        "            expected_lora_tensors = 32\n"
+        "            if len(weights) != expected_lora_tensors:\n"
+        "                raise RuntimeError(\n"
+        "                    f\"AQLEVON_TENSOR_LORA_SYNC_COUNT:{len(weights)}:expected_{expected_lora_tensors}:\"\n"
+        "                    f\"sample={sorted(weights)[:8]}\"\n"
+        "                )\n"
+        "            a_count = sum(\".lora_A.\" in k for k in weights)\n"
+        "            b_count = sum(\".lora_B.\" in k for k in weights)\n"
+        "            if (a_count, b_count) != (16, 16):\n"
+        "                raise RuntimeError(\n"
+        "                    f\"AQLEVON_TENSOR_LORA_AB_COUNT:A={a_count}:B={b_count}:expected_16_16\"\n"
+        "                )\n"
+        "            print(\n"
+        "                f\"AQLEVON_TENSOR_LORA_SYNC_PASS count={len(weights)} A={a_count} B={b_count}\",\n"
+        "                flush=True,\n"
+        "            )\n"
+        "            lora_request = TensorLoRARequest(\n"
+    )
+    return replace_once(text, old, new, "sdpo_tensor_lora_sender_count")
+
+
+def patch_sdpo_tensor_lora_loader(text: str) -> str:
+    marker="AQLEVON_TENSOR_LORA_LOADER_NONEMPTY"
+    if marker in text:
+        return text
+    old=(
+        "                if isinstance(lora_request, TensorLoRARequest):\n"
+        "                    lora = self._lora_model_cls.from_lora_tensors(\n"
+        "                        tensors=lora_tensors,\n"
+        "                        **lora_request_kwargs,\n"
+        "                    )\n"
+        "                else:\n"
+    )
+    new=(
+        "                if isinstance(lora_request, TensorLoRARequest):\n"
+        "                    lora = self._lora_model_cls.from_lora_tensors(\n"
+        "                        tensors=lora_tensors,\n"
+        "                        **lora_request_kwargs,\n"
+        "                    )\n"
+        "                    # AQLEVON_TENSOR_LORA_LOADER_NONEMPTY: Retry19W exposed\n"
+        "                    # vLLM's later StopIteration when zero modules survive mapping.\n"
+        "                    mapped = getattr(lora, \"loras\", None)\n"
+        "                    if not mapped:\n"
+        "                        raise RuntimeError(\n"
+        "                            \"AQLEVON_TENSOR_LORA_MAPPING_EMPTY:\"\n"
+        "                            f\"input_count={len(lora_tensors or {})}:\"\n"
+        "                            f\"sample={sorted((lora_tensors or {}).keys())[:8]}\"\n"
+        "                        )\n"
+        "                else:\n"
+    )
+    return replace_once(text, old, new, "sdpo_tensor_lora_loader_nonempty")
+
+
 def main() -> int:
     if VLLM_SPEC is None or VLLM_ROOT is None:
         raise SystemExit("vllm_package_not_found")
@@ -108,6 +238,8 @@ def main() -> int:
 
     model=MODEL.read_text()
     fsdp=FSDP.read_text()
+    fsdp_utils=FSDP_UTILS.read_text()
+    vllm_utils=VLLM_UTILS.read_text()
     vllm_async=VLLM_ASYNC.read_text()
     vllm_rollout=VLLM_ROLLOUT.read_text()
     agent_loop=AGENT_LOOP.read_text()
@@ -147,6 +279,9 @@ def main() -> int:
         )
 
     fsdp = patch_sdpo_first_wake_base_sync_dedup(fsdp)
+    fsdp_utils = patch_sdpo_lora_state_sync(fsdp_utils)
+    vllm_rollout = patch_sdpo_tensor_lora_sender(vllm_rollout)
+    vllm_utils = patch_sdpo_tensor_lora_loader(vllm_utils)
 
     if "AQLEVON_QWEN35_TF5_MM_TOKEN_TYPE_IDS" not in agent_loop:
         old_rope = (
@@ -360,9 +495,17 @@ def main() -> int:
 
     if "AQLEVON_SDPO_FIRST_WAKE_BASE_SYNC_DEDUP" not in fsdp:
         raise SystemExit("sdpo_first_wake_base_sync_dedup_missing_after_patch")
+    if "AQLEVON_SDPO_FSDP_EXPLICIT_LORA_STATE" not in fsdp_utils:
+        raise SystemExit("sdpo_fsdp_explicit_lora_state_missing_after_patch")
+    if "AQLEVON_TENSOR_LORA_SYNC_COUNT" not in vllm_rollout:
+        raise SystemExit("tensor_lora_sender_count_missing_after_patch")
+    if "AQLEVON_TENSOR_LORA_LOADER_NONEMPTY" not in vllm_utils:
+        raise SystemExit("tensor_lora_loader_nonempty_missing_after_patch")
 
     MODEL.write_text(model)
     FSDP.write_text(fsdp)
+    FSDP_UTILS.write_text(fsdp_utils)
+    VLLM_UTILS.write_text(vllm_utils)
     VLLM_ASYNC.write_text(vllm_async)
     VLLM_ROLLOUT.write_text(vllm_rollout)
     AGENT_LOOP.write_text(agent_loop)
@@ -372,6 +515,8 @@ def main() -> int:
     VLLM_LORA_RUNNER.write_text(vllm_lora_runner)
     py_compile.compile(str(MODEL),doraise=True)
     py_compile.compile(str(FSDP),doraise=True)
+    py_compile.compile(str(FSDP_UTILS),doraise=True)
+    py_compile.compile(str(VLLM_UTILS),doraise=True)
     py_compile.compile(str(VLLM_ASYNC),doraise=True)
     py_compile.compile(str(VLLM_ROLLOUT),doraise=True)
     py_compile.compile(str(AGENT_LOOP),doraise=True)
@@ -404,6 +549,8 @@ def main() -> int:
     print("AQLEVON_SDPO_TF5_NATIVE_VLLM019_PATCH_PASS")
     print("MODEL_SHA256:",sha256(MODEL))
     print("FSDP_SHA256:",sha256(FSDP))
+    print("FSDP_UTILS_SHA256:",sha256(FSDP_UTILS))
+    print("VLLM_UTILS_SHA256:",sha256(VLLM_UTILS))
     print("VLLM_ASYNC_SHA256:",sha256(VLLM_ASYNC))
     print("VLLM_ROLLOUT_SHA256:",sha256(VLLM_ROLLOUT))
     print("AGENT_LOOP_SHA256:",sha256(AGENT_LOOP))
