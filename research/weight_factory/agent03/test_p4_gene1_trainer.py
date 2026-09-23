@@ -11,6 +11,7 @@ from pathlib import Path
 
 import p4_aqlevon_reward as reward
 import p4_gene1_trainer as c
+import p4_patch_sdpo_transformers5_native_vllm019 as native_vllm_patch
 import p4_patch_sdpo_transformers5_compat as compat
 import p4_sft_surrogate as sft
 import p4_surrogate_tournament as tour
@@ -448,6 +449,109 @@ class VllmLoraCompatPatchTests(unittest.TestCase):
         once = compat.patch_vllm_lora_manager(self._source())
         twice = compat.patch_vllm_lora_manager(once)
         self.assertEqual(once, twice)
+
+
+class SdpoFirstWakeMemoryPatchTests(unittest.TestCase):
+    def _source(self):
+        import textwrap
+
+        method = '''async def rollout_mode(self):
+    peft_config = object()
+    params = collect_lora_params(
+        module=self.actor_module_fsdp,
+        layered_summon=self.config.rollout.get("layered_summon", False),
+        base_sync_done=self.base_sync_done,
+    )
+    if not self.base_sync_done:
+        params = {replace_lora_wrapper(k, peft_config): v for k, v in params.items()}
+    params = convert_weight_keys(params, self.actor_module_fsdp)
+    per_tensor_param = params.items()
+    if peft_config is not None and getattr(self.rollout, "sleep_level", None) == 2:
+        base_model_params = collect_lora_params(
+            module=self.actor_module_fsdp,
+            layered_summon=self.layered_summon,
+            base_sync_done=False,
+        )
+        base_model_params = {replace_lora_wrapper(k, peft_config): v for k, v in base_model_params.items()}
+        base_model_params = convert_weight_keys(
+            base_model_params, getattr(self.actor_module_fsdp, "_fsdp_wrapped_module", self.actor_module_fsdp)
+        )
+    if peft_config is not None and getattr(self.rollout, "sleep_level", None) == 2:
+        per_tensor_base_params = base_model_params.items()
+        await self.rollout.update_weights(per_tensor_base_params, base_sync_done=False)
+        del base_model_params, per_tensor_base_params
+    await self.rollout.update_weights(per_tensor_param, peft_config=peft_config, base_sync_done=self.base_sync_done)
+    self.base_sync_done = True
+'''
+        return "class _Fixture:\n" + textwrap.indent(method, "    ")
+
+    def test_initial_level2_sync_reuses_one_snapshot_and_loads_once(self):
+        import asyncio
+        import types
+
+        patched = native_vllm_patch.patch_sdpo_first_wake_base_sync_dedup(self._source())
+        self.assertIn("AQLEVON_SDPO_FIRST_WAKE_BASE_SYNC_DEDUP", patched)
+        self.assertEqual(
+            patched,
+            native_vllm_patch.patch_sdpo_first_wake_base_sync_dedup(patched),
+        )
+
+        namespace = {"collect_lora_params": None}
+        collect_calls = []
+
+        def collect_lora_params(*, module, layered_summon, base_sync_done):
+            collect_calls.append(base_sync_done)
+            return {"base" if not base_sync_done else "lora": len(collect_calls)}
+
+        class _Logger:
+            @staticmethod
+            def info_once(*args, **kwargs):
+                pass
+
+        class _Rollout:
+            sleep_level = 2
+
+            def __init__(self):
+                self.updates = []
+
+            async def update_weights(self, weights, **kwargs):
+                self.updates.append((dict(weights), kwargs))
+
+        namespace.update({
+            "collect_lora_params": collect_lora_params,
+            "replace_lora_wrapper": lambda name, peft: name,
+            "convert_weight_keys": lambda params, module: params,
+            "logger": _Logger,
+        })
+        exec(patched, namespace)
+
+        class _Worker:
+            def __init__(self):
+                self.actor_module_fsdp = object()
+                self.config = types.SimpleNamespace(rollout={"layered_summon": False})
+                self.layered_summon = False
+                self.rollout = _Rollout()
+                self.base_sync_done = False
+
+            rollout_mode = namespace["_Fixture"].rollout_mode
+
+        worker = _Worker()
+        asyncio.run(worker.rollout_mode())
+        self.assertEqual(collect_calls, [False], "first level-2 wake must collect the full base only once")
+        self.assertEqual(len(worker.rollout.updates), 1, "first wake must issue one direct base load")
+        self.assertEqual(worker.rollout.updates[0], ({"base": 1}, {"base_sync_done": False}))
+
+        # On subsequent cycles, collect fresh LoRA params and one separate base
+        # snapshot, then perform the expected base update followed by LoRA add.
+        worker.base_sync_done = True
+        worker.rollout.updates.clear()
+        asyncio.run(worker.rollout_mode())
+        self.assertEqual(collect_calls, [False, True, False])
+        self.assertEqual(len(worker.rollout.updates), 2)
+        self.assertEqual(worker.rollout.updates[0], ({"base": 3}, {"base_sync_done": False}))
+        self.assertEqual(worker.rollout.updates[1][0], {"lora": 2})
+        self.assertIsNotNone(worker.rollout.updates[1][1]["peft_config"])
+        self.assertTrue(worker.rollout.updates[1][1]["base_sync_done"])
 
 
 class VllmTransformersMmMappingPatchTests(unittest.TestCase):

@@ -12,13 +12,15 @@ FSDP=SDPO/"verl/workers/fsdp_workers.py"
 VLLM_ASYNC=SDPO/"verl/workers/rollout/vllm_rollout/vllm_async_server.py"
 VLLM_ROLLOUT=SDPO/"verl/workers/rollout/vllm_rollout/vllm_rollout.py"
 VLLM_SPEC=importlib.util.find_spec("vllm")
-if VLLM_SPEC is None or not VLLM_SPEC.submodule_search_locations:
-    raise SystemExit("vllm_package_not_found")
-VLLM_ROOT=Path(next(iter(VLLM_SPEC.submodule_search_locations)))
-VLLM_LORA_BASE=VLLM_ROOT/"lora/layers/base.py"
-VLLM_LORA_LOGITS=VLLM_ROOT/"lora/layers/logits_processor.py"
-VLLM_LORA_MANAGER=VLLM_ROOT/"lora/model_manager.py"
-VLLM_LORA_RUNNER=VLLM_ROOT/"v1/worker/lora_model_runner_mixin.py"
+VLLM_ROOT=(
+    Path(next(iter(VLLM_SPEC.submodule_search_locations)))
+    if VLLM_SPEC is not None and VLLM_SPEC.submodule_search_locations
+    else None
+)
+VLLM_LORA_BASE=VLLM_ROOT/"lora/layers/base.py" if VLLM_ROOT else None
+VLLM_LORA_LOGITS=VLLM_ROOT/"lora/layers/logits_processor.py" if VLLM_ROOT else None
+VLLM_LORA_MANAGER=VLLM_ROOT/"lora/model_manager.py" if VLLM_ROOT else None
+VLLM_LORA_RUNNER=VLLM_ROOT/"v1/worker/lora_model_runner_mixin.py" if VLLM_ROOT else None
 
 def sha256(p: Path) -> str:
     return hashlib.sha256(p.read_bytes()).hexdigest()
@@ -29,7 +31,76 @@ def replace_once(text: str, old: str, new: str, label: str) -> str:
         raise SystemExit(f"{label}:expected_once:found_{n}")
     return text.replace(old,new,1)
 
+
+def patch_sdpo_first_wake_base_sync_dedup(text: str) -> str:
+    """Reuse the initial full-base snapshot and avoid loading it twice.
+
+    At base_sync_done=False the earlier `params` collection is already the
+    full base model. The sleep_level=2 branch used to collect the same full
+    model again and then send both snapshots to the same direct load_weights
+    path. Keep one snapshot and one load on the first wake; later cycles still
+    collect/reload base weights separately from the LoRA-only `params`.
+    """
+    marker = "AQLEVON_SDPO_FIRST_WAKE_BASE_SYNC_DEDUP"
+    if marker in text:
+        return text
+
+    old_base_collection = (
+        '        if peft_config is not None and getattr(self.rollout, "sleep_level", None) == 2:\n'
+        "            base_model_params = collect_lora_params(\n"
+        "                module=self.actor_module_fsdp,\n"
+        "                layered_summon=self.layered_summon,\n"
+        "                base_sync_done=False,\n"
+        "            )\n"
+        "            base_model_params = {replace_lora_wrapper(k, peft_config): v for k, v in base_model_params.items()}\n"
+        "            base_model_params = convert_weight_keys(\n"
+        "                base_model_params, getattr(self.actor_module_fsdp, \"_fsdp_wrapped_module\", self.actor_module_fsdp)\n"
+        "            )\n"
+    )
+    new_base_collection = (
+        '        # AQLEVON_SDPO_FIRST_WAKE_BASE_SYNC_DEDUP\n'
+        '        first_level2_base_sync = (\n'
+        '            peft_config is not None\n'
+        '            and getattr(self.rollout, "sleep_level", None) == 2\n'
+        '            and not self.base_sync_done\n'
+        '        )\n'
+        '        if peft_config is not None and getattr(self.rollout, "sleep_level", None) == 2:\n'
+        '            if first_level2_base_sync:\n'
+        '                # `params` is already the full base snapshot on the first sync.\n'
+        '                # Reuse it instead of gathering a second full model copy.\n'
+        '                base_model_params = params\n'
+        '                logger.info_once("AQLEVON_SDPO_FIRST_WAKE_BASE_SNAPSHOT_REUSED", scope="local")\n'
+        '            else:\n'
+                '                base_model_params = collect_lora_params(\n'
+                '                    module=self.actor_module_fsdp,\n'
+                '                    layered_summon=self.layered_summon,\n'
+        '                    base_sync_done=False,\n'
+        '                )\n'
+        '                base_model_params = {replace_lora_wrapper(k, peft_config): v for k, v in base_model_params.items()}\n'
+        '                base_model_params = convert_weight_keys(\n'
+        '                    base_model_params, getattr(self.actor_module_fsdp, "_fsdp_wrapped_module", self.actor_module_fsdp)\n'
+        '                )\n'
+    )
+    text = replace_once(text, old_base_collection, new_base_collection, "sdpo_first_wake_base_snapshot")
+
+    old_lora_update = (
+        "        await self.rollout.update_weights(per_tensor_param, peft_config=peft_config, base_sync_done=self.base_sync_done)\n"
+    )
+    new_lora_update = (
+        '        if first_level2_base_sync:\n'
+        '            # The base snapshot was already applied through the sleep-level-2 path above.\n'
+        '            # Do not apply the same full checkpoint a second time on the first wake.\n'
+        '            logger.info_once("AQLEVON_SDPO_FIRST_WAKE_DUPLICATE_BASE_LOAD_SKIPPED", scope="local")\n'
+        '        else:\n'
+        '            await self.rollout.update_weights(per_tensor_param, peft_config=peft_config, base_sync_done=self.base_sync_done)\n'
+    )
+    text = replace_once(text, old_lora_update, new_lora_update, "sdpo_first_wake_duplicate_load")
+    return text
+
 def main() -> int:
+    if VLLM_SPEC is None or VLLM_ROOT is None:
+        raise SystemExit("vllm_package_not_found")
+
     head=subprocess.check_output(["git","-C",str(SDPO),"rev-parse","HEAD"],text=True).strip()
     if head != EXPECTED_COMMIT:
         raise SystemExit(f"sdpo_commit_mismatch:{head}")
@@ -72,6 +143,8 @@ def main() -> int:
             "        AutoModelForVision2Seq = AutoModelForImageTextToText\n",
             "fsdp_model_import",
         )
+
+    fsdp = patch_sdpo_first_wake_base_sync_dedup(fsdp)
 
     if "AQLEVON_VLLM019_WORKER_DISPATCH" not in vllm_rollout:
         vllm_rollout=replace_once(
@@ -228,6 +301,9 @@ def main() -> int:
             "                model_runner.reset_lora_state()\n",
             "vllm019_reset_after_direct_base_load",
         )
+
+    if "AQLEVON_SDPO_FIRST_WAKE_BASE_SYNC_DEDUP" not in fsdp:
+        raise SystemExit("sdpo_first_wake_base_sync_dedup_missing_after_patch")
 
     MODEL.write_text(model)
     FSDP.write_text(fsdp)
