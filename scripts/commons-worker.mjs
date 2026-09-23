@@ -65,7 +65,7 @@ do{
     const claimed=await commons({
       op:'claim',
       worker_token:WORKER_TOKEN,
-      capabilities:{protocol:'openai-compatible',model:MODEL_NAME,engine:'local'}
+      capabilities:{protocol:'AQLEVON_CHAT_RUNTIME_V1',model:MODEL_NAME,engine:'aqlevon'}
     });
     job=claimed.job||null;
     if(job){
