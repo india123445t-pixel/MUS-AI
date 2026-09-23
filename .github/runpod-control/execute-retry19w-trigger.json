@@ -1,0 +1,15 @@
+{
+  "authorization_id": "P4-A1-RUNPOD-A40-20260923-19W-QWEN35-ROPE-MM-TOKEN-TYPE-SMOKE-THEN-TRAIN",
+  "authorization_sha256": "642c9c508eae154b7b2feb3fac6450701ff64949b4991b2997b5947ec3902628",
+  "expected_head": "fd63143f5b8c43d698e97ced2bcb499437e369c2",
+  "image_digest": "sha256:0d357d55ef244f0e3c649a6fbf8407fdb152cb10caaf5ee132c5dc077989713f",
+  "gpu_type": "NVIDIA A40",
+  "min_memory_gb": 48,
+  "selection_mode": "dynamic_datacenter",
+  "request_schema": "runpodctl_graphql_dynamic_dc",
+  "max_billed_seconds": 3600,
+  "max_total_cost_usd": "0.55",
+  "max_hourly_rate_usd": "0.55",
+  "single_use": true,
+  "attempt_nonce": "retry19w-rope-mm-token-type-1"
+}
