@@ -331,7 +331,7 @@ jobs:
             oom_line="$(ssh "${ssh_opts[@]}" root@$host "tail -n 1 /workspace/aqlevon_p4/runtime_resource_diag.tsv 2>/dev/null | cut -f4" 2>/dev/null || true)"
             if printf '%s' "$oom_line" | grep -Eq 'oom [1-9][0-9]*|oom_kill [1-9][0-9]*|oom_group_kill [1-9][0-9]*'; then
               echo "FAIL_CLOSED_CGROUP_OOM_EVENT $oom_line"
-              ssh "${ssh_opts[@]}" root@$host 'test -s /workspace/aqlevon_retry19v-supervisor.pid && kill "$(cat /workspace/aqlevon_retry19v-supervisor.pid)" 2>/dev/null || true' || true
+              ssh "${ssh_opts[@]}" root@$host 'if test -s /workspace/aqlevon_retry19v-supervisor.pid; then p="$(cat /workspace/aqlevon_retry19v-supervisor.pid)"; kill -TERM -- "-$p" 2>/dev/null || kill "$p" 2>/dev/null || true; sleep 3; kill -KILL -- "-$p" 2>/dev/null || true; fi' || true
               rc=98
               finished=1
               break
@@ -498,5 +498,5 @@ jobs:
           rc="${STEP_RC:-}"
           if ! [[ "$rc" =~ ^[0-9]+$ ]] && [ -s /tmp/train_rc ]; then rc="$(cat /tmp/train_rc)"; fi
           if ! [[ "$rc" =~ ^[0-9]+$ ]]; then echo "::error::Retry19V training exit code missing"; exit 255; fi
-          echo "AQLEVON_RETRY19U_TRUE_EXIT_CODE=$rc"
+          echo "AQLEVON_RETRY19V_TRUE_EXIT_CODE=$rc"
           test "$rc" -eq 0 || exit "$rc"
