@@ -24,6 +24,7 @@ W01_STACK = {
 }
 TARGET_REGEX = r".*\.self_attn\.(q_proj|v_proj)$"
 MAX_MODEL_LEN = 4096
+MAX_NUM_SEQS = 16
 GPU_MEMORY_UTILIZATION = "0.25"
 RUNTIME_MODEL_FRAGMENT = "qwen35-4b-daa9c16f3712"
 
@@ -263,6 +264,7 @@ def _base_rl_args(
         "actor_rollout_ref.rollout.tensor_model_parallel_size=1",
         f"actor_rollout_ref.rollout.max_model_len={MAX_MODEL_LEN}",
         f"actor_rollout_ref.rollout.max_num_batched_tokens={MAX_MODEL_LEN}",
+        f"actor_rollout_ref.rollout.max_num_seqs={MAX_NUM_SEQS}",
         f"actor_rollout_ref.rollout.gpu_memory_utilization={GPU_MEMORY_UTILIZATION}",
         "algorithm.rollout_correction.rollout_is=token",
         f"custom_reward_function.path={reward_path}",
