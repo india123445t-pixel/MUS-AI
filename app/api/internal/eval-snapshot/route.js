@@ -6,7 +6,7 @@ const KEY=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||'';
 
 function providerFlags(){
   return {
-    self_hosted:!!(process.env.AQLEVON_MODEL_URL||process.env.LOCAL_MODEL_URL)
+    self_hosted:!!process.env.AQLEVON_MODEL_URL
   };
 }
 
