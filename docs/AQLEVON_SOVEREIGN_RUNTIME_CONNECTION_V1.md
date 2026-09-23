@@ -16,7 +16,7 @@ self_hosted_only
 External-provider environment variables may exist in historical infrastructure, but the public runtime contract must not route to them while this contract is active.
 
 ## 2. Direct model endpoint
-The owned model runtime exposes an OpenAI-compatible chat-completions interface.
+The owned model runtime exposes an AQLEVON Chat Runtime Protocol V1 interface.
 
 Required connection variable:
 
@@ -53,8 +53,8 @@ The public Workspace is allowed to enable chat/work only when either:
 
 A configured-but-unhealthy external provider MUST NOT make the public Workspace ready.
 
-## 4. Inference request contract
-The direct runtime must accept:
+## 4. AQLEVON Chat Runtime Protocol V1 request contract
+The direct runtime must accept the AQLEVON-owned request envelope:
 
 ```json
 {
@@ -65,7 +65,7 @@ The direct runtime must accept:
 }
 ```
 
-and return an OpenAI-compatible response containing:
+and return an AQLEVON Chat Runtime Protocol V1 response containing:
 
 ```json
 {
@@ -88,7 +88,7 @@ AQLEVON_MODEL_NAME
 AQLEVON_MODEL_KEY        # optional, owned endpoint only
 ```
 
-The worker claims Commons jobs, calls the owned AQLEVON OpenAI-compatible endpoint, and returns the governed result.
+The worker claims Commons jobs, calls the owned AQLEVON runtime endpoint, and returns the governed result.
 
 The existing Commons edge endpoint binding is intentionally separate from the application's Supabase database binding and must not be silently replaced.
 
