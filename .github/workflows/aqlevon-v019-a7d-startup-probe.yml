@@ -1,0 +1,42 @@
+name: AQLEVON v019 a7d Startup Probe
+
+on:
+  push:
+    branches: [ops/runpod-control-v1]
+    paths:
+      - ".github/runpod-control/v019-a7d-startup-probe-trigger.json"
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/runpod-control-v1
+      - name: Login GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Pull and smoke exact a7d image tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          IMG="ghcr.io/india123445t-pixel/mus-ai:p4-a1-w03-v019-a7d58025f203125db3b6e805f7a51af7c75a47dd"
+          timeout 240s docker pull "$IMG"
+          digest="$(docker inspect "$IMG" --format '{{index .RepoDigests 0}}' | sed 's/.*@//')"
+          echo "AQLEVON_A7D_PROBE_DIGEST=$digest"
+          ssh-keygen -q -t ed25519 -N '' -f /tmp/k
+          docker rm -f aqlevon-a7d-probe >/dev/null 2>&1 || true
+          docker run -d --name aqlevon-a7d-probe -e PUBLIC_KEY="$(cat /tmp/k.pub)" "$IMG" >/dev/null
+          sleep 8
+          test "$(docker inspect aqlevon-a7d-probe --format '{{.State.Running}}')" = "true"
+          timeout 180s docker exec aqlevon-a7d-probe python3 /opt/aqlevon/runtime/smoke_runtime_v019.py --build-check
+          docker rm -f aqlevon-a7d-probe >/dev/null
+          echo "AQLEVON_A7D_STARTUP_PROBE_PASS"
