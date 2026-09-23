@@ -51,6 +51,7 @@ RUN python3 -m pip install --no-cache-dir --no-deps -e "$AQLEVON_SDPO"
 COPY research/weight_factory/agent03/p4_patch_sdpo_transformers5_native_vllm019.py /opt/aqlevon/runtime/p4_patch_sdpo_transformers5_native_vllm019.py
 RUN python3 /opt/aqlevon/runtime/p4_patch_sdpo_transformers5_native_vllm019.py
 
+COPY research/weight_factory/agent03/p4_aqlevon_reward.py /opt/aqlevon/runtime/p4_aqlevon_reward.py
 COPY research/weight_factory/agent03/runtime_appliance_v019/smoke_runtime_v019.py /opt/aqlevon/runtime/smoke_runtime_v019.py
 RUN python3 /opt/aqlevon/runtime/smoke_runtime_v019.py --build-check
 
