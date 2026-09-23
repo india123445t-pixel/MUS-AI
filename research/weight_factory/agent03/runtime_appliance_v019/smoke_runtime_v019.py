@@ -12,7 +12,7 @@ import sys
 import threading
 import time
 import types
-from dataclasses import fields
+from dataclasses import dataclass, fields
 
 
 def _real_zmq_control_path_check(torch):
@@ -143,6 +143,25 @@ def _real_zmq_control_path_check(torch):
             loop.call_soon_threadsafe(loop.stop)
         thread.join(timeout=5)
 
+    # Exercise SDPO's actual direct sleep/wake and tensor-LoRA replacement path.
+    probe.config=types.SimpleNamespace(free_cache_engine=True)
+    probe.sleep_level=2
+    asyncio.run(probe.release())
+    asyncio.run(probe.resume(["weights","kv_cache"]))
+
+    @dataclass
+    class _PeftProbe:
+        r: int = 4
+        lora_alpha: int = 4
+        target_modules: tuple = ("q_proj","v_proj")
+
+    first_weights=iter([("model.layers.3.self_attn.q_proj.lora_A.default.weight", torch.ones(1))])
+    second_weights=iter([("model.layers.3.self_attn.q_proj.lora_A.default.weight", torch.full((1,),2.0))])
+    asyncio.run(probe.update_weights(first_weights, peft_config=_PeftProbe(), base_sync_done=True))
+    asyncio.run(probe.update_weights(second_weights, peft_config=_PeftProbe(), base_sync_done=True))
+    worker_events=[e[0] for e in probe.inference_engine.worker.events]
+    assert worker_events==["remove_lora","add_lora","remove_lora","add_lora"], worker_events
+
     names=[e[0] for e in probe.inference_engine.events]
     required=[
         "init_device","determine_available_memory","get_kv_cache_spec",
@@ -262,6 +281,8 @@ def build_check():
       "sdpo_preserves_explicit_max_model_len":"pass",
       "sdpo_real_zmq_control_path":"pass",
       "vllm019_post_init_api_signatures":"pass",
+      "sdpo_tensor_lora_replace_path":"pass",
+      "sdpo_sleep_wake_path":"pass",
     }
 
 def main():
