@@ -63,7 +63,7 @@ test('mock AQLEVON runtime endpoint proves owned request/response without extern
   }finally{globalThis.fetch=originalFetch;restoreEnv(saved);mock.server.close();await once(mock.server,'close')}
 });
 
-test('AQLEVON runtime failure remains fail-closed with no alternate model path',async()=>{
+test('AQLEVON runtime failure remains fail-closed on the sole AQLEVON model path',async()=>{
   const mock=await mockEndpoint({chatStatus:503});
   const keys=['AQLEVON_MODEL_URL','AQLEVON_MODEL_NAME'];
   const saved=saveEnv(keys);const originalFetch=globalThis.fetch;const seen=[];
