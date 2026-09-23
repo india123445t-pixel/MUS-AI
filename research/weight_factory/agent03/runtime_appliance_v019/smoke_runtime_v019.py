@@ -224,12 +224,26 @@ def build_check():
     import verl.workers.rollout.vllm_rollout.vllm_rollout
     import verl.workers.rollout.vllm_rollout.vllm_async_server as vllm_async_server
     fsdp_rollout_src=inspect.getsource(verl.workers.fsdp_workers.AsyncActorRolloutRefWorker.rollout_mode)
+    fsdp_utils_mod=importlib.import_module("verl.utils.fsdp_utils")
+    fsdp_collect_src=inspect.getsource(fsdp_utils_mod.collect_lora_params)
+    rollout_mod=importlib.import_module("verl.workers.rollout.vllm_rollout.vllm_rollout")
+    rollout_update_src=inspect.getsource(rollout_mod.vLLMAsyncRollout.update_weights)
+    vllm_utils_mod=importlib.import_module("verl.utils.vllm.utils")
+    tensor_loader_src=inspect.getsource(vllm_utils_mod.VLLMHijack.hijack)
     assert "AQLEVON_SDPO_FIRST_WAKE_BASE_SYNC_DEDUP" in fsdp_rollout_src
     assert "base_model_params = params" in fsdp_rollout_src
     assert "AQLEVON_SDPO_FIRST_WAKE_DUPLICATE_BASE_LOAD_SKIPPED" in fsdp_rollout_src
     assert "and not self.base_sync_done" in fsdp_rollout_src
     assert "peft_config is not None and self.base_sync_done" in fsdp_rollout_src
     print("AQLEVON_V019_FIRST_WAKE_MEMORY_DEDUP_PASS")
+    assert "AQLEVON_SDPO_FSDP_EXPLICIT_LORA_STATE" in fsdp_collect_src
+    assert "state_dict=full_state_dict" in fsdp_collect_src
+    assert "expected_lora_tensors = 32" in fsdp_collect_src
+    assert "AQLEVON_TENSOR_LORA_SYNC_COUNT" in rollout_update_src
+    assert "AQLEVON_TENSOR_LORA_SYNC_PASS" in rollout_update_src
+    assert "AQLEVON_TENSOR_LORA_LOADER_NONEMPTY" in tensor_loader_src
+    assert "AQLEVON_TENSOR_LORA_MAPPING_EMPTY" in tensor_loader_src
+    print("AQLEVON_V019_SECOND_WAKE_LORA_SYNC_GUARD_PASS")
     async_src=inspect.getsource(vllm_async_server.vLLMHttpServer.__init__)
     assert "AQLEVON_VLLM019_PRESERVE_MAX_MODEL_LEN" in async_src
     assert "if self.config.max_model_len is None:" in async_src
@@ -492,6 +506,7 @@ def build_check():
       "vllm019_post_init_api_signatures":"pass",
       "sdpo_tensor_lora_replace_path":"pass",
       "sdpo_sleep_wake_path":"pass",
+      "sdpo_second_wake_lora_sync_guard":"pass",
       "vllm019_level2_lora_backport":"pass",
       "qwen35_tf5_rope_mm_token_type_ids":"pass",
       "reward_optimizer_mock":"pass",
