@@ -196,8 +196,8 @@ import p4_surrogate_tournament as t
 run=json.loads(Path("p4_a1_seed1701_run_manifest_v1.json").read_text())
 lock=json.loads(Path("p4_a1_seed1701_command_lock_v1.json").read_text())
 auth=json.loads(Path(os.environ["AQLEVON_RESOLVED_AUTH_FILE"]).read_text())
-assert run["manifest_sha256"]=="303c70a13ac533681d7afe5d89afdf38fefb7ba75de6f7678230890c948d6777"
-assert lock["lock_sha256"]=="b769ff9552282f47d76b6b61651281e2b9483adeecc1173c53b760236de5b7f4"
+assert run["manifest_sha256"]=="b277b41d3d67be1180b4d0600ab6f533f6dbf7b69163980ef5ecc6f0677195b7"
+assert lock["lock_sha256"]=="10f333cf453f5896402066d7c483ae170688909ca82a08a0adb1e90766213fcb"
 assert c.verify_self_digest(auth,"authorization_sha256")
 argv=t.build_a1_argv(Path("p4_frozen_training_plan_v1.json"),Path("/workspace"))
 assert argv==lock["argv"]
@@ -221,6 +221,40 @@ print("APPLIANCE_SEED1701_BINDING_PASS")
 errors=c.validate_manager_authorization(auth,lock=lock,run_manifest_sha256=run["manifest_sha256"])
 assert not errors, errors
 print("APPLIANCE_EXACT_AUTHORIZATION_PASS",auth["authorization_sha256"])
+PY
+
+python3 - <<'PY'
+import os
+from pathlib import Path
+import hydra
+from omegaconf import OmegaConf
+import p4_surrogate_tournament as t
+
+argv=t.build_a1_argv(Path("p4_frozen_training_plan_v1.json"),Path("/workspace"))
+os.environ["EXPERIMENT"]=argv[4]
+os.environ["TASK"]=argv[6]
+with hydra.initialize_config_dir(config_dir="/workspace/SDPO/verl/trainer/config",version_base=None):
+    cfg=hydra.compose(config_name=argv[5],overrides=argv[7:])
+OmegaConf.resolve(cfg)
+assert cfg.actor_rollout_ref.rollout.max_model_len == 4096, cfg.actor_rollout_ref.rollout.max_model_len
+assert cfg.actor_rollout_ref.rollout.max_num_batched_tokens == 4096, cfg.actor_rollout_ref.rollout.max_num_batched_tokens
+assert cfg.actor_rollout_ref.rollout.max_num_seqs == 16, cfg.actor_rollout_ref.rollout.max_num_seqs
+profile_num_reqs=min(
+    cfg.actor_rollout_ref.rollout.max_num_batched_tokens,
+    cfg.actor_rollout_ref.rollout.max_num_seqs,
+)
+assert profile_num_reqs == 16, profile_num_reqs
+assert cfg.data.train_batch_size * cfg.actor_rollout_ref.rollout.n == 16
+derived_default_max_cudagraph_capture_size=min(cfg.actor_rollout_ref.rollout.max_num_seqs*2,512)
+assert derived_default_max_cudagraph_capture_size <= 32, derived_default_max_cudagraph_capture_size
+print(
+    "AQLEVON_V019_EFFECTIVE_SCHEDULER_PASS",
+    "max_model_len=4096",
+    "max_num_batched_tokens=4096",
+    "max_num_seqs=16",
+    f"profile_num_reqs={profile_num_reqs}",
+    f"derived_default_max_cudagraph_capture_size={derived_default_max_cudagraph_capture_size}",
+)
 PY
 
 echo "AQLEVON_V019_LORA_SMOKE_START elapsed=$(( $(date +%s) - START_TS ))"
