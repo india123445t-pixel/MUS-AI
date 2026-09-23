@@ -16,7 +16,7 @@ function client(token){
 
 function providerFlags(){
   return {
-    self_hosted:!!(process.env.AQLEVON_MODEL_URL||process.env.LOCAL_MODEL_URL)
+    self_hosted:!!process.env.AQLEVON_MODEL_URL
   };
 }
 
