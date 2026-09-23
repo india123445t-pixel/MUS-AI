@@ -116,6 +116,7 @@ jobs:
           assert "trainer.n_gpus_per_node=1" in argv
           assert "actor_rollout_ref.rollout.tensor_model_parallel_size=1" in argv
           assert "max_model_len=4096" in argv
+          assert "actor_rollout_ref.rollout.max_num_seqs=16" in argv
           for seed_token in (
               "data.seed=1701",
               "actor_rollout_ref.actor.data_loader_seed=1701",
@@ -370,6 +371,13 @@ jobs:
           assert str(cfg.actor_rollout_ref.actor.fsdp_config.model_dtype)=="bf16",cfg.actor_rollout_ref.actor.fsdp_config.model_dtype
           assert cfg.actor_rollout_ref.ref.fsdp_config.seed==1701,cfg.actor_rollout_ref.ref.fsdp_config.seed
           assert cfg.actor_rollout_ref.rollout.engine_kwargs.vllm.seed==1701,cfg.actor_rollout_ref.rollout.engine_kwargs.vllm.seed
+          assert cfg.actor_rollout_ref.rollout.max_model_len==4096,cfg.actor_rollout_ref.rollout.max_model_len
+          assert cfg.actor_rollout_ref.rollout.max_num_batched_tokens==4096,cfg.actor_rollout_ref.rollout.max_num_batched_tokens
+          assert cfg.actor_rollout_ref.rollout.max_num_seqs==16,cfg.actor_rollout_ref.rollout.max_num_seqs
+          profile_num_reqs=min(cfg.actor_rollout_ref.rollout.max_num_batched_tokens,cfg.actor_rollout_ref.rollout.max_num_seqs)
+          assert profile_num_reqs==16,profile_num_reqs
+          assert cfg.data.train_batch_size * cfg.actor_rollout_ref.rollout.n == 16
+          print("V019_PROFILE_REQUEST_BOUND_PASS",profile_num_reqs)
           print("HYDRA_SEED1701_RESOLUTION_PASS")
           print("HYDRA_OMEGACONF_EXACT_PASS")
 
