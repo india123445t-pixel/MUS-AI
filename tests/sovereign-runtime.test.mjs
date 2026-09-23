@@ -40,15 +40,14 @@ test('Qwen sovereign target is selectable through settings or env without provid
   }finally{restoreEnv(saved)}
 });
 
-test('mock OpenAI-compatible endpoint proves self_hosted_only request/response without external inference',async()=>{
+test('mock AQLEVON runtime endpoint proves owned request/response without external inference',async()=>{
   const mock=await mockEndpoint();
-  const keys=['AQLEVON_MODEL_URL','AQLEVON_MODEL_NAME','AQLEVON_MODEL_KEY','OPENROUTER_API_KEY','GROQ_API_KEY','GEMINI_API_KEY','MISTRAL_API_KEY','CEREBRAS_API_KEY','HF_TOKEN'];
+  const keys=['AQLEVON_MODEL_URL','AQLEVON_MODEL_NAME','AQLEVON_MODEL_KEY'];
   const saved=saveEnv(keys);const originalFetch=globalThis.fetch;const seen=[];
   try{
     process.env.AQLEVON_MODEL_URL=`${mock.base}/v1`;
     process.env.AQLEVON_MODEL_NAME=TARGET;
     process.env.AQLEVON_MODEL_KEY='local-test-key';
-    process.env.OPENROUTER_API_KEY='must-not-be-used';process.env.GROQ_API_KEY='must-not-be-used';process.env.GEMINI_API_KEY='must-not-be-used';process.env.MISTRAL_API_KEY='must-not-be-used';process.env.CEREBRAS_API_KEY='must-not-be-used';process.env.HF_TOKEN='must-not-be-used';
     globalThis.fetch=async(url,init)=>{
       seen.push(String(url));
       assert.ok(String(url).startsWith(mock.base),`external provider attempted in self_hosted_only: ${url}`);
@@ -65,14 +64,13 @@ test('mock OpenAI-compatible endpoint proves self_hosted_only request/response w
   }finally{globalThis.fetch=originalFetch;restoreEnv(saved);mock.server.close();await once(mock.server,'close')}
 });
 
-test('self_hosted_only failure does not fall back to OpenRouter/Gemini/other external providers',async()=>{
+test('AQLEVON runtime failure remains fail-closed with no alternate model path',async()=>{
   const mock=await mockEndpoint({chatStatus:503});
-  const keys=['AQLEVON_MODEL_URL','AQLEVON_MODEL_NAME','OPENROUTER_API_KEY','GROQ_API_KEY','GEMINI_API_KEY','MISTRAL_API_KEY','CEREBRAS_API_KEY','HF_TOKEN'];
+  const keys=['AQLEVON_MODEL_URL','AQLEVON_MODEL_NAME'];
   const saved=saveEnv(keys);const originalFetch=globalThis.fetch;const seen=[];
   try{
     process.env.AQLEVON_MODEL_URL=`${mock.base}/v1/chat/completions`;process.env.AQLEVON_MODEL_NAME=TARGET;
-    process.env.OPENROUTER_API_KEY='present-but-forbidden';process.env.GROQ_API_KEY='present-but-forbidden';process.env.GEMINI_API_KEY='present-but-forbidden';
-    globalThis.fetch=async(url,init)=>{seen.push(String(url));assert.ok(String(url).startsWith(mock.base),`external fallback attempted: ${url}`);return originalFetch(url,init)};
+    globalThis.fetch=async(url,init)=>{seen.push(String(url));assert.ok(String(url).startsWith(mock.base),`non-AQLEVON runtime attempted: ${url}`);return originalFetch(url,init)};
     const result=await generateModelResponse([{role:'user',content:'fail closed'}],false,{runtime_mode:'self_hosted_only'},{includeDiagnostics:true});
     assert.equal(result.unavailable,true);
     assert.equal(result.error_class,'UPSTREAM_5XX');
