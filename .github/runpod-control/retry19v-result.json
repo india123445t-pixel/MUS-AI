@@ -1,0 +1,25 @@
+{
+  "authorization_id": "P4-A1-RUNPOD-A40-20260923-19V-VLLM019-FIRST-WAKE-MEMORY-DEDUP-SMOKE-THEN-TRAIN",
+  "checked_at_utc": "2026-09-23T22:13:48.781510+00:00",
+  "evidence_archive_present": true,
+  "expected_head": "7e25d1dd295e28a649317cf16b95965bd163845b",
+  "image_digest": "sha256:4ac5eb0afc00a14a1c5fc2970d2034dfcedf67c16bae84a361f0ce88e93a5917",
+  "log_sha256": "210fa3adaff717e9678112e543907239507bf9ce8db9bc7ca9bb60054fcd2965",
+  "markers": {
+    "A1_LOCKED_TRAINING_START": true,
+    "APPLIANCE_BINDING_PASS": true,
+    "APPLIANCE_EXACT_AUTHORIZATION_PASS": true,
+    "APPLIANCE_NATIVE_QWEN35_VLLM019_PASS": true,
+    "APPLIANCE_SEED1701_BINDING_PASS": true,
+    "APPLIANCE_SOURCE_DELTA_PASS": true,
+    "AQLEVON_A1_EXIT_CODE": true,
+    "AQLEVON_SDPO_FIRST_WAKE_BASE_SNAPSHOT_REUSED": false,
+    "AQLEVON_SDPO_FIRST_WAKE_DUPLICATE_BASE_LOAD_SKIPPED": false,
+    "AQLEVON_V019_LORA_SMOKE_PASS": true,
+    "AQLEVON_V019_NATIVE_LORA_FUNCTIONAL_SMOKE_PASS": true,
+    "MODEL_STAGE_PASS": true
+  },
+  "resource_diag_present": true,
+  "stop_status": "exited",
+  "training_exit_code": 1
+}
