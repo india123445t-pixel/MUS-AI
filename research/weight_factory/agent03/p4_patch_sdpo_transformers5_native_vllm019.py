@@ -228,99 +228,6 @@ def patch_sdpo_tensor_lora_loader(text: str) -> str:
     return replace_once(text, old, new, "sdpo_tensor_lora_loader_nonempty")
 
 
-
-def patch_sdpo_dynamic_lora_sync_guard(text: str) -> str:
-    """Fail closed at the FSDP/PEFT producer boundary on second-wake empty LoRA state."""
-    marker = "AQLEVON_SDPO_DYNAMIC_LORA_SYNC_GUARD"
-    if marker in text:
-        return text
-    old = (
-        "            params = collect_lora_params(\n"
-        "                module=self.actor_module_fsdp,\n"
-        "                layered_summon=self.config.rollout.get(\"layered_summon\", False),\n"
-        "                base_sync_done=self.base_sync_done,\n"
-        "            )\n"
-        "            if not self.base_sync_done:\n"
-    )
-    new = (
-        "            params = collect_lora_params(\n"
-        "                module=self.actor_module_fsdp,\n"
-        "                layered_summon=self.config.rollout.get(\"layered_summon\", False),\n"
-        "                base_sync_done=self.base_sync_done,\n"
-        "            )\n"
-        "            # AQLEVON_SDPO_DYNAMIC_LORA_SYNC_GUARD: Retry19W completed\n"
-        "            # optimizer step 1, then the second wake produced an empty\n"
-        "            # vLLM LoRAModel. Record/fail at the producer boundary.\n"
-        "            if self.base_sync_done:\n"
-        "                _aq_lora_keys = sorted(str(k) for k in params.keys())\n"
-        "                print(\n"
-        "                    f\"AQLEVON_SDPO_DYNAMIC_LORA_SYNC_TENSOR_COUNT={len(_aq_lora_keys)} \"\n"
-        "                    f\"sample={_aq_lora_keys[:8]}\",\n"
-        "                    flush=True,\n"
-        "                )\n"
-        "                if not _aq_lora_keys:\n"
-        "                    raise RuntimeError(\"AQLEVON_EMPTY_DYNAMIC_LORA_SYNC_STATE\")\n"
-        "            if not self.base_sync_done:\n"
-    )
-    return replace_once(text, old, new, "sdpo_dynamic_lora_sync_guard")
-
-
-def patch_sdpo_tensor_lora_sender_guard(text: str) -> str:
-    """Fail closed before TensorLoRARequest if the synchronized adapter is empty."""
-    marker = "AQLEVON_VLLM019_DYNAMIC_LORA_INPUT_GUARD"
-    if marker in text:
-        return text
-    old = (
-        "            weights = dict(weights)\n"
-        "            lora_request = TensorLoRARequest(\n"
-    )
-    new = (
-        "            weights = dict(weights)\n"
-        "            # AQLEVON_VLLM019_DYNAMIC_LORA_INPUT_GUARD\n"
-        "            _aq_lora_keys = sorted(str(k) for k in weights.keys())\n"
-        "            print(\n"
-        "                f\"AQLEVON_VLLM019_DYNAMIC_LORA_INPUT_COUNT={len(_aq_lora_keys)} \"\n"
-        "                f\"sample={_aq_lora_keys[:8]}\",\n"
-        "                flush=True,\n"
-        "            )\n"
-        "            if not _aq_lora_keys:\n"
-        "                raise RuntimeError(\"AQLEVON_EMPTY_DYNAMIC_LORA_TENSORS_AT_VLLM_INPUT\")\n"
-        "            lora_request = TensorLoRARequest(\n"
-    )
-    return replace_once(text, old, new, "vllm019_dynamic_lora_input_guard")
-
-
-def patch_sdpo_tensor_lora_loader_guard(text: str) -> str:
-    """Replace vLLM's opaque StopIteration with an explicit mapped-LoRA failure."""
-    marker = "AQLEVON_VLLM019_DYNAMIC_LORA_MAPPING_GUARD"
-    if marker in text:
-        return text
-    old = (
-        "                if isinstance(lora_request, TensorLoRARequest):\n"
-        "                    lora = self._lora_model_cls.from_lora_tensors(\n"
-        "                        tensors=lora_tensors,\n"
-        "                        **lora_request_kwargs,\n"
-        "                    )\n"
-        "                else:\n"
-    )
-    new = (
-        "                if isinstance(lora_request, TensorLoRARequest):\n"
-        "                    lora = self._lora_model_cls.from_lora_tensors(\n"
-        "                        tensors=lora_tensors,\n"
-        "                        **lora_request_kwargs,\n"
-        "                    )\n"
-        "                    # AQLEVON_VLLM019_DYNAMIC_LORA_MAPPING_GUARD\n"
-        "                    _aq_mapped = getattr(lora, \"loras\", None)\n"
-        "                    if not _aq_mapped:\n"
-        "                        raise RuntimeError(\n"
-        "                            \"AQLEVON_DYNAMIC_LORA_MAPPING_EMPTY:\"\n"
-        "                            f\"input_count={len(lora_tensors or {})}:\"\n"
-        "                            f\"sample={sorted((lora_tensors or {}).keys())[:8]}\"\n"
-        "                        )\n"
-        "                else:\n"
-    )
-    return replace_once(text, old, new, "vllm019_dynamic_lora_mapping_guard")
-
 def main() -> int:
     if VLLM_SPEC is None or VLLM_ROOT is None:
         raise SystemExit("vllm_package_not_found")
@@ -372,9 +279,6 @@ def main() -> int:
         )
 
     fsdp = patch_sdpo_first_wake_base_sync_dedup(fsdp)
-    fsdp = patch_sdpo_dynamic_lora_sync_guard(fsdp)
-    vllm_rollout = patch_sdpo_tensor_lora_sender_guard(vllm_rollout)
-    vllm_utils = patch_sdpo_tensor_lora_loader_guard(vllm_utils)
     fsdp_utils = patch_sdpo_lora_state_sync(fsdp_utils)
     vllm_rollout = patch_sdpo_tensor_lora_sender(vllm_rollout)
     vllm_utils = patch_sdpo_tensor_lora_loader(vllm_utils)
@@ -642,12 +546,6 @@ def main() -> int:
     if "AQLEVON_VLLM019_RESET_AFTER_DIRECT_BASE_LOAD" not in vllm_rollout:
         raise SystemExit("vllm019_reset_after_direct_base_load_missing_after_patch")
 
-    if "AQLEVON_SDPO_DYNAMIC_LORA_SYNC_GUARD" not in fsdp:
-        raise SystemExit("sdpo_dynamic_lora_sync_guard_missing_after_patch")
-    if "AQLEVON_VLLM019_DYNAMIC_LORA_INPUT_GUARD" not in vllm_rollout:
-        raise SystemExit("vllm019_dynamic_lora_input_guard_missing_after_patch")
-    if "AQLEVON_VLLM019_DYNAMIC_LORA_MAPPING_GUARD" not in vllm_utils:
-        raise SystemExit("vllm019_dynamic_lora_mapping_guard_missing_after_patch")
     print("AQLEVON_SDPO_TF5_NATIVE_VLLM019_PATCH_PASS")
     print("MODEL_SHA256:",sha256(MODEL))
     print("FSDP_SHA256:",sha256(FSDP))
