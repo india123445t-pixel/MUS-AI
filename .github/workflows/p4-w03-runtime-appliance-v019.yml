@@ -61,8 +61,13 @@ jobs:
           assert "AQLEVON_VLLM019_LORA_MANAGER_MAPPING_RESET" in patch
           assert "AQLEVON_VLLM019_RESET_LORA_STATE" in patch
           assert "AQLEVON_VLLM019_RESET_AFTER_DIRECT_BASE_LOAD" in patch
+          assert "AQLEVON_SDPO_FSDP_EXPLICIT_LORA_STATE" in patch
+          assert "AQLEVON_TENSOR_LORA_SYNC_COUNT" in patch
+          assert "AQLEVON_TENSOR_LORA_LOADER_NONEMPTY" in patch
           assert "AQLEVON_QWEN35_TF5_MM_TOKEN_TYPE_IDS" in patch
           assert "AQLEVON_QWEN35_TF5_ROPE_MM_TOKEN_TYPE_IDS_PASS" in smoke
+          assert "AQLEVON_V019_SECOND_WAKE_LORA_SYNC_GUARD_PASS" in smoke
+          assert "sdpo_second_wake_lora_sync_guard" in smoke
           assert "sdpo_vllm019_worker_dispatch" in smoke
           assert "sdpo_preserves_explicit_max_model_len" in smoke
           assert "vllm019_level2_lora_backport" in smoke
