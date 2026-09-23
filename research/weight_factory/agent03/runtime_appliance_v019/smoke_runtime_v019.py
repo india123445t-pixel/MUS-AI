@@ -5,10 +5,155 @@ import cloudpickle
 import importlib
 import inspect
 import json
+import os
 import subprocess
 import shutil
 import sys
+import threading
+import time
+import types
 from dataclasses import fields
+
+
+def _real_zmq_control_path_check(torch):
+    """Exercise pinned SDPO's real ZMQ serialization/dispatch path without GPU."""
+    import zmq
+    import zmq.asyncio
+    from verl.workers.rollout.vllm_rollout.vllm_async_server import ExternalZeroMQDistributedExecutor
+    from verl.workers.rollout.vllm_rollout.vllm_rollout import vLLMAsyncRollout
+
+    class _FakeModel:
+        def compute_logits(self, *args, **kwargs):
+            return torch.zeros((1, 1, 8), dtype=torch.float32)
+
+    class _FakeWorker:
+        def __init__(self):
+            self.model_runner=types.SimpleNamespace(model=_FakeModel())
+            self.events=[]
+        def remove_lora(self, lora_id):
+            self.events.append(("remove_lora", lora_id))
+            return False
+        def add_lora(self, request):
+            self.events.append(("add_lora", request))
+            return True
+
+    class _FakeInferenceEngine:
+        def __init__(self):
+            self.worker=_FakeWorker()
+            self.events=[]
+        def ping(self, x):
+            return x + 1
+        def init_device(self):
+            self.events.append(("init_device",))
+            return "init_device_ok"
+        def determine_available_memory(self):
+            self.events.append(("determine_available_memory",))
+            return 123456789
+        def get_kv_cache_spec(self):
+            self.events.append(("get_kv_cache_spec",))
+            return {"fake":"kv"}
+        def initialize_from_config(self, configs):
+            self.events.append(("initialize_from_config", configs))
+            return None
+        def compile_or_warm_up_model(self):
+            self.events.append(("compile_or_warm_up_model",))
+            return 0.125
+        def load_model(self, *args, **kwargs):
+            self.events.append(("load_model", args, kwargs))
+            return None
+        def sleep(self, level=2):
+            self.events.append(("sleep", level))
+            return None
+        def wake_up(self, tags=None):
+            self.events.append(("wake_up", tuple(tags or ())))
+            return None
+        def reset_mm_cache(self):
+            self.events.append(("reset_mm_cache",))
+            return None
+
+    probe=object.__new__(vLLMAsyncRollout)
+    probe.inference_engine=_FakeInferenceEngine()
+    probe.tokenizer=list(range(8))
+
+    endpoint=f"ipc:///tmp/aqlevon_v019_zmq_{os.getpid()}.ipc"
+    ready=threading.Event()
+    state={}
+
+    def _server():
+        loop=asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        context=zmq.asyncio.Context()
+        sock=context.socket(zmq.REP)
+        sock.bind(endpoint)
+        probe.socket=sock
+        state["loop"]=loop
+        state["context"]=context
+        state["socket"]=sock
+        ready.set()
+        task=loop.create_task(probe._loop_forever())
+        state["task"]=task
+        try:
+            loop.run_forever()
+        finally:
+            task.cancel()
+            try:
+                loop.run_until_complete(asyncio.gather(task, return_exceptions=True))
+            except Exception:
+                pass
+            sock.close(0)
+            context.term()
+            loop.close()
+
+    thread=threading.Thread(target=_server, daemon=True)
+    thread.start()
+    assert ready.wait(5), "zmq_server_not_ready"
+
+    context=zmq.Context()
+    req=context.socket(zmq.REQ)
+    req.setsockopt(zmq.RCVTIMEO, 5000)
+    req.setsockopt(zmq.SNDTIMEO, 5000)
+    req.connect(endpoint)
+    rpc_self=types.SimpleNamespace(sockets=[req])
+
+    def rpc(method, *args, **kwargs):
+        return ExternalZeroMQDistributedExecutor.collective_rpc(
+            rpc_self, method, args=args, kwargs=kwargs
+        )[0]
+
+    try:
+        assert rpc("init_device") == "init_device_ok"
+        assert rpc("determine_available_memory") == 123456789
+        assert rpc("get_kv_cache_spec") == {"fake":"kv"}
+        assert rpc("initialize_from_config", [{"fake":"config"}]) is None
+        assert rpc("compile_or_warm_up_model") == 0.125
+        assert rpc("load_model") is None
+        assert rpc("reset_mm_cache") is None
+        assert rpc("sleep", level=2) is None
+        assert rpc("wake_up", tags=["weights","kv_cache"]) is None
+        assert rpc("ping", 41) == 42
+
+        def _callable_probe(worker, x):
+            return worker.ping(x)
+        assert rpc(_callable_probe, 41) == 42
+    finally:
+        req.close(0)
+        context.term()
+        loop=state.get("loop")
+        if loop is not None:
+            loop.call_soon_threadsafe(loop.stop)
+        thread.join(timeout=5)
+
+    names=[e[0] for e in probe.inference_engine.events]
+    required=[
+        "init_device","determine_available_memory","get_kv_cache_spec",
+        "initialize_from_config","compile_or_warm_up_model","load_model",
+        "reset_mm_cache","sleep","wake_up",
+    ]
+    for name in required:
+        assert name in names, (name,names)
+    print("AQLEVON_V019_REAL_ZMQ_CONTROL_PATH_PASS")
+    return True
+
 
 def build_check():
     import torch, vllm, ray, transformers, peft, accelerate, flash_attn, numpy as np
@@ -51,6 +196,23 @@ def build_check():
     patched_loader=LRUCacheWorkerLoRAManager._load_adapter
     assert patched_loader.__name__=="hijack__load_adapter", patched_loader.__name__
     assert issubclass(TensorLoRARequest, __import__("vllm.lora.request",fromlist=["LoRARequest"]).LoRARequest)
+
+    # Gate exact vLLM 0.19.1 APIs used after init_device by pinned SDPO.
+    from vllm.v1.worker.gpu_worker import Worker as GPUWorker
+    load_params=inspect.signature(GPUWorker.load_model).parameters
+    assert "load_dummy_weights" in load_params
+    assert load_params["load_dummy_weights"].default is False
+    for name in ("determine_available_memory","get_kv_cache_spec","initialize_from_config","compile_or_warm_up_model","load_model"):
+        assert hasattr(WorkerWrapperBase, name), name
+    from vllm.v1.engine.async_llm import AsyncLLM
+    generate_params=inspect.signature(AsyncLLM.generate).parameters
+    for name in ("prompt","sampling_params","request_id","lora_request","priority"):
+        assert name in generate_params, (name,generate_params)
+    from vllm.entrypoints.openai.api_server import build_app, init_app_state
+    assert "args" in inspect.signature(build_app).parameters
+    init_app_params=inspect.signature(init_app_state).parameters
+    for name in ("engine_client","state","args"):
+        assert name in init_app_params, (name,init_app_params)
     # vLLM 0.19 removed WorkerWrapperBase.execute_method. Verify AQLEVON's
     # SDPO bridge dispatches strings and serialized callables through the same
     # vllm.v1.serial_utils.run_method primitive used by UniProcExecutor.
@@ -67,6 +229,8 @@ def build_check():
         return worker.ping(x)
     payload=cloudpickle.dumps(_callable_probe)
     assert asyncio.run(probe._execute_method(payload, 41)) == 42
+
+    assert _real_zmq_control_path_check(torch) is True
 
     from verl.utils.groupwise import as_torch_index, group_mean_std
     idx=as_torch_index(np.array([10.0,10.0,20.0,20.0],dtype=np.float64),device="cpu")
@@ -96,6 +260,8 @@ def build_check():
       "sdpo_tensor_lora_v019_contract":"pass",
       "sdpo_vllm019_worker_dispatch":"pass",
       "sdpo_preserves_explicit_max_model_len":"pass",
+      "sdpo_real_zmq_control_path":"pass",
+      "vllm019_post_init_api_signatures":"pass",
     }
 
 def main():
