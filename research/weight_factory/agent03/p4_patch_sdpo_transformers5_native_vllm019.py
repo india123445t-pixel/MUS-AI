@@ -167,10 +167,7 @@ def patch_sdpo_tensor_lora_sender(text: str) -> str:
     marker="AQLEVON_TENSOR_LORA_SYNC_COUNT"
     if marker in text:
         return text
-    old=(
-        "            weights = dict(weights)\n"
-        "            lora_request = TensorLoRARequest(\n"
-    )
+    old="            weights = dict(weights)\n"
     new=(
         "            weights = dict(weights)\n"
         "            # AQLEVON_TENSOR_LORA_SYNC_COUNT: fail before vLLM if FSDP/PEFT\n"
@@ -191,7 +188,6 @@ def patch_sdpo_tensor_lora_sender(text: str) -> str:
         "                f\"AQLEVON_TENSOR_LORA_SYNC_PASS count={len(weights)} A={a_count} B={b_count}\",\n"
         "                flush=True,\n"
         "            )\n"
-        "            lora_request = TensorLoRARequest(\n"
     )
     return replace_once(text, old, new, "sdpo_tensor_lora_sender_count")
 
