@@ -70,7 +70,7 @@ def patch_sdpo_first_wake_base_sync_dedup(text: str) -> str:
         '                # `params` is already the full base snapshot on the first sync.\n'
         '                # Reuse it instead of gathering a second full model copy.\n'
         '                base_model_params = params\n'
-        '                logger.info_once("AQLEVON_SDPO_FIRST_WAKE_BASE_SNAPSHOT_REUSED", scope="local")\n'
+        '                print("AQLEVON_SDPO_FIRST_WAKE_BASE_SNAPSHOT_REUSED", flush=True)\n'
         '            else:\n'
                 '                base_model_params = collect_lora_params(\n'
                 '                    module=self.actor_module_fsdp,\n'
@@ -91,7 +91,7 @@ def patch_sdpo_first_wake_base_sync_dedup(text: str) -> str:
         '        if first_level2_base_sync:\n'
         '            # The base snapshot was already applied through the sleep-level-2 path above.\n'
         '            # Do not apply the same full checkpoint a second time on the first wake.\n'
-        '            logger.info_once("AQLEVON_SDPO_FIRST_WAKE_DUPLICATE_BASE_LOAD_SKIPPED", scope="local")\n'
+        '            print("AQLEVON_SDPO_FIRST_WAKE_DUPLICATE_BASE_LOAD_SKIPPED", flush=True)\n'
         '        else:\n'
         '            await self.rollout.update_weights(per_tensor_param, peft_config=peft_config, base_sync_done=self.base_sync_done)\n'
     )
