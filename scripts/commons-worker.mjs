@@ -11,6 +11,10 @@ if(!WORKER_TOKEN){
   console.error('AQLEVON_COMMONS_WORKER_TOKEN is required.');
   process.exit(2);
 }
+if(!MODEL_URL){
+  console.error('AQLEVON_MODEL_URL is required.');
+  process.exit(2);
+}
 
 async function commons(body){
   const r=await fetch(COMMONS_URL,{
@@ -40,7 +44,7 @@ async function infer(job){
     method:'POST',
     headers,
     body:JSON.stringify({
-      model:req.model||MODEL_NAME,
+      model:MODEL_NAME,
       messages,
       temperature:Number.isFinite(Number(req.temperature))?Number(req.temperature):0.4,
       stream:false
@@ -51,7 +55,7 @@ async function infer(job){
   if(!r.ok)throw new Error(`model_http_${r.status}`);
   const text=String(data?.choices?.[0]?.message?.content||'').trim();
   if(!text)throw new Error('empty_model_response');
-  return {text,model:data?.model||MODEL_NAME,provider:'aqlevon-commons',citations:[]};
+  return {text,model:MODEL_NAME,provider:'aqlevon-commons',citations:[]};
 }
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 let stopping=false;
