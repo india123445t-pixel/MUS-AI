@@ -227,7 +227,8 @@ def build_check():
     assert "AQLEVON_SDPO_FIRST_WAKE_BASE_SYNC_DEDUP" in fsdp_rollout_src
     assert "base_model_params = params" in fsdp_rollout_src
     assert "AQLEVON_SDPO_FIRST_WAKE_DUPLICATE_BASE_LOAD_SKIPPED" in fsdp_rollout_src
-    assert "if self.base_sync_done:" in fsdp_rollout_src
+    assert "and not self.base_sync_done" in fsdp_rollout_src
+    assert "peft_config is not None and self.base_sync_done" in fsdp_rollout_src
     print("AQLEVON_V019_FIRST_WAKE_MEMORY_DEDUP_PASS")
     async_src=inspect.getsource(vllm_async_server.vLLMHttpServer.__init__)
     assert "AQLEVON_VLLM019_PRESERVE_MAX_MODEL_LEN" in async_src
