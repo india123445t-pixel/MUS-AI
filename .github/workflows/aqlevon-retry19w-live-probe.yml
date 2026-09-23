@@ -27,6 +27,13 @@ jobs:
           curl -sS -f "https://rest.runpod.io/v1/pods/$pod" -H "Authorization: Bearer $RUNPOD_API_KEY" > /tmp/rest.json
           curl -sSL https://cli.runpod.net | sudo bash
           runpodctl pod get "$pod" --output json > /tmp/get.json 2>/tmp/get.err || true
+          python - <<'PY' > /tmp/graphql-body.json
+          import json
+          pod="eeen1pu0mr294q"
+          q='query { pod(input: {podId: "'+pod+'"}) { id name desiredStatus costPerHr runtime { uptimeInSeconds gpus { id gpuUtilPercent memoryUtilPercent } container { cpuPercent memoryPercent } } } }'
+          print(json.dumps({'query':q},separators=(',',':')))
+          PY
+          curl -sS https://api.runpod.io/graphql -H "Authorization: Bearer $RUNPOD_API_KEY" -H 'Content-Type: application/json' --data-binary @/tmp/graphql-body.json > /tmp/graphql.json || true
           runpodctl pod logs "$pod" --tail 160 --source container --max-wait 10s > /tmp/log.jsonl 2>/tmp/log.err || true
           python - <<'PY'
           import json
@@ -34,13 +41,13 @@ jobs:
           def load(p):
               try:return json.loads(Path(p).read_text())
               except Exception:return {}
-          rest=load('/tmp/rest.json'); get=load('/tmp/get.json')
+          rest=load('/tmp/rest.json'); get=load('/tmp/get.json'); gql=load('/tmp/graphql.json')
           rows=[]
           for line in Path('/tmp/log.jsonl').read_text(errors='replace').splitlines() if Path('/tmp/log.jsonl').exists() else []:
               try:
                   x=json.loads(line); rows.append({'ts':x.get('ts'),'source':x.get('source'),'line':str(x.get('line',''))[-1800:]})
               except Exception: pass
-          out={'rest':rest,'runpodctl':get,'container_logs':rows,'log_stderr':Path('/tmp/log.err').read_text(errors='replace')[-1500:] if Path('/tmp/log.err').exists() else ''}
+          out={'rest':rest,'runpodctl':get,'graphql':gql,'container_logs':rows,'log_stderr':Path('/tmp/log.err').read_text(errors='replace')[-1500:] if Path('/tmp/log.err').exists() else ''}
           Path('.github/runpod-control/retry19w-live-probe-result.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
           PY
           git config user.name aqlevon-runpod-bot
