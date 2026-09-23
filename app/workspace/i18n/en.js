@@ -108,7 +108,7 @@ export default {
   'set.export': 'Export Workspace metadata (file contents excluded)', 'set.clearChats': 'Delete all conversations',
   'set.clearConfirmWord': 'DELETE', 'set.clearConfirm': 'Type {word} to confirm deleting all conversations.',
   'set.diagnostics': 'Diagnostics', 'set.save': 'Save', 'set.savedOk': 'Saved',
-  'set.aboutText': 'AQLEVON — a workspace designed to connect to the sovereign AQLEVON model runtime. Core model operation does not depend on an external AI provider.',
+  'set.aboutText': 'AQLEVON — a workspace designed for the sovereign AQLEVON model runtime. AQLEVON is the sole model runtime for core operation.',
   // misc
   'common.close': 'Close', 'common.create': 'Create', 'common.delete': 'Delete', 'common.cancel': 'Cancel',
   'common.save': 'Save', 'common.open': 'Open', 'common.loading': 'Loading…', 'common.error': 'Something went wrong',
@@ -152,7 +152,7 @@ export default {
   'set.runDiagnostics': 'Run diagnostics',
   'set.aboutVersion': 'Version 1.0',
   'chat.runtimeUnavailable': 'The AQLEVON model is not connected yet. Chat will enable automatically when the AQLEVON model runtime or an AQLEVON Commons worker is online.',
-  'chat.runtimeAuthError': 'The AQLEVON model runtime rejected the connection. Repair the AQLEVON runtime connection; no external AI provider is required.',
+  'chat.runtimeAuthError': 'The AQLEVON model runtime rejected the connection. Repair the AQLEVON runtime connection.',
   'chat.runtimeChecking': 'Checking the inference engine…',
   'chat.webUnavailable': 'Web search and deep research are not connected in this edition.',
   'work.browserOnly': 'Markdown only',
