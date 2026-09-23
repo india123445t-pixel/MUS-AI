@@ -1,6 +1,296 @@
 {
-  "container_logs": [],
-  "log_stderr": "{\"error\":\"timed out waiting for the log stream to respond. the api sends nothing until it has a line, so this can also mean no logs match --since/--source, or the pod has not started writing yet\",\"code\":\"timeout\"}\n",
+  "container_logs": [
+    {
+      "line": "Server listening on 0.0.0.0 port 22.",
+      "source": "container",
+      "ts": "2026-09-23T23:00:41.472985280Z"
+    },
+    {
+      "line": "Server listening on :: port 22.",
+      "source": "container",
+      "ts": "2026-09-23T23:00:41.473047833Z"
+    },
+    {
+      "line": "Accepted publickey for root from 20.102.46.144 port 44032 ssh2: ED25519 SHA256:V24PV95Qc2w86HcpWx8Fn9H+Yks3d4wmwdGj8ut0UjE",
+      "source": "container",
+      "ts": "2026-09-23T23:01:01.668857684Z"
+    },
+    {
+      "line": "Received disconnect from 20.102.46.144 port 44032:11: disconnected by user",
+      "source": "container",
+      "ts": "2026-09-23T23:01:01.943833474Z"
+    },
+    {
+      "line": "Disconnected from user root 20.102.46.144 port 44032",
+      "source": "container",
+      "ts": "2026-09-23T23:01:01.944121247Z"
+    },
+    {
+      "line": "Accepted publickey for root from 20.102.46.144 port 44033 ssh2: ED25519 SHA256:V24PV95Qc2w86HcpWx8Fn9H+Yks3d4wmwdGj8ut0UjE",
+      "source": "container",
+      "ts": "2026-09-23T23:01:02.279604620Z"
+    },
+    {
+      "line": "Received disconnect from 20.102.46.144 port 44033:11: disconnected by user",
+      "source": "container",
+      "ts": "2026-09-23T23:01:02.704654519Z"
+    },
+    {
+      "line": "Disconnected from user root 20.102.46.144 port 44033",
+      "source": "container",
+      "ts": "2026-09-23T23:01:02.704864845Z"
+    },
+    {
+      "line": "Accepted publickey for root from 20.102.46.144 port 44034 ssh2: ED25519 SHA256:V24PV95Qc2w86HcpWx8Fn9H+Yks3d4wmwdGj8ut0UjE",
+      "source": "container",
+      "ts": "2026-09-23T23:01:03.070482607Z"
+    },
+    {
+      "line": "Received disconnect from 20.102.46.144 port 44034:11: disconnected by user",
+      "source": "container",
+      "ts": "2026-09-23T23:01:03.279534360Z"
+    },
+    {
+      "line": "Disconnected from user root 20.102.46.144 port 44034",
+      "source": "container",
+      "ts": "2026-09-23T23:01:03.279823732Z"
+    },
+    {
+      "line": "Accepted publickey for root from 20.102.46.144 port 44035 ssh2: ED25519 SHA256:V24PV95Qc2w86HcpWx8Fn9H+Yks3d4wmwdGj8ut0UjE",
+      "source": "container",
+      "ts": "2026-09-23T23:01:03.619096186Z"
+    },
+    {
+      "line": "Received disconnect from 20.102.46.144 port 44035:11: disconnected by user",
+      "source": "container",
+      "ts": "2026-09-23T23:01:03.896176646Z"
+    },
+    {
+      "line": "Disconnected from user root 20.102.46.144 port 44035",
+      "source": "container",
+      "ts": "2026-09-23T23:01:03.896216953Z"
+    },
+    {
+      "line": "Accepted publickey for root from 20.102.46.144 port 44036 ssh2: ED25519 SHA256:V24PV95Qc2w86HcpWx8Fn9H+Yks3d4wmwdGj8ut0UjE",
+      "source": "container",
+      "ts": "2026-09-23T23:01:04.248637026Z"
+    },
+    {
+      "line": "Received disconnect from 20.102.46.144 port 44036:11: disconnected by user",
+      "source": "container",
+      "ts": "2026-09-23T23:01:04.380269882Z"
+    },
+    {
+      "line": "Disconnected from user root 20.102.46.144 port 44036",
+      "source": "container",
+      "ts": "2026-09-23T23:01:04.380574155Z"
+    },
+    {
+      "line": "Accepted publickey for root from 20.102.46.144 port 44037 ssh2: ED25519 SHA256:V24PV95Qc2w86HcpWx8Fn9H+Yks3d4wmwdGj8ut0UjE",
+      "source": "container",
+      "ts": "2026-09-23T23:01:04.713059297Z"
+    },
+    {
+      "line": "Received disconnect from 20.102.46.144 port 44037:11: disconnected by user",
+      "source": "container",
+      "ts": "2026-09-23T23:01:04.836624832Z"
+    },
+    {
+      "line": "Disconnected from user root 20.102.46.144 port 44037",
+      "source": "container",
+      "ts": "2026-09-23T23:01:04.836957875Z"
+    },
+    {
+      "line": "Accepted publickey for root from 20.102.46.144 port 44038 ssh2: ED25519 SHA256:V24PV95Qc2w86HcpWx8Fn9H+Yks3d4wmwdGj8ut0UjE",
+      "source": "container",
+      "ts": "2026-09-23T23:01:05.170428081Z"
+    },
+    {
+      "line": "Received disconnect from 20.102.46.144 port 44038:11: disconnected by user",
+      "source": "container",
+      "ts": "2026-09-23T23:01:05.296732056Z"
+    },
+    {
+      "line": "Disconnected from user root 20.102.46.144 port 44038",
+      "source": "container",
+      "ts": "2026-09-23T23:01:05.296969702Z"
+    },
+    {
+      "line": "Accepted publickey for root from 20.102.46.144 port 44032 ssh2: ED25519 SHA256:V24PV95Qc2w86HcpWx8Fn9H+Yks3d4wmwdGj8ut0UjE",
+      "source": "container",
+      "ts": "2026-09-23T23:01:20.632031576Z"
+    },
+    {
+      "line": "Received disconnect from 20.102.46.144 port 44032:11: disconnected by user",
+      "source": "container",
+      "ts": "2026-09-23T23:01:20.756461796Z"
+    },
+    {
+      "line": "Disconnected from user root 20.102.46.144 port 44032",
+      "source": "container",
+      "ts": "2026-09-23T23:01:20.756749555Z"
+    },
+    {
+      "line": "Accepted publickey for root from 20.102.46.144 port 44034 ssh2: ED25519 SHA256:V24PV95Qc2w86HcpWx8Fn9H+Yks3d4wmwdGj8ut0UjE",
+      "source": "container",
+      "ts": "2026-09-23T23:01:21.108802942Z"
+    },
+    {
+      "line": "Received disconnect from 20.102.46.144 port 44034:11: disconnected by user",
+      "source": "container",
+      "ts": "2026-09-23T23:01:21.237642429Z"
+    },
+    {
+      "line": "Disconnected from user root 20.102.46.144 port 44034",
+      "source": "container",
+      "ts": "2026-09-23T23:01:21.237996214Z"
+    },
+    {
+      "line": "Accepted publickey for root from 20.102.46.144 port 44032 ssh2: ED25519 SHA256:V24PV95Qc2w86HcpWx8Fn9H+Yks3d4wmwdGj8ut0UjE",
+      "source": "container",
+      "ts": "2026-09-23T23:01:36.605115628Z"
+    },
+    {
+      "line": "Received disconnect from 20.102.46.144 port 44032:11: disconnected by user",
+      "source": "container",
+      "ts": "2026-09-23T23:01:36.734296853Z"
+    },
+    {
+      "line": "Disconnected from user root 20.102.46.144 port 44032",
+      "source": "container",
+      "ts": "2026-09-23T23:01:36.734625116Z"
+    },
+    {
+      "line": "Accepted publickey for root from 20.102.46.144 port 44034 ssh2: ED25519 SHA256:V24PV95Qc2w86HcpWx8Fn9H+Yks3d4wmwdGj8ut0UjE",
+      "source": "container",
+      "ts": "2026-09-23T23:01:37.059605861Z"
+    },
+    {
+      "line": "Received disconnect from 20.102.46.144 port 44034:11: disconnected by user",
+      "source": "container",
+      "ts": "2026-09-23T23:01:37.182431424Z"
+    },
+    {
+      "line": "Disconnected from user root 20.102.46.144 port 44034",
+      "source": "container",
+      "ts": "2026-09-23T23:01:37.182627997Z"
+    },
+    {
+      "line": "Accepted publickey for root from 20.102.46.144 port 44032 ssh2: ED25519 SHA256:V24PV95Qc2w86HcpWx8Fn9H+Yks3d4wmwdGj8ut0UjE",
+      "source": "container",
+      "ts": "2026-09-23T23:01:52.511030788Z"
+    },
+    {
+      "line": "Received disconnect from 20.102.46.144 port 44032:11: disconnected by user",
+      "source": "container",
+      "ts": "2026-09-23T23:01:52.632896345Z"
+    },
+    {
+      "line": "Disconnected from user root 20.102.46.144 port 44032",
+      "source": "container",
+      "ts": "2026-09-23T23:01:52.632925247Z"
+    },
+    {
+      "line": "Accepted publickey for root from 20.102.46.144 port 44034 ssh2: ED25519 SHA256:V24PV95Qc2w86HcpWx8Fn9H+Yks3d4wmwdGj8ut0UjE",
+      "source": "container",
+      "ts": "2026-09-23T23:01:53.040207119Z"
+    },
+    {
+      "line": "Received disconnect from 20.102.46.144 port 44034:11: disconnected by user",
+      "source": "container",
+      "ts": "2026-09-23T23:01:53.167917688Z"
+    },
+    {
+      "line": "Disconnected from user root 20.102.46.144 port 44034",
+      "source": "container",
+      "ts": "2026-09-23T23:01:53.168095493Z"
+    },
+    {
+      "line": "Accepted publickey for root from 20.102.46.144 port 44032 ssh2: ED25519 SHA256:V24PV95Qc2w86HcpWx8Fn9H+Yks3d4wmwdGj8ut0UjE",
+      "source": "container",
+      "ts": "2026-09-23T23:02:08.503573632Z"
+    },
+    {
+      "line": "Received disconnect from 20.102.46.144 port 44032:11: disconnected by user",
+      "source": "container",
+      "ts": "2026-09-23T23:02:08.630991616Z"
+    },
+    {
+      "line": "Disconnected from user root 20.102.46.144 port 44032",
+      "source": "container",
+      "ts": "2026-09-23T23:02:08.631272854Z"
+    },
+    {
+      "line": "Accepted publickey for root from 20.102.46.144 port 44034 ssh2: ED25519 SHA256:V24PV95Qc2w86HcpWx8Fn9H+Yks3d4wmwdGj8ut0UjE",
+      "source": "container",
+      "ts": "2026-09-23T23:02:08.967909630Z"
+    },
+    {
+      "line": "Received disconnect from 20.102.46.144 port 44034:11: disconnected by user",
+      "source": "container",
+      "ts": "2026-09-23T23:02:09.098864561Z"
+    },
+    {
+      "line": "Disconnected from user root 20.102.46.144 port 44034",
+      "source": "container",
+      "ts": "2026-09-23T23:02:09.099205125Z"
+    },
+    {
+      "line": "Accepted publickey for root from 20.102.46.144 port 44032 ssh2: ED25519 SHA256:V24PV95Qc2w86HcpWx8Fn9H+Yks3d4wmwdGj8ut0UjE",
+      "source": "container",
+      "ts": "2026-09-23T23:02:24.431607332Z"
+    },
+    {
+      "line": "Received disconnect from 20.102.46.144 port 44032:11: disconnected by user",
+      "source": "container",
+      "ts": "2026-09-23T23:02:24.554941166Z"
+    },
+    {
+      "line": "Disconnected from user root 20.102.46.144 port 44032",
+      "source": "container",
+      "ts": "2026-09-23T23:02:24.555094111Z"
+    },
+    {
+      "line": "Accepted publickey for root from 20.102.46.144 port 44034 ssh2: ED25519 SHA256:V24PV95Qc2w86HcpWx8Fn9H+Yks3d4wmwdGj8ut0UjE",
+      "source": "container",
+      "ts": "2026-09-23T23:02:24.886473501Z"
+    },
+    {
+      "line": "Received disconnect from 20.102.46.144 port 44034:11: disconnected by user",
+      "source": "container",
+      "ts": "2026-09-23T23:02:25.121851093Z"
+    },
+    {
+      "line": "Disconnected from user root 20.102.46.144 port 44034",
+      "source": "container",
+      "ts": "2026-09-23T23:02:25.122029782Z"
+    }
+  ],
+  "graphql": {
+    "data": {
+      "pod": {
+        "costPerHr": 0.49,
+        "desiredStatus": "RUNNING",
+        "id": "eeen1pu0mr294q",
+        "name": "AQLEVON-P4-A1-Retry19W",
+        "runtime": {
+          "container": {
+            "cpuPercent": 12,
+            "memoryPercent": 3
+          },
+          "gpus": [
+            {
+              "gpuUtilPercent": 0,
+              "id": "GPU-c373ab5a-5eab-b35c-02ee-e76e8b7f0853",
+              "memoryUtilPercent": 0
+            }
+          ],
+          "uptimeInSeconds": 95
+        }
+      }
+    }
+  },
+  "log_stderr": "",
   "rest": {
     "consumerUserId": "user_3JREgjPp7vuIOzI34u0aycnySVc",
     "containerDiskInGb": 40,
@@ -20,10 +310,13 @@
     "machineId": "n68trrn1s8rr",
     "memoryInGb": 50,
     "name": "AQLEVON-P4-A1-Retry19W",
+    "portMappings": {
+      "22": 22183
+    },
     "ports": [
       "22/tcp"
     ],
-    "publicIp": "",
+    "publicIp": "69.30.85.95",
     "templateId": "",
     "vcpuCount": 9,
     "volumeInGb": 20,
@@ -47,14 +340,21 @@
     "ports": [
       "22/tcp"
     ],
-    "runtimeStatus": "initializing",
-    "runtimeStatusReason": "awaiting_container",
+    "runtimeStatus": "running",
     "ssh": {
-      "error": "pod not ready: no container reported yet (image pull, container create or boot)",
       "id": "eeen1pu0mr294q",
+      "ip": "69.30.85.95",
       "name": "AQLEVON-P4-A1-Retry19W",
-      "status": "RUNNING"
+      "port": 22183,
+      "setup": "runpodctl doctor",
+      "ssh_command": "ssh root@69.30.85.95 -p 22183",
+      "ssh_key": {
+        "exists": false,
+        "path": "/home/runner/.runpod/ssh/runpodctl-ssh-key",
+        "source": "runpodctl doctor"
+      }
     },
+    "uptimeSeconds": 95,
     "vcpuCount": 9,
     "volumeInGb": 20,
     "volumeMountPath": "/workspace"
