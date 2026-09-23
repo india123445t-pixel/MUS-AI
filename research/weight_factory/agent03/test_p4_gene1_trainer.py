@@ -897,18 +897,19 @@ class SdpoSecondWakeLoraSyncPatchTests(unittest.TestCase):
         self.assertEqual(patched, native_vllm_patch.patch_sdpo_lora_state_sync(patched))
 
     def test_sender_requires_16_a_and_16_b_tensors(self):
-        src = """async def update_weights(self, weights, **kwargs):
-    peft_config, base_sync_done = kwargs.get("peft_config", None), kwargs.get("base_sync_done", False)
-    if peft_config and base_sync_done:
-        self.inference_engine.worker.remove_lora(VLLM_LORA_INT_ID)
-        weights = dict(weights)
-        lora_request = TensorLoRARequest(
-            lora_name=VLLM_LORA_NAME,
-            lora_int_id=VLLM_LORA_INT_ID,
-            lora_path=VLLM_LORA_PATH,
-            peft_config=asdict(peft_config),
-            lora_tensors=weights,
-        )
+        src = """class _Fixture:
+    async def update_weights(self, weights, **kwargs):
+        peft_config, base_sync_done = kwargs.get("peft_config", None), kwargs.get("base_sync_done", False)
+        if peft_config and base_sync_done:
+            self.inference_engine.worker.remove_lora(VLLM_LORA_INT_ID)
+            weights = dict(weights)
+            lora_request = TensorLoRARequest(
+                lora_name=VLLM_LORA_NAME,
+                lora_int_id=VLLM_LORA_INT_ID,
+                lora_path=VLLM_LORA_PATH,
+                peft_config=asdict(peft_config),
+                lora_tensors=weights,
+            )
 """
         patched = native_vllm_patch.patch_sdpo_tensor_lora_sender(src)
         self.assertIn("AQLEVON_TENSOR_LORA_SYNC_COUNT", patched)
