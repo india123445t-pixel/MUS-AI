@@ -15,6 +15,10 @@ import types
 from dataclasses import dataclass, fields
 
 
+def _aqlevon_zmq_callable_probe(worker, x):
+    return worker.ping(x)
+
+
 def _real_zmq_control_path_check(torch):
     """Exercise pinned SDPO's real ZMQ serialization/dispatch path without GPU."""
     import zmq
@@ -153,9 +157,7 @@ def _real_zmq_control_path_check(torch):
         assert rpc("wake_up", tags=["weights","kv_cache"]) is None
         assert rpc("ping", 41) == 42
 
-        def _callable_probe(worker, x):
-            return worker.ping(x)
-        assert rpc(_callable_probe, 41) == 42
+        assert rpc(_aqlevon_zmq_callable_probe, 41) == 42
     finally:
         req.close(0)
         context.term()
