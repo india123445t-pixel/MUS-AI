@@ -1,10 +1,142 @@
 {
   "action": "status",
   "api": "v1",
-  "checked_at_utc": "2026-09-22T09:53:56.257856+00:00",
+  "checked_at_utc": "2026-09-23T22:51:20.477312+00:00",
   "ok": true,
-  "pod_count": 7,
+  "pod_count": 29,
   "pods": [
+    {
+      "cost_per_hr": 0.49,
+      "created_at": "2026-09-23 21:57:36.567 +0000 UTC",
+      "fingerprint": "bbdc0772b790",
+      "status": "EXITED"
+    },
+    {
+      "cost_per_hr": 0.49,
+      "created_at": "2026-09-23 01:20:19.232 +0000 UTC",
+      "fingerprint": "b56c03f555fc",
+      "status": "EXITED"
+    },
+    {
+      "cost_per_hr": 0.49,
+      "created_at": "2026-09-22 22:24:10.059 +0000 UTC",
+      "fingerprint": "aef2dc55734b",
+      "status": "EXITED"
+    },
+    {
+      "cost_per_hr": 0.49,
+      "created_at": "2026-09-22 22:15:09.598 +0000 UTC",
+      "fingerprint": "452d350510ab",
+      "status": "EXITED"
+    },
+    {
+      "cost_per_hr": 0.49,
+      "created_at": "2026-09-22 21:56:05.142 +0000 UTC",
+      "fingerprint": "0c886e1c5a1e",
+      "status": "EXITED"
+    },
+    {
+      "cost_per_hr": 0.49,
+      "created_at": "2026-09-22 21:23:49.117 +0000 UTC",
+      "fingerprint": "31c700ee01bf",
+      "status": "EXITED"
+    },
+    {
+      "cost_per_hr": 0.49,
+      "created_at": "2026-09-22 20:45:39.951 +0000 UTC",
+      "fingerprint": "51c235de4487",
+      "status": "EXITED"
+    },
+    {
+      "cost_per_hr": 0.49,
+      "created_at": "2026-09-22 20:20:41.922 +0000 UTC",
+      "fingerprint": "2307e90a415b",
+      "status": "EXITED"
+    },
+    {
+      "cost_per_hr": 0.49,
+      "created_at": "2026-09-22 20:08:54.015 +0000 UTC",
+      "fingerprint": "aead7cbcd6b0",
+      "status": "EXITED"
+    },
+    {
+      "cost_per_hr": 0.49,
+      "created_at": "2026-09-22 19:58:22.045 +0000 UTC",
+      "fingerprint": "dd16eab4ce88",
+      "status": "EXITED"
+    },
+    {
+      "cost_per_hr": 0.74,
+      "created_at": "2026-09-22 18:01:35.615 +0000 UTC",
+      "fingerprint": "0474e32696c4",
+      "status": "EXITED"
+    },
+    {
+      "cost_per_hr": 0.74,
+      "created_at": "2026-09-22 17:16:27.699 +0000 UTC",
+      "fingerprint": "5f51c21eebd2",
+      "status": "EXITED"
+    },
+    {
+      "cost_per_hr": 0.74,
+      "created_at": "2026-09-22 16:59:03.467 +0000 UTC",
+      "fingerprint": "b541f9ebae6a",
+      "status": "EXITED"
+    },
+    {
+      "cost_per_hr": 0.74,
+      "created_at": "2026-09-22 16:34:38.935 +0000 UTC",
+      "fingerprint": "c9b9a5c90efc",
+      "status": "EXITED"
+    },
+    {
+      "cost_per_hr": 0.74,
+      "created_at": "2026-09-22 16:22:49.064 +0000 UTC",
+      "fingerprint": "88b75d74dafd",
+      "status": "EXITED"
+    },
+    {
+      "cost_per_hr": 0.74,
+      "created_at": "2026-09-22 15:34:35.996 +0000 UTC",
+      "fingerprint": "2f4b7bd135d6",
+      "status": "EXITED"
+    },
+    {
+      "cost_per_hr": 0.74,
+      "created_at": "2026-09-22 15:15:00.463 +0000 UTC",
+      "fingerprint": "a5d7a7b985db",
+      "status": "EXITED"
+    },
+    {
+      "cost_per_hr": 0.74,
+      "created_at": "2026-09-22 14:56:15.412 +0000 UTC",
+      "fingerprint": "9b93ad28cde9",
+      "status": "EXITED"
+    },
+    {
+      "cost_per_hr": 0.53,
+      "created_at": "2026-09-22 14:47:50.439 +0000 UTC",
+      "fingerprint": "4207e9eeadb6",
+      "status": "EXITED"
+    },
+    {
+      "cost_per_hr": 0.74,
+      "created_at": "2026-09-22 12:17:50.109 +0000 UTC",
+      "fingerprint": "a50c05f8cb83",
+      "status": "EXITED"
+    },
+    {
+      "cost_per_hr": 0.74,
+      "created_at": "2026-09-22 12:13:51.59 +0000 UTC",
+      "fingerprint": "65b7d01584a6",
+      "status": "EXITED"
+    },
+    {
+      "cost_per_hr": 0.74,
+      "created_at": "2026-09-22 11:25:52.682 +0000 UTC",
+      "fingerprint": "bc38908879cb",
+      "status": "EXITED"
+    },
     {
       "cost_per_hr": 0.74,
       "created_at": "2026-09-22 09:33:41.395 +0000 UTC",
