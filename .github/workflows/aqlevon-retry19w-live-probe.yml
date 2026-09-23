@@ -1,0 +1,51 @@
+name: AQLEVON Retry19W Live Probe
+
+on:
+  push:
+    branches: [ops/runpod-control-v1]
+    paths:
+      - ".github/runpod-control/retry19w-live-probe-trigger.json"
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 4
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/runpod-control-v1
+      - name: Capture Retry19W runtime state
+        shell: bash
+        run: |
+          set -euo pipefail
+          pod="eeen1pu0mr294q"
+          curl -sS -f "https://rest.runpod.io/v1/pods/$pod" -H "Authorization: Bearer $RUNPOD_API_KEY" > /tmp/rest.json
+          curl -sSL https://cli.runpod.net | sudo bash
+          runpodctl pod get "$pod" --output json > /tmp/get.json 2>/tmp/get.err || true
+          runpodctl pod logs "$pod" --tail 160 --source container --max-wait 10s > /tmp/log.jsonl 2>/tmp/log.err || true
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          def load(p):
+              try:return json.loads(Path(p).read_text())
+              except Exception:return {}
+          rest=load('/tmp/rest.json'); get=load('/tmp/get.json')
+          rows=[]
+          for line in Path('/tmp/log.jsonl').read_text(errors='replace').splitlines() if Path('/tmp/log.jsonl').exists() else []:
+              try:
+                  x=json.loads(line); rows.append({'ts':x.get('ts'),'source':x.get('source'),'line':str(x.get('line',''))[-1800:]})
+              except Exception: pass
+          out={'rest':rest,'runpodctl':get,'container_logs':rows,'log_stderr':Path('/tmp/log.err').read_text(errors='replace')[-1500:] if Path('/tmp/log.err').exists() else ''}
+          Path('.github/runpod-control/retry19w-live-probe-result.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
+          PY
+          git config user.name aqlevon-runpod-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/runpod-control/retry19w-live-probe-result.json
+          git commit -m "ops: record Retry19W live probe [skip ci]" || true
+          git pull --rebase origin ops/runpod-control-v1
+          git push origin HEAD:ops/runpod-control-v1
