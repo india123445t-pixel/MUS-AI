@@ -5,7 +5,7 @@ Status: deployment/runtime contract for the public Workspace and Owner Core inte
 ## 1. Runtime authority
 AQLEVON's production inference authority is the owned AQLEVON model runtime.
 
-The public application MUST NOT require or route to any external AI model, external inference service, or third-party AI-provider API key in order to operate its core chat/work features.
+AQLEVON is the sole model runtime for the public application. Core chat/work features route only to the owned AQLEVON runtime.
 
 The enforced public runtime mode is:
 
@@ -77,7 +77,7 @@ and return an AQLEVON Chat Runtime Protocol V1 response containing:
 ```
 
 ## 5. Commons worker contract
-AQLEVON Commons is a transport path for the same owned AQLEVON model. It must never select or invoke another model.
+AQLEVON Commons is a transport path for the same owned AQLEVON model and always preserves the AQLEVON model identity.
 
 Worker variables:
 
@@ -97,7 +97,7 @@ Until the owned model runtime is healthy:
 - Chat Send remains disabled.
 - Work task Start remains disabled.
 - UI must say AQLEVON model/runtime is not connected yet.
-- It must not ask the user for any external AI-provider key.
+- It accepts no model credential from the public browser UI; runtime credentials remain server-side AQLEVON configuration.
 - Web Search, Deep Research, image generation, code execution, GitHub, scheduler, browser execution, and other adapters remain separately fail-closed unless their own trusted adapters are connected.
 
 ## 7. Deployment acceptance
@@ -106,7 +106,7 @@ The application is inference-ready only after all applicable checks pass:
 2. `/api/inference-health` reports `runtime_mode=self_hosted_only` and `inference_ready=true` from AQLEVON self-hosted health.
 3. OR `/api/commons/health` reports `available=true` with a real authenticated worker connected to the owned model.
 4. A harmless live chat request returns an AQLEVON response.
-5. No external AI-provider call appears in the sovereign-runtime regression tests.
+5. Sovereign-runtime regression tests prove that only the AQLEVON runtime path exists.
 6. Owner Core authentication and fail-closed adapter boundaries remain intact.
 
 ## 8. Non-goals
