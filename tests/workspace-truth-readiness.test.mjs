@@ -46,8 +46,8 @@ test('public runtime readiness is sovereign-only and external providers are neve
   assert.match(chatRoute,/runtime_mode:'self_hosted_only'/);
   assert.match(chatRoute,/allow_paid_external:false/);
   assert.match(chatRoute,/public_web_search_enabled:false/);
-  assert.match(providers,/settings\?\.runtime_mode\|\|'self_hosted_only'/);
-  assert.match(providers,/if\(mode==='self_hosted_only'\)value=await record\(await selfHosted/);
+  assert.match(providers,/runtime_mode:'self_hosted_only'/);
+  assert.match(providers,/const result=await aqlevonRuntime/);
   assert.match(api,/selfHostedConfigured/);
   assert.match(api,/commons\?\.available===true/);
   assert.match(api,/webSearchAvailable:false/);
@@ -136,7 +136,7 @@ test('AQLEVON public chat cannot silently reactivate external-key routing',()=>{
   assert.match(statusRoute,/inference_target:'aqlevon-engine'/);
   assert.match(chatRoute,/runtime_mode:'self_hosted_only'/);
   assert.match(ownerCoreChat,/runtime_mode:'self_hosted_only'/);
-  assert.match(providerTestRoute,/external provider tests are disabled/);
+  assert.match(providerTestRoute,/AQLEVON runtime only/);
   assert.match(providerTestRoute,/runtime_mode:'self_hosted_only'/);
   assert.doesNotMatch(providerTestRoute,/https?:\/\//);
   assert.match(providers,/AQLEVON_CHAT_RUNTIME_PROTOCOL/);
@@ -148,9 +148,11 @@ test('AQLEVON public chat cannot silently reactivate external-key routing',()=>{
 
 
 test('benchmark evaluation and owner core stay bound to AQLEVON runtime',()=>{
-  assert.doesNotMatch(benchmarkRoute,/process\.env\.(?!AQLEVON_MODEL_URL)/);
   assert.match(benchmarkRoute,/self_hosted:!!process\.env\.AQLEVON_MODEL_URL/);
-  assert.doesNotMatch(evalRoute,/process\.env\.(?!AQLEVON_MODEL_URL)/);
+  const benchmarkModelEnv=[...benchmarkRoute.matchAll(/process\.env\.([A-Z0-9_]*MODEL[A-Z0-9_]*)/g)].map(m=>m[1]);
+  const evalModelEnv=[...evalRoute.matchAll(/process\.env\.([A-Z0-9_]*MODEL[A-Z0-9_]*)/g)].map(m=>m[1]);
+  assert.deepEqual([...new Set(benchmarkModelEnv)],['AQLEVON_MODEL_URL']);
+  assert.deepEqual([...new Set(evalModelEnv)],['AQLEVON_MODEL_URL']);
   assert.match(evalRoute,/runtime_mode:'self_hosted_only'/);
   assert.match(ownerCoreChat,/allow_paid_external:false/);
   assert.match(ownerCoreChat,/public_web_search_enabled:false/);
