@@ -862,3 +862,70 @@ class RunnerTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SdpoSecondWakeLoraSyncPatchTests(unittest.TestCase):
+    def test_explicit_fsdp_state_dict_and_32_tensor_guard(self):
+        src = """def collect_lora_params(module, layered_summon, base_sync_done):
+    from peft.utils.save_and_load import get_peft_model_state_dict
+    lora_params = {}
+    peft_model = getattr(module, "_fsdp_wrapped_module", module)
+    if fsdp_version(module) > 0:
+        if layered_summon:
+            lora_params = layered_summon_lora_params(module)
+        else:
+            with FSDP.summon_full_params(module, writeback=False):
+                if base_sync_done:
+                    lora_params = get_peft_model_state_dict(peft_model)
+                    lora_params = {
+                        name: param.full_tensor().detach().cpu()
+                        if hasattr(param, "full_tensor")
+                        else param.detach().cpu()
+                        for name, param in lora_params.items()
+                    }
+                else:
+                    pass
+    return lora_params
+"""
+        patched = native_vllm_patch.patch_sdpo_lora_state_sync(src)
+        self.assertIn("AQLEVON_SDPO_FSDP_EXPLICIT_LORA_STATE", patched)
+        self.assertIn("full_state_dict = module.state_dict()", patched)
+        self.assertIn("state_dict=full_state_dict", patched)
+        self.assertIn("expected_lora_tensors = 32", patched)
+        self.assertIn("AQLEVON_FSDP_LORA_STATE_COUNT", patched)
+        self.assertIn("AQLEVON_FSDP_LORA_AB_COUNT", patched)
+        self.assertEqual(patched, native_vllm_patch.patch_sdpo_lora_state_sync(patched))
+
+    def test_sender_requires_16_a_and_16_b_tensors(self):
+        src = """async def update_weights(self, weights, **kwargs):
+    peft_config, base_sync_done = kwargs.get("peft_config", None), kwargs.get("base_sync_done", False)
+    if peft_config and base_sync_done:
+        self.inference_engine.worker.remove_lora(VLLM_LORA_INT_ID)
+        weights = dict(weights)
+        lora_request = TensorLoRARequest(
+            lora_name=VLLM_LORA_NAME,
+            lora_int_id=VLLM_LORA_INT_ID,
+            lora_path=VLLM_LORA_PATH,
+            peft_config=asdict(peft_config),
+            lora_tensors=weights,
+        )
+"""
+        patched = native_vllm_patch.patch_sdpo_tensor_lora_sender(src)
+        self.assertIn("AQLEVON_TENSOR_LORA_SYNC_COUNT", patched)
+        self.assertIn("expected_lora_tensors = 32", patched)
+        self.assertIn("AQLEVON_TENSOR_LORA_SYNC_PASS", patched)
+        self.assertEqual(patched, native_vllm_patch.patch_sdpo_tensor_lora_sender(patched))
+
+    def test_tensor_loader_rejects_empty_mapped_lora(self):
+        src = """                if isinstance(lora_request, TensorLoRARequest):
+                    lora = self._lora_model_cls.from_lora_tensors(
+                        tensors=lora_tensors,
+                        **lora_request_kwargs,
+                    )
+                else:
+                    lora = self._lora_model_cls.from_local_checkpoint(
+"""
+        patched = native_vllm_patch.patch_sdpo_tensor_lora_loader(src)
+        self.assertIn("AQLEVON_TENSOR_LORA_LOADER_NONEMPTY", patched)
+        self.assertIn("AQLEVON_TENSOR_LORA_MAPPING_EMPTY", patched)
+        self.assertEqual(patched, native_vllm_patch.patch_sdpo_tensor_lora_loader(patched))
