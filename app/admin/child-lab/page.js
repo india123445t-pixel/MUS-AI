@@ -115,6 +115,7 @@ export default function ChildLabPage(){
     e?.preventDefault?.();
     const v=input.trim();if(!v||busy||!session)return;
     const history=lab.messages.slice(-24).map(m=>({role:m.role,content:m.text}));
+    const memories=await searchChildMemories(v,{limit:24}).catch(()=>[]);
     setLab(x=>({...x,messages:[...x.messages,{role:'user',text:v}]}));setInput('');setBusy(true);setNotice('');
     try{
       const r=await fetch('/api/admin/child-lab/chat',{
@@ -125,11 +126,13 @@ export default function ChildLabPage(){
           history,
           persona:lab.persona,
           lessons:lab.lessons.map(x=>x.text),
+          memories,
           trial:lab.currentTrial,
         })
       });
       const d=await r.json();
       if(!r.ok)throw new Error(d.message||'تعذر تشغيل الطفل.');
+      if(memories.length)await markChildMemoriesUsed(memories.map(x=>x.id)).catch(()=>{});
       setLab(x=>({...x,messages:[...x.messages,{role:'assistant',text:d.text}]}));
     }catch(err){
       setLab(x=>({...x,messages:[...x.messages,{role:'assistant',text:`[المختبر] ${err?.message||'تعذر التشغيل'}`,error:true}]}));
@@ -261,8 +264,16 @@ export default function ChildLabPage(){
       scope:'child-lab-only',
     };
     setLab(x=>({...x,examples:[example,...(x.examples||[])].slice(0,200),lessons:[...x.lessons,{id:crypto.randomUUID(),text:`عند موقف مشابه: ${preferred}`,created_at:new Date().toISOString()}]}));
+    putChildMemory({
+      text:`السؤال: ${example.input}\nالإجابة المفضلة: ${preferred}`,
+      kind:'correction',
+      topic:lab.identity?.specialty||'general',
+      tags:['correction'],
+      importance:1,
+      source:'owner-correction'
+    }).then(()=>refreshMemory()).catch(()=>{});
     setCorrection('');
-    setNotice('تم حفظ التصحيح كمثال تعليمي للطفل فقط.');
+    setNotice('تم حفظ التصحيح كمثال تعليمي وذاكرة طويلة للطفل فقط.');
   }
 
   function exportTeachingDataset(){
