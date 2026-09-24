@@ -1,6 +1,6 @@
 {
-  "account_balance": null,
-  "checked_at_utc": "2026-09-24T06:09:00.170940+00:00",
+  "account_balance": 0.6546700982,
+  "checked_at_utc": "2026-09-24T06:13:20.695507+00:00",
   "ok": true,
   "rtx4090": [
     {
