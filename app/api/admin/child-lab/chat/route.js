@@ -26,6 +26,13 @@ export async function POST(req){
     if(input.length>20000)return NextResponse.json({message:'الطلب طويل جدًا.'},{status:413});
     const persona=redactSecrets(String(body.persona||'')).slice(0,12000);
     const lessons=Array.isArray(body.lessons)?body.lessons.map(x=>redactSecrets(String(x))).slice(-30):[];
+    const memories=Array.isArray(body.memories)?body.memories.slice(0,24).map(x=>({
+      id:String(x?.id||'').slice(0,120),
+      kind:String(x?.kind||'memory').slice(0,60),
+      topic:String(x?.topic||'general').slice(0,120),
+      text:redactSecrets(String(x?.text||'')).slice(0,1800),
+      relevance_score:Number(x?.relevance_score||0)
+    })):[];
     const history=sanitizeHistory(body.history,24);
     const trial=body.trial&&typeof body.trial==='object'?{
       goal:String(body.trial.goal||'').slice(0,3000),
@@ -34,7 +41,7 @@ export async function POST(req){
     }:null;
     const result=await generateChildResponse({
       messages:[...history,{role:'user',content:input}],
-      persona,lessons,trial,temperature:0.5
+      persona,lessons,memories,trial,temperature:0.5
     });
     if(!result||result.unavailable)return NextResponse.json({
       message:'Runtime الطفل غير متصل بعد.',
