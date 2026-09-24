@@ -405,9 +405,9 @@ jobs:
           scp -q "${scp_opts[@]}" root@$host:/tmp/aqlevon-retry19x-evidence.tgz /tmp/aqlevon-retry19x-evidence.tgz || true
 
           # Evidence contract for this authorized run.
-          python - <<'PY'
+          RETRY19X_TRAINING_RC="$rc" python - <<'PY'
           from pathlib import Path
-          import re,sys
+          import re,sys,os
           log=Path('/tmp/retry19x.log').read_text(errors='replace') if Path('/tmp/retry19x.log').exists() else ''
           diag=Path('/tmp/retry19x-runtime-resource-diag.tsv')
           required=[
@@ -415,6 +415,9 @@ jobs:
             'AQLEVON_SDPO_FIRST_WAKE_DUPLICATE_BASE_LOAD_SKIPPED',
             'AQLEVON_SDPO_LORA_STATE_EXTRACTED count=32 A=16 B=16',
             'AQLEVON_TENSOR_LORA_SYNC_PASS count=32 A=16 B=16',
+            'AQLEVON_SDPO_LORA_TARGET_MODULES_PRESERVED type=regex',
+            'AQLEVON_P4_A1_CANDIDATE_PACKAGE_PASS',
+            'AQLEVON_TRAINING_UPDATES_VERIFIED=12',
           ]
           missing=[m for m in required if m not in log]
           if missing:
@@ -450,6 +453,96 @@ jobs:
           if bad:
               print('FAIL_CLOSED_CGROUP_OOM_NONZERO',bad)
               sys.exit(95)
+          if int(os.environ.get('RETRY19X_TRAINING_RC','255')) != 0:
+              print('FAIL_CLOSED_A1_TRAINING_EXIT_CODE_NONZERO',os.environ.get('RETRY19X_TRAINING_RC'))
+              sys.exit(93)
+          import hashlib,json,tarfile
+          archive=Path('/tmp/aqlevon-retry19x-evidence.tgz')
+          if not archive.is_file():
+              print('FAIL_CLOSED_CANDIDATE_ARCHIVE_MISSING')
+              sys.exit(92)
+          root='aqlevon_p4/candidate/P4_A1_seed1701_Worker05/'
+          required_files=[
+              root+'candidate_artifact_manifest.json',
+              root+'training_run_receipt.json',
+              root+'worker05_handoff_index.json',
+              root+'candidate_artifact/adapter_config.json',
+              root+'candidate_artifact/adapter_model.safetensors',
+              root+'run_manifest.json',
+              root+'training_plan.json',
+              root+'command_lock.json',
+          ]
+          try:
+              with tarfile.open(archive,'r:gz') as tf:
+                  names={m.name for m in tf.getmembers()}
+                  missing_files=[name for name in required_files if name not in names]
+                  if missing_files:
+                      raise ValueError('candidate_files_missing:'+','.join(missing_files))
+                  def read_member(name):
+                      f=tf.extractfile(name)
+                      if f is None: raise ValueError('candidate_member_unreadable:'+name)
+                      return f.read()
+                  def read_json_member(name):
+                      return json.loads(read_member(name).decode('utf-8'))
+                  manifest=read_json_member(root+'candidate_artifact_manifest.json')
+                  receipt_bytes=read_member(root+'training_run_receipt.json')
+                  receipt=json.loads(receipt_bytes.decode('utf-8'))
+                  index=read_json_member(root+'worker05_handoff_index.json')
+                  config=read_json_member(root+'candidate_artifact/adapter_config.json')
+          except Exception as e:
+              print('FAIL_CLOSED_CANDIDATE_ARCHIVE_INVALID',str(e))
+              sys.exit(91)
+          expected={
+              'handoff_kind':'AQLEVON_P4_A1_WORKER05_CANDIDATE_HANDOFF_V1',
+              'run_manifest_sha256':'b277b41d3d67be1180b4d0600ab6f533f6dbf7b69163980ef5ecc6f0677195b7',
+              'training_plan_sha256':'3cd6e0bada2535a80f83f400f45f5d0fdc5ad8d938f42757785335959f331095',
+              'command_lock_sha256':'10f333cf453f5896402066d7c483ae170688909ca82a08a0adb1e90766213fcb',
+              'arm_id':'P4_A1_RLVR_CONTROL','seed':1701,'optimizer_updates':12,
+              'w03_execution_head':os.environ.get('EXPECTED_HEAD'),
+              'candidate_status':'ARTIFACT_READY_FOR_WORKER05_EVALUATION',
+              'capability_gain_claim':False,'sealed_eval_consumed':False,
+          }
+          for key,wanted in expected.items():
+              if index.get(key)!=wanted:
+                  print('FAIL_CLOSED_CANDIDATE_INDEX_BINDING',key,index.get(key),wanted)
+                  sys.exit(90)
+          if index.get('candidate_artifact_manifest_sha256')!=manifest.get('manifest_sha256'):
+              print('FAIL_CLOSED_CANDIDATE_MANIFEST_SHA_BINDING')
+              sys.exit(89)
+          if hashlib.sha256(receipt_bytes).hexdigest()!=index.get('training_run_receipt_sha256'):
+              print('FAIL_CLOSED_TRAINING_RECEIPT_SHA_BINDING')
+              sys.exit(88)
+          training=receipt.get('training',{})
+          artifact=receipt.get('artifact',{})
+          runtime=receipt.get('runtime',{})
+          if (receipt.get('run_manifest_sha256')!=expected['run_manifest_sha256']
+              or receipt.get('training_plan_sha256')!=expected['training_plan_sha256']
+              or receipt.get('arm_id')!='P4_A1_RLVR_CONTROL' or receipt.get('seed')!=1701
+              or receipt.get('sealed_eval_consumed') is not False
+              or receipt.get('capability_gain_claim') is not False
+              or training.get('optimizer_updates')!=12 or training.get('global_step')!=12
+              or training.get('checkpoint_latest_iteration')!=12
+              or not isinstance(training.get('changed_elements'),int) or training.get('changed_elements')<=0
+              or artifact.get('reload_hash_match') is not True
+              or artifact.get('saved_adapter_state_sha256')!=artifact.get('reloaded_adapter_state_sha256')
+              or runtime.get('w03_execution_head')!=expected['w03_execution_head']
+              or runtime.get('runtime_appliance_digest')!=os.environ.get('IMAGE_DIGEST')):
+              print('FAIL_CLOSED_TRAINING_RECEIPT_CONTRACT')
+              sys.exit(87)
+          if (manifest.get('artifact_type')!='adapter' or manifest.get('artifact_stage')!='reproducible_gene'
+              or manifest.get('base',{}).get('repo')!='Qwen/Qwen3.5-4B-Base'
+              or manifest.get('base',{}).get('revision')!='daa9c16f371249f9ad1c75a9ed6f956c08ea08f5'
+              or manifest.get('training_shard_manifest_sha256')!='f7499362fdd7e6fd4bc91682a5f1c03767c98685c045ad50a712711c6c4ad55f'
+              or manifest.get('training_run_receipt_sha256')!=index.get('training_run_receipt_sha256')):
+              print('FAIL_CLOSED_CANDIDATE_MANIFEST_CONTRACT')
+              sys.exit(86)
+          expected_target=r'.*\.self_attn\.(q_proj|v_proj)'+chr(36)
+          if (config.get('peft_type')!='LORA' or config.get('task_type')!='CAUSAL_LM'
+              or config.get('r')!=4 or config.get('lora_alpha')!=4
+              or config.get('target_modules')!=expected_target):
+              print('FAIL_CLOSED_CANDIDATE_ADAPTER_CONFIG')
+              sys.exit(85)
+          print('AQLEVON_RETRY19X_CANDIDATE_PACKAGE_EVIDENCE_PASS')
           print('AQLEVON_RETRY19X_SECOND_WAKE_EVIDENCE_PASS')
           PY
           evidence_rc=$?
@@ -516,6 +609,9 @@ jobs:
             'AQLEVON_SDPO_FIRST_WAKE_DUPLICATE_BASE_LOAD_SKIPPED',
             'AQLEVON_SDPO_LORA_STATE_EXTRACTED count=32 A=16 B=16',
             'AQLEVON_TENSOR_LORA_SYNC_PASS count=32 A=16 B=16',
+            'AQLEVON_SDPO_LORA_TARGET_MODULES_PRESERVED type=regex',
+            'AQLEVON_P4_A1_CANDIDATE_PACKAGE_PASS',
+            'AQLEVON_TRAINING_UPDATES_VERIFIED=12',
             'AQLEVON_A1_EXIT_CODE'
           ]}
           out={
@@ -528,6 +624,8 @@ jobs:
             'log_sha256':hashlib.sha256(log.encode()).hexdigest() if log else None,
             'evidence_archive_present':os.path.exists('/tmp/aqlevon-retry19x-evidence.tgz'),
             'resource_diag_present':os.path.exists('/tmp/retry19x-runtime-resource-diag.tsv'),
+            'candidate_package_gate_pass':rc==0,
+            'candidate_artifact_manifest_sha256':next((m.split('=',1)[1] for m in re.findall(r'AQLEVON_CANDIDATE_ARTIFACT_MANIFEST_SHA256=[0-9a-f]{64}',log)),None),
             'stop_status':os.environ.get('STOP_STATUS')
           }
           open('.github/runpod-control/retry19x-result.json','w').write(json.dumps(out,indent=2,sort_keys=True)+'\n')
