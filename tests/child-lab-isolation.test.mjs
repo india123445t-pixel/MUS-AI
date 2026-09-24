@@ -76,6 +76,18 @@ test('child lab supports portable snapshots without touching production state',(
   assert.match(page,/Receipt/);
 });
 
+test('child teaching corrections export only to a child-scoped dataset',()=>{
+  assert.match(page,/AQLEVON_CHILD_TEACHING_EXAMPLE_V1/);
+  assert.match(page,/exportTeachingDataset/);
+  assert.match(page,/preferred_answer/);
+  assert.match(page,/child_answer/);
+  assert.match(page,/source:'child-lab-only'/);
+  assert.match(page,/training_lane_write:false/);
+  assert.match(page,/production_weight_write:false/);
+  assert.match(page,/aqlevon-child-teaching-dataset\.jsonl/);
+  assert.doesNotMatch(page,/promote_verified_chat_to_training/);
+});
+
 test('owner console links to child lab and no longer exposes legacy runtime model choice',()=>{
   assert.match(admin,/href="\/admin\/child-lab"/);
   assert.match(admin,/const safeModes=\['self_hosted_only'\]/);
