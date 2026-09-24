@@ -74,7 +74,8 @@ jobs:
           packager=Path("research/weight_factory/agent03/p4_a1_candidate_packager.py").read_text()
           assert "AQLEVON_P4_A1_CANDIDATE_PACKAGE_PASS" in packager
           assert "latest_checkpointed_iteration.txt" in packager
-          assert "AQLEVON_P4_A1_CANDIDATE_PACKAGE_PASS" in Path("research/weight_factory/agent03/p4_runpod_appliance_launch_v019.sh").read_text()
+          launch=Path("research/weight_factory/agent03/p4_runpod_appliance_launch_v019.sh").read_text()
+          assert "p4_a1_candidate_packager.py" in launch
           assert "AQLEVON_TENSOR_LORA_SYNC_COUNT" in patch
           assert "AQLEVON_TENSOR_LORA_LOADER_NONEMPTY" in patch
           assert "AQLEVON_QWEN35_TF5_MM_TOKEN_TYPE_IDS" in patch
