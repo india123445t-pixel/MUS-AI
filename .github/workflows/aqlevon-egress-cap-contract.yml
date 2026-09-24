@@ -1,0 +1,102 @@
+name: AQLEVON Free Egress Cap Wiring Contract
+
+on:
+  push:
+    branches: [ops/runpod-control-v1]
+    paths:
+      - ".github/runpod-control/egress-cap-contract-trigger.json"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aqlevon-egress-cap-contract
+  cancel-in-progress: false
+
+jobs:
+  verify-cap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/runpod-control-v1
+
+      - name: Validate no-spend contract request
+        id: request
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, re
+          from pathlib import Path
+          request = json.loads(Path(".github/runpod-control/egress-cap-contract-trigger.json").read_text())
+          expected = {
+              "requested_by": "AQLEVON_MANAGER",
+              "authorization_id": "P4-A1-RUNPOD-A40-20260924-19Y-FSDP-LORA-EXTRACTION-SMOKE-THEN-TRAIN",
+              "authorization_path": "research/weight_factory/agent03/p4_a1_runpod_manager_authorization_retry19y_a40_fsdp_lora_extraction_smoke_then_train_v1.json",
+              "expected_max_artifact_egress_bytes": 5368709120,
+          }
+          for key, value in expected.items():
+              if request.get(key) != value:
+                  raise SystemExit(f"invalid contract request field: {key}")
+          head = request.get("expected_source_head", "")
+          if not re.fullmatch(r"[0-9a-f]{40}", head):
+              raise SystemExit("invalid source head")
+          if not request.get("request_nonce", "").startswith("aqlevon-retry19y-egress-cap-contract-"):
+              raise SystemExit("invalid request nonce")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+              out.write(f"expected_source_head={head}\n")
+              out.write(f"authorization_id={expected['authorization_id']}\n")
+              out.write(f"authorization_path={expected['authorization_path']}\n")
+              out.write(f"expected_cap={expected['expected_max_artifact_egress_bytes']}\n")
+          print("AQLEVON_EGRESS_CAP_CONTRACT_REQUEST_PASS")
+          PY
+
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository }}
+          ref: ${{ steps.request.outputs.expected_source_head }}
+          path: w03-source
+
+      - name: Resolve source authorization output
+        id: source_auth
+        shell: bash
+        env:
+          AUTHORIZATION_ID: ${{ steps.request.outputs.authorization_id }}
+          AUTHORIZATION_PATH: ${{ steps.request.outputs.authorization_path }}
+          EXPECTED_CAP: ${{ steps.request.outputs.expected_cap }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          root = Path("w03-source").resolve()
+          path = Path(os.environ["AUTHORIZATION_PATH"])
+          if path.is_absolute() or ".." in path.parts:
+              raise SystemExit("authorization path escaped source checkout")
+          auth_path = (root / path).resolve()
+          if root not in auth_path.parents or not auth_path.is_file():
+              raise SystemExit("authorization file missing or outside source checkout")
+          auth = json.loads(auth_path.read_text())
+          cap = auth.get("max_artifact_egress_bytes")
+          expected = int(os.environ["EXPECTED_CAP"])
+          if auth.get("authorization_id") != os.environ["AUTHORIZATION_ID"]:
+              raise SystemExit("authorization identity mismatch")
+          if type(cap) is not int or cap != expected or cap != 5 * 1024**3:
+              raise SystemExit(f"authorization cap mismatch: {cap!r}")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+              out.write(f"max_artifact_egress_bytes={cap}\n")
+          print(f"AQLEVON_EGRESS_CAP_SOURCE_AUTH_PASS bytes={cap}")
+          PY
+
+      - name: Assert exact training-step environment mapping
+        shell: bash
+        env:
+          MAX_ARTIFACT_EGRESS_BYTES: ${{ steps.source_auth.outputs.max_artifact_egress_bytes }}
+          EXPECTED_CAP: ${{ steps.request.outputs.expected_cap }}
+        run: |
+          set -euo pipefail
+          test "$MAX_ARTIFACT_EGRESS_BYTES" = "$EXPECTED_CAP"
+          test "$MAX_ARTIFACT_EGRESS_BYTES" = "5368709120"
+          echo "AQLEVON_EGRESS_CAP_WIRING_PASS bytes=$MAX_ARTIFACT_EGRESS_BYTES source=steps.source_auth"
