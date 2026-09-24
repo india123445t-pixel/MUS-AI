@@ -60,10 +60,55 @@ export default function ChildLabPage(){
     }catch(e){setNotice(e?.message||'تعذر تحميل المختبر.')}
   }
 
-  function addLesson(){
+  async function refreshMemory(query=memoryQuery){
+    const rows=query.trim()?await searchChildMemories(query,{limit:120}):await listChildMemories({limit:240});
+    const filtered=memoryKind==='all'?rows:rows.filter(x=>x.kind===memoryKind);
+    setMemoryItems(filtered);
+    setMemoryInfo(await childMemoryStats());
+  }
+
+  async function saveMemory(){
+    const text=memoryDraft.text.trim();if(!text)return;
+    await putChildMemory({
+      text,
+      kind:memoryDraft.kind,
+      topic:memoryDraft.topic||lab.identity?.specialty||'general',
+      tags:String(memoryDraft.tags||'').split(',').map(x=>x.trim()).filter(Boolean),
+      importance:Number(memoryDraft.importance||0.8),
+      source:'owner'
+    });
+    setMemoryDraft(x=>({...x,text:'',tags:''}));
+    await refreshMemory();
+    setNotice('تم حفظ الذكرى داخل ذاكرة الطفل الطويلة.');
+  }
+
+  async function removeMemory(id){
+    await deleteChildMemory(id);await refreshMemory();
+  }
+
+  async function exportMemoryFile(){
+    const data=await exportChildMemories();
+    const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+    const a=document.createElement('a');a.href=globalThis.URL.createObjectURL(blob);a.download='aqlevon-child-memory.json';a.click();globalThis.URL.revokeObjectURL(a.href);
+  }
+
+  async function importMemoryFile(file){
+    if(!file)return;
+    try{
+      const payload=JSON.parse(await file.text());
+      const count=await importChildMemories(payload);
+      await refreshMemory();
+      setNotice(`تم استيراد ${count} ذكرى إلى ذاكرة الطفل فقط.`);
+    }catch(e){setNotice(e?.message||'تعذر استيراد الذاكرة.')}
+  }
+
+  async function addLesson(){
     const v=lesson.trim();if(!v)return;
-    setLab(x=>({...x,lessons:[...x.lessons,{id:crypto.randomUUID(),text:v,created_at:new Date().toISOString()}]}));
+    const item={id:crypto.randomUUID(),text:v,created_at:new Date().toISOString()};
+    setLab(x=>({...x,lessons:[...x.lessons,item]}));
+    try{await putChildMemory({id:item.id,text:v,kind:'lesson',topic:lab.identity?.specialty||'general',tags:['lesson'],importance:0.9,source:'owner'})}catch{}
     setLesson('');
+    await refreshMemory().catch(()=>{});
   }
 
   async function send(e){
