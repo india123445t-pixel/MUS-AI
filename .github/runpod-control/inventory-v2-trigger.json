@@ -1,7 +1,7 @@
 {
   "action": "inventory",
   "requested_by": "AQLEVON_MANAGER",
-  "nonce": "2026-09-22T12:06:30Z",
-  "reason": "Emergency identify duplicate Retry18W pods after concurrent authorized runs",
-  "request_nonce": "retry18w-duplicate-identification-20260922"
+  "nonce": "2026-09-24T04:05:00Z",
+  "reason": "Read-only current pod and capacity inventory before Retry19Y",
+  "request_nonce": "aqlevon-retry19y-preflight-20260924-manager-01"
 }
