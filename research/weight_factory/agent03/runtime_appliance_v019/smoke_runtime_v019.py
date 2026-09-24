@@ -289,6 +289,7 @@ def _cpu_fsdp_peft_explicit_state_check(torch):
 
 def _cpu_vllm_tensor_lora_mapping_check(torch, qwen_model_class):
     """Exercise vLLM's actual in-memory loader on the PEFT/FSDP key format."""
+    import vllm.lora.lora_model as vllm_lora_model
     from vllm.lora.lora_model import LoRAModel
     from vllm.lora.peft_helper import PEFTHelper
 
@@ -308,14 +309,24 @@ def _cpu_vllm_tensor_lora_mapping_check(torch, qwen_model_class):
         "bias":"none",
     })
     mapper=getattr(qwen_model_class,"hf_to_vllm_mapper",None)
-    model=LoRAModel.from_lora_tensors(
-        lora_model_id=1,
-        tensors=tensors,
-        peft_helper=helper,
-        device="cpu",
-        dtype=torch.bfloat16,
-        weights_mapper=mapper,
-    )
+    # CUDA-enabled Torch can report pinned-memory support inside a CPU-only
+    # build container even though pin_memory() then fails without host driver.
+    # Pinning is only a transfer optimization; disable it for this CPU mapping
+    # probe while leaving the production CUDA path untouched.
+    original_pin_memory_available=vllm_lora_model.is_pin_memory_available
+    if not torch.cuda.is_available():
+        vllm_lora_model.is_pin_memory_available=lambda: False
+    try:
+        model=LoRAModel.from_lora_tensors(
+            lora_model_id=1,
+            tensors=tensors,
+            peft_helper=helper,
+            device="cpu",
+            dtype=torch.bfloat16,
+            weights_mapper=mapper,
+        )
+    finally:
+        vllm_lora_model.is_pin_memory_available=original_pin_memory_available
     expected={
         f"model.layers.{layer}.self_attn.{projection}"
         for layer in layers
