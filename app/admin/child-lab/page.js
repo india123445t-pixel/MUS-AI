@@ -8,6 +8,7 @@ const KEY=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 const STORAGE='aqlevon-child-lab-v1';
 
 const blank={
+  identity:{name:'طفل AQLEVON',specialty:'عام',purpose:'شخصية تجريبية قابلة للتربية والاختبار داخل المختبر فقط.'},
   persona:'أنت طفل AQLEVON تجريبي. تعلّم من المالك داخل هذا المختبر فقط. اسأل عندما لا تفهم، وطبّق الدروس في التجارب.',
   lessons:[],
   messages:[{role:'assistant',text:'أنا طفل AQLEVON داخل المختبر المستقل. علّمني شيئًا ثم اختبرني.'}],
@@ -97,6 +98,11 @@ export default function ChildLabPage(){
       schema:'AQLEVON_CHILD_PERSONA_PACKAGE_V1',
       package_id:crypto.randomUUID(),
       created_at:new Date().toISOString(),
+      identity:{
+        name:String(lab.identity?.name||'طفل AQLEVON').slice(0,120),
+        specialty:String(lab.identity?.specialty||'عام').slice(0,160),
+        purpose:String(lab.identity?.purpose||'').slice(0,1000),
+      },
       persona:String(lab.persona||''),
       lessons:(lab.lessons||[]).map(x=>({id:x.id||crypto.randomUUID(),text:String(x.text||''),created_at:x.created_at||null})),
       trials:(lab.trials||[]).slice(0,100),
@@ -128,11 +134,16 @@ export default function ChildLabPage(){
     try{
       const raw=JSON.parse(await file.text());
       if(raw?.schema!=='AQLEVON_CHILD_PERSONA_PACKAGE_V1')throw new Error('حزمة غير معروفة.');
+      const identity={
+        name:String(raw.identity?.name||'طفل AQLEVON').slice(0,120),
+        specialty:String(raw.identity?.specialty||'عام').slice(0,160),
+        purpose:String(raw.identity?.purpose||'').slice(0,1000),
+      };
       const persona=String(raw.persona||'').slice(0,12000);
       const lessons=Array.isArray(raw.lessons)?raw.lessons.slice(0,200).map(x=>({id:String(x.id||crypto.randomUUID()),text:String(x.text||'').slice(0,2000),created_at:x.created_at||null})):[];
       const trials=Array.isArray(raw.trials)?raw.trials.slice(0,100):[];
       const examples=Array.isArray(raw.examples)?raw.examples.slice(0,200):[];
-      setLab(x=>({...x,persona,lessons,trials,examples}));
+      setLab(x=>({...x,identity,persona,lessons,trials,examples}));
       setNotice('تم استيراد حزمة الطفل داخل المختبر فقط.');
     }catch(e){setNotice(e?.message||'تعذر استيراد الحزمة.')}
   }
@@ -191,6 +202,31 @@ export default function ChildLabPage(){
     const a=document.createElement('a');a.href=globalThis.URL.createObjectURL(blob);a.download='aqlevon-child-teaching-dataset.jsonl';a.click();globalThis.URL.revokeObjectURL(a.href);
   }
 
+  function exportTrainingPack(){
+    const pkg=childPackage();
+    const pack={
+      schema:'AQLEVON_CHILD_TRAINING_PACK_V1',
+      pack_id:crypto.randomUUID(),
+      created_at:new Date().toISOString(),
+      identity:pkg.identity,
+      persona:pkg.persona,
+      lessons:pkg.lessons,
+      examples:pkg.examples,
+      trials:pkg.trials,
+      manifest:{
+        scope:'child-lab-only',
+        target_artifact:'CHILD_CHECKPOINT_ONLY',
+        public_model_access:false,
+        production_weight_write:false,
+        training_lane_write:false,
+        auto_promote:false,
+        source_runtime:'AQLEVON_CHILD_RUNTIME_V1',
+      }
+    };
+    const blob=new Blob([JSON.stringify(pack,null,2)],{type:'application/json'});
+    const a=document.createElement('a');a.href=globalThis.URL.createObjectURL(blob);a.download='aqlevon-child-training-pack.json';a.click();globalThis.URL.revokeObjectURL(a.href);
+  }
+
   function resetChild(){
     if(!confirm('مسح ذاكرة ودروس مختبر الطفل فقط؟ لن يتأثر نموذج المستخدمين أو التدريب.'))return;
     setLab(blank);
@@ -215,7 +251,10 @@ export default function ChildLabPage(){
 
     <main style={S.grid}>
       <section style={S.card}>
-        <h2>1) الشخصية</h2>
+        <h2>1) الهوية والشخصية</h2>
+        <div style={S.row}><input style={{...S.input,flex:1}} value={lab.identity?.name||''} onChange={e=>setLab(x=>({...x,identity:{...(x.identity||{}),name:e.target.value}}))} placeholder="اسم الطفل"/><input style={{...S.input,flex:1}} value={lab.identity?.specialty||''} onChange={e=>setLab(x=>({...x,identity:{...(x.identity||{}),specialty:e.target.value}}))} placeholder="التخصص: فيديو، موسيقى، أمن سيبراني…"/></div>
+        <textarea style={{...S.textarea,marginTop:10}} rows="3" value={lab.identity?.purpose||''} onChange={e=>setLab(x=>({...x,identity:{...(x.identity||{}),purpose:e.target.value}}))} placeholder="ماذا تريد أن يصبح هذا الطفل؟"/>
+
         <p style={S.muted}>تكلم معه كأنك تربي طفلًا. اكتب من تريد أن يكون وكيف يتصرف.</p>
         <textarea style={S.textarea} rows="9" value={lab.persona} onChange={e=>setLab(x=>({...x,persona:e.target.value}))}/>
         <h3>الدروس</h3>
@@ -258,7 +297,7 @@ export default function ChildLabPage(){
         <div style={S.kv}><span>مسار التدريب الحالي</span><b>كتابة: لا</b></div>
         <div style={S.kv}><span>الذاكرة</span><b>Child Lab فقط</b></div>
         <h3>Snapshots / الحزم</h3>
-        <div style={S.row}><button style={S.primary} onClick={saveSnapshot}>حفظ Snapshot</button><button style={S.small} onClick={exportPackage}>تصدير الشخصية</button><label style={S.small}>استيراد<input type="file" accept="application/json,.json" hidden onChange={e=>{const file=e.target.files?.[0];e.target.value='';importPackage(file)}}/></label></div>
+        <div style={S.row}><button style={S.primary} onClick={saveSnapshot}>حفظ Snapshot</button><button style={S.small} onClick={exportPackage}>تصدير الشخصية</button><button style={S.small} onClick={exportTrainingPack}>تصدير Training Pack</button><label style={S.small}>استيراد<input type="file" accept="application/json,.json" hidden onChange={e=>{const file=e.target.files?.[0];e.target.value='';importPackage(file)}}/></label></div>
         <div style={S.list}>{(lab.snapshots||[]).slice(0,8).map(x=><div key={x.id} style={S.item}><div><b>{new Date(x.created_at).toLocaleString('ar-MA')}</b><small style={{display:'block',opacity:.7}}>{x.lessons?.length||0} دروس · {x.trials?.length||0} تجارب · {x.examples?.length||0} أمثلة</small></div><button style={S.small} onClick={()=>restoreSnapshot(x.id)}>استعادة</button></div>)}</div>
         <h3>إيصالات الأدوات</h3>
         <div style={S.list}>{(lab.toolRuns||[]).slice(0,6).map(x=><div key={x.id} style={S.item}><div><b>{x.tool} · Receipt</b><small style={{display:'block',opacity:.7}}>{String(x.receipt?.id||x.receipt?.receipt_id||x.id)}</small></div></div>)}</div>
