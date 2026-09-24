@@ -556,8 +556,8 @@ def main() -> int:
         raise SystemExit("sdpo_first_wake_base_sync_dedup_missing_after_patch")
     if "AQLEVON_SDPO_LORA_TARGET_MODULES_PRESERVED" not in fsdp:
         raise SystemExit("sdpo_lora_target_modules_serialization_missing_after_patch")
-    if "AQLEVON_SDPO_FSDP_EXPLICIT_LORA_STATE" not in fsdp_utils:
-        raise SystemExit("sdpo_fsdp_explicit_lora_state_missing_after_patch")
+    if "AQLEVON_SDPO_QWEN35_RAW_FSDP_LORA_STATE" not in fsdp_utils:
+        raise SystemExit("sdpo_fsdp_raw_lora_state_missing_after_patch")
     if "AQLEVON_TENSOR_LORA_SYNC_COUNT" not in vllm_rollout:
         raise SystemExit("tensor_lora_sender_count_missing_after_patch")
     if "AQLEVON_TENSOR_LORA_LOADER_NONEMPTY" not in vllm_utils:
