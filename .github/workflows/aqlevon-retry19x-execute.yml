@@ -628,11 +628,17 @@ jobs:
           python - <<'PY'
           import json,os,re,hashlib,datetime
           log=open('/tmp/retry19x.log',errors='replace').read() if os.path.exists('/tmp/retry19x.log') else ''
+          egress_log=open('/tmp/retry19x-egress-gate.log',errors='replace').read() if os.path.exists('/tmp/retry19x-egress-gate.log') else ''
           rc=None
           for v in [os.environ.get('STEP_RC',''), open('/tmp/train_rc').read().strip() if os.path.exists('/tmp/train_rc') else '']:
               try: rc=int(v); break
               except Exception: pass
           if rc is None: rc=255
+          actual_training_match=re.search(r'AQLEVON_A1_EXIT_CODE=(\d+)',log)
+          actual_training_rc=int(actual_training_match.group(1)) if actual_training_match else rc
+          payload_paths=['/tmp/retry19x.log','/tmp/retry19x-runtime-resource-diag.tsv','/tmp/aqlevon-retry19x-evidence.tgz']
+          payload_bytes=sum(os.path.getsize(p) for p in payload_paths if os.path.isfile(p))
+          egress_pass='AQLEVON_RETRY19X_EGRESS_GATE_PASS' in egress_log
           markers={k:(k in log) for k in [
             'AQLEVON_V019_NATIVE_LORA_FUNCTIONAL_SMOKE_PASS',
             'AQLEVON_V019_LORA_SMOKE_PASS',
@@ -657,11 +663,14 @@ jobs:
             'expected_head':os.environ.get('EXPECTED_HEAD'),
             'image_digest':os.environ.get('IMAGE_DIGEST'),
             'checked_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),
-            'training_exit_code':rc,
+            'training_exit_code':actual_training_rc,
+            'workflow_evidence_exit_code':rc,
             'markers':markers,
             'log_sha256':hashlib.sha256(log.encode()).hexdigest() if log else None,
             'evidence_archive_present':os.path.exists('/tmp/aqlevon-retry19x-evidence.tgz'),
             'resource_diag_present':os.path.exists('/tmp/retry19x-runtime-resource-diag.tsv'),
+            'pod_to_runner_payload_bytes':payload_bytes,
+            'pod_to_runner_egress_gate_pass':egress_pass,
             'candidate_package_gate_pass':rc==0,
             'candidate_artifact_manifest_sha256':next((m.split('=',1)[1] for m in re.findall(r'AQLEVON_CANDIDATE_ARTIFACT_MANIFEST_SHA256=[0-9a-f]{64}',log)),None),
             'stop_status':os.environ.get('STOP_STATUS')
