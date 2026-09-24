@@ -2,6 +2,7 @@
 from pathlib import Path
 import hashlib
 import importlib.util
+import inspect
 import py_compile
 import subprocess
 
@@ -123,20 +124,65 @@ def patch_sdpo_lora_target_modules_save(text: str) -> str:
     return replace_once(text, old, new, "sdpo_lora_target_modules_serialization")
 
 
-def patch_sdpo_lora_state_sync(text: str) -> str:
-    """Make FSDP LoRA export explicit and fail closed on the frozen 16-target contract.
+def _aqlevon_extract_qwen35_lora_state_dict(full_state_dict, adapter_name="default"):
+    """Extract the frozen Qwen3.5 q/v LoRA tensors from FSDP's raw state dict.
 
-    Retry19W reached optimizer step 1, then its second wake constructed a
-    TensorLoRARequest that vLLM reduced to an empty LoRA model. With FSDP1
-    use_orig_params=False, inferencing PEFT state from the unwrapped model can
-    bypass the FSDP state-dict path. Gather the full FSDP state dict inside the
-    summon context and pass it explicitly to PEFT, then require exactly A+B for
-    all 16 frozen q/v targets.
+    PEFT 0.21 discovers adapter keys structurally from named_modules(). FSDP's
+    nested wrapper names do not line up with the normalized root state-dict keys
+    in this path, so that API can return an empty adapter state even when the
+    raw FSDP state dict contains all 32 tensors. Normalize only the known
+    default-adapter key segment and enforce the exact frozen target topology.
     """
-    marker="AQLEVON_SDPO_FSDP_EXPLICIT_LORA_STATE"
+    if not isinstance(adapter_name, str) or not adapter_name:
+        raise RuntimeError("AQLEVON_FSDP_LORA_ADAPTER_NAME_INVALID")
+    expected = {
+        f"base_model.model.model.language_model.layers.{layer}.self_attn.{projection}.lora_{kind}.weight"
+        for layer in (3, 7, 11, 15, 19, 23, 27, 31)
+        for projection in ("q_proj", "v_proj")
+        for kind in ("A", "B")
+    }
+    raw_keys = sorted(key for key in full_state_dict if ".lora_" in key)
+    extracted = {}
+    for key in raw_keys:
+        for kind in ("A", "B"):
+            suffix = f".lora_{kind}.{adapter_name}.weight"
+            if not key.endswith(suffix):
+                continue
+            canonical = key[:-len(suffix)] + f".lora_{kind}.weight"
+            if canonical in extracted:
+                raise RuntimeError("AQLEVON_FSDP_LORA_DUPLICATE_KEY:" + canonical)
+            extracted[canonical] = full_state_dict[key]
+            break
+    missing = sorted(expected - set(extracted))
+    extra = sorted(set(extracted) - expected)
+    if len(raw_keys) != 32 or missing or extra:
+        raise RuntimeError(
+            "AQLEVON_FSDP_LORA_STATE_KEYS:"
+            f"raw={len(raw_keys)}:extracted={len(extracted)}:expected_32:"
+            f"missing={missing[:4]}:extra={extra[:4]}"
+        )
+    return {key: extracted[key] for key in sorted(expected)}
+
+
+def patch_sdpo_lora_state_sync(text: str) -> str:
+    """Extract the frozen q/v LoRA state from the exact FSDP root state dict.
+
+    Retry19X proved that PEFT 0.21's structural state-dict filter returns zero
+    adapter tensors here although FSDP's raw state dict contains the exact 32
+    keys. Normalize the default adapter segment directly and validate all 16
+    Qwen3.5 full-attention q/v targets before the vLLM sync.
+    """
+    marker = "AQLEVON_SDPO_QWEN35_RAW_FSDP_LORA_STATE"
     if marker in text:
         return text
-    old=(
+    extractor_marker = "def _aqlevon_extract_qwen35_lora_state_dict("
+    if extractor_marker not in text:
+        anchor = "def collect_lora_params("
+        if text.count(anchor) != 1:
+            raise SystemExit(f"sdpo_fsdp_lora_extractor_anchor:expected_once:found_{text.count(anchor)}")
+        extractor_source = inspect.getsource(_aqlevon_extract_qwen35_lora_state_dict)
+        text = text.replace(anchor, extractor_source + "\n\n" + anchor, 1)
+    old = (
         "                if base_sync_done:\n"
         "                    lora_params = get_peft_model_state_dict(peft_model)\n"
         "                    lora_params = {\n"
@@ -146,30 +192,26 @@ def patch_sdpo_lora_state_sync(text: str) -> str:
         "                        for name, param in lora_params.items()\n"
         "                    }\n"
     )
-    new=(
+    new = (
         "                if base_sync_done:\n"
-        "                    # AQLEVON_SDPO_FSDP_EXPLICIT_LORA_STATE: PEFT documents that\n"
-        "                    # callers may supply an accelerator-produced state_dict. Use\n"
-        "                    # the FSDP root state dict while full params are summoned rather\n"
-        "                    # than asking the unwrapped PEFT model to infer one itself.\n"
+        "                    # AQLEVON_SDPO_QWEN35_RAW_FSDP_LORA_STATE\n"
+        "                    # PEFT's structural prefixes miss these FSDP-normalized keys.\n"
         "                    full_state_dict = module.state_dict()\n"
-        "                    raw_lora_keys = sorted(k for k in full_state_dict if \"lora_\" in k)\n"
-        "                    lora_params = get_peft_model_state_dict(\n"
-        "                        peft_model, state_dict=full_state_dict\n"
-        "                    )\n"
-        "                    expected_lora_tensors = 32  # 16 frozen targets × (A,B)\n"
-        "                    if len(lora_params) != expected_lora_tensors:\n"
+        "                    raw_lora_keys = sorted(k for k in full_state_dict if \".lora_\" in k)\n"
+        "                    expected_lora_tensors = 32  # 16 frozen targets x (A,B)\n"
+        "                    if len(raw_lora_keys) != expected_lora_tensors:\n"
         "                        raise RuntimeError(\n"
-        "                            \"AQLEVON_FSDP_LORA_STATE_COUNT:\"\n"
-        "                            f\"peft={len(lora_params)}:raw={len(raw_lora_keys)}:\"\n"
-        "                            f\"expected_{expected_lora_tensors}:\"\n"
-        "                            f\"raw_sample={raw_lora_keys[:8]}\"\n"
+        "                            f\"AQLEVON_FSDP_LORA_RAW_STATE_COUNT:{len(raw_lora_keys)}:expected_32:\"\n"
+        "                            f\"sample={raw_lora_keys[:8]}\"\n"
         "                        )\n"
+        "                    lora_params = _aqlevon_extract_qwen35_lora_state_dict(\n"
+        "                        full_state_dict, adapter_name=\"default\"\n"
+        "                    )\n"
         "                    a_count = sum(\".lora_A.\" in k for k in lora_params)\n"
         "                    b_count = sum(\".lora_B.\" in k for k in lora_params)\n"
-        "                    if (a_count, b_count) != (16, 16):\n"
+        "                    if len(lora_params) != expected_lora_tensors or (a_count, b_count) != (16, 16):\n"
         "                        raise RuntimeError(\n"
-        "                            f\"AQLEVON_FSDP_LORA_AB_COUNT:A={a_count}:B={b_count}:expected_16_16\"\n"
+        "                            f\"AQLEVON_FSDP_LORA_AB_COUNT:count={len(lora_params)}:A={a_count}:B={b_count}:expected_32_16_16\"\n"
         "                        )\n"
         "                    print(\n"
         "                        f\"AQLEVON_SDPO_LORA_STATE_EXTRACTED count={len(lora_params)} A={a_count} B={b_count}\",\n"
@@ -182,9 +224,7 @@ def patch_sdpo_lora_state_sync(text: str) -> str:
         "                        for name, param in lora_params.items()\n"
         "                    }\n"
     )
-    return replace_once(text, old, new, "sdpo_fsdp_explicit_lora_state")
-
-
+    return replace_once(text, old, new, "sdpo_qwen35_fsdp_raw_lora_state")
 def patch_sdpo_tensor_lora_sender(text: str) -> str:
     marker="AQLEVON_TENSOR_LORA_SYNC_COUNT"
     if marker in text:
