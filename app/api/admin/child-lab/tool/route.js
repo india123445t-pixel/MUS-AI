@@ -29,6 +29,7 @@ export async function POST(req){
     if(!input)return NextResponse.json({message:'TOOL_INPUT_REQUIRED'},{status:400});
     const result=await executeChildTool(tool,{
       action,input,
+      permissions:body.permissions,
       constraints:{
         ...(body.constraints&&typeof body.constraints==='object'?body.constraints:{}),
         owner_only:true,
@@ -43,7 +44,7 @@ export async function POST(req){
       tool,
       isolated:true,
       execution_state:'NOT_EXECUTED'
-    },{status:result.error_class==='ADAPTER_REQUIRED'?503:502});
+    },{status:result.error_class==='PERMISSION_DISABLED'?403:result.error_class==='ADAPTER_REQUIRED'?503:502});
     return NextResponse.json({
       ...result,
       isolated:true,
