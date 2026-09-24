@@ -44,6 +44,9 @@ jobs:
       - name: Child long-term memory tests
         run: node --test tests/child-memory.test.mjs
 
+      - name: Child permissions tests
+        run: node --test tests/child-permissions.test.mjs
+
       - name: Owner Core contract tests
         run: node --test tests/owner-core-dashboard.test.mjs
 
