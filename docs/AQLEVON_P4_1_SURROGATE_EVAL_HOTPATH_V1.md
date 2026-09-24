@@ -21,15 +21,15 @@ Worker 05 may emit evaluation evidence. Only the Manager may accept a recipe for
 
 The hot path is pinned to the current P4.1 Worker-03 A1 contract:
 
-- Worker-03 executable source head: `a3abc957f7b81a4dc4e8e20ecb1bb0de3047f783`
+- Worker-03 executable source head: `6cfe1e564a2402d05d7f11f026be774ffe7d393a`
 - task: `P4-A03-GENE1-PHYSICAL-TRAINER`
 - arm: `P4_A1_RLVR_CONTROL`
 - seed: `1701`
 - profile: `p4-surrogate-1x24`
 - frozen training-plan SHA-256: `3cd6e0bada2535a80f83f400f45f5d0fdc5ad8d938f42757785335959f331095`
-- run-manifest SHA-256: `7152cdea6ffd082f632a819e153122b401bd7394ed0273a327537ca961c7fe45`
-- command SHA-256: `3ad2fd2cd5303e1eb4ea71f3e25edf07d38269df1b5b3c8b6e98c8553e017400`
-- command-lock SHA-256: `f1d05b53d0e00b07f7f4d60c90a6bf489f4cd2bd118b2b6a6b38c66026cee44e`
+- run-manifest SHA-256: `b277b41d3d67be1180b4d0600ab6f533f6dbf7b69163980ef5ecc6f0677195b7`
+- command SHA-256: `2502bb06398b6500a282b41bc6c5f23eb20c717d3798cbf280ce8bca242a0862`
+- command-lock SHA-256: `10f333cf453f5896402066d7c483ae170688909ca82a08a0adb1e90766213fcbe`
 - model: `Qwen/Qwen3.5-4B-Base`
 - revision: `daa9c16f371249f9ad1c75a9ed6f956c08ea08f5`
 - precision: BF16
@@ -40,10 +40,13 @@ The hot path is pinned to the current P4.1 Worker-03 A1 contract:
 
 Pinned Worker-03 Git blobs checked during P4.1 audit:
 
-- run manifest: `7e7196ba3e040e58eb307d28e7062e5d24ce8642`
-- command lock: `09a3bc32edc52d6676ba94eb0b05ed4f321c4b09`
+- run manifest: `a335abdfff1e2959db82046f3c06d3e50e77e46d`
+- command lock: `cba47f70a4452e5072789825f643dbe57c281293`
 - Candidate Artifact Manifest producer: `b3c38950b2e591e412726e49ef580129e74dd5c1`
 - Candidate Artifact Manifest schema: `247832f5212860111ddff2d9e565f8ddc9b6402e`
+- W03 A1 candidate packager: `8a9b84d38d5772eed6137ee8f15ca8cae9b4b382`
+
+The packager now requires the completed 12/12 checkpoint, preserves the PEFT target-module regex, verifies the exact 32 LoRA tensors (A=16/B=16), and performs local CUDA save/reload equality before emitting the raw training receipt and Candidate Artifact Manifest. This is packaging validation; it does not establish that the physical run has occurred.
 
 These bindings are pre-evaluation compatibility facts only. They do not prove that a physical candidate exists.
 
