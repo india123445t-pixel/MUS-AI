@@ -1,0 +1,32 @@
+{
+  "authorization_id": "P4-A1-RUNPOD-A40-20260923-19X-SECOND-WAKE-LORA-SYNC-SMOKE-THEN-TRAIN",
+  "candidate_artifact_manifest_sha256": null,
+  "candidate_package_gate_pass": false,
+  "checked_at_utc": "2026-09-24T02:43:11.244012+00:00",
+  "evidence_archive_present": true,
+  "expected_head": "9e4a83e73eb49656efc37383a0e26c9b29a684b1",
+  "image_digest": "sha256:0cc575ebe4249cb1d4e5b21182c7bad89dc707a0aab9ba326497db30f910986c",
+  "log_sha256": "c87c91e00bc0e0b4dae48ca180968cc94dc05c92947164c53b8b32bc60baa675",
+  "markers": {
+    "A1_LOCKED_TRAINING_START": true,
+    "APPLIANCE_BINDING_PASS": true,
+    "APPLIANCE_EXACT_AUTHORIZATION_PASS": true,
+    "APPLIANCE_NATIVE_QWEN35_VLLM019_PASS": true,
+    "APPLIANCE_SEED1701_BINDING_PASS": true,
+    "APPLIANCE_SOURCE_DELTA_PASS": true,
+    "AQLEVON_A1_EXIT_CODE": true,
+    "AQLEVON_P4_A1_CANDIDATE_PACKAGE_PASS": false,
+    "AQLEVON_SDPO_FIRST_WAKE_BASE_SNAPSHOT_REUSED": true,
+    "AQLEVON_SDPO_FIRST_WAKE_DUPLICATE_BASE_LOAD_SKIPPED": true,
+    "AQLEVON_SDPO_LORA_STATE_EXTRACTED count=32 A=16 B=16": false,
+    "AQLEVON_SDPO_LORA_TARGET_MODULES_PRESERVED type=regex": false,
+    "AQLEVON_TENSOR_LORA_SYNC_PASS count=32 A=16 B=16": true,
+    "AQLEVON_TRAINING_UPDATES_VERIFIED=12": false,
+    "AQLEVON_V019_LORA_SMOKE_PASS": true,
+    "AQLEVON_V019_NATIVE_LORA_FUNCTIONAL_SMOKE_PASS": true,
+    "MODEL_STAGE_PASS": true
+  },
+  "resource_diag_present": true,
+  "stop_status": "exited",
+  "training_exit_code": 1
+}
