@@ -20,7 +20,7 @@
         },
         {
           "dataCenterId": "EU-RO-1",
-          "stockStatus": "none"
+          "stockStatus": "Low"
         },
         {
           "dataCenterId": "EUR-IS-1",
@@ -28,7 +28,7 @@
         },
         {
           "dataCenterId": "EUR-IS-2",
-          "stockStatus": "Low"
+          "stockStatus": "none"
         },
         {
           "dataCenterId": "EUR-NO-1",
@@ -44,7 +44,7 @@
         },
         {
           "dataCenterId": "US-NC-1",
-          "stockStatus": "Low"
+          "stockStatus": "none"
         },
         {
           "dataCenterId": "US-TX-3",
