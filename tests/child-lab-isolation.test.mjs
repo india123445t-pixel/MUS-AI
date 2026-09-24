@@ -94,6 +94,18 @@ test('child teaching corrections export only to a child-scoped dataset',()=>{
   assert.doesNotMatch(page,/promote_verified_chat_to_training/);
 });
 
+test('child training pack is explicit and cannot target production training',()=>{
+  assert.match(page,/AQLEVON_CHILD_TRAINING_PACK_V1/);
+  assert.match(page,/CHILD_CHECKPOINT_ONLY/);
+  assert.match(page,/public_model_access:false/);
+  assert.match(page,/production_weight_write:false/);
+  assert.match(page,/training_lane_write:false/);
+  assert.match(page,/auto_promote:false/);
+  assert.match(page,/aqlevon-child-training-pack\.json/);
+  assert.match(page,/specialty/);
+  assert.match(page,/purpose/);
+});
+
 test('owner console links to child lab and no longer exposes legacy runtime model choice',()=>{
   assert.match(admin,/href="\/admin\/child-lab"/);
   assert.match(admin,/const safeModes=\['self_hosted_only'\]/);
