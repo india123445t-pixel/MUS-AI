@@ -184,3 +184,43 @@ Hard manifest values:
 - auto_promote=false
 
 The Training Pack is preparation material only. It does not run training and does not modify weights.
+
+## V1.2 — isolated teaching candidate lane
+
+The Child Lab can now package its teaching state into an isolated evaluation candidate without starting training.
+
+Schema:
+- AQLEVON_CHILD_TEACHING_CANDIDATE_V1
+
+Candidate contents:
+- child persona
+- lessons
+- correction examples
+- PASS/FAIL trial summary
+- deterministic candidate SHA-256
+- hard isolation metadata
+
+The owner UI exposes a simple "جهّز Candidate" action. Packaging returns:
+- evaluation recommendation
+- example count
+- candidate SHA
+- training_started=false
+- gpu_requested=false
+
+Hard rules:
+- Candidate packaging never starts training.
+- Candidate packaging never requests GPU.
+- Candidate packaging never reads or writes Worker 03 / P4 state.
+- Candidate packaging never writes production AQLEVON weights.
+- Candidate packaging never auto-promotes to public AQLEVON.
+- The only valid next state after packaging is evaluation (EVAL_REQUIRED) or rejection.
+
+Owner-only route:
+- POST /api/admin/child-lab/candidate
+
+Implementation:
+- lib/aqlevon/child-candidate.js
+- app/api/admin/child-lab/candidate/route.js
+- tests/child-candidate.test.mjs
+
+This lane exists so Child Lab teaching can later feed a dedicated child-specific checkpoint pipeline without contaminating the active AQLEVON training lane.
