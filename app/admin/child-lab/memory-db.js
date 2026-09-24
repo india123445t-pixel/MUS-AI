@@ -76,6 +76,26 @@ export async function searchChildMemories(query,{limit=24,scanLimit=5000}={}){
   return selectChildMemories(rows,query,{limit});
 }
 
+export async function markChildMemoriesUsed(ids=[]){
+  if(!Array.isArray(ids)||!ids.length)return;
+  const db=await openDb();
+  const tx=db.transaction(STORE,'readwrite');
+  const store=tx.objectStore(STORE);
+  for(const id of ids){
+    const req=store.get(String(id));
+    await new Promise((resolve,reject)=>{
+      req.onsuccess=()=>{
+        const row=req.result;
+        if(row)store.put({...row,use_count:Number(row.use_count||0)+1,last_used_at:new Date().toISOString()});
+        resolve();
+      };
+      req.onerror=()=>reject(req.error);
+    });
+  }
+  await waitTx(tx);
+  db.close();
+}
+
 export async function childMemoryStats(){
   const rows=await listChildMemories({limit:50000});
   const byKind={};
