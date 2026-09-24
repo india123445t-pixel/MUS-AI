@@ -12,6 +12,7 @@ const blank={
   lessons:[],
   messages:[{role:'assistant',text:'أنا طفل AQLEVON داخل المختبر المستقل. علّمني شيئًا ثم اختبرني.'}],
   trials:[],
+  examples:[],
   snapshots:[],
   toolRuns:[],
   currentTrial:{goal:'',success_criteria:'',mode:'sandbox',tool:'web'},
@@ -27,7 +28,7 @@ export default function ChildLabPage(){
   const [ready,setReady]=useState(false),[session,setSession]=useState(null),[authorized,setAuthorized]=useState(false);
   const [email,setEmail]=useState(''),[password,setPassword]=useState(''),[authMsg,setAuthMsg]=useState('');
   const [lab,setLab]=useState(blank),[status,setStatus]=useState(null),[input,setInput]=useState(''),[lesson,setLesson]=useState('');
-  const [busy,setBusy]=useState(false),[notice,setNotice]=useState(''),[toolBusy,setToolBusy]=useState(false);
+  const [busy,setBusy]=useState(false),[notice,setNotice]=useState(''),[toolBusy,setToolBusy]=useState(false),[correction,setCorrection]=useState('');
 
   useEffect(()=>{setLab(loadState())},[]);
   useEffect(()=>{if(typeof window!=='undefined')localStorage.setItem(STORAGE,JSON.stringify(lab))},[lab]);
@@ -99,6 +100,7 @@ export default function ChildLabPage(){
       persona:String(lab.persona||''),
       lessons:(lab.lessons||[]).map(x=>({id:x.id||crypto.randomUUID(),text:String(x.text||''),created_at:x.created_at||null})),
       trials:(lab.trials||[]).slice(0,100),
+      examples:(lab.examples||[]).slice(0,200),
       source:{runtime:'AQLEVON_CHILD_RUNTIME_V1',memory_scope:'child-lab-only',production_weight_write:false,training_lane_write:false}
     };
   }
@@ -129,7 +131,8 @@ export default function ChildLabPage(){
       const persona=String(raw.persona||'').slice(0,12000);
       const lessons=Array.isArray(raw.lessons)?raw.lessons.slice(0,200).map(x=>({id:String(x.id||crypto.randomUUID()),text:String(x.text||'').slice(0,2000),created_at:x.created_at||null})):[];
       const trials=Array.isArray(raw.trials)?raw.trials.slice(0,100):[];
-      setLab(x=>({...x,persona,lessons,trials}));
+      const examples=Array.isArray(raw.examples)?raw.examples.slice(0,200):[];
+      setLab(x=>({...x,persona,lessons,trials,examples}));
       setNotice('تم استيراد حزمة الطفل داخل المختبر فقط.');
     }catch(e){setNotice(e?.message||'تعذر استيراد الحزمة.')}
   }
@@ -149,6 +152,43 @@ export default function ChildLabPage(){
       setLab(x=>({...x,toolRuns:[{id:crypto.randomUUID(),tool,input:goal,output:d.output,receipt:d.receipt,evidence:d.evidence||[],created_at:new Date().toISOString()},...(x.toolRuns||[])].slice(0,50)}));
       setNotice('تم تنفيذ الأداة داخل Child Lab مع Receipt.');
     }catch(e){setNotice(e?.message||'تعذر تشغيل أداة الطفل.')}finally{setToolBusy(false)}
+  }
+
+  function saveCorrection(){
+    const preferred=correction.trim();if(!preferred)return;
+    const msgs=lab.messages||[];
+    const assistantIndex=[...msgs].map((m,i)=>({m,i})).reverse().find(x=>x.m.role==='assistant'&&!x.m.error)?.i;
+    if(assistantIndex==null){setNotice('لا يوجد جواب للطفل لتصحيحه بعد.');return}
+    const childAnswer=String(msgs[assistantIndex]?.text||'');
+    const userMsg=[...msgs.slice(0,assistantIndex)].reverse().find(m=>m.role==='user');
+    if(!userMsg){setNotice('لا يوجد سؤال مرتبط بهذا الجواب.');return}
+    const example={
+      id:crypto.randomUUID(),
+      input:String(userMsg.text||'').slice(0,12000),
+      child_answer:childAnswer.slice(0,12000),
+      preferred_answer:preferred.slice(0,12000),
+      persona_snapshot:String(lab.persona||'').slice(0,12000),
+      created_at:new Date().toISOString(),
+      scope:'child-lab-only',
+    };
+    setLab(x=>({...x,examples:[example,...(x.examples||[])].slice(0,200),lessons:[...x.lessons,{id:crypto.randomUUID(),text:`عند موقف مشابه: ${preferred}`,created_at:new Date().toISOString()}]}));
+    setCorrection('');
+    setNotice('تم حفظ التصحيح كمثال تعليمي للطفل فقط.');
+  }
+
+  function exportTeachingDataset(){
+    const rows=(lab.examples||[]).map(x=>JSON.stringify({
+      schema:'AQLEVON_CHILD_TEACHING_EXAMPLE_V1',
+      input:x.input,
+      child_answer:x.child_answer,
+      preferred_answer:x.preferred_answer,
+      persona_snapshot:x.persona_snapshot,
+      source:'child-lab-only',
+      production_weight_write:false,
+      training_lane_write:false,
+    })).join('\n');
+    const blob=new Blob([rows+(rows?'\n':'')],{type:'application/x-ndjson'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='aqlevon-child-teaching-dataset.jsonl';a.click();URL.revokeObjectURL(a.href);
   }
 
   function resetChild(){
@@ -187,6 +227,13 @@ export default function ChildLabPage(){
         <h2>2) تحدث معه</h2>
         <div style={S.chat}>{lab.messages.map((m,i)=><div key={i} style={m.role==='user'?S.user:S.assistant}><b>{m.role==='user'?'أنت':'الطفل'}</b><p style={{whiteSpace:'pre-wrap',margin:'6px 0 0'}}>{m.text}</p></div>)}{busy&&<div style={S.assistant}>يفكر داخل المختبر…</div>}</div>
         <form onSubmit={send} style={S.row}><textarea style={{...S.textarea,flex:1,minHeight:76}} value={input} onChange={e=>setInput(e.target.value)} placeholder={readyChild?'قل له ماذا يتعلم أو ماذا يفعل في الاختبار…':'Runtime الطفل غير متصل بعد؛ يمكنك تجهيز الشخصية والدروس والاختبارات الآن.'}/><button style={S.primary} disabled={!readyChild||busy||!input.trim()}>إرسال</button></form>
+        <div style={{marginTop:14,paddingTop:14,borderTop:'1px solid #252b35'}}>
+          <h3>علّمه بالتصحيح</h3>
+          <p style={S.muted}>إذا أجاب بشكل غير مناسب، اكتب كيف كان يجب أن يجيب. سيُحفظ المثال داخل Dataset الطفل فقط.</p>
+          <textarea style={S.textarea} rows="4" value={correction} onChange={e=>setCorrection(e.target.value)} placeholder="الصحيح هو…"/>
+          <div style={{...S.row,marginTop:8}}><button style={S.primary} disabled={!correction.trim()} onClick={saveCorrection}>احفظ التصحيح كدرس</button><button style={S.small} disabled={!(lab.examples||[]).length} onClick={exportTeachingDataset}>تصدير Dataset الطفل</button></div>
+          <small style={{opacity:.7}}>{(lab.examples||[]).length} أمثلة تعليمية محفوظة</small>
+        </div>
       </section>
 
       <section style={S.card}>
@@ -212,7 +259,7 @@ export default function ChildLabPage(){
         <div style={S.kv}><span>الذاكرة</span><b>Child Lab فقط</b></div>
         <h3>Snapshots / الحزم</h3>
         <div style={S.row}><button style={S.primary} onClick={saveSnapshot}>حفظ Snapshot</button><button style={S.small} onClick={exportPackage}>تصدير الشخصية</button><label style={S.small}>استيراد<input type="file" accept="application/json,.json" hidden onChange={e=>{const file=e.target.files?.[0];e.target.value='';importPackage(file)}}/></label></div>
-        <div style={S.list}>{(lab.snapshots||[]).slice(0,8).map(x=><div key={x.id} style={S.item}><div><b>{new Date(x.created_at).toLocaleString('ar-MA')}</b><small style={{display:'block',opacity:.7}}>{x.lessons?.length||0} دروس · {x.trials?.length||0} تجارب</small></div><button style={S.small} onClick={()=>restoreSnapshot(x.id)}>استعادة</button></div>)}</div>
+        <div style={S.list}>{(lab.snapshots||[]).slice(0,8).map(x=><div key={x.id} style={S.item}><div><b>{new Date(x.created_at).toLocaleString('ar-MA')}</b><small style={{display:'block',opacity:.7}}>{x.lessons?.length||0} دروس · {x.trials?.length||0} تجارب · {x.examples?.length||0} أمثلة</small></div><button style={S.small} onClick={()=>restoreSnapshot(x.id)}>استعادة</button></div>)}</div>
         <h3>إيصالات الأدوات</h3>
         <div style={S.list}>{(lab.toolRuns||[]).slice(0,6).map(x=><div key={x.id} style={S.item}><div><b>{x.tool} · Receipt</b><small style={{display:'block',opacity:.7}}>{String(x.receipt?.id||x.receipt?.receipt_id||x.id)}</small></div></div>)}</div>
         <button style={S.bad} onClick={resetChild}>مسح الطفل التجريبي</button>
