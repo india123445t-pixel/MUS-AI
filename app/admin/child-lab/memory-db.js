@@ -96,6 +96,14 @@ export async function markChildMemoriesUsed(ids=[]){
   db.close();
 }
 
+export async function clearChildMemories(){
+  const db=await openDb();
+  const tx=db.transaction(STORE,'readwrite');
+  tx.objectStore(STORE).clear();
+  await waitTx(tx);
+  db.close();
+}
+
 export async function childMemoryStats(){
   const rows=await listChildMemories({limit:50000});
   const byKind={};
