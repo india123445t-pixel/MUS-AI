@@ -43,7 +43,7 @@ test('child lab browser state is isolated and tools fail closed',()=>{
   assert.match(page,/aqlevon-child-lab-v1/);
   assert.match(page,/مختبر الطفل/);
   assert.match(page,/لا تلمس نموذج المستخدمين/);
-  assert.match(status,/ADAPTER_REQUIRED/);
+  assert.match(tools,/ADAPTER_REQUIRED/);
   assert.match(page,/Runtime الطفل غير متصل/);
   assert.match(page,/مسح ذاكرة ودروس مختبر الطفل فقط/);
   assert.doesNotMatch(page,/aqlevon-workspace-web-v1/);
@@ -63,6 +63,12 @@ test('child tool broker is isolated and receipt-gated',()=>{
   assert.match(toolRoute,/OWNER_REQUIRED/);
   assert.match(toolRoute,/EXECUTED_WITH_RECEIPT/);
   assert.match(toolRoute,/NOT_EXECUTED/);
+});
+
+test('child exports use the browser URL constructor safely',()=>{
+  assert.match(page,/globalThis\.URL\.createObjectURL/);
+  assert.match(page,/globalThis\.URL\.revokeObjectURL/);
+  assert.doesNotMatch(page,/[^.]URL\.createObjectURL/);
 });
 
 test('child lab supports portable snapshots without touching production state',()=>{
