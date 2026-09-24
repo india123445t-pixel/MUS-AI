@@ -1,0 +1,8 @@
+{
+  "requested_by": "AQLEVON_MANAGER",
+  "expected_source_head": "2ca1d813618f69249d8aca6d114faf8c4f4929e0",
+  "authorization_id": "P4-A1-RUNPOD-A40-20260924-19Y-FSDP-LORA-EXTRACTION-SMOKE-THEN-TRAIN",
+  "authorization_path": "research/weight_factory/agent03/p4_a1_runpod_manager_authorization_retry19y_a40_fsdp_lora_extraction_smoke_then_train_v1.json",
+  "expected_max_artifact_egress_bytes": 5368709120,
+  "request_nonce": "aqlevon-retry19y-egress-cap-contract-2026-09-24T06-05-34-158Z"
+}
