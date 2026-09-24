@@ -1,6 +1,7 @@
 import {NextResponse} from 'next/server';
 import {createClient} from '@supabase/supabase-js';
 import {childHealth} from '../../../../../lib/aqlevon/child-runtime.js';
+import {childToolStatus} from '../../../../../lib/aqlevon/child-tools.js';
 
 const URL=process.env.NEXT_PUBLIC_SUPABASE_URL;
 const KEY=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
@@ -30,13 +31,7 @@ export async function GET(req){
       production_weight_write:false,
       training_lane_write:false,
       memory_scope:'child-lab-only',
-      tools:{
-        web:{state:'ADAPTER_REQUIRED'},
-        browser:{state:'ADAPTER_REQUIRED'},
-        terminal:{state:'ADAPTER_REQUIRED'},
-        files:{state:'ADAPTER_REQUIRED'},
-        media:{state:'ADAPTER_REQUIRED'},
-      }
+      tools:childToolStatus()
     },{headers:{'Cache-Control':'no-store'}});
   }catch(e){return NextResponse.json({message:e?.message||'CHILD_LAB_STATUS_FAILED'},{status:500})}
 }
