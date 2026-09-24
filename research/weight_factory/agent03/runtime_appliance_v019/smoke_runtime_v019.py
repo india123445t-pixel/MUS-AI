@@ -182,7 +182,7 @@ def _real_zmq_control_path_check(torch):
     # second-wake sender now correctly rejects partial LoRA snapshots.
     lora_state = [
         (
-            f"model.layers.{layer}.self_attn.{projection}.lora_{factor}.default.weight",
+            f"base_model.model.model.layers.{layer}.self_attn.{projection}.lora_{factor}.weight",
             torch.full((1,), 1.0),
         )
         for layer in (3,7,11,15,19,23,27,31)
@@ -287,6 +287,47 @@ def _cpu_fsdp_peft_explicit_state_check(torch):
 
 
 
+def _cpu_vllm_tensor_lora_mapping_check(torch, qwen_model_class):
+    """Exercise vLLM's actual in-memory loader on the PEFT/FSDP key format."""
+    from vllm.lora.lora_model import LoRAModel
+    from vllm.lora.peft_helper import PEFTHelper
+
+    layers=(3,7,11,15,19,23,27,31)
+    projections=("q_proj","v_proj")
+    tensors={}
+    for layer in layers:
+        for projection in projections:
+            stem=f"base_model.model.model.layers.{layer}.self_attn.{projection}"
+            tensors[f"{stem}.lora_A.weight"]=torch.ones((4,8),dtype=torch.bfloat16)
+            tensors[f"{stem}.lora_B.weight"]=torch.ones((8,4),dtype=torch.bfloat16)
+    assert len(tensors)==32, len(tensors)
+    helper=PEFTHelper.from_dict({
+        "r":4,
+        "lora_alpha":4,
+        "target_modules":["q_proj","v_proj"],
+        "bias":"none",
+    })
+    mapper=getattr(qwen_model_class,"hf_to_vllm_mapper",None)
+    model=LoRAModel.from_lora_tensors(
+        lora_model_id=1,
+        tensors=tensors,
+        peft_helper=helper,
+        device="cpu",
+        dtype=torch.bfloat16,
+        weights_mapper=mapper,
+    )
+    expected={
+        f"model.layers.{layer}.self_attn.{projection}"
+        for layer in layers
+        for projection in projections
+    }
+    assert set(model.loras)==expected, sorted(model.loras)
+    assert all(v.lora_a is not None and v.lora_b is not None for v in model.loras.values())
+    print("AQLEVON_V019_TENSOR_LORA_CPU_MAPPING_PASS count=32 modules=16 A=16 B=16",flush=True)
+    return True
+
+
+
 def build_check():
     import torch, vllm, ray, transformers, peft, accelerate, flash_attn, numpy as np
     assert _cpu_fsdp_peft_explicit_state_check(torch) is True
@@ -308,6 +349,7 @@ def build_check():
     assert hasattr(q,"Qwen3_5ForCausalLM")
     packed=q.Qwen3_5ForCausalLMBase.packed_modules_mapping
     assert packed.get("qkv_proj")==["q_proj","k_proj","v_proj"], packed.get("qkv_proj")
+    assert _cpu_vllm_tensor_lora_mapping_check(torch,q.Qwen3_5ForCausalLM) is True
 
     # Pinned SDPO commit must import against this vLLM generation.
     import verl
@@ -596,6 +638,7 @@ def build_check():
       "sdpo_real_zmq_control_path":"pass",
       "vllm019_post_init_api_signatures":"pass",
       "sdpo_tensor_lora_replace_path":"pass",
+      "tensor_lora_cpu_mapping":"pass",
       "sdpo_sleep_wake_path":"pass",
       "sdpo_second_wake_lora_sync_guard":"pass",
       "cpu_fsdp_peft_explicit_state":"pass",
