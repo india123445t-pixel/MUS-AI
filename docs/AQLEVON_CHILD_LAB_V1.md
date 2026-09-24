@@ -224,3 +224,68 @@ Implementation:
 - tests/child-candidate.test.mjs
 
 This lane exists so Child Lab teaching can later feed a dedicated child-specific checkpoint pipeline without contaminating the active AQLEVON training lane.
+
+## V1.4 — long-term memory retrieval
+
+The Child Lab now has a dedicated long-term memory layer that grows independently from the prompt and from the public AQLEVON runtime.
+
+Storage:
+- browser IndexedDB database: aqlevon-child-memory-v1
+- scope: child-lab-only
+- separate from Workspace local storage
+- separate from public model memory
+- separate from Worker 03 / P4 training state
+
+Each memory record can store:
+- text
+- kind
+- topic
+- tags
+- importance
+- source
+- active state
+- use count
+- creation/update timestamps
+
+Supported memory kinds in the owner UI:
+- lesson
+- correction
+- experience
+- preference
+- fact
+
+Retrieval contract:
+- the full memory archive is never injected into every prompt
+- before each child turn, the browser searches the child memory store
+- only the most relevant memories are selected
+- current retrieval cap: top 24 memories per turn
+- the server re-validates and caps incoming memories to 24
+- the child runtime injects only this filtered set under RELEVANT LONG-TERM MEMORY
+
+Automatic memory capture:
+- explicit owner lessons are saved as long-term lesson memories
+- owner corrections are saved as high-importance correction memories
+- retrieved memories can track usage
+
+Owner controls:
+- add memory manually
+- choose kind/topic/tags/importance
+- search and filter memory
+- delete individual memories
+- export the child memory archive
+- import a child memory archive
+- reset Child Lab long-term memory without touching public AQLEVON or the training lane
+
+Memory export schema:
+- AQLEVON_CHILD_MEMORY_EXPORT_V1
+
+Implementation:
+- lib/aqlevon/child-memory.js
+- app/admin/child-lab/memory-db.js
+- app/admin/child-lab/page.js
+- app/api/admin/child-lab/chat/route.js
+- lib/aqlevon/child-runtime.js
+- tests/child-memory.test.mjs
+
+Important capacity note:
+The design is expandable rather than literally infinite. The archive can continue growing until the storage backend reaches its physical quota. Retrieval keeps prompt size bounded because only relevant memories are selected. A future server-side memory adapter can replace or extend IndexedDB without changing the child runtime contract.
