@@ -41,7 +41,7 @@ test('child lab browser state is isolated and tools fail closed',()=>{
   assert.match(page,/aqlevon-child-lab-v1/);
   assert.match(page,/مختبر الطفل/);
   assert.match(page,/لا تلمس نموذج المستخدمين/);
-  assert.match(page,/ADAPTER_REQUIRED/);
+  assert.match(status,/ADAPTER_REQUIRED/);
   assert.match(page,/Runtime الطفل غير متصل/);
   assert.match(page,/مسح ذاكرة ودروس مختبر الطفل فقط/);
   assert.doesNotMatch(page,/aqlevon-workspace-web-v1/);
