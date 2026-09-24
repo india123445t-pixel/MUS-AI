@@ -289,3 +289,56 @@ Implementation:
 
 Important capacity note:
 The design is expandable rather than literally infinite. The archive can continue growing until the storage backend reaches its physical quota. Retrieval keeps prompt size bounded because only relevant memories are selected. A future server-side memory adapter can replace or extend IndexedDB without changing the child runtime contract.
+
+## V1.5 — owner permissions console
+
+The Child Lab now has an owner-facing operational permissions console.
+
+Permissions are explicit toggles instead of hidden operational choices.
+
+Controls:
+- master execution on/off
+- emergency STOP that disables execution and revokes all operational grants
+- autonomy mode: observe only, ask for each action, or run automatically within enabled grants
+- per-capability toggles
+- local audit log for permission changes
+
+Operational permission catalog:
+- web research
+- browser navigation
+- browser form filling
+- browser use of an already-authenticated owner session
+- browser downloads
+- browser uploads
+- browser submit/confirm actions
+- file read
+- file create/edit
+- file delete
+- terminal/code execution in the child sandbox
+- media read
+- media create/edit
+- multi-step workflows
+- external publishing
+- connected-account setting changes
+
+Enforcement:
+- lib/aqlevon/child-permissions.js defines the owner permission schema
+- lib/aqlevon/child-tools.js maps tool actions to required operational permissions
+- the tool broker returns PERMISSION_DISABLED before calling an adapter when the required toggle is off
+- app/api/admin/child-lab/tool/route.js passes the owner permission state into the broker
+- app/admin/child-lab/page.js exposes the controls and Emergency Stop
+
+Default state:
+- master execution OFF
+- all operational grants OFF
+- autonomy = ask_each_action
+
+The permissions console controls Child Lab operational capabilities. Platform safety boundaries remain separate from these toggles.
+
+CI:
+- tests/child-permissions.test.mjs
+- workflow gate: Child permissions tests
+- exact verified implementation head before this documentation commit: 8abf70a47a68a27fb65325588f3bd833e11877e9
+- GitHub Actions run: 35951056992 — SUCCESS
+
+No main merge, no production AQLEVON weight mutation, no Worker 03/P4 mutation, and no GPU request occurred in V1.5.
