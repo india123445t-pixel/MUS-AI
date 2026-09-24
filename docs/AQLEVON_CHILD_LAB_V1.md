@@ -74,3 +74,84 @@ Any future weight update must target a child-specific artifact and must never re
 - No automatic promotion from Child Lab to public AQLEVON.
 - Owner Core remains a separate control surface.
 - Child runtime must be explicitly configured before chat is enabled.
+
+
+## V1.1 — teaching, snapshots and tool execution lane
+The Child Lab now includes:
+- owner-written personality
+- owner-written lessons
+- isolated chat history
+- PASS/FAIL trial history
+- correction examples: owner can replace a bad child answer with a preferred answer
+- child-only JSONL teaching dataset export
+- persona package export/import
+- local snapshots that preserve persona, lessons, trials and teaching examples
+- child-only tool broker with explicit adapters for web, browser, terminal, files and media
+- receipt-gated tool execution: a tool run is not accepted as executed without an adapter receipt
+
+### Child teaching dataset contract
+Schema:
+- AQLEVON_CHILD_TEACHING_EXAMPLE_V1
+
+Each row contains only child-lab material:
+- input
+- child_answer
+- preferred_answer
+- persona_snapshot
+- source=child-lab-only
+- production_weight_write=false
+- training_lane_write=false
+
+This dataset is NOT automatically connected to the current AQLEVON training pipeline.
+It is an export artifact for a future child-specific training lane.
+
+### Child persona package contract
+Schema:
+- AQLEVON_CHILD_PERSONA_PACKAGE_V1
+
+A package can contain:
+- persona
+- lessons
+- trials
+- teaching examples
+- child isolation metadata
+
+Import restores only Child Lab state.
+
+### Child tool adapter contract
+Protocol:
+- AQLEVON_CHILD_TOOL_V1
+
+Supported adapter identities:
+- AQLEVON_CHILD_WEB_ADAPTER_URL
+- AQLEVON_CHILD_BROWSER_ADAPTER_URL
+- AQLEVON_CHILD_TERMINAL_ADAPTER_URL
+- AQLEVON_CHILD_FILES_ADAPTER_URL
+- AQLEVON_CHILD_MEDIA_ADAPTER_URL
+
+Each tool has a matching optional *_KEY server-side secret.
+No tool credential is accepted from the browser UI.
+
+A tool adapter must return:
+- ok=true
+- receipt
+- optional output
+- optional evidence
+
+Without a receipt the run is rejected as RECEIPT_REQUIRED.
+
+Every adapter request receives hard isolation metadata:
+- scope=child-lab-only
+- public_model_access=false
+- production_weight_write=false
+- training_lane_write=false
+
+### Future child weight training
+Actual child weight updates remain intentionally absent from V1.1.
+When introduced, they must use:
+- a child-specific base/checkpoint identity
+- a child-specific dataset manifest
+- a child-specific output artifact path
+- no implicit access to Worker 03 / P4 artifacts
+- no automatic promotion to production AQLEVON
+- explicit evaluation before any packaging/export
