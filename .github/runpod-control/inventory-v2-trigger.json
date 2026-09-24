@@ -1,7 +1,7 @@
 {
   "action": "inventory",
   "requested_by": "AQLEVON_MANAGER",
-  "nonce": "2026-09-24T06:01:01Z",
-  "reason": "Read-only pod and capacity inventory after Retry19Y and before fresh single-use authorization",
-  "request_nonce": "aqlevon-pre-retry19z-inventory-20260924-manager-01"
+  "nonce": "2026-09-24T06:31:10.539Z",
+  "reason": "Final read-only pod and capacity inventory after Retry19Z gates, immediately before the single authorized run",
+  "request_nonce": "aqlevon-retry19z-final-preflight-2026-09-24T06-31-10-539Z"
 }
