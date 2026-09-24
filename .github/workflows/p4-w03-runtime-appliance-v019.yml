@@ -9,6 +9,10 @@ on:
       - 'research/weight_factory/agent03/runtime_appliance_v019/**'
       - 'research/weight_factory/agent03/p4_a1_runtime_appliance_binding_retry19x_a40_second_wake_lora_sync_smoke_then_train_v1.json'
       - 'research/weight_factory/agent03/p4_patch_sdpo_transformers5_native_vllm019.py'
+      - 'research/weight_factory/agent03/p4_runpod_appliance_launch_v019.sh'
+      - 'research/weight_factory/agent03/p4_a1_candidate_packager.py'
+      - 'research/weight_factory/agent03/test_p4_a1_candidate_packager.py'
+      - 'research/weight_factory/agent03/test_p4_patch_sdpo_target_serialization.py'
       - '.github/workflows/p4-w03-runtime-appliance-v019.yml'
 
 permissions:
@@ -31,6 +35,9 @@ jobs:
         run: |
           set -euo pipefail
           python -m py_compile research/weight_factory/agent03/p4_patch_sdpo_transformers5_native_vllm019.py
+          python -m py_compile research/weight_factory/agent03/p4_a1_candidate_packager.py research/weight_factory/agent03/test_p4_a1_candidate_packager.py research/weight_factory/agent03/test_p4_patch_sdpo_target_serialization.py
+          bash -n research/weight_factory/agent03/p4_runpod_appliance_launch_v019.sh
+          (cd research/weight_factory/agent03 && python -m unittest -v test_p4_a1_candidate_packager test_p4_patch_sdpo_target_serialization)
           python -m py_compile research/weight_factory/agent03/runtime_appliance_v019/smoke_runtime_v019.py
           python - <<'PY'
           from pathlib import Path
@@ -63,6 +70,11 @@ jobs:
           assert "AQLEVON_VLLM019_RESET_LORA_STATE" in patch
           assert "AQLEVON_VLLM019_RESET_AFTER_DIRECT_BASE_LOAD" in patch
           assert "AQLEVON_SDPO_FSDP_EXPLICIT_LORA_STATE" in patch
+          assert "AQLEVON_SDPO_LORA_TARGET_MODULES_PRESERVED" in patch
+          packager=Path("research/weight_factory/agent03/p4_a1_candidate_packager.py").read_text()
+          assert "AQLEVON_P4_A1_CANDIDATE_PACKAGE_PASS" in packager
+          assert "latest_checkpointed_iteration.txt" in packager
+          assert "AQLEVON_P4_A1_CANDIDATE_PACKAGE_PASS" in Path("research/weight_factory/agent03/p4_runpod_appliance_launch_v019.sh").read_text()
           assert "AQLEVON_TENSOR_LORA_SYNC_COUNT" in patch
           assert "AQLEVON_TENSOR_LORA_LOADER_NONEMPTY" in patch
           assert "AQLEVON_QWEN35_TF5_MM_TOKEN_TYPE_IDS" in patch

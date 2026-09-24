@@ -101,6 +101,28 @@ def patch_sdpo_first_wake_base_sync_dedup(text: str) -> str:
     return text
 
 
+def patch_sdpo_lora_target_modules_save(text: str) -> str:
+    """Preserve PEFT regex targets in the pinned SDPO checkpoint config."""
+    marker = "AQLEVON_SDPO_LORA_TARGET_MODULES_PRESERVED"
+    if marker in text:
+        return text
+    old = '                peft_config["target_modules"] = list(peft_config["target_modules"])\n'
+    new = (
+        "                target_modules = peft_config[\"target_modules\"]\n"
+        "                # AQLEVON_SDPO_LORA_TARGET_MODULES_PRESERVED: keep regexes intact.\n"
+        "                if isinstance(target_modules, str):\n"
+        "                    peft_config[\"target_modules\"] = target_modules\n"
+        "                    target_modules_kind = \"regex\"\n"
+        "                elif isinstance(target_modules, (list, tuple, set)):\n"
+        "                    peft_config[\"target_modules\"] = sorted(target_modules)\n"
+        "                    target_modules_kind = \"list\"\n"
+        "                else:\n"
+        "                    raise TypeError(f\"unsupported_target_modules_type:{type(target_modules).__name__}\")\n"
+        "                print(f\"AQLEVON_SDPO_LORA_TARGET_MODULES_PRESERVED type={target_modules_kind}\", flush=True)\n"
+    )
+    return replace_once(text, old, new, "sdpo_lora_target_modules_serialization")
+
+
 def patch_sdpo_lora_state_sync(text: str) -> str:
     """Make FSDP LoRA export explicit and fail closed on the frozen 16-target contract.
 
@@ -275,6 +297,7 @@ def main() -> int:
         )
 
     fsdp = patch_sdpo_first_wake_base_sync_dedup(fsdp)
+    fsdp = patch_sdpo_lora_target_modules_save(fsdp)
     fsdp_utils = patch_sdpo_lora_state_sync(fsdp_utils)
     vllm_rollout = patch_sdpo_tensor_lora_sender(vllm_rollout)
     vllm_utils = patch_sdpo_tensor_lora_loader(vllm_utils)
@@ -491,6 +514,8 @@ def main() -> int:
 
     if "AQLEVON_SDPO_FIRST_WAKE_BASE_SYNC_DEDUP" not in fsdp:
         raise SystemExit("sdpo_first_wake_base_sync_dedup_missing_after_patch")
+    if "AQLEVON_SDPO_LORA_TARGET_MODULES_PRESERVED" not in fsdp:
+        raise SystemExit("sdpo_lora_target_modules_serialization_missing_after_patch")
     if "AQLEVON_SDPO_FSDP_EXPLICIT_LORA_STATE" not in fsdp_utils:
         raise SystemExit("sdpo_fsdp_explicit_lora_state_missing_after_patch")
     if "AQLEVON_TENSOR_LORA_SYNC_COUNT" not in vllm_rollout:
@@ -541,6 +566,8 @@ def main() -> int:
         raise SystemExit("vllm019_reset_lora_state_missing_after_patch")
     if "AQLEVON_VLLM019_RESET_AFTER_DIRECT_BASE_LOAD" not in vllm_rollout:
         raise SystemExit("vllm019_reset_after_direct_base_load_missing_after_patch")
+    if "AQLEVON_SDPO_LORA_TARGET_MODULES_PRESERVED" not in fsdp:
+        raise SystemExit("sdpo_lora_target_modules_serialization_missing_after_patch")
 
     print("AQLEVON_SDPO_TF5_NATIVE_VLLM019_PATCH_PASS")
     print("MODEL_SHA256:",sha256(MODEL))

@@ -314,9 +314,10 @@ trap cleanup_diag EXIT
 set +e
 timeout --signal=TERM --kill-after=20s "${REMAINING}s" \
 python3 - <<'PY' 2>&1 | tee "$ROOT/aqlevon_p4/P4_A1_seed1701_appliance.log"
-import json, os
+import json, os, subprocess, sys
 from pathlib import Path
 import p4_gene1_trainer as c
+agent=Path("/workspace/MUS-AI/research/weight_factory/agent03")
 run=json.loads(Path("p4_a1_seed1701_run_manifest_v1.json").read_text())
 lock=json.loads(Path("p4_a1_seed1701_command_lock_v1.json").read_text())
 auth=json.loads(Path(os.environ["AQLEVON_RESOLVED_AUTH_FILE"]).read_text())
@@ -327,7 +328,28 @@ rc=c.run_locked(
     run_manifest_sha256=run["manifest_sha256"],
     cwd=Path("/workspace/MUS-AI"),
 )
-raise SystemExit(rc)
+print(f"AQLEVON_A1_TRAINING_EXIT_CODE={rc}", flush=True)
+if rc:
+    raise SystemExit(rc)
+ray_stop=subprocess.run(["ray","stop","--force"],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
+print(f"AQLEVON_RAY_CLEANUP_EXIT_CODE={ray_stop.returncode}", flush=True)
+if ray_stop.returncode:
+    print(ray_stop.stdout[-2000:], flush=True)
+    raise SystemExit(ray_stop.returncode)
+checkpoints=Path("/workspace/aqlevon_p4/runs/P4_A1_RLVR_CONTROL_seed1701/checkpoints")
+adapter=checkpoints/"global_step_12"/"actor"/"lora_adapter"
+package_rc=subprocess.call([
+    sys.executable, str(agent/"p4_a1_candidate_packager.py"),
+    "--adapter-dir", str(adapter),
+    "--checkpoint-root", str(checkpoints),
+    "--model-dir", "/workspace/models/qwen35-4b-daa9c16f3712",
+    "--run-manifest", str(agent/"p4_a1_seed1701_run_manifest_v1.json"),
+    "--training-plan", str(agent/"p4_frozen_training_plan_v1.json"),
+    "--command-lock", str(agent/"p4_a1_seed1701_command_lock_v1.json"),
+    "--output-dir", "/workspace/aqlevon_p4/candidate/P4_A1_seed1701_Worker05",
+])
+print(f"AQLEVON_CANDIDATE_PACKAGE_EXIT_CODE={package_rc}", flush=True)
+raise SystemExit(package_rc)
 PY
 RC=${PIPESTATUS[0]}
 set -e
