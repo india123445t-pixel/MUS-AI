@@ -106,6 +106,14 @@ test('child training pack is explicit and cannot target production training',()=
   assert.match(page,/purpose/);
 });
 
+test('child candidate packaging is dry-run only in the owner UI',()=>{
+  assert.match(page,/\/api\/admin\/child-lab\/candidate/);
+  assert.match(page,/جهّز Candidate/);
+  assert.match(page,/لم يبدأ أي تدريب ولم يُطلب GPU/);
+  assert.match(page,/candidate\.training_started/);
+  assert.match(page,/candidate\.gpu_requested/);
+});
+
 test('owner console links to child lab and no longer exposes legacy runtime model choice',()=>{
   assert.match(admin,/href="\/admin\/child-lab"/);
   assert.match(admin,/const safeModes=\['self_hosted_only'\]/);
