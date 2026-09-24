@@ -1,0 +1,15 @@
+{
+  "authorization_id": "P4-A1-RUNPOD-A40-20260923-19X-SECOND-WAKE-LORA-SYNC-SMOKE-THEN-TRAIN",
+  "authorization_sha256": "a76d9fd1309e5ebf66addeeb357ddfc27abe6c62c3ed332d25aefcf1e7cb90a8",
+  "expected_head": "9e4a83e73eb49656efc37383a0e26c9b29a684b1",
+  "image_digest": "sha256:0cc575ebe4249cb1d4e5b21182c7bad89dc707a0aab9ba326497db30f910986c",
+  "gpu_type": "NVIDIA A40",
+  "min_memory_gb": 48,
+  "selection_mode": "dynamic_datacenter",
+  "request_schema": "runpodctl_graphql_dynamic_dc",
+  "max_billed_seconds": 3600,
+  "max_total_cost_usd": "0.55",
+  "max_hourly_rate_usd": "0.55",
+  "single_use": true,
+  "attempt_nonce": "retry19x-second-wake-lora-sync-1"
+}
