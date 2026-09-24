@@ -2,7 +2,7 @@
 
 import {useEffect,useMemo,useState} from 'react';
 import {createClient} from '@supabase/supabase-js';
-import {putChildMemory,searchChildMemories,listChildMemories,deleteChildMemory,childMemoryStats,exportChildMemories,importChildMemories,markChildMemoriesUsed} from './memory-db.js';
+import {putChildMemory,searchChildMemories,listChildMemories,deleteChildMemory,clearChildMemories,childMemoryStats,exportChildMemories,importChildMemories,markChildMemoriesUsed} from './memory-db.js';
 
 const URL=process.env.NEXT_PUBLIC_SUPABASE_URL;
 const KEY=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
@@ -316,8 +316,10 @@ export default function ChildLabPage(){
     const a=document.createElement('a');a.href=globalThis.URL.createObjectURL(blob);a.download='aqlevon-child-training-pack.json';a.click();globalThis.URL.revokeObjectURL(a.href);
   }
 
-  function resetChild(){
-    if(!confirm('مسح ذاكرة ودروس مختبر الطفل فقط؟ لن يتأثر نموذج المستخدمين أو التدريب.'))return;
+  async function resetChild(){
+    if(!confirm('مسح شخصية الطفل ودروسه وذاكرته الطويلة داخل المختبر فقط؟ لن يتأثر نموذج المستخدمين أو التدريب.'))return;
+    await clearChildMemories().catch(()=>{});
+    setMemoryItems([]);setMemoryInfo({count:0,by_kind:{}});
     setLab(blank);
   }
 
