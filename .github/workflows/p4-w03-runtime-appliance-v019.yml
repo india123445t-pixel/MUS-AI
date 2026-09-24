@@ -7,6 +7,7 @@ on:
       - agent/03-p4-gene1-physical-trainer
     paths:
       - 'research/weight_factory/agent03/runtime_appliance_v019/**'
+      - 'research/weight_factory/agent03/p4_a1_runtime_appliance_binding_retry19x_a40_second_wake_lora_sync_smoke_then_train_v1.json'
       - 'research/weight_factory/agent03/p4_patch_sdpo_transformers5_native_vllm019.py'
       - '.github/workflows/p4-w03-runtime-appliance-v019.yml'
 
