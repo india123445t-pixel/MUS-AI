@@ -69,11 +69,11 @@ test('provider failures map to safe diagnostic classes',()=>{
   assert.equal(classifyProviderFailure({status:404,body:{error:'model not found'}}),'MODEL_UNAVAILABLE');
   assert.equal(classifyProviderFailure({status:503}),'UPSTREAM_5XX');
   assert.equal(classifyProviderFailure({status:200,body:{}}),'INVALID_RESPONSE');
-  assert.equal(classifyProviderFailure({status:400,body:{error:'No endpoints found for free route'}}),'FREE_ROUTE_UNAVAILABLE');
+  assert.equal(classifyProviderFailure({status:400,body:{error:'No endpoints found for free route'}}),'UNKNOWN_PROVIDER_ERROR');
 });
 
 test('safe diagnostic never includes upstream body, authorization, or secret value',()=>{
-  const d=safeProviderDiagnostic({provider:'openrouter',model:'openrouter/free',route:'openrouter_primary',status:401,error_class:'AUTH_ERROR',body:'sk-secret'});
+  const d=safeProviderDiagnostic({provider:'aqlevon-engine',model:'AQLEVON',route:'self_hosted_only',status:401,error_class:'AUTH_ERROR',body:'sk-secret'});
   const text=JSON.stringify(d);assert.equal(PROVIDER_ERROR_CLASSES.includes(d.error_class),true);assert.equal(text.includes('sk-secret'),false);assert.equal(text.includes('Authorization'),false);
 });
 
