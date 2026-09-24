@@ -16,11 +16,11 @@
         },
         {
           "dataCenterId": "EU-CZ-1",
-          "stockStatus": "Low"
+          "stockStatus": "none"
         },
         {
           "dataCenterId": "EU-RO-1",
-          "stockStatus": "High"
+          "stockStatus": "none"
         },
         {
           "dataCenterId": "EUR-IS-1",
@@ -44,7 +44,7 @@
         },
         {
           "dataCenterId": "US-NC-1",
-          "stockStatus": "none"
+          "stockStatus": "Low"
         },
         {
           "dataCenterId": "US-TX-3",
@@ -56,10 +56,17 @@
       "memoryInGb": 24,
       "secureCloud": true,
       "securePricePerHr": 0.74,
-      "stockStatus": "High"
+      "stockStatus": "Low"
     }
   ],
   "pods": [
+    {
+      "id": "8gofbgatfaxbtu",
+      "name": "AQLEVON-P4-A1-Retry19Y",
+      "status": "EXITED",
+      "gpuId": null,
+      "costPerHr": 0.49
+    },
     {
       "id": "4te218vre07gth",
       "name": "AQLEVON-P4-A1-Retry19X",
