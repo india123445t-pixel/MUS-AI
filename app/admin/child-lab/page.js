@@ -2,6 +2,7 @@
 
 import {useEffect,useMemo,useState} from 'react';
 import {createClient} from '@supabase/supabase-js';
+import {putChildMemory,searchChildMemories,listChildMemories,deleteChildMemory,childMemoryStats,exportChildMemories,importChildMemories,markChildMemoriesUsed} from './memory-db.js';
 
 const URL=process.env.NEXT_PUBLIC_SUPABASE_URL;
 const KEY=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
@@ -30,6 +31,8 @@ export default function ChildLabPage(){
   const [email,setEmail]=useState(''),[password,setPassword]=useState(''),[authMsg,setAuthMsg]=useState('');
   const [lab,setLab]=useState(blank),[status,setStatus]=useState(null),[input,setInput]=useState(''),[lesson,setLesson]=useState('');
   const [busy,setBusy]=useState(false),[notice,setNotice]=useState(''),[toolBusy,setToolBusy]=useState(false),[correction,setCorrection]=useState(''),[candidate,setCandidate]=useState(null),[candidateEval,setCandidateEval]=useState(null);
+  const [memoryDraft,setMemoryDraft]=useState({text:'',kind:'lesson',topic:'general',tags:'',importance:0.8});
+  const [memoryQuery,setMemoryQuery]=useState(''),[memoryKind,setMemoryKind]=useState('all'),[memoryItems,setMemoryItems]=useState([]),[memoryInfo,setMemoryInfo]=useState({count:0,by_kind:{}});
 
   useEffect(()=>{setLab(loadState())},[]);
   useEffect(()=>{if(typeof window!=='undefined')localStorage.setItem(STORAGE,JSON.stringify(lab))},[lab]);
@@ -42,6 +45,7 @@ export default function ChildLabPage(){
   },[sb]);
 
   useEffect(()=>{if(session)loadOwner();else setAuthorized(false)},[session]);
+  useEffect(()=>{if(authorized)refreshMemory().catch(()=>{})},[authorized]);
 
   async function login(e){e.preventDefault();setAuthMsg('');const r=await sb.auth.signInWithPassword({email,password});if(r.error)setAuthMsg('بيانات الدخول غير صحيحة.')}
   async function loadOwner(){
