@@ -396,6 +396,47 @@ export default function ChildLabPage(){
         <div style={S.list}>{(lab.toolRuns||[]).slice(0,6).map(x=><div key={x.id} style={S.item}><div><b>{x.tool} · Receipt</b><small style={{display:'block',opacity:.7}}>{String(x.receipt?.id||x.receipt?.receipt_id||x.id)}</small></div></div>)}</div>
         <button style={S.bad} onClick={resetChild}>مسح الطفل التجريبي</button>
       </section>
+
+      <section style={S.card}>
+        <h2>5) الذاكرة الطويلة</h2>
+        <p style={S.muted}>الذاكرة لا تُرسل كاملة للنموذج. عند كل سؤال يسترجع المختبر فقط الذكريات الأكثر صلة.</p>
+        <div style={S.kv}><span>عدد الذكريات</span><b>{memoryInfo.count||0}</b></div>
+        <div style={S.kv}><span>المخزن</span><b>IndexedDB · Child Lab فقط</b></div>
+        <div style={S.row}>
+          <select style={S.input} value={memoryDraft.kind} onChange={e=>setMemoryDraft(x=>({...x,kind:e.target.value}))}>
+            <option value="lesson">درس</option>
+            <option value="correction">تصحيح</option>
+            <option value="experience">خبرة</option>
+            <option value="preference">تفضيل</option>
+            <option value="fact">معلومة</option>
+          </select>
+          <input style={S.input} value={memoryDraft.topic} onChange={e=>setMemoryDraft(x=>({...x,topic:e.target.value}))} placeholder="الموضوع"/>
+        </div>
+        <textarea style={{...S.textarea,marginTop:8}} rows="4" value={memoryDraft.text} onChange={e=>setMemoryDraft(x=>({...x,text:e.target.value}))} placeholder="اكتب أي شيء تريد أن يتذكره الطفل…"/>
+        <div style={S.row}>
+          <input style={{...S.input,flex:1}} value={memoryDraft.tags} onChange={e=>setMemoryDraft(x=>({...x,tags:e.target.value}))} placeholder="وسوم مفصولة بفواصل"/>
+          <label style={{minWidth:140}}>الأهمية {Number(memoryDraft.importance||0).toFixed(1)}<input type="range" min="0" max="1" step="0.1" value={memoryDraft.importance} onChange={e=>setMemoryDraft(x=>({...x,importance:Number(e.target.value)}))}/></label>
+          <button style={S.primary} disabled={!memoryDraft.text.trim()} onClick={saveMemory}>احفظ في الذاكرة</button>
+        </div>
+        <hr style={{borderColor:'#252b35',margin:'16px 0'}}/>
+        <div style={S.row}>
+          <input style={{...S.input,flex:1}} value={memoryQuery} onChange={e=>setMemoryQuery(e.target.value)} placeholder="ابحث داخل ذاكرة الطفل…" onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();refreshMemory(memoryQuery)}}}/>
+          <select style={S.input} value={memoryKind} onChange={e=>setMemoryKind(e.target.value)}>
+            <option value="all">كل الأنواع</option>
+            <option value="lesson">دروس</option>
+            <option value="correction">تصحيحات</option>
+            <option value="experience">خبرات</option>
+            <option value="preference">تفضيلات</option>
+            <option value="fact">معلومات</option>
+          </select>
+          <button style={S.small} onClick={()=>refreshMemory(memoryQuery)}>فلترة</button>
+        </div>
+        <div style={{...S.row,marginTop:8}}>
+          <button style={S.small} onClick={exportMemoryFile}>تصدير الذاكرة</button>
+          <label style={S.small}>استيراد ذاكرة<input type="file" accept="application/json,.json" hidden onChange={e=>{const file=e.target.files?.[0];e.target.value='';importMemoryFile(file)}}/></label>
+        </div>
+        <div style={S.list}>{memoryItems.slice(0,60).map(m=><div key={m.id} style={S.item}><div><b>{m.kind} · {m.topic}</b><p style={{margin:'4px 0',whiteSpace:'pre-wrap'}}>{m.text}</p><small style={{opacity:.65}}>أهمية {Number(m.importance||0).toFixed(1)}{m.relevance_score!=null?` · صلة ${Number(m.relevance_score).toFixed(2)}`:''}</small></div><button style={S.small} onClick={()=>removeMemory(m.id)}>حذف</button></div>)}</div>
+      </section>
     </main>
   </div>;
 }
