@@ -7,7 +7,7 @@ const URL=process.env.NEXT_PUBLIC_SUPABASE_URL;
 const KEY=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
 const domainNames={reasoning:'الاستدلال',math:'الرياضيات',science:'العلوم',coding:'البرمجة',language:'اللغة',research:'البحث',planning:'التخطيط',knowledge:'المعرفة',general:'عام',software:'البرمجة',data:'البيانات',communication:'التواصل',operations:'العمليات'};
-const safeModes=['openrouter_primary','openrouter_only','self_hosted_primary','self_hosted_only'];
+const safeModes=['self_hosted_only'];
 const nav=[['owner','القيادة'],['missions','المهام'],['traces','التتبّع'],['incidents','الحوادث'],['overview','نظرة عامة'],['brain','ذاكرة المشروع'],['model_lab','مختبر النموذج'],['evaluation','التقييم'],['learning','التعلّم'],['infrastructure','البنية التحتية'],['security','الأمن المصرّح'],['runtime','التشغيل'],['access','الوصول والصلاحيات']];
 const profiles=[
   ['guardian','الحارس','حراسة المشروع ومراقبة الحالة والانحرافات.'],
@@ -24,7 +24,6 @@ function resultOf(v){return String(v?.result||'').toUpperCase()}
 function isVerified(log){return resultOf(log?.verification)==='VERIFIED'}
 function learningEligible(log){return isVerified(log)&&log?.learning_eligible===true}
 function traceDomain(log){return log?.task_contract?.primary_domain||log?.task_contract?.domain||'general'}
-function freeModel(v){const s=String(v||'openrouter/free').trim();return s==='openrouter/free'||s.endsWith(':free')?s:'openrouter/free'}
 function when(v){if(!v)return '—';try{return new Date(v).toLocaleString('ar-MA')}catch{return '—'}}
 function short(v,n=12){const s=String(v||'');return s.length>n?`${s.slice(0,n)}…`:s||'—'}
 function phaseLabel(v){return phases[v]||v||'—'}
@@ -98,8 +97,8 @@ export default function AdminPage(){
   async function saveRuntime(){
     if(!settings)return;setBusy(true);setNotice('');
     try{
-      const mode=safeModes.includes(settings.runtime_mode)?settings.runtime_mode:'openrouter_primary';
-      const patch={runtime_mode:mode,openrouter_model:freeModel(settings.openrouter_model),temperature:Math.max(0,Math.min(2,Number(settings.temperature??0.6))),max_history:Math.max(4,Math.min(64,Number(settings.max_history||16))),public_chat_enabled:!!settings.public_chat_enabled,public_training_enabled:!!settings.public_training_enabled,save_training_candidates:!!settings.save_training_candidates,intelligence_router_enabled:!!settings.intelligence_router_enabled,verification_enabled:!!settings.verification_enabled,deep_reasoning_enabled:!!settings.deep_reasoning_enabled,max_model_calls_per_request:Math.max(1,Math.min(4,Number(settings.max_model_calls_per_request||3))),allow_paid_external:false,daily_budget_usd:0};
+      const mode=safeModes.includes(settings.runtime_mode)?settings.runtime_mode:'self_hosted_only';
+      const patch={runtime_mode:mode,temperature:Math.max(0,Math.min(2,Number(settings.temperature??0.6))),max_history:Math.max(4,Math.min(64,Number(settings.max_history||16))),public_chat_enabled:!!settings.public_chat_enabled,public_training_enabled:!!settings.public_training_enabled,save_training_candidates:!!settings.save_training_candidates,intelligence_router_enabled:!!settings.intelligence_router_enabled,verification_enabled:!!settings.verification_enabled,deep_reasoning_enabled:!!settings.deep_reasoning_enabled,max_model_calls_per_request:Math.max(1,Math.min(4,Number(settings.max_model_calls_per_request||3))),allow_paid_external:false,daily_budget_usd:0};
       const {error}=await sb.from('control_settings').update(patch).eq('owner_id',settings.owner_id);if(error)throw error;
       setNotice('تم حفظ إعدادات AQLEVON مع إبقاء الإنفاق المدفوع مقفلاً عند صفر.');await loadAll();
     }catch(e){setNotice(e?.message||'تعذر حفظ الإعدادات.')}finally{setBusy(false)}
@@ -154,7 +153,7 @@ export default function AdminPage(){
   const avgLatency=logs.length?Math.round(logs.reduce((sum,x)=>sum+Number(x.latency_ms||0),0)/logs.length):0;
   const evidenceCoverage=attempts.length?Math.min(100,Math.round(receipts.length/attempts.length*100)):0;
   const incidentCount=attempts.filter(a=>['FAILED','UNKNOWN'].includes(a.outcome)).length;
-  const latestModel=logs.find(x=>x.model)?.model||settings?.openrouter_model||'—';
+  const latestModel=logs.find(x=>x.model)?.model||'AQLEVON';
   const executorState=hasInFlight?'LIVE':attempts.length?'IDLE':'NOT CONNECTED';
   const latencyValues=logs.map(x=>Number(x.latency_ms||0)).filter(x=>x>0);
   const p50Latency=percentile(latencyValues,50),p95Latency=percentile(latencyValues,95),p99Latency=percentile(latencyValues,99);
@@ -194,7 +193,7 @@ export default function AdminPage(){
         {nav.filter(([id])=>['infrastructure','security','runtime','access'].includes(id)).map(([id,label])=><button key={id} className={tab===id?'active':''} onClick={()=>setTab(id)}><span>{label}</span></button>)}
       </nav>
       <div className="owner-side-status"><span>صلاحية المالك</span><strong>نشط</strong><small>{session.user?.email||'system_owner'}</small></div>
-      <div className="owner-side-actions"><a href="/" target="_blank">فتح التطبيق العام ↗</a><button onClick={()=>sb.auth.signOut()}>تسجيل الخروج</button></div>
+      <div className="owner-side-actions"><a href="/admin/child-lab">مختبر الطفل ↗</a><a href="/" target="_blank">فتح التطبيق العام ↗</a><button onClick={()=>sb.auth.signOut()}>تسجيل الخروج</button></div>
     </aside>
 
     <main className="owner-admin-main">
@@ -203,7 +202,7 @@ export default function AdminPage(){
         <div className="v3-global-search"><span>⌕</span><input value={globalQuery} onChange={e=>setGlobalQuery(e.target.value)} placeholder="ابحث في المهام والتتبّعات والمعرّفات والمزوّدين…"/></div>
         <div className="header-actions">
           <span className="v3-env-pill">معاينة</span>
-          <span className={`health-pill ${status?.openrouter_configured||status?.self_hosted_configured?'ok':'warn'}`}><i/>{status?.self_hosted_configured?'سيادي':status?.openrouter_configured?'بديل':'إعداد التشغيل'}</span>
+          <span className={`health-pill ${status?.self_hosted_configured?'ok':'warn'}`}><i/>{status?.self_hosted_configured?'AQLEVON متصل':'AQLEVON غير متصل'}</span>
           <button className="refresh-btn" onClick={loadAll} disabled={busy}>{busy?'…':'↻'}</button>
         </div>
       </header>
