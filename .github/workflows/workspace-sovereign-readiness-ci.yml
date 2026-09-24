@@ -53,6 +53,12 @@ jobs:
       - name: Security regression tests
         run: node --test tests/security-regression.test.mjs
 
+      - name: Vercel parity command
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: test-only-placeholder
+        run: npm run bos:check && npm run bos:test && npm run build
+
       - name: Production build
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
