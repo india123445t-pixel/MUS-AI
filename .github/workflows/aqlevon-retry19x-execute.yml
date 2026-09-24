@@ -108,7 +108,7 @@ jobs:
           cap = auth.get("max_artifact_egress_bytes")
           assert type(cap) is int and cap > 0, "invalid artifact egress limit"
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
-              output.write(f"max_artifact_egress_bytes={cap}\\n")
+              output.write(f"max_artifact_egress_bytes={cap}\n")
           print("AQLEVON_RETRY19X_PREPOD_BINDING_AUTH_PASS", binding_name, auth_name)
           PY
 
