@@ -3,10 +3,12 @@
 import {useEffect,useMemo,useState} from 'react';
 import {createClient} from '@supabase/supabase-js';
 import {putChildMemory,searchChildMemories,listChildMemories,deleteChildMemory,clearChildMemories,childMemoryStats,exportChildMemories,importChildMemories,markChildMemoriesUsed} from './memory-db.js';
+import {CHILD_PERMISSION_CATALOG,defaultChildPermissions,normalizeChildPermissions} from '../../../lib/aqlevon/child-permissions.js';
 
 const URL=process.env.NEXT_PUBLIC_SUPABASE_URL;
 const KEY=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 const STORAGE='aqlevon-child-lab-v1';
+const PERMISSION_STORAGE='aqlevon-child-permissions-v1';
 
 const blank={
   identity:{name:'طفل AQLEVON',specialty:'عام',purpose:'شخصية تجريبية قابلة للتربية والاختبار داخل المختبر فقط.'},
@@ -33,9 +35,18 @@ export default function ChildLabPage(){
   const [busy,setBusy]=useState(false),[notice,setNotice]=useState(''),[toolBusy,setToolBusy]=useState(false),[correction,setCorrection]=useState(''),[candidate,setCandidate]=useState(null),[candidateEval,setCandidateEval]=useState(null);
   const [memoryDraft,setMemoryDraft]=useState({text:'',kind:'lesson',topic:'general',tags:'',importance:0.8});
   const [memoryQuery,setMemoryQuery]=useState(''),[memoryKind,setMemoryKind]=useState('all'),[memoryItems,setMemoryItems]=useState([]),[memoryInfo,setMemoryInfo]=useState({count:0,by_kind:{}});
+  const [permissions,setPermissions]=useState(defaultChildPermissions()),[permissionLog,setPermissionLog]=useState([]);
 
-  useEffect(()=>{setLab(loadState())},[]);
+  useEffect(()=>{
+    setLab(loadState());
+    if(typeof window!=='undefined'){
+      try{setPermissions(normalizeChildPermissions(JSON.parse(localStorage.getItem(PERMISSION_STORAGE)||'{}')))}catch{}
+      try{setPermissionLog(JSON.parse(localStorage.getItem(PERMISSION_STORAGE+'-log')||'[]'))}catch{}
+    }
+  },[]);
   useEffect(()=>{if(typeof window!=='undefined')localStorage.setItem(STORAGE,JSON.stringify(lab))},[lab]);
+  useEffect(()=>{if(typeof window!=='undefined')localStorage.setItem(PERMISSION_STORAGE,JSON.stringify(permissions))},[permissions]);
+  useEffect(()=>{if(typeof window!=='undefined')localStorage.setItem(PERMISSION_STORAGE+'-log',JSON.stringify(permissionLog.slice(0,200)))},[permissionLog]);
 
   useEffect(()=>{
     if(!sb){setReady(true);return}
@@ -58,6 +69,34 @@ export default function ChildLabPage(){
       const r=await fetch('/api/admin/child-lab/status',{headers:{Authorization:`Bearer ${session.access_token}`},cache:'no-store'});
       const d=await r.json();setStatus(d);
     }catch(e){setNotice(e?.message||'تعذر تحميل المختبر.')}
+  }
+
+  function recordPermissionChange(action,detail){
+    setPermissionLog(x=>[{id:crypto.randomUUID(),action,detail,created_at:new Date().toISOString()},...x].slice(0,200));
+  }
+
+  function setMasterExecution(enabled){
+    setPermissions(x=>normalizeChildPermissions({...x,execution_enabled:enabled,updated_at:new Date().toISOString()}));
+    recordPermissionChange(enabled?'MASTER_ON':'MASTER_OFF',enabled?'تم تشغيل التنفيذ':'تم إيقاف التنفيذ');
+  }
+
+  function setAutonomy(mode){
+    setPermissions(x=>normalizeChildPermissions({...x,autonomy:mode,updated_at:new Date().toISOString()}));
+    recordPermissionChange('AUTONOMY',mode);
+  }
+
+  function togglePermission(id){
+    setPermissions(x=>{
+      const next=normalizeChildPermissions({...x,grants:{...x.grants,[id]:!x.grants[id]},updated_at:new Date().toISOString()});
+      recordPermissionChange(next.grants[id]?'GRANT':'REVOKE',id);
+      return next;
+    });
+  }
+
+  function emergencyStop(){
+    setPermissions(x=>normalizeChildPermissions({...x,execution_enabled:false,grants:Object.fromEntries(Object.keys(x.grants||{}).map(k=>[k,false])),updated_at:new Date().toISOString()}));
+    recordPermissionChange('EMERGENCY_STOP','تم إيقاف التنفيذ وسحب جميع الصلاحيات التشغيلية');
+    setNotice('تم إيقاف تنفيذ الطفل وسحب جميع الصلاحيات التشغيلية.');
   }
 
   async function refreshMemory(query=memoryQuery){
@@ -238,7 +277,13 @@ export default function ChildLabPage(){
       const r=await fetch('/api/admin/child-lab/tool',{
         method:'POST',
         headers:{'Content-Type':'application/json',Authorization:`Bearer ${session.access_token}`},
-        body:JSON.stringify({tool,action:'trial',input:goal,constraints:{success_criteria:lab.currentTrial.success_criteria||'',mode:'sandbox'}})
+        body:JSON.stringify({
+          tool,
+          action:tool==='web'?'research':tool==='browser'?'navigate':tool==='terminal'?'run':tool==='files'?'read':tool==='media'?'read':'run',
+          input:goal,
+          permissions,
+          constraints:{success_criteria:lab.currentTrial.success_criteria||'',mode:'sandbox',autonomy:permissions.autonomy}
+        })
       });
       const d=await r.json();if(!r.ok)throw new Error(d.message||'تعذر تشغيل الأداة.');
       setLab(x=>({...x,toolRuns:[{id:crypto.randomUUID(),tool,input:goal,output:d.output,receipt:d.receipt,evidence:d.evidence||[],created_at:new Date().toISOString()},...(x.toolRuns||[])].slice(0,50)}));
