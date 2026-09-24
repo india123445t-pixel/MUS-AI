@@ -29,7 +29,7 @@ The hot path is pinned to the current P4.1 Worker-03 A1 contract:
 - frozen training-plan SHA-256: `3cd6e0bada2535a80f83f400f45f5d0fdc5ad8d938f42757785335959f331095`
 - run-manifest SHA-256: `b277b41d3d67be1180b4d0600ab6f533f6dbf7b69163980ef5ecc6f0677195b7`
 - command SHA-256: `2502bb06398b6500a282b41bc6c5f23eb20c717d3798cbf280ce8bca242a0862`
-- command-lock SHA-256: `10f333cf453f5896402066d7c483ae170688909ca82a08a0adb1e90766213fcbe`
+- command-lock SHA-256: `10f333cf453f5896402066d7c483ae170688909ca82a08a0adb1e90766213fcb`
 - model: `Qwen/Qwen3.5-4B-Base`
 - revision: `daa9c16f371249f9ad1c75a9ed6f956c08ea08f5`
 - precision: BF16
@@ -139,6 +139,16 @@ Final local Worker-05 lineage rerun for this P4.1 snapshot:
 - Python compilation: PASS
 - JSON validation: PASS
 
+After rebinding this hot path to W03 source `6cfe1e564a2402d05d7f11f026be774ffe7d393a`, the focused P4.1 suite was rerun against the exact updated source and test bytes:
+
+- P4.1 hot-path tests: **25/25 PASS**
+- Python compilation: PASS
+- hot-path Git blob: `dd2ff5667327951afb6cc731c761f325a5ba6072`
+- test Git blob: `ff52f01b9cc58d34a1e95393e434f47348d7b068`
+- hot-path raw SHA-256: `93ed6c3be804aa60924f870870df41300f7ac4e69e236b70a7a4f11e57ca60c6`
+- test raw SHA-256: `c278a4215efc6139d4def719239e094a52c797b44596b6a288019d81b7bca485`
+
+The P1/P2/P4 source and test files are unchanged from the preceding 148/148 lineage run. The command-lock binding in this update is the exact 64-character SHA-256 from the live W03 source.
 P4.1 regression coverage specifically includes:
 
 - exact Manager A1 identity constants;
