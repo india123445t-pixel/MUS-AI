@@ -69,7 +69,9 @@ jobs:
           assert "AQLEVON_VLLM019_LORA_MANAGER_MAPPING_RESET" in patch
           assert "AQLEVON_VLLM019_RESET_LORA_STATE" in patch
           assert "AQLEVON_VLLM019_RESET_AFTER_DIRECT_BASE_LOAD" in patch
-          assert "AQLEVON_SDPO_FSDP_EXPLICIT_LORA_STATE" in patch
+          assert "AQLEVON_SDPO_QWEN35_RAW_FSDP_LORA_STATE" in patch
+          assert "_aqlevon_extract_qwen35_lora_state_dict" in patch
+          assert "AQLEVON_FSDP_LORA_STATE_KEYS" in patch
           assert "AQLEVON_SDPO_LORA_TARGET_MODULES_PRESERVED" in patch
           packager=Path("research/weight_factory/agent03/p4_a1_candidate_packager.py").read_text()
           assert "AQLEVON_P4_A1_CANDIDATE_PACKAGE_PASS" in packager
