@@ -105,6 +105,10 @@ jobs:
               auth, lock=lock, run_manifest_sha256=run["manifest_sha256"]
           )
           assert not errors, errors
+          cap = auth.get("max_artifact_egress_bytes")
+          assert type(cap) is int and cap > 0, "invalid artifact egress limit"
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write(f"max_artifact_egress_bytes={cap}\\n")
           print("AQLEVON_RETRY19X_PREPOD_BINDING_AUTH_PASS", binding_name, auth_name)
           PY
 
@@ -327,6 +331,7 @@ jobs:
         env:
           EXPECTED_HEAD: ${{ steps.gate.outputs.expected_head }}
           IMAGE_DIGEST: ${{ steps.gate.outputs.image_digest }}
+          MAX_ARTIFACT_EGRESS_BYTES: ${{ steps.gate.outputs.max_artifact_egress_bytes }}
         run: |
           set +e
           host="${{ steps.ssh.outputs.host }}"
@@ -398,11 +403,34 @@ jobs:
             [[ "$rc" =~ ^[0-9]+$ ]] || rc=255
           fi
 
-          # Preserve complete evidence before Pod teardown.
-          ssh "${ssh_opts[@]}" root@$host 'cat /workspace/aqlevon_retry19x.log 2>/dev/null' > /tmp/retry19x.log || true
-          scp -q "${scp_opts[@]}" root@$host:/workspace/aqlevon_p4/runtime_resource_diag.tsv /tmp/retry19x-runtime-resource-diag.tsv || true
-          ssh "${ssh_opts[@]}" root@$host 'mkdir -p /workspace/aqlevon_p4/ray_logs; cp -a /tmp/ray/session_latest/logs/. /workspace/aqlevon_p4/ray_logs/ 2>/dev/null || true; cd /workspace && tar -czf /tmp/aqlevon-retry19x-evidence.tgz aqlevon_p4 aqlevon_retry19x.log aqlevon_retry19x-supervisor.log aqlevon_retry19x.rc 2>/dev/null' || true
-          scp -q "${scp_opts[@]}" root@$host:/tmp/aqlevon-retry19x-evidence.tgz /tmp/aqlevon-retry19x-evidence.tgz || true
+          # Transfer only the Worker05 adapter package and bounded evidence. Exclude
+          # full FSDP/optimizer recovery checkpoints from aqlevon_p4/runs.
+          ssh "${ssh_opts[@]}" root@$host 'mkdir -p /workspace/aqlevon_p4/ray_logs; cp -a /tmp/ray/session_latest/logs/. /workspace/aqlevon_p4/ray_logs/ 2>/dev/null || true; cd /workspace && tar --exclude=aqlevon_p4/runs -czf /tmp/aqlevon-retry19x-evidence.tgz aqlevon_p4 aqlevon_retry19x.log aqlevon_retry19x-supervisor.log aqlevon_retry19x.rc 2>/dev/null' || true
+          remote_sizes="$(ssh "${ssh_opts[@]}" root@$host 'stat -c %s /workspace/aqlevon_retry19x.log /workspace/aqlevon_p4/runtime_resource_diag.tsv /tmp/aqlevon-retry19x-evidence.tgz' 2>/dev/null || true)"
+          readarray -t sizes <<< "$remote_sizes"
+          cap="${MAX_ARTIFACT_EGRESS_BYTES:-0}"
+          if [[ "$cap" =~ ^[0-9]+$ && "$cap" -gt 0 && ${#sizes[@]} -ge 2 && "${sizes[0]}" =~ ^[0-9]+$ && "${sizes[1]}" =~ ^[0-9]+$ ]]; then
+            base_bytes=$((sizes[0] + sizes[1]))
+            if [ "$base_bytes" -le "$cap" ]; then
+              ssh "${ssh_opts[@]}" root@$host 'cat /workspace/aqlevon_retry19x.log' > /tmp/retry19x.log || true
+              scp -q "${scp_opts[@]}" root@$host:/workspace/aqlevon_p4/runtime_resource_diag.tsv /tmp/retry19x-runtime-resource-diag.tsv || true
+              if [[ ${#sizes[@]} -eq 3 && "${sizes[2]}" =~ ^[0-9]+$ ]]; then
+                total_bytes=$((base_bytes + sizes[2]))
+                if [ "$total_bytes" -le "$cap" ]; then
+                  scp -q "${scp_opts[@]}" root@$host:/tmp/aqlevon-retry19x-evidence.tgz /tmp/aqlevon-retry19x-evidence.tgz || true
+                  echo "AQLEVON_RETRY19X_EGRESS_GATE_PASS bytes=$total_bytes cap=$cap" | tee /tmp/retry19x-egress-gate.log
+                else
+                  echo "FAIL_CLOSED_RETRY19X_EGRESS_LIMIT bytes=$total_bytes cap=$cap; transferred logs/resource only" | tee /tmp/retry19x-egress-gate.log
+                fi
+              else
+                echo "FAIL_CLOSED_RETRY19X_ARCHIVE_SIZE_PROBE; transferred logs/resource only" | tee /tmp/retry19x-egress-gate.log
+              fi
+            else
+              echo "FAIL_CLOSED_RETRY19X_EGRESS_LIMIT logs_and_resource_bytes=$base_bytes cap=$cap; remote payload not copied" | tee /tmp/retry19x-egress-gate.log
+            fi
+          else
+            echo "FAIL_CLOSED_RETRY19X_EGRESS_SIZE_PROBE cap=$cap sizes=$remote_sizes" | tee /tmp/retry19x-egress-gate.log
+          fi
 
           # Evidence contract for this authorized run.
           RETRY19X_TRAINING_RC="$rc" python - <<'PY'
@@ -475,6 +503,16 @@ jobs:
           try:
               with tarfile.open(archive,'r:gz') as tf:
                   names={m.name for m in tf.getmembers()}
+                  if any(name.startswith('aqlevon_p4/runs/') for name in names):
+                      raise ValueError('unbounded_recovery_checkpoint_in_candidate_transfer')
+                  cap=int(os.environ.get('MAX_ARTIFACT_EGRESS_BYTES','0'))
+                  transfer_bytes=sum(Path(p).stat().st_size for p in (
+                      '/tmp/retry19x.log',
+                      '/tmp/retry19x-runtime-resource-diag.tsv',
+                      str(archive),
+                  ) if Path(p).is_file())
+                  if cap <= 0 or transfer_bytes > cap:
+                      raise ValueError('artifact_egress_limit_exceeded:'+str(transfer_bytes)+'>'+str(cap))
                   missing_files=[name for name in required_files if name not in names]
                   if missing_files:
                       raise ValueError('candidate_files_missing:'+','.join(missing_files))
@@ -647,6 +685,7 @@ jobs:
             /tmp/train_rc
             /tmp/aqlevon-retry19x-evidence.tgz
             /tmp/retry19x-runtime-resource-diag.tsv
+            /tmp/retry19x-egress-gate.log
             /tmp/create-response.json
             /tmp/pod.json
             /tmp/stop.json
