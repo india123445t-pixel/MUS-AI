@@ -64,10 +64,22 @@ jobs:
                   'stock_status':x.get('stockStatus'),
                   'datacenters':dc_s,
               })
-          balance=None
-          if isinstance(user,dict):
-              for k in ('balance','currentBalance','creditBalance'):
-                  if k in user: balance=user[k]
+          balance_fields=[]
+          def collect_balance_fields(node,path=""):
+              if isinstance(node,dict):
+                  for key,value in node.items():
+                      norm=str(key).casefold().replace("_","")
+                      current=f"{path}.{key}" if path else str(key)
+                      if norm in ("balance","currentbalance","creditbalance","clientbalance") and isinstance(value,(int,float)) and not isinstance(value,bool):
+                          balance_fields.append({"field":current,"value":value})
+                      collect_balance_fields(value,current)
+              elif isinstance(node,list):
+                  for index,value in enumerate(node):
+                      collect_balance_fields(value,f"{path}[{index}]")
+          collect_balance_fields(user)
+          recognized=[x for x in balance_fields if x["field"].split(".")[-1].casefold().replace("_","") in ("balance","currentbalance","creditbalance","clientbalance")]
+          unique_values={float(x["value"]) for x in recognized}
+          balance=next(iter(unique_values)) if len(unique_values)==1 else None
           out={
               'ok':True,
               'checked_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),
