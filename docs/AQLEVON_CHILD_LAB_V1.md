@@ -155,3 +155,32 @@ When introduced, they must use:
 - no implicit access to Worker 03 / P4 artifacts
 - no automatic promotion to production AQLEVON
 - explicit evaluation before any packaging/export
+
+
+## V1.2 — identity and isolated training pack
+The owner can now define a child identity:
+- name
+- specialty
+- purpose
+
+This allows separate specialist children such as video, music, research, security, or any other owner-defined role without changing the public AQLEVON model.
+
+Training-pack export schema:
+- AQLEVON_CHILD_TRAINING_PACK_V1
+
+The pack contains:
+- child identity
+- persona
+- lessons
+- teaching examples
+- trial results
+- isolation manifest
+
+Hard manifest values:
+- target_artifact=CHILD_CHECKPOINT_ONLY
+- public_model_access=false
+- production_weight_write=false
+- training_lane_write=false
+- auto_promote=false
+
+The Training Pack is preparation material only. It does not run training and does not modify weights.
