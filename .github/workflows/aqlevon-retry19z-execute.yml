@@ -111,7 +111,7 @@ jobs:
           assert type(cap) is int and cap > 0, "invalid artifact egress limit"
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
               output.write(f"max_artifact_egress_bytes={cap}\n")
-          print("AQLEVON_RETRY19Y_PREPOD_BINDING_AUTH_PASS", binding_name, auth_name)
+          print("AQLEVON_RETRY19Z_PREPOD_BINDING_AUTH_PASS", binding_name, auth_name)
           PY
 
       - name: Assert authorized egress cap before spend
@@ -386,7 +386,7 @@ jobs:
           scp -q "${scp_opts[@]}" /tmp/retry19z-bootstrap.sh root@$host:/tmp/retry19z-bootstrap.sh
 
           ssh "${ssh_opts[@]}" root@$host "export AQLEVON_EXPECTED_W03_HEAD='$EXPECTED_HEAD' AQLEVON_EXPECTED_IMAGE_DIGEST='$IMAGE_DIGEST'; nohup setsid bash /tmp/retry19z-bootstrap.sh >/workspace/aqlevon_retry19z-supervisor.log 2>&1 < /dev/null & echo \$! >/workspace/aqlevon_retry19z-supervisor.pid"
-          echo "AQLEVON_RETRY19Y_DURABLE_REMOTE_START_PASS"
+          echo "AQLEVON_RETRY19Z_DURABLE_REMOTE_START_PASS"
 
           # Poll for at most 45 minutes. Transient SSH failures do not kill or duplicate the remote job.
           finished=0
@@ -407,7 +407,7 @@ jobs:
           done
 
           if [ "$finished" -ne 1 ]; then
-            echo "FAIL_CLOSED_RETRY19Y_RUNTIME_CEILING"
+            echo "FAIL_CLOSED_RETRY19Z_RUNTIME_CEILING"
             rc=124
           elif [ -z "${rc:-}" ]; then
             rc="$(ssh "${ssh_opts[@]}" root@$host 'cat /workspace/aqlevon_retry19z.rc' 2>/dev/null | tail -n1)"
@@ -429,22 +429,22 @@ jobs:
                 total_bytes=$((base_bytes + sizes[2]))
                 if [ "$total_bytes" -le "$cap" ]; then
                   scp -q "${scp_opts[@]}" root@$host:/tmp/aqlevon-retry19z-evidence.tgz /tmp/aqlevon-retry19z-evidence.tgz || true
-                  echo "AQLEVON_RETRY19Y_EGRESS_GATE_PASS bytes=$total_bytes cap=$cap" | tee /tmp/retry19z-egress-gate.log
+                  echo "AQLEVON_RETRY19Z_EGRESS_GATE_PASS bytes=$total_bytes cap=$cap" | tee /tmp/retry19z-egress-gate.log
                 else
-                  echo "FAIL_CLOSED_RETRY19Y_EGRESS_LIMIT bytes=$total_bytes cap=$cap; transferred logs/resource only" | tee /tmp/retry19z-egress-gate.log
+                  echo "FAIL_CLOSED_RETRY19Z_EGRESS_LIMIT bytes=$total_bytes cap=$cap; transferred logs/resource only" | tee /tmp/retry19z-egress-gate.log
                 fi
               else
-                echo "FAIL_CLOSED_RETRY19Y_ARCHIVE_SIZE_PROBE; transferred logs/resource only" | tee /tmp/retry19z-egress-gate.log
+                echo "FAIL_CLOSED_RETRY19Z_ARCHIVE_SIZE_PROBE; transferred logs/resource only" | tee /tmp/retry19z-egress-gate.log
               fi
             else
-              echo "FAIL_CLOSED_RETRY19Y_EGRESS_LIMIT logs_and_resource_bytes=$base_bytes cap=$cap; remote payload not copied" | tee /tmp/retry19z-egress-gate.log
+              echo "FAIL_CLOSED_RETRY19Z_EGRESS_LIMIT logs_and_resource_bytes=$base_bytes cap=$cap; remote payload not copied" | tee /tmp/retry19z-egress-gate.log
             fi
           else
-            echo "FAIL_CLOSED_RETRY19Y_EGRESS_SIZE_PROBE cap=$cap sizes=$remote_sizes" | tee /tmp/retry19z-egress-gate.log
+            echo "FAIL_CLOSED_RETRY19Z_EGRESS_SIZE_PROBE cap=$cap sizes=$remote_sizes" | tee /tmp/retry19z-egress-gate.log
           fi
 
           # Evidence contract for this authorized run.
-          RETRY19Y_TRAINING_RC="$rc" python - <<'PY'
+          RETRY19Z_TRAINING_RC="$rc" python - <<'PY'
           from pathlib import Path
           import re,sys,os
           log=Path('/tmp/retry19z.log').read_text(errors='replace') if Path('/tmp/retry19z.log').exists() else ''
@@ -492,8 +492,8 @@ jobs:
           if bad:
               print('FAIL_CLOSED_CGROUP_OOM_NONZERO',bad)
               sys.exit(95)
-          if int(os.environ.get('RETRY19Y_TRAINING_RC','255')) != 0:
-              print('FAIL_CLOSED_A1_TRAINING_EXIT_CODE_NONZERO',os.environ.get('RETRY19Y_TRAINING_RC'))
+          if int(os.environ.get('RETRY19Z_TRAINING_RC','255')) != 0:
+              print('FAIL_CLOSED_A1_TRAINING_EXIT_CODE_NONZERO',os.environ.get('RETRY19Z_TRAINING_RC'))
               sys.exit(93)
           import hashlib,json,tarfile
           archive=Path('/tmp/aqlevon-retry19z-evidence.tgz')
@@ -591,8 +591,8 @@ jobs:
               or config.get('target_modules')!=expected_target):
               print('FAIL_CLOSED_CANDIDATE_ADAPTER_CONFIG')
               sys.exit(85)
-          print('AQLEVON_RETRY19Y_CANDIDATE_PACKAGE_EVIDENCE_PASS')
-          print('AQLEVON_RETRY19Y_SECOND_WAKE_EVIDENCE_PASS')
+          print('AQLEVON_RETRY19Z_CANDIDATE_PACKAGE_EVIDENCE_PASS')
+          print('AQLEVON_RETRY19Z_SECOND_WAKE_EVIDENCE_PASS')
           PY
           evidence_rc=$?
           if [ "$evidence_rc" -ne 0 ] && [ "$rc" -eq 0 ]; then rc="$evidence_rc"; fi
@@ -649,7 +649,7 @@ jobs:
           actual_training_rc=int(actual_training_match.group(1)) if actual_training_match else rc
           payload_paths=['/tmp/retry19z.log','/tmp/retry19z-runtime-resource-diag.tsv','/tmp/aqlevon-retry19z-evidence.tgz']
           payload_bytes=sum(os.path.getsize(p) for p in payload_paths if os.path.isfile(p))
-          egress_pass='AQLEVON_RETRY19Y_EGRESS_GATE_PASS' in egress_log
+          egress_pass='AQLEVON_RETRY19Z_EGRESS_GATE_PASS' in egress_log
           markers={k:(k in log) for k in [
             'AQLEVON_V019_NATIVE_LORA_FUNCTIONAL_SMOKE_PASS',
             'AQLEVON_V019_LORA_SMOKE_PASS',
@@ -723,5 +723,5 @@ jobs:
           rc="${STEP_RC:-}"
           if ! [[ "$rc" =~ ^[0-9]+$ ]] && [ -s /tmp/train_rc ]; then rc="$(cat /tmp/train_rc)"; fi
           if ! [[ "$rc" =~ ^[0-9]+$ ]]; then echo "::error::Retry19Z training exit code missing"; exit 255; fi
-          echo "AQLEVON_RETRY19Y_TRUE_EXIT_CODE=$rc"
+          echo "AQLEVON_RETRY19Z_TRUE_EXIT_CODE=$rc"
           test "$rc" -eq 0 || exit "$rc"
