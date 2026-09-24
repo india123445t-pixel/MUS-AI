@@ -29,7 +29,7 @@ export default function ChildLabPage(){
   const [ready,setReady]=useState(false),[session,setSession]=useState(null),[authorized,setAuthorized]=useState(false);
   const [email,setEmail]=useState(''),[password,setPassword]=useState(''),[authMsg,setAuthMsg]=useState('');
   const [lab,setLab]=useState(blank),[status,setStatus]=useState(null),[input,setInput]=useState(''),[lesson,setLesson]=useState('');
-  const [busy,setBusy]=useState(false),[notice,setNotice]=useState(''),[toolBusy,setToolBusy]=useState(false),[correction,setCorrection]=useState(''),[candidate,setCandidate]=useState(null);
+  const [busy,setBusy]=useState(false),[notice,setNotice]=useState(''),[toolBusy,setToolBusy]=useState(false),[correction,setCorrection]=useState(''),[candidate,setCandidate]=useState(null),[candidateEval,setCandidateEval]=useState(null);
 
   useEffect(()=>{setLab(loadState())},[]);
   useEffect(()=>{if(typeof window!=='undefined')localStorage.setItem(STORAGE,JSON.stringify(lab))},[lab]);
@@ -161,6 +161,20 @@ export default function ChildLabPage(){
       setCandidate(d);
       setNotice('تم تجهيز Candidate تعليمية فقط. لم يبدأ أي تدريب ولم يُطلب GPU.');
     }catch(e){setNotice(e?.message||'تعذر تجهيز Candidate.')}
+  }
+
+  async function evaluateCandidate(){
+    if(!session||!candidate?.candidate)return;
+    try{
+      const r=await fetch('/api/admin/child-lab/evaluate',{
+        method:'POST',
+        headers:{'Content-Type':'application/json',Authorization:`Bearer ${session.access_token}`},
+        body:JSON.stringify({candidate:candidate.candidate})
+      });
+      const d=await r.json();if(!r.ok)throw new Error(d.message||'تعذر تقييم Candidate.');
+      setCandidateEval(d);
+      setNotice('تم تقييم Candidate فقط. لا تدريب ولا GPU.');
+    }catch(e){setNotice(e?.message||'تعذر تقييم Candidate.')}
   }
 
   async function runChildTool(){
@@ -313,8 +327,8 @@ export default function ChildLabPage(){
         <div style={S.kv}><span>الذاكرة</span><b>Child Lab فقط</b></div>
         <h3>Candidate التعليمية</h3>
         <p style={S.muted}>تغليف للدروس والتصحيحات كي تُقيّم لاحقًا. لا يبدأ تدريبًا ولا يطلب GPU ولا يلمس Worker 03.</p>
-        <div style={S.row}><button style={S.primary} disabled={!(lab.examples||[]).length} onClick={packageCandidate}>جهّز Candidate</button>{candidate?.candidate?.candidate_sha256&&<span style={S.tool}>SHA: {candidate.candidate.candidate_sha256.slice(0,12)}…</span>}</div>
-        {candidate&&<div style={S.list}><div style={S.item}><span>القرار</span><b>{candidate.evaluation?.recommendation||'—'}</b></div><div style={S.item}><span>الأمثلة</span><b>{candidate.evaluation?.example_count||0}</b></div><div style={S.item}><span>التدريب</span><b>{candidate.training_started?'بدأ':'لم يبدأ'}</b></div><div style={S.item}><span>GPU</span><b>{candidate.gpu_requested?'مطلوب':'غير مطلوب'}</b></div></div>}
+        <div style={S.row}><button style={S.primary} disabled={!(lab.examples||[]).length} onClick={packageCandidate}>جهّز Candidate</button><button style={S.small} disabled={!candidate?.candidate} onClick={evaluateCandidate}>قيّم Candidate</button>{candidate?.candidate?.candidate_sha256&&<span style={S.tool}>SHA: {candidate.candidate.candidate_sha256.slice(0,12)}…</span>}</div>
+        {candidate&&<div style={S.list}><div style={S.item}><span>القرار</span><b>{candidate.evaluation?.recommendation||'—'}</b></div><div style={S.item}><span>الأمثلة</span><b>{candidate.evaluation?.example_count||0}</b></div><div style={S.item}><span>التدريب</span><b>{candidate.training_started?'بدأ':'لم يبدأ'}</b></div><div style={S.item}><span>GPU</span><b>{candidate.gpu_requested?'مطلوب':'غير مطلوب'}</b></div></div>}{candidateEval&&<div style={S.list}><div style={S.item}><span>نتيجة التقييم</span><b>{candidateEval.evaluation?.verdict||'—'}</b></div><div style={S.item}><span>Quality</span><b>{candidateEval.evaluation?.metrics?.quality_score??'—'}</b></div><div style={S.item}><span>تحذيرات</span><b>{candidateEval.evaluation?.warnings?.length||0}</b></div><div style={S.item}><span>السماح بالتدريب</span><b>{candidateEval.evaluation?.training_allowed?'نعم':'لا'}</b></div></div>}
         <h3>Snapshots / الحزم</h3>
         <div style={S.row}><button style={S.primary} onClick={saveSnapshot}>حفظ Snapshot</button><button style={S.small} onClick={exportPackage}>تصدير الشخصية</button><button style={S.small} onClick={exportTrainingPack}>تصدير Training Pack</button><label style={S.small}>استيراد<input type="file" accept="application/json,.json" hidden onChange={e=>{const file=e.target.files?.[0];e.target.value='';importPackage(file)}}/></label></div>
         <div style={S.list}>{(lab.snapshots||[]).slice(0,8).map(x=><div key={x.id} style={S.item}><div><b>{new Date(x.created_at).toLocaleString('ar-MA')}</b><small style={{display:'block',opacity:.7}}>{x.lessons?.length||0} دروس · {x.trials?.length||0} تجارب · {x.examples?.length||0} أمثلة</small></div><button style={S.small} onClick={()=>restoreSnapshot(x.id)}>استعادة</button></div>)}</div>
