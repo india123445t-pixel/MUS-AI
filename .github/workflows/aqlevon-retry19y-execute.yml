@@ -64,6 +64,7 @@ jobs:
           path: w03-source
 
       - name: Validate live source, immutable binding, and authorization before spend
+        id: source_auth
         shell: bash
         env:
           EXPECTED_HEAD: ${{ steps.gate.outputs.expected_head }}
@@ -331,7 +332,7 @@ jobs:
         env:
           EXPECTED_HEAD: ${{ steps.gate.outputs.expected_head }}
           IMAGE_DIGEST: ${{ steps.gate.outputs.image_digest }}
-          MAX_ARTIFACT_EGRESS_BYTES: ${{ steps.gate.outputs.max_artifact_egress_bytes }}
+          MAX_ARTIFACT_EGRESS_BYTES: ${{ steps.source_auth.outputs.max_artifact_egress_bytes }}
         run: |
           set +e
           host="${{ steps.ssh.outputs.host }}"
