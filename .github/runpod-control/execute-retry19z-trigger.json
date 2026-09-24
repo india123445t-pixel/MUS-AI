@@ -1,0 +1,16 @@
+{
+  "authorization_id": "P4-A1-RUNPOD-A40-20260924-19Z-EGRESS-FIX-SMOKE-THEN-TRAIN",
+  "authorization_sha256": "2e91aa02d1802bd744a5d6c1d5654430d01d003767c36e8deabbf55e3b927957",
+  "expected_head": "199fbbbb6d63b9df851fea8613b3bf2b75fcc42f",
+  "image_digest": "sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec",
+  "max_total_cost_usd": "0.55",
+  "max_hourly_rate_usd": "0.55",
+  "gpu_type": "NVIDIA A40",
+  "min_memory_gb": 48,
+  "selection_mode": "dynamic_datacenter",
+  "request_schema": "runpodctl_graphql_dynamic_dc",
+  "max_billed_seconds": 3600,
+  "single_use": true,
+  "max_artifact_egress_bytes": 5368709120,
+  "request_nonce": "aqlevon-retry19z-final-head-199f-2026-09-24T06-33-40-591Z"
+}
