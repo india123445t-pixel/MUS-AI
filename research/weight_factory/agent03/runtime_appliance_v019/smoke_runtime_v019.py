@@ -178,8 +178,20 @@ def _real_zmq_control_path_check(torch):
         lora_alpha: int = 4
         target_modules: tuple = ("q_proj","v_proj")
 
-    first_weights=iter([("model.layers.3.self_attn.q_proj.lora_A.default.weight", torch.ones(1))])
-    second_weights=iter([("model.layers.3.self_attn.q_proj.lora_A.default.weight", torch.full((1,),2.0))])
+    # Match the frozen eight-layer × (q_proj,v_proj) adapter topology. The
+    # second-wake sender now correctly rejects partial LoRA snapshots.
+    lora_state = [
+        (
+            f"model.layers.{layer}.self_attn.{projection}.lora_{factor}.default.weight",
+            torch.full((1,), 1.0),
+        )
+        for layer in (3,7,11,15,19,23,27,31)
+        for projection in ("q_proj","v_proj")
+        for factor in ("A","B")
+    ]
+    assert len(lora_state)==32
+    first_weights=iter(lora_state)
+    second_weights=iter((name,value+1) for name,value in lora_state)
     asyncio.run(probe.update_weights(first_weights, peft_config=_PeftProbe(), base_sync_done=True))
     asyncio.run(probe.update_weights(second_weights, peft_config=_PeftProbe(), base_sync_done=True))
     worker_events=[e[0] for e in worker.events if e[0] in ("remove_lora","add_lora")]
