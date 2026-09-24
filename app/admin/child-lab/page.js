@@ -107,13 +107,13 @@ export default function ChildLabPage(){
 
   function saveSnapshot(){
     const pkg=childPackage();
-    setLab(x=>({...x,snapshots:[{id:pkg.package_id,created_at:pkg.created_at,persona:pkg.persona,lessons:pkg.lessons,trials:pkg.trials},...(x.snapshots||[])].slice(0,30)}));
+    setLab(x=>({...x,snapshots:[{id:pkg.package_id,created_at:pkg.created_at,persona:pkg.persona,lessons:pkg.lessons,trials:pkg.trials,examples:pkg.examples},...(x.snapshots||[])].slice(0,30)}));
     setNotice('تم حفظ Snapshot داخل مختبر الطفل فقط.');
   }
 
   function restoreSnapshot(id){
     const snap=(lab.snapshots||[]).find(x=>x.id===id);if(!snap)return;
-    setLab(x=>({...x,persona:snap.persona,lessons:snap.lessons,trials:snap.trials}));
+    setLab(x=>({...x,persona:snap.persona,lessons:snap.lessons,trials:snap.trials,examples:snap.examples||[]}));
     setNotice('تمت استعادة الشخصية والدروس والتجارب داخل المختبر.');
   }
 
