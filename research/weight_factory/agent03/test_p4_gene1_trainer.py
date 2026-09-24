@@ -888,11 +888,13 @@ class SdpoSecondWakeLoraSyncPatchTests(unittest.TestCase):
     return lora_params
 """
         patched = native_vllm_patch.patch_sdpo_lora_state_sync(src)
-        self.assertIn("AQLEVON_SDPO_FSDP_EXPLICIT_LORA_STATE", patched)
+        self.assertIn("AQLEVON_SDPO_QWEN35_RAW_FSDP_LORA_STATE", patched)
         self.assertIn("full_state_dict = module.state_dict()", patched)
-        self.assertIn("state_dict=full_state_dict", patched)
+        self.assertIn("_aqlevon_extract_qwen35_lora_state_dict", patched)
+        self.assertIn('adapter_name="default"', patched)
         self.assertIn("expected_lora_tensors = 32", patched)
-        self.assertIn("AQLEVON_FSDP_LORA_STATE_COUNT", patched)
+        self.assertIn("AQLEVON_FSDP_LORA_RAW_STATE_COUNT", patched)
+        self.assertIn("AQLEVON_FSDP_LORA_STATE_KEYS", patched)
         self.assertIn("AQLEVON_FSDP_LORA_AB_COUNT", patched)
         self.assertEqual(patched, native_vllm_patch.patch_sdpo_lora_state_sync(patched))
 
