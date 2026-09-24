@@ -12,7 +12,9 @@ const blank={
   lessons:[],
   messages:[{role:'assistant',text:'أنا طفل AQLEVON داخل المختبر المستقل. علّمني شيئًا ثم اختبرني.'}],
   trials:[],
-  currentTrial:{goal:'',success_criteria:'',mode:'sandbox'},
+  snapshots:[],
+  toolRuns:[],
+  currentTrial:{goal:'',success_criteria:'',mode:'sandbox',tool:'web'},
 };
 
 function loadState(){
@@ -25,7 +27,7 @@ export default function ChildLabPage(){
   const [ready,setReady]=useState(false),[session,setSession]=useState(null),[authorized,setAuthorized]=useState(false);
   const [email,setEmail]=useState(''),[password,setPassword]=useState(''),[authMsg,setAuthMsg]=useState('');
   const [lab,setLab]=useState(blank),[status,setStatus]=useState(null),[input,setInput]=useState(''),[lesson,setLesson]=useState('');
-  const [busy,setBusy]=useState(false),[notice,setNotice]=useState('');
+  const [busy,setBusy]=useState(false),[notice,setNotice]=useState(''),[toolBusy,setToolBusy]=useState(false);
 
   useEffect(()=>{setLab(loadState())},[]);
   useEffect(()=>{if(typeof window!=='undefined')localStorage.setItem(STORAGE,JSON.stringify(lab))},[lab]);
@@ -86,7 +88,67 @@ export default function ChildLabPage(){
   function saveTrial(result){
     const t=lab.currentTrial;
     if(!t.goal.trim())return;
-    setLab(x=>({...x,trials:[{id:crypto.randomUUID(),...t,result,created_at:new Date().toISOString()},...x.trials],currentTrial:{goal:'',success_criteria:'',mode:'sandbox'}}));
+    setLab(x=>({...x,trials:[{id:crypto.randomUUID(),...t,result,created_at:new Date().toISOString()},...x.trials],currentTrial:{goal:'',success_criteria:'',mode:'sandbox',tool:'web'}}));
+  }
+
+  function childPackage(){
+    return {
+      schema:'AQLEVON_CHILD_PERSONA_PACKAGE_V1',
+      package_id:crypto.randomUUID(),
+      created_at:new Date().toISOString(),
+      persona:String(lab.persona||''),
+      lessons:(lab.lessons||[]).map(x=>({id:x.id||crypto.randomUUID(),text:String(x.text||''),created_at:x.created_at||null})),
+      trials:(lab.trials||[]).slice(0,100),
+      source:{runtime:'AQLEVON_CHILD_RUNTIME_V1',memory_scope:'child-lab-only',production_weight_write:false,training_lane_write:false}
+    };
+  }
+
+  function saveSnapshot(){
+    const pkg=childPackage();
+    setLab(x=>({...x,snapshots:[{id:pkg.package_id,created_at:pkg.created_at,persona:pkg.persona,lessons:pkg.lessons,trials:pkg.trials},...(x.snapshots||[])].slice(0,30)}));
+    setNotice('تم حفظ Snapshot داخل مختبر الطفل فقط.');
+  }
+
+  function restoreSnapshot(id){
+    const snap=(lab.snapshots||[]).find(x=>x.id===id);if(!snap)return;
+    setLab(x=>({...x,persona:snap.persona,lessons:snap.lessons,trials:snap.trials}));
+    setNotice('تمت استعادة الشخصية والدروس والتجارب داخل المختبر.');
+  }
+
+  function exportPackage(){
+    const pkg=childPackage();
+    const blob=new Blob([JSON.stringify(pkg,null,2)],{type:'application/json'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`aqlevon-child-${pkg.package_id}.json`;a.click();URL.revokeObjectURL(a.href);
+  }
+
+  async function importPackage(file){
+    if(!file)return;
+    try{
+      const raw=JSON.parse(await file.text());
+      if(raw?.schema!=='AQLEVON_CHILD_PERSONA_PACKAGE_V1')throw new Error('حزمة غير معروفة.');
+      const persona=String(raw.persona||'').slice(0,12000);
+      const lessons=Array.isArray(raw.lessons)?raw.lessons.slice(0,200).map(x=>({id:String(x.id||crypto.randomUUID()),text:String(x.text||'').slice(0,2000),created_at:x.created_at||null})):[];
+      const trials=Array.isArray(raw.trials)?raw.trials.slice(0,100):[];
+      setLab(x=>({...x,persona,lessons,trials}));
+      setNotice('تم استيراد حزمة الطفل داخل المختبر فقط.');
+    }catch(e){setNotice(e?.message||'تعذر استيراد الحزمة.')}
+  }
+
+  async function runChildTool(){
+    const tool=lab.currentTrial.tool||'web',goal=lab.currentTrial.goal.trim();
+    if(!goal||!session||toolBusy)return;
+    if(status?.tools?.[tool]?.state!=='CONNECTED'){setNotice(`${tool}: يحتاج Adapter خاص بمختبر الطفل.`);return}
+    setToolBusy(true);setNotice('');
+    try{
+      const r=await fetch('/api/admin/child-lab/tool',{
+        method:'POST',
+        headers:{'Content-Type':'application/json',Authorization:`Bearer ${session.access_token}`},
+        body:JSON.stringify({tool,action:'trial',input:goal,constraints:{success_criteria:lab.currentTrial.success_criteria||'',mode:'sandbox'}})
+      });
+      const d=await r.json();if(!r.ok)throw new Error(d.message||'تعذر تشغيل الأداة.');
+      setLab(x=>({...x,toolRuns:[{id:crypto.randomUUID(),tool,input:goal,output:d.output,receipt:d.receipt,evidence:d.evidence||[],created_at:new Date().toISOString()},...(x.toolRuns||[])].slice(0,50)}));
+      setNotice('تم تنفيذ الأداة داخل Child Lab مع Receipt.');
+    }catch(e){setNotice(e?.message||'تعذر تشغيل أداة الطفل.')}finally{setToolBusy(false)}
   }
 
   function resetChild(){
@@ -132,11 +194,12 @@ export default function ChildLabPage(){
         <p style={S.muted}>اكتب له مهمة حقيقية داخل المختبر، ثم قيّم هل طبق ما علمته.</p>
         <label style={S.label}>المهمة<input style={S.input} value={lab.currentTrial.goal} onChange={e=>setLab(x=>({...x,currentTrial:{...x.currentTrial,goal:e.target.value}}))} placeholder="مثال: ابحث عن أفضل طريقة لصنع فيديو تعليمي ثم اشرح لماذا اخترتها."/></label>
         <label style={S.label}>متى أعتبره نجح؟<textarea style={S.textarea} rows="4" value={lab.currentTrial.success_criteria} onChange={e=>setLab(x=>({...x,currentTrial:{...x.currentTrial,success_criteria:e.target.value}}))} placeholder="مثال: يبحث، يقارن 3 خيارات، يذكر مصادره، ثم يختار."/></label>
+        <label style={S.label}>أداة الاختبار<select style={S.input} value={lab.currentTrial.tool||'web'} onChange={e=>setLab(x=>({...x,currentTrial:{...x.currentTrial,tool:e.target.value}}))}>{Object.keys(status?.tools||{web:1,browser:1,terminal:1,files:1,media:1}).map(k=><option key={k} value={k}>{k} · {status?.tools?.[k]?.state||'ADAPTER_REQUIRED'}</option>)}</select></label>
         <div style={S.tools}>
           {Object.entries(status?.tools||{}).map(([k,v])=><span key={k} style={S.tool}>{k}: {v.state}</span>)}
         </div>
-        <p style={S.muted}>الطفل يستطيع التفكير والرد عند اتصال Runtime الخاص به. البحث/المتصفح/الطرفية/الملفات/الوسائط لا تُعتبر منفذة حتى يتصل Adapter حقيقي خاص بالمختبر.</p>
-        <div style={S.row}><button style={S.good} onClick={()=>saveTrial('PASS')}>نجح</button><button style={S.bad} onClick={()=>saveTrial('FAIL')}>فشل</button></div>
+        <p style={S.muted}>الطفل يستطيع التفكير والرد عند اتصال Runtime الخاص به. أي فعل خارجي يمر فقط عبر Adapter الطفل المختار ولا يُعتبر منفذًا بدون Receipt.</p>
+        <div style={S.row}><button style={S.primary} disabled={toolBusy||!lab.currentTrial.goal.trim()||status?.tools?.[lab.currentTrial.tool||'web']?.state!=='CONNECTED'} onClick={runChildTool}>{toolBusy?'ينفّذ…':'نفّذ بالأداة'}</button><button style={S.good} onClick={()=>saveTrial('PASS')}>نجح</button><button style={S.bad} onClick={()=>saveTrial('FAIL')}>فشل</button></div>
         <div style={S.list}>{lab.trials.slice(0,12).map(t=><div key={t.id} style={S.item}><div><b>{t.result==='PASS'?'✓':'✕'} {t.goal}</b><small style={{display:'block',opacity:.7}}>{t.success_criteria||'بدون معيار مكتوب'}</small></div></div>)}</div>
       </section>
 
@@ -147,6 +210,11 @@ export default function ChildLabPage(){
         <div style={S.kv}><span>أوزان الإنتاج</span><b>قراءة/كتابة: لا</b></div>
         <div style={S.kv}><span>مسار التدريب الحالي</span><b>كتابة: لا</b></div>
         <div style={S.kv}><span>الذاكرة</span><b>Child Lab فقط</b></div>
+        <h3>Snapshots / الحزم</h3>
+        <div style={S.row}><button style={S.primary} onClick={saveSnapshot}>حفظ Snapshot</button><button style={S.small} onClick={exportPackage}>تصدير الشخصية</button><label style={S.small}>استيراد<input type="file" accept="application/json,.json" hidden onChange={e=>{const file=e.target.files?.[0];e.target.value='';importPackage(file)}}/></label></div>
+        <div style={S.list}>{(lab.snapshots||[]).slice(0,8).map(x=><div key={x.id} style={S.item}><div><b>{new Date(x.created_at).toLocaleString('ar-MA')}</b><small style={{display:'block',opacity:.7}}>{x.lessons?.length||0} دروس · {x.trials?.length||0} تجارب</small></div><button style={S.small} onClick={()=>restoreSnapshot(x.id)}>استعادة</button></div>)}</div>
+        <h3>إيصالات الأدوات</h3>
+        <div style={S.list}>{(lab.toolRuns||[]).slice(0,6).map(x=><div key={x.id} style={S.item}><div><b>{x.tool} · Receipt</b><small style={{display:'block',opacity:.7}}>{String(x.receipt?.id||x.receipt?.receipt_id||x.id)}</small></div></div>)}</div>
         <button style={S.bad} onClick={resetChild}>مسح الطفل التجريبي</button>
       </section>
     </main>
