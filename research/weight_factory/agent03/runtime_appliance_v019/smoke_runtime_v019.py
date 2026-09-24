@@ -380,8 +380,10 @@ def build_check():
     assert "and not self.base_sync_done" in fsdp_rollout_src
     assert "peft_config is not None and self.base_sync_done" in fsdp_rollout_src
     print("AQLEVON_V019_FIRST_WAKE_MEMORY_DEDUP_PASS")
-    assert "AQLEVON_SDPO_FSDP_EXPLICIT_LORA_STATE" in fsdp_collect_src
-    assert "state_dict=full_state_dict" in fsdp_collect_src
+    assert "AQLEVON_SDPO_QWEN35_RAW_FSDP_LORA_STATE" in fsdp_collect_src
+    assert "full_state_dict = module.state_dict()" in fsdp_collect_src
+    assert "_aqlevon_extract_qwen35_lora_state_dict(" in fsdp_collect_src
+    assert 'adapter_name="default"' in fsdp_collect_src
     assert "expected_lora_tensors = 32" in fsdp_collect_src
     assert "AQLEVON_TENSOR_LORA_SYNC_COUNT" in rollout_update_src
     assert "AQLEVON_TENSOR_LORA_SYNC_PASS" in rollout_update_src
