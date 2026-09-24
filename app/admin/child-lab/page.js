@@ -120,7 +120,7 @@ export default function ChildLabPage(){
   function exportPackage(){
     const pkg=childPackage();
     const blob=new Blob([JSON.stringify(pkg,null,2)],{type:'application/json'});
-    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`aqlevon-child-${pkg.package_id}.json`;a.click();URL.revokeObjectURL(a.href);
+    const a=document.createElement('a');a.href=globalThis.URL.createObjectURL(blob);a.download=`aqlevon-child-${pkg.package_id}.json`;a.click();globalThis.URL.revokeObjectURL(a.href);
   }
 
   async function importPackage(file){
@@ -188,7 +188,7 @@ export default function ChildLabPage(){
       training_lane_write:false,
     })).join('\n');
     const blob=new Blob([rows+(rows?'\n':'')],{type:'application/x-ndjson'});
-    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='aqlevon-child-teaching-dataset.jsonl';a.click();URL.revokeObjectURL(a.href);
+    const a=document.createElement('a');a.href=globalThis.URL.createObjectURL(blob);a.download='aqlevon-child-teaching-dataset.jsonl';a.click();globalThis.URL.revokeObjectURL(a.href);
   }
 
   function resetChild(){
