@@ -484,6 +484,32 @@ export default function ChildLabPage(){
         </div>
         <div style={S.list}>{memoryItems.slice(0,60).map(m=><div key={m.id} style={S.item}><div><b>{m.kind} · {m.topic}</b><p style={{margin:'4px 0',whiteSpace:'pre-wrap'}}>{m.text}</p><small style={{opacity:.65}}>أهمية {Number(m.importance||0).toFixed(1)}{m.relevance_score!=null?` · صلة ${Number(m.relevance_score).toFixed(2)}`:''}</small></div><button style={S.small} onClick={()=>removeMemory(m.id)}>حذف</button></div>)}</div>
       </section>
+
+      <section style={S.card}>
+        <h2>6) صلاحيات الطفل</h2>
+        <p style={S.muted}>أنت تتحكم في صلاحيات المختبر من هنا. الأزرار أدناه مرتبطة فعليًا بالـTool Broker.</p>
+        <div style={S.kv}><span>التنفيذ العام</span><b>{permissions.execution_enabled?'مفعّل':'موقوف'}</b></div>
+        <div style={S.row}>
+          <button style={permissions.execution_enabled?S.good:S.primary} onClick={()=>setMasterExecution(!permissions.execution_enabled)}>{permissions.execution_enabled?'أوقف التنفيذ':'شغّل التنفيذ'}</button>
+          <button style={S.bad} onClick={emergencyStop}>STOP · إيقاف وسحب الصلاحيات</button>
+        </div>
+        <label style={{...S.label,marginTop:14}}>وضع الاستقلالية
+          <select style={S.input} value={permissions.autonomy} onChange={e=>setAutonomy(e.target.value)}>
+            <option value="observe_only">يشاهد ويقترح فقط</option>
+            <option value="ask_each_action">يطلب الإذن قبل كل فعل</option>
+            <option value="run_within_grants">ينفذ تلقائيًا داخل الصلاحيات المفعلة</option>
+          </select>
+        </label>
+        <div style={S.list}>
+          {CHILD_PERMISSION_CATALOG.map(p=><div key={p.id} style={S.item}>
+            <div><b>{p.label}</b><small style={{display:'block',opacity:.7}}>{p.description}</small><code style={{fontSize:11,opacity:.55}}>{p.id}</code></div>
+            <button style={permissions.grants?.[p.id]?S.good:S.small} onClick={()=>togglePermission(p.id)}>{permissions.grants?.[p.id]?'مسموح':'موقوف'}</button>
+          </div>)}
+        </div>
+        <p style={{...S.muted,marginTop:14}}>هذه اللوحة تتحكم في صلاحيات أدوات Child Lab. حدود الأمان الأساسية للمنصة تبقى مستقلة عن هذه الأزرار.</p>
+        <h3>سجل تغييرات الصلاحيات</h3>
+        <div style={S.list}>{permissionLog.slice(0,12).map(x=><div key={x.id} style={S.item}><div><b>{x.action}</b><small style={{display:'block',opacity:.7}}>{x.detail}</small></div><small>{new Date(x.created_at).toLocaleString('ar-MA')}</small></div>)}</div>
+      </section>
     </main>
   </div>;
 }
