@@ -1,7 +1,7 @@
 {
   "authorization_id": "P4-A0-SFT-FLEX-GPU-20260925-05",
   "authorization_kind": "AQLEVON_MANAGER_COMPUTE_FLEX_GPU_A0_V1",
-  "authorization_sha256": "PENDING_FREE_HASH",
+  "authorization_sha256": "29e960888dd3993f0bbc4873e68c0e394009d3669438834b05579a155f06e058",
   "base_repo": "Qwen/Qwen3.5-4B-Base",
   "base_revision": "daa9c16f371249f9ad1c75a9ed6f956c08ea08f5",
   "candidate_arm": "P4_A0_SFT_LORA_CONTROL",
