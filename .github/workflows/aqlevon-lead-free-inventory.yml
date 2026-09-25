@@ -44,7 +44,11 @@ jobs:
           out={'checked_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'balances':sorted(set(bal)),'pods':[{'id':p.get('id'),'name':p.get('name'),'status':p.get('desiredStatus') or p.get('status'),'rate':p.get('costPerHr')} for p in pods], 'gpu_catalog':matches}
           with open('.github/runpod-control/lead-free-inventory-result.json','w') as f: json.dump(out,f,sort_keys=True,indent=2);f.write('\n')
           print('AQLEVON_LEAD_INVENTORY',json.dumps(out,sort_keys=True))
-          assert not [p for p in out['pods'] if str(p['name']).startswith('AQLEVON-P4-A1-') and p['status']!='EXITED'], 'active AQLEVON paid pod'
+          active=[p for p in out['pods'] if str(p['name']).startswith('AQLEVON-P4-A1-') and p['status']!='EXITED']
+          expected=json.load(open('.github/runpod-control/lead-free-inventory-trigger.json')).get('pod_id')
+          consumed=json.load(open('.github/runpod-control/recovery20a-consumed.json')) if expected else {}
+          assert all(p['id']==expected for p in active) and (not expected or consumed.get('pod_id')==expected), active
+          print('AQLEVON_EXPECTED_PODS_ONLY_PASS',len(active))
           PY
       - name: Persist sanitized inventory
         run: |
