@@ -3,8 +3,8 @@ import {createClient} from '@supabase/supabase-js';
 import {executeChildTool} from '../../../../../lib/aqlevon/child-tools.js';
 import {redactSecrets} from '../../../../../lib/aqlevon/security.js';
 
-const URL=process.env.NEXT_PUBLIC_SUPABASE_URL;
-const KEY=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+const URL=process.env.NEXT_PUBLIC_SUPABASE_URL||'https://yaqjhcfitxhtzpaswuif.supabase.co';
+const KEY=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||'sb_publishable_1uRtACKcyT2ZQH9ixdKQ-Q_ARbY6xET';
 const ALLOWED=new Set(['web','browser','terminal','files','media']);
 
 function bearer(req){const h=req.headers.get('authorization')||'';return h.startsWith('Bearer ')?h.slice(7).trim():''}
