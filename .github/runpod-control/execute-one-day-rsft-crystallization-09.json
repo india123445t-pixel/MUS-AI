@@ -11,5 +11,9 @@
   "free_seal_selected_price_hr": 1.59,
   "retry_sequence": 9,
   "previous_authorization_id": "P4-ONE-DAY-COVERAGE-CRYSTALLIZATION-20260925-08",
-  "previous_outcome": "PUBLIC_SHADOW_GATE_FAILED_WITH_EPOCH_ACCOUNTING_DEFECT"
+  "previous_outcome": "PUBLIC_SHADOW_GATE_FAILED_WITH_EPOCH_ACCOUNTING_DEFECT",
+  "no_spend_retry_sequence": 2,
+  "previous_attempt_run_id": 36162034635,
+  "previous_attempt_outcome": "NO_SPEND_RECOVERY_MATERIALIZER_PATH_FAIL",
+  "authorization_consumed": false
 }
