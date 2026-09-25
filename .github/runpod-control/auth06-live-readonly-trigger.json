@@ -1,7 +1,8 @@
 {
   "kind": "AQLEVON_AUTH06_LIVE_READONLY_CHECK_TRIGGER_V1",
   "pod_id": "92wrskgt3eg4az",
-  "requested_at_utc": "2026-09-25T15:29:00Z",
+  "requested_at_utc": "2026-09-25T15:31:00Z",
   "mutation_allowed": false,
-  "sequence": 2
+  "sequence": 3,
+  "purpose": "verify exact Auth06 Pod deletion after V2 terminal failure"
 }
