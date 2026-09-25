@@ -1,7 +1,7 @@
 {
   "kind": "AQLEVON_AUTH11_FREE_SEAL_TRIGGER_V1",
   "authorization_id": "P4-ONE-DAY-SYNTHETIC-CURRICULUM-20260925-11",
-  "requested_at_utc": "2026-09-25T17:33:30Z",
-  "sequence": 2,
-  "reason": "final_free_seal_after_paid_workflow_driver_seal"
+  "requested_at_utc": "2026-09-25T17:46:00Z",
+  "sequence": 3,
+  "reason": "post-auth11-cleanup-provider-reseal-for-auth12-preparation"
 }
