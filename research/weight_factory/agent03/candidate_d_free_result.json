@@ -1,0 +1,15 @@
+{
+  "checked_at_utc": "2026-09-25T17:47:24.687766+00:00",
+  "epochs": 3,
+  "families": 14,
+  "kind": "AQLEVON_CANDIDATE_D_ZERO_COST_PREFLIGHT_RESULT_V1",
+  "mining_n": 8,
+  "objective": "verifier_guided_pairwise_preference_plus_chosen_nll",
+  "optimizer_updates": 84,
+  "paid_resource_created": false,
+  "public_discovery_tasks": 28,
+  "public_shadow_tasks": 28,
+  "sealed_eval_consumed": false,
+  "status": "PASS",
+  "worker05_used_for_tuning": false
+}\n
