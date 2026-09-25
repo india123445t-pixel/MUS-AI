@@ -1,0 +1,14 @@
+{
+  "authorization_id": "P4-ONE-DAY-PREFERENCE-CRYSTALLIZATION-20260925-11",
+  "authorization_sha256": "b570a9d7e485ec2bed08dac491ccb35f2f52cd739481dae23ded0697caeb0854",
+  "expected_source_head": "a5521a0f4a00884de0470d7831023b8fafc09759",
+  "candidate_source_blob": "733e375e44c4e5b505d5bd8f14e20c3ed01fa943",
+  "experiment_kind": "PUBLIC_DISCOVERY_VERIFIER_GUIDED_PAIRWISE_PREFERENCE_CRYSTALLIZATION",
+  "training_authorized": true,
+  "owner_explicit_single_use_cap_usd": "0.70",
+  "retry_sequence": 11,
+  "previous_authorization_id": "P4-ONE-DAY-RSFT-CRYSTALLIZATION-20260925-10",
+  "previous_outcome": "TECHNICALLY_VALID_PUBLIC_SHADOW_GATE_FAILED",
+  "authorization_consumed": false,
+  "requested_at_utc": "2026-09-25T17:53:00Z"
+}
