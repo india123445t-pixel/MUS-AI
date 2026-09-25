@@ -12,6 +12,11 @@ const LEGACY_PUBLIC_KEYS=[
 ];
 
 export default function WorkspaceRoot() {
-  useEffect(()=>{ for(const key of LEGACY_PUBLIC_KEYS) localStorage.removeItem(key); },[]);
+  useEffect(()=>{
+    for(const key of LEGACY_PUBLIC_KEYS) localStorage.removeItem(key);
+    if('serviceWorker' in navigator){
+      navigator.serviceWorker.register('/api/status?sw=1',{scope:'/'}).catch(()=>{});
+    }
+  },[]);
   return <BrowserRouter><I18nProvider><App /></I18nProvider></BrowserRouter>;
 }

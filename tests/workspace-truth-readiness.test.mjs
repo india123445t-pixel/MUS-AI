@@ -5,6 +5,7 @@ import path from 'node:path';
 
 const root=path.resolve(path.dirname(new URL(import.meta.url).pathname),'..');
 const read=p=>fs.readFileSync(path.join(root,p),'utf8');
+const workspaceRoot=read('app/workspace/WorkspaceRoot.jsx');
 const api=read('app/workspace/api.js');
 const chat=read('app/workspace/pages/ChatPage.jsx');
 const work=read('app/workspace/pages/WorkPage.jsx');
@@ -113,7 +114,9 @@ test('Work fails closed when inference is unavailable and Library stays browser-
   assert.doesNotMatch(library,/\/api\/files\/\$\{preview\.file\.id\}\/content/);
 });
 
-test('PWA cache rotates on the sovereign runtime cutover',()=>{
+test('PWA registers its service worker and cache rotates on the sovereign runtime cutover',()=>{
+  assert.match(workspaceRoot,/serviceWorker/);
+  assert.match(workspaceRoot,/register\('\/api\/status\?sw=1',\{scope:'\/'\}\)/);
   assert.match(statusRoute,/aqlevon-ai-shell-v7-sovereign/);
   assert.match(statusRoute,/x!==C/);
   assert.match(statusRoute,/no-cache, no-store, must-revalidate/);
