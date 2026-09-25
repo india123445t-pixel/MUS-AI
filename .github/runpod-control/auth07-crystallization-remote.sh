@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+set -uo pipefail
+ROOT=/tmp/auth07-runtime
+SRC="$ROOT/source"
+MODEL="$ROOT/model"
+OUT="$ROOT/candidate"
+rc=255
+trap 'printf "%s\n" "$rc" >/tmp/auth07.rc' EXIT
+rm -rf "$ROOT"
+mkdir -p "$SRC" "$MODEL" "$OUT"
+tar --no-same-owner -xzf /tmp/crystal-source.tgz -C "$SRC" || { rc=81; exit "$rc"; }
+test "$(cat "$SRC/.aqlevon_source_head")" = "f3a2ca4c894e81cf9dffa1dd9935a3774b854cdb" || { rc=82; exit "$rc"; }
+cp /tmp/public-pack.json "$ROOT/public-pack.json" || { rc=83; exit "$rc"; }
+cp /tmp/w02.py "$ROOT/w02.py" || { rc=84; exit "$rc"; }
+cp /tmp/recovered-materialized-probe.json "$ROOT/probe.json" || { rc=85; exit "$rc"; }
+python3 - <<'PY'
+from huggingface_hub import snapshot_download
+snapshot_download(
+    repo_id="Qwen/Qwen3.5-4B-Base",
+    revision="daa9c16f371249f9ad1c75a9ed6f956c08ea08f5",
+    local_dir="/tmp/auth07-runtime/model",
+)
+print("AQLEVON_AUTH07_MODEL_STAGED", flush=True)
+PY
+rc=$?
+[ "$rc" -eq 0 ] || exit "$rc"
+timeout --signal=TERM --kill-after=20s 900s python3 "$SRC/research/weight_factory/agent03/p4_one_day_crystallize.py"   --probe-result "$ROOT/probe.json"   --w02-module "$ROOT/w02.py"   --training-pack "$ROOT/public-pack.json"   --model-dir "$MODEL"   --output-dir "$OUT"   > "$ROOT/train.log" 2>&1
+rc=$?
+exit "$rc"
