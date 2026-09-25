@@ -2,7 +2,7 @@ name: AQLEVON One-Day Public PassN Probe
 on:
   push:
     branches: [ops/one-day-verified-trajectory-20260925]
-    paths: [".github/runpod-control/execute-one-day-public-probe-02.json"]
+    paths: [".github/runpod-control/execute-one-day-public-probe-03.json"]
 permissions:
   contents: write
 concurrency:
@@ -21,12 +21,12 @@ jobs:
           fetch-depth: 0
       - name: Execute bounded one-day public probe
         shell: bash
-        run: bash .github/runpod-control/run-one-day-public-probe-02-refresh.sh
+        run: bash .github/runpod-control/run-one-day-public-probe-03-refresh.sh
       - name: Upload bounded probe evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: aqlevon-one-day-public-passn-probe-02
+          name: aqlevon-one-day-public-passn-probe-03
           path: |
             /tmp/probe-result.json
             /tmp/probe.log
