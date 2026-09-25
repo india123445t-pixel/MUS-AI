@@ -299,7 +299,7 @@ Permissions are explicit toggles instead of hidden operational choices.
 Controls:
 - master execution on/off
 - emergency STOP that disables execution and revokes all operational grants
-- autonomy mode: observe only, ask for each action, or run automatically within enabled grants
+- autonomy policy sent to the connected adapter: observe/propose, require an action command, or allow multi-step continuation within enabled grants. No hidden autonomous agent loop is claimed.
 - per-capability toggles
 - local audit log for permission changes
 
@@ -342,3 +342,108 @@ CI:
 - GitHub Actions run: 35951056992 — SUCCESS
 
 No main merge, no production AQLEVON weight mutation, no Worker 03/P4 mutation, and no GPU request occurred in V1.5.
+
+
+## V1.6 — readiness hardening (2026-09-25)
+
+This audit hardened Child Lab and the public AQLEVON application without touching the active Worker 03/P4 training lane, production weights, paid GPU, or main.
+
+### Fresh-child baseline
+A fresh/reset child now starts with:
+- no owner-defined persona text
+- no owner-defined purpose
+- no lessons
+- no teaching examples
+- no candidate/evaluation state
+- all operational permissions revoked
+
+The base child runtime may still contain general pretrained knowledge. "Blank" here means blank owner upbringing/persona state, not an untrained language model.
+
+### Complete reset and snapshots
+Reset now clears:
+- persona/identity upbringing state
+- lessons/trials/examples
+- long-term Child Lab memory
+- current Candidate and Candidate evaluation
+- operational permissions
+
+Reset never touches public AQLEVON or Worker 03/P4.
+
+Snapshots now preserve and restore child identity together with persona, lessons, trials, and correction examples.
+
+### Executable permission actions
+The owner can choose an explicit tool action in the test arena instead of every browser run silently becoming "navigate".
+
+Examples:
+- browser.navigate
+- browser.form_fill
+- browser.session_login
+- browser.download
+- browser.upload
+- browser.submit
+- browser.publish
+- browser.account_modify
+- files.read / files.write / files.delete
+- terminal.run
+- media.read / media.write
+
+Compound actions require every relevant grant:
+- publish => browser.submit + external.publish
+- account modification => browser.submit + account.modify
+- multi-step execution additionally requires workflow.multi_step
+
+The broker returns required_permissions and missing_permissions when execution is blocked.
+
+### Autonomy truth
+The autonomy selector is an adapter policy, not a claim that an autonomous tool-use loop already exists.
+Real external execution still requires:
+- a connected Child Lab adapter
+- enabled owner permissions
+- an adapter receipt
+
+The UI explicitly states this.
+
+### Persistence truth
+Current child persona/settings and permission toggles are browser/device local.
+Long-term memory uses browser IndexedDB.
+They are not yet server-synchronized across devices.
+
+A future server-side Child memory/permission adapter is a scale step, not a prerequisite for isolated local teaching.
+
+### Mobile readiness
+Child Lab layout now uses fluid padding, wrapping controls, mobile-safe login width, and a grid that collapses without horizontal overflow on narrow screens.
+
+### Sovereign multi-pass reasoning repair
+The public AQLEVON chat previously retained an old multi-provider exclusion rule. After the runtime became AQLEVON-only, that rule could suppress the second deep-reasoning pass and advisory verifier because both use the same owned aqlevon-engine.
+
+The old exclusion was removed. Deep reasoning can now make multiple passes on the same sovereign runtime.
+Truth metadata now says:
+- candidate_passes = number of solution passes requested
+- independent_candidates = 1
+- verifier_independent = false
+- advisory.same_runtime = true
+
+Model agreement is still not treated as formal proof.
+
+### Public personalization and local memory
+Workspace personalization and local memory are no longer cosmetic settings.
+The browser now sends bounded context to AQLEVON:
+- personalization: max 4,000 characters
+- recent memories: max 16 items, max 1,000 characters each
+
+The server redacts secret-like material again and labels this context non-authoritative.
+It cannot override runtime law, TaskContract, permissions, or verification requirements.
+This context is also preserved when the unified chat path falls back to AQLEVON Commons.
+
+### Known not-yet-connected surfaces
+These remain intentionally fail-closed until their dedicated runtime/adapters exist:
+- AQLEVON main model endpoint in the current preview
+- Child Runtime endpoint
+- Child web/browser/terminal/files/media adapters
+- public Web Search / Deep Research adapter
+- real public Git/terminal adapter
+- public external Apps connectors
+- real background Automations executor
+- Owner Core external Executor
+
+The UI must continue to label these as unavailable / adapter required rather than simulate success.
