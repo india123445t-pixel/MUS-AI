@@ -61,6 +61,8 @@ test('owner UI exposes permission toggles autonomy log and emergency stop',()=>{
   assert.match(page,/مهمة متعددة الخطوات/);
   assert.match(page,/الصلاحيات المطلوبة/);
   assert.match(page,/CHILD_TOOL_ACTIONS/);
+  assert.match(page,/الفعل المحدد غير صالح لهذه الأداة/);
+  assert.doesNotMatch(page,/const action=actions\.some\(x=>x\.id===lab\.currentTrial\.action\)\?/);
 });
 
 

@@ -279,9 +279,10 @@ export default function ChildLabPage(){
   async function runChildTool(){
     const tool=lab.currentTrial.tool||'web',goal=lab.currentTrial.goal.trim();
     const actions=CHILD_TOOL_ACTIONS[tool]||[];
-    const action=actions.some(x=>x.id===lab.currentTrial.action)?lab.currentTrial.action:(actions[0]?.id||'run');
+    const action=String(lab.currentTrial.action||'');
     const multiStep=lab.currentTrial.multi_step===true;
     if(!goal||!session||toolBusy)return;
+    if(!actions.some(x=>x.id===action)){setNotice('الفعل المحدد غير صالح لهذه الأداة.');return}
     if(status?.tools?.[tool]?.configured!==true){setNotice(`${tool}: يحتاج Adapter خاص بمختبر الطفل.`);return}
     setToolBusy(true);setNotice('');
     try{
