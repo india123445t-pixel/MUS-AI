@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
+
+export const maxDuration=300;
+export const dynamic='force-dynamic';
 import { createClient } from '@supabase/supabase-js';
 import { createHash, randomUUID } from 'crypto';
 import { generateModelResponse } from '../../../lib/aqlevon/providers.js';
 import {
-
-export const maxDuration=300;
-export const dynamic='force-dynamic';
   adjudicateFormalVerification,
   buildMessages,
   buildRouteDecision,
