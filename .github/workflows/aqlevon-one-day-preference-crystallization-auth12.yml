@@ -1,0 +1,84 @@
+name: AQLEVON One-Day Preference Crystallization Auth12
+on:
+  push:
+    branches: [ops/one-day-verified-trajectory-20260925]
+    paths: [".github/runpod-control/execute-one-day-preference-crystallization-12.json"]
+permissions:
+  contents: write
+concurrency:
+  group: aqlevon-p4-paid-single-use
+  cancel-in-progress: false
+jobs:
+  execute:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 42
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/one-day-verified-trajectory-20260925
+          fetch-depth: 0
+      - name: Execute bounded Auth12 preference crystallization
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path(".github/runpod-control/run-one-day-rsft-crystallization-09.sh").read_text()
+          reps={
+            "one-day-rsft-crystallization-manager-authorization-09-20260925.json":"one-day-preference-crystallization-manager-authorization-12-20260925.json",
+            "one-day-rsft-crystallization-free-result-09.json":"one-day-preference-crystallization-free-result-12.json",
+            "execute-one-day-rsft-crystallization-09.json":"execute-one-day-preference-crystallization-12.json",
+            "one-day-rsft-crystallization-consumed-09.json":"one-day-preference-crystallization-consumed-12.json",
+            "one-day-rsft-crystallization-run-result-09.json":"one-day-preference-crystallization-run-result-12.json",
+            "P4-ONE-DAY-RSFT-CRYSTALLIZATION-20260925-09":"P4-ONE-DAY-PREFERENCE-CRYSTALLIZATION-20260925-12",
+            "76bdd6d24ba6007c3bc702568f026dfcf4d69d44a85f129510d127844f6adcc6":"0cd44afc3982ba51cba594641e90f95fb7980be9f6c0bf8518327fbca0cf4eda",
+            "7b35fab86da22e46804e9af6f311a88ea5b02e27":"a5521a0f4a00884de0470d7831023b8fafc09759",
+            "930e6742f15b77cfa4653485ea7be91d1d965fcb":"733e375e44c4e5b505d5bd8f14e20c3ed01fa943",
+            "p4_one_day_rsft_crystallize.py":"p4_one_day_preference_crystallize.py",
+            "/tmp/rsft-source.tgz":"/tmp/preference-source.tgz",
+            "/tmp/rsft-source":"/tmp/preference-source",
+            "auth09-rsft-crystallization-remote-v1.sh":"auth12-preference-crystallization-remote-v1.sh",
+            "AQLEVON-ONE-DAY-RSFT-09":"AQLEVON-ONE-DAY-PREFERENCE-12",
+            "AUTH09":"AUTH12","Auth09":"Auth12","auth09":"auth12"
+          }
+          for a,b in reps.items(): s=s.replace(a,b)
+          old='assert a["train_discovery_tasks"]==28 and a["train_families"]==14 and a["epochs"]==3 and a["mining_n"]==8 and a["max_on_policy_per_task"]==1 and a["minimum_optimizer_updates"]==84'
+          new='assert a["train_discovery_tasks"]==28 and a["train_families"]==14 and a["epochs"]==3 and a["mining_n"]==8 and a["preference_pairs"]==28 and a["optimizer_updates"]==84'
+          s=s.replace(old,new)
+          s=s.replace("AQLEVON_RSFT_PUBLIC_PREFLIGHT_PASS train_verified=28 shadow=28 epochs=3 minimum_updates=84 probe_decision=MATERIAL_LATENT_CAPABILITY",
+                      "AQLEVON_PREF_PUBLIC_PREFLIGHT_PASS discovery=28 shadow=28 families=14 epochs=3 updates=84 mining_n=8 probe_decision=MATERIAL_LATENT_CAPABILITY")
+          s=s.replace("grep -q 'train_verified=28 shadow=28 probe_decision=MATERIAL_LATENT_CAPABILITY' /tmp/preflight08.log",
+                      "grep -q 'AQLEVON_PREF_PUBLIC_PREFLIGHT_PASS discovery=28 shadow=28 families=14 epochs=3 updates=84 mining_n=8 probe_decision=MATERIAL_LATENT_CAPABILITY' /tmp/preflight08.log")
+          s=s.replace("grep -q 'train_verified=28 shadow=28 epochs=3 minimum_updates=84 probe_decision=MATERIAL_LATENT_CAPABILITY' /tmp/preflight08.log",
+                      "grep -q 'AQLEVON_PREF_PUBLIC_PREFLIGHT_PASS discovery=28 shadow=28 families=14 epochs=3 updates=84 mining_n=8 probe_decision=MATERIAL_LATENT_CAPABILITY' /tmp/preflight08.log")
+          s=s.replace('fresh_authorization_spend_before_auth12_usd','estimated_fresh_mission_spend_before_auth12_usd')
+          s=s.replace('--volume-in-gb 40 --volume-mount-path /workspace ','')
+          s=s.replace('[ "$elapsed" -lt 600 ] || break','[ "$elapsed" -lt 480 ] || break')
+          s=s.replace('choices.append((price,gid,str(d["dataCenterId"]),secs))',
+                      'choices.append((0 if str(d["dataCenterId"])==str(a.get("preferred_datacenter")) else 1,price,gid,str(d["dataCenterId"]),secs))')
+          s=s.replace('price,gpu,dc,secs=sorted(choices)[0]','_,price,gpu,dc,secs=sorted(choices)[0]')
+          s=s.replace("set -euo pipefail","set -euxo pipefail",1)
+          Path("/tmp/run-auth12.sh").write_text(s)
+          PY
+          bash -n /tmp/run-auth12.sh
+          bash /tmp/run-auth12.sh
+      - name: Upload Auth12 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aqlevon-one-day-preference-crystallization-auth12
+          path: |
+            /tmp/auth12-evidence.tgz
+            /tmp/auth12-train.log
+            /tmp/auth12_rc
+            /tmp/create08.json
+            /tmp/pod08.json
+            /tmp/auth12-input-sha256.txt
+            /tmp/stop08.json
+            /tmp/delete08.json
+            /tmp/auth12-exit-stop.json
+            /tmp/auth12-exit-delete.json
+          if-no-files-found: warn
+          retention-days: 14
