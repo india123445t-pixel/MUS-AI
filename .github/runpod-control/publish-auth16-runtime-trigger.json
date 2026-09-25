@@ -1,6 +1,9 @@
 {
   "kind": "AQLEVON_AUTH16_RUNTIME_RELEASE_TRIGGER_V1",
-  "requested_at_utc": "2026-09-25T20:42:00Z",
+  "requested_at_utc": "2026-09-25T21:38:00Z",
   "adapter_model_sha256": "2d4f0c3528129e702dfa0af27fad467d411f355b9ea72e771942d0f6703e2b2a",
-  "source_artifact_id": 10883200678
+  "source_artifact_id": 10883200678,
+  "retry_sequence": 2,
+  "previous_run_id": 36192415502,
+  "previous_outcome": "NO_COST_NESTED_ARTIFACT_LAYOUT"
 }
