@@ -37,6 +37,8 @@ jobs:
           mkdir -p runtime/serverless-auth16/adapter /tmp/auth16
           gh api /repos/${GITHUB_REPOSITORY}/actions/artifacts/10883200678/zip > /tmp/auth16.zip
           unzip -q /tmp/auth16.zip -d /tmp/auth16
+          mkdir -p /tmp/auth16/extracted
+          while IFS= read -r tgz; do tar -xzf "$tgz" -C /tmp/auth16/extracted; done < <(find /tmp/auth16 -type f -name '*.tgz')
           model="$(find /tmp/auth16 -type f -name adapter_model.safetensors -print -quit)"
           config="$(find /tmp/auth16 -type f -name adapter_config.json -print -quit)"
           test -n "$model" && test -n "$config"
