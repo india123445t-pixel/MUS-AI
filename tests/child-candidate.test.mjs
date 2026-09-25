@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import {buildChildTeachingCandidate,evaluateChildCandidate} from '../lib/aqlevon/child-candidate.js';
+import {buildChildTeachingCandidate,evaluateChildCandidate,computeChildCandidateSha256} from '../lib/aqlevon/child-candidate.js';
 
 const root=path.resolve(path.dirname(new URL(import.meta.url).pathname),'..');
 const route=fs.readFileSync(path.join(root,'app/api/admin/child-lab/candidate/route.js'),'utf8');
@@ -39,4 +39,19 @@ test('candidate route is owner-only packaging with no GPU or training side effec
   assert.match(route,/worker03_access:false/);
   assert.match(route,/automatic_promotion:false/);
   assert.doesNotMatch(route,/RunPod|CUDA|torch|trainer|optimizer|LoRA|merge/i);
+});
+
+
+test('candidate hash binds teaching content but not volatile creation time',()=>{
+  const c=buildChildTeachingCandidate({
+    persona:'باحث',
+    lessons:[{text:'تحقق قبل الإجابة'}],
+    examples:[{input:'سؤال',child_answer:'خطأ',preferred_answer:'الصحيح',persona_snapshot:'باحث'}],
+    trials:[{result:'PASS'}],
+  });
+  assert.equal(computeChildCandidateSha256({...c,created_at:'2099-01-01T00:00:00.000Z'}),c.candidate_sha256);
+  const tampered={...c,persona:'تم العبث بالمحتوى'};
+  const result=evaluateChildCandidate(tampered);
+  assert.equal(result.valid,false);
+  assert.ok(result.issues.includes('CANDIDATE_HASH_MISMATCH'));
 });

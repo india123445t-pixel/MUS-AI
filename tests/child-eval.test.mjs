@@ -55,3 +55,21 @@ test('evaluation route is owner-only and side-effect free',()=>{
   assert.match(route,/worker03_access:false/);
   assert.doesNotMatch(route,/RunPod|CUDA|torch|trainer|optimizer|LoRA|merge/i);
 });
+
+
+test('evaluation rejects a candidate whose content no longer matches its hash',()=>{
+  const candidate=buildChildTeachingCandidate({
+    persona:'باحث',
+    lessons:[{text:'تحقق قبل الإجابة'}],
+    examples:[
+      {input:'أ',child_answer:'x',preferred_answer:'y',persona_snapshot:'باحث'},
+      {input:'ب',child_answer:'x',preferred_answer:'z',persona_snapshot:'باحث'},
+      {input:'ج',child_answer:'x',preferred_answer:'w',persona_snapshot:'باحث'}
+    ],
+    trials:[{result:'PASS'}]
+  });
+  const e=evaluateChildTeachingCandidate({...candidate,lessons:['محتوى عُدّل بعد التغليف']});
+  assert.equal(e.valid,false);
+  assert.ok(e.issues.includes('CANDIDATE_HASH_MISMATCH'));
+  assert.equal(e.verdict,'REJECT');
+});
