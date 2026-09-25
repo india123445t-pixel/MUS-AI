@@ -198,3 +198,12 @@ A second behavior-first audit found and repaired additional truth/readiness defe
 - result: SUCCESS
 - all focused suites, Vercel parity command, and production build passed
 - training lane, main, paid GPU, RunPod, production model weights, and Production deployment were not modified
+
+
+## Preview retrigger after Vercel rate-limit recovery — 2026-09-25
+
+- Previous final code/content head `6435ad521aed253af1ee27a3b0acd263c1d1757c` passed Workspace Sovereign Readiness CI run #120 completely.
+- Vercel did not create a deployment for that SHA because the GitHub integration returned `build-rate-limit`.
+- Later Vercel deployments for unrelated branches returned READY, showing the deployment service was accepting builds again.
+- This documentation-only commit intentionally retriggers readiness CI and Vercel Preview without changing application code, training code, production weights, Worker 03/P4, paid compute, main, or Production.
+- The Preview branch must be advanced to this exact commit and verified before final readiness can be declared complete.
