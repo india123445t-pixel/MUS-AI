@@ -1,0 +1,28 @@
+name: AQLEVON Auth06 Crystallization Driver Free Contract
+on:
+  push:
+    branches: [ops/one-day-verified-trajectory-20260925]
+    paths: [".github/runpod-control/auth06-crystallize-driver-free-trigger.json"]
+permissions:
+  contents: read
+jobs:
+  contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      AQLEVON_FREE_CONTRACT_ONLY: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/one-day-verified-trajectory-20260925
+          fetch-depth: 0
+      - name: Validate exact Auth06 driver and staged science without spend
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n .github/runpod-control/run-one-day-crystallize-06.sh
+          bash -n .github/runpod-control/remote-one-day-crystallize-06.sh
+          bash .github/runpod-control/run-one-day-crystallize-06.sh
+          test ! -e .github/runpod-control/one-day-crystallize-consumed-06.json
+          echo AQLEVON_AUTH06_DRIVER_FREE_WORKFLOW_PASS
