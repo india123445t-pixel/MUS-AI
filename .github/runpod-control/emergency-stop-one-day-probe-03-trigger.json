@@ -3,5 +3,7 @@
   "pod_id": "03kph2nb3s84bi",
   "authorization_id": "P4-ONE-DAY-PUBLIC-PASSN-20260925-03",
   "reason": "auth03 probe readiness timeout exit90; ensure exact stopped Pod is deleted and no storage remains",
-  "requested_at_utc": "2026-09-25T14:08:00Z"
+  "requested_at_utc": "2026-09-25T14:08:00Z",
+  "retry_requested_at_utc": "2026-09-25T14:11:00Z",
+  "retry_reason": "ensure emergency workflow fires after workflow file exists; idempotent exact-Pod cleanup only"
 }
