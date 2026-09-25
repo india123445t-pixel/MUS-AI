@@ -5,6 +5,7 @@ on:
     paths:
       - ".github/runpod-control/run-one-day-public-probe-02.sh"
       - ".github/runpod-control/remote-one-day-public-probe-02.sh"
+      - ".github/runpod-control/run-one-day-public-probe-02-refresh.sh"
       - ".github/workflows/aqlevon-one-day-probe-driver-free.yml"
 permissions:
   contents: read
@@ -22,6 +23,7 @@ jobs:
           set -euo pipefail
           bash -n .github/runpod-control/run-one-day-public-probe-02.sh
           bash -n .github/runpod-control/remote-one-day-public-probe-02.sh
+          bash -n .github/runpod-control/run-one-day-public-probe-02-refresh.sh
           grep -q 'training_authorized.*False' .github/runpod-control/run-one-day-public-probe-02.sh
           grep -q 'AQLEVON_ONE_DAY_SOURCE_STAGED_BEFORE_BILLING' .github/runpod-control/run-one-day-public-probe-02.sh
           grep -q 'pod_deleted_after_durable_egress' .github/runpod-control/run-one-day-public-probe-02.sh
