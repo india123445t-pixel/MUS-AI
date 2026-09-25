@@ -1,0 +1,15 @@
+{
+  "authorization_id": "P4-ONE-DAY-SYNTHETIC-CURRICULUM-20260925-11",
+  "authorization_sha256": "8cea75f33b3bf9fbceeaf00b97b9a098704e61b1343bb39ab91a4a33802ee7af",
+  "created_at_utc": "2026-09-25T17:34:48.429535+00:00",
+  "dynamic_max_billed_seconds": 1450,
+  "image_digest": "sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec",
+  "paid_boundary_refresh_at_utc": "2026-09-25T17:34:45.852917+00:00",
+  "pod_id": "oi79xmxp7oxgma",
+  "selected_datacenter": "US-MD-1",
+  "selected_gpu_id": "NVIDIA A100-SXM4-80GB",
+  "selected_price_hr": 1.59,
+  "single_use_consumed": true,
+  "source_head": "3c5a38197a10a7aaa797f9735c0c7764f40e0dd7",
+  "training_authorized": true
+}
