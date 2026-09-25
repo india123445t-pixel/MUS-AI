@@ -1,0 +1,27 @@
+{
+  "kind": "AQLEVON_ONE_DAY_SYNTHETIC_AUTH14_FREE_SEAL_V1",
+  "authorization_id": "P4-ONE-DAY-SYNTHETIC-CURRICULUM-20260925-14",
+  "authorization_sha256": "47776d7cd1c1858fff99ea2fd87c110b91b2697a48ff305c3f2956fc6cb1464f",
+  "source_head": "22b95b0fdfaf97c3ba3314a94c2413d45439cc6e",
+  "candidate_source_blob": "cb86e6494fada78328310dfe5900e75205862ee0",
+  "provider_capacity_scan_run_id": 36173906586,
+  "provider_capacity_scan_branch": "ops/runpod-control-v1",
+  "pod_status_run_id": 36174098236,
+  "pod_status_checked_at_utc": "2026-09-25T18:32:45Z",
+  "active_aqlevon_pods": [],
+  "all_account_pods": [],
+  "paid_resource_created": false,
+  "selected_gpu_id": "NVIDIA A40",
+  "selected_datacenter": "EU-SE-1",
+  "selected_price_hr": 0.49,
+  "selected_memory_gb": 48,
+  "stock_status": "Low",
+  "alternate": {
+    "gpu_id": "NVIDIA RTX A6000",
+    "datacenter": "US-TX-1",
+    "price_hr": 0.53,
+    "memory_gb": 48,
+    "stock_status": "Low"
+  },
+  "live_boundary_refresh_required": true
+}
