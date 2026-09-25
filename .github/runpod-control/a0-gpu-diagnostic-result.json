@@ -1,0 +1,172 @@
+[
+  {
+    "available": true,
+    "communityPricePerHr": 1.19,
+    "dataCenterAvailability": [
+      {
+        "dataCenterId": "CA-MTL-3",
+        "stockStatus": "none"
+      },
+      {
+        "dataCenterId": "EU-RO-1",
+        "stockStatus": "none"
+      },
+      {
+        "dataCenterId": "US-KS-2",
+        "stockStatus": "Low"
+      },
+      {
+        "dataCenterId": "US-MO-1",
+        "stockStatus": "none"
+      }
+    ],
+    "gpuId": "NVIDIA A100 80GB PCIe",
+    "memoryInGb": 80,
+    "secureCloud": true,
+    "securePricePerHr": 1.59
+  },
+  {
+    "available": true,
+    "communityPricePerHr": 1.39,
+    "dataCenterAvailability": [
+      {
+        "dataCenterId": "EU-RO-1",
+        "stockStatus": "none"
+      },
+      {
+        "dataCenterId": "EUR-IS-1",
+        "stockStatus": "none"
+      },
+      {
+        "dataCenterId": "US-CA-2",
+        "stockStatus": "none"
+      },
+      {
+        "dataCenterId": "US-KS-2",
+        "stockStatus": "Low"
+      },
+      {
+        "dataCenterId": "US-MD-1",
+        "stockStatus": "none"
+      },
+      {
+        "dataCenterId": "US-MO-1",
+        "stockStatus": "none"
+      },
+      {
+        "dataCenterId": "US-WA-1",
+        "stockStatus": "Low"
+      }
+    ],
+    "gpuId": "NVIDIA A100-SXM4-80GB",
+    "memoryInGb": 80,
+    "secureCloud": true,
+    "securePricePerHr": 1.59
+  },
+  {
+    "available": true,
+    "communityPricePerHr": null,
+    "dataCenterAvailability": [
+      {
+        "dataCenterId": "CA-MTL-1",
+        "stockStatus": "Low"
+      },
+      {
+        "dataCenterId": "EU-SE-1",
+        "stockStatus": "Low"
+      },
+      {
+        "dataCenterId": "US-MO-1",
+        "stockStatus": "none"
+      }
+    ],
+    "gpuId": "NVIDIA A40",
+    "memoryInGb": 48,
+    "secureCloud": true,
+    "securePricePerHr": 0.49
+  },
+  {
+    "available": true,
+    "communityPricePerHr": 2.69,
+    "dataCenterAvailability": [
+      {
+        "dataCenterId": "AP-IN-1",
+        "stockStatus": "Low"
+      },
+      {
+        "dataCenterId": "AP-IN-2",
+        "stockStatus": "none"
+      },
+      {
+        "dataCenterId": "AP-JP-1",
+        "stockStatus": "none"
+      },
+      {
+        "dataCenterId": "CA-MTL-1",
+        "stockStatus": "none"
+      },
+      {
+        "dataCenterId": "EU-FR-1",
+        "stockStatus": "Low"
+      },
+      {
+        "dataCenterId": "EU-NL-1",
+        "stockStatus": "none"
+      },
+      {
+        "dataCenterId": "EUR-IS-3",
+        "stockStatus": "Low"
+      },
+      {
+        "dataCenterId": "EUR-NO-2",
+        "stockStatus": "none"
+      },
+      {
+        "dataCenterId": "US-CA-2",
+        "stockStatus": "none"
+      },
+      {
+        "dataCenterId": "US-GA-2",
+        "stockStatus": "none"
+      },
+      {
+        "dataCenterId": "US-KS-2",
+        "stockStatus": "none"
+      },
+      {
+        "dataCenterId": "US-MO-1",
+        "stockStatus": "none"
+      },
+      {
+        "dataCenterId": "US-NE-1",
+        "stockStatus": "Low"
+      }
+    ],
+    "gpuId": "NVIDIA H100 80GB HBM3",
+    "memoryInGb": 80,
+    "secureCloud": true,
+    "securePricePerHr": 3.49
+  },
+  {
+    "available": true,
+    "communityPricePerHr": 2.59,
+    "dataCenterAvailability": [
+      {
+        "dataCenterId": "US-CA-2",
+        "stockStatus": "none"
+      },
+      {
+        "dataCenterId": "US-GA-2",
+        "stockStatus": "Low"
+      },
+      {
+        "dataCenterId": "US-KS-2",
+        "stockStatus": "none"
+      }
+    ],
+    "gpuId": "NVIDIA H100 NVL",
+    "memoryInGb": 94,
+    "secureCloud": true,
+    "securePricePerHr": 3.19
+  }
+]
