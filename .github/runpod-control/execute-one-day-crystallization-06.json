@@ -7,5 +7,8 @@
   "max_total_cost_usd": "1.00",
   "training_authorized": true,
   "worker05_used_for_tuning": false,
-  "requested_at_utc": "2026-09-25T15:22:00Z"
+  "requested_at_utc": "2026-09-25T15:24:00Z",
+  "retry_sequence": 2,
+  "control_branch": "ops/auth06-crystallization-frozen-20260925",
+  "previous_attempt": "NO_SPEND_CONTROL_BRANCH_RACE"
 }
