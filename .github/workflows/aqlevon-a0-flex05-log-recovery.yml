@@ -1,0 +1,224 @@
+name: AQLEVON A0 Exact Pod Log Recovery
+on:
+  push:
+    branches: [ops/runpod-control-v1]
+    paths: [".github/runpod-control/a0-flex05-log-recovery-trigger.json"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aqlevon-p4-paid-single-use
+  cancel-in-progress: false
+
+jobs:
+  recover:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      AUTH_ID: P4-A0-DIAG-LOG-RECOVERY-20260925-01
+      AUTH_SHA: 132111fe7c30d606489d095ac952fbc3e2cd0d8ccbb93469346bbba69cf7450d
+      EXACT_POD: qqgof13ou1fu01
+      EXPECTED_HEAD: 11f40e8cc7575d9094bae508a6a4d5cb84c306a4
+      IMAGE_DIGEST: sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/runpod-control-v1
+
+      - name: Validate diagnostic authorization before spend
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${RUNPOD_API_KEY:-}"
+          test ! -e .github/runpod-control/a0-flex05-log-recovery-consumed.json
+          python3 - <<'PY'
+          import json,hashlib,os
+          from pathlib import Path
+          a=json.loads(Path('.github/runpod-control/a0-flex05-log-recovery-authorization.json').read_text())
+          t=json.loads(Path('.github/runpod-control/a0-flex05-log-recovery-trigger.json').read_text())
+          def sha(v): return hashlib.sha256(json.dumps(v,sort_keys=True,separators=(',',':'),ensure_ascii=False,allow_nan=False).encode()).hexdigest()
+          assert a['authorization_sha256']==sha({k:v for k,v in a.items() if k!='authorization_sha256'})==os.environ['AUTH_SHA']
+          assert a['authorization_id']==t['authorization_id']==os.environ['AUTH_ID']
+          assert t['authorization_sha256']==a['authorization_sha256']
+          assert a['exact_existing_pod_id']==t['exact_existing_pod_id']==os.environ['EXACT_POD']
+          assert a['expected_source_head']==os.environ['EXPECTED_HEAD']
+          assert a['image_digest']==os.environ['IMAGE_DIGEST']
+          assert a['max_total_cost_usd']=='0.20' and a['max_billed_seconds']==300
+          assert a['max_artifact_egress_bytes']==10485760 and a['single_use'] is True
+          assert float(a['prior_mission_spend_usd'])+float(a['max_total_cost_usd'])<5.0
+          assert 'do not train' in a['purpose']
+          print('AQLEVON_A0_LOG_RECOVERY_AUTH_PASS')
+          PY
+
+      - name: Verify exact stopped Pod and no active duplicate
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS https://rest.runpod.io/v1/pods -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/pods.json
+          python3 - <<'PY'
+          import json,os
+          ps=json.load(open('/tmp/pods.json'))
+          ps=ps if isinstance(ps,list) else ps.get('pods') or ps.get('items') or []
+          target=[p for p in ps if p.get('id')==os.environ['EXACT_POD']]
+          assert len(target)==1,target
+          p=target[0]
+          assert p.get('desiredStatus')=='EXITED',p
+          assert p.get('name')=='AQLEVON-P4-A0-SFT-FLEX05-20260925',p
+          assert p.get('imageName','').endswith('@'+os.environ['IMAGE_DIGEST']),p.get('imageName')
+          assert float(p.get('costPerHr') or 999)<=1.60,p.get('costPerHr')
+          active=[x for x in ps if str(x.get('name','')).startswith('AQLEVON-P4-') and x.get('desiredStatus')!='EXITED']
+          assert not active,active
+          print('AQLEVON_A0_LOG_RECOVERY_STOPPED_POD_PASS')
+          PY
+
+      - name: Resume exact Pod and consume diagnostic authorization
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -sSL https://cli.runpod.net | sudo bash
+          ssh-keygen -q -t ed25519 -N '' -f /tmp/a0_diag_key
+          PUBKEY="$(cat /tmp/a0_diag_key.pub)"
+          export PUBKEY
+          env_json="$(python3 - <<'PY'
+          import json,os
+          print(json.dumps({
+            'PUBLIC_KEY':os.environ['PUBKEY'],
+            'AQLEVON_EXPECTED_A0_HEAD':os.environ['EXPECTED_HEAD'],
+            'AQLEVON_EXPECTED_IMAGE_DIGEST':os.environ['IMAGE_DIGEST']
+          },separators=(',',':')))
+          PY
+          )"
+          runpodctl pod update "$EXACT_POD" --env "$env_json" --output json >/tmp/pod-update.json
+          date +%s >/tmp/start_epoch
+          runpodctl pod start "$EXACT_POD" --output json >/tmp/start.json
+          python3 - <<'PY'
+          import json,datetime,os
+          from pathlib import Path
+          out={
+            'authorization_id':os.environ['AUTH_ID'],
+            'authorization_sha256':os.environ['AUTH_SHA'],
+            'pod_id':os.environ['EXACT_POD'],
+            'started_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            'single_use_consumed':True
+          }
+          Path('.github/runpod-control/a0-flex05-log-recovery-consumed.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
+          PY
+          git config user.name aqlevon-runpod-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/runpod-control/a0-flex05-log-recovery-consumed.json
+          git commit -m "ops: consume bounded A0 log-recovery authorization [skip ci]"
+          git pull --rebase origin ops/runpod-control-v1
+          git push origin HEAD:ops/runpod-control-v1
+
+      - name: Retrieve bounded failure evidence only
+        id: read
+        shell: bash
+        run: |
+          set -euo pipefail
+          ready=0
+          for i in $(seq 1 48); do
+            curl -fsS "https://rest.runpod.io/v1/pods/$EXACT_POD" -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/pod-live.json || true
+            if python3 - <<'PY'
+          import json,sys
+          try:p=json.load(open('/tmp/pod-live.json'))
+          except Exception:sys.exit(1)
+          if float(p.get('costPerHr') or 999)>1.60:sys.exit(2)
+          ip=p.get('publicIp');port=(p.get('portMappings') or {}).get('22')
+          if p.get('desiredStatus')=='RUNNING' and ip and port:
+              open('/tmp/ssh_target','w').write(f"{ip}|{port}")
+              open('/tmp/live_rate','w').write(str(p.get('costPerHr')))
+              sys.exit(0)
+          sys.exit(1)
+          PY
+            then ready=1; break
+            else rc=$?; if [ "$rc" -eq 2 ]; then exit 97; fi
+            fi
+            sleep 5
+          done
+          test "$ready" = 1
+          host="$(cut -d'|' -f1 /tmp/ssh_target)"
+          port="$(cut -d'|' -f2 /tmp/ssh_target)"
+          ssh_opts=(-i /tmp/a0_diag_key -p "$port" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10)
+          ssh "${ssh_opts[@]}" root@"$host" 'test -f /workspace/aqlevon_a0.log; wc -c /workspace/aqlevon_a0.log; cat /workspace/aqlevon_a0.rc 2>/dev/null || true; find /workspace/aqlevon_a0 -maxdepth 4 -type f -printf "%p %s\n" 2>/dev/null | head -200' >/tmp/a0-diagnostic-index.txt
+          ssh "${ssh_opts[@]}" root@"$host" 'cat /workspace/aqlevon_a0.log' >/tmp/a0-recovered.log
+          ssh "${ssh_opts[@]}" root@"$host" 'cat /workspace/aqlevon_a0-supervisor.log 2>/dev/null || true' >/tmp/a0-recovered-supervisor.log
+          ssh "${ssh_opts[@]}" root@"$host" 'cat /workspace/aqlevon_a0.rc 2>/dev/null || true' >/tmp/a0-recovered.rc
+          bytes=$(stat -c %s /tmp/a0-recovered.log)
+          test "$bytes" -gt 0
+          test "$bytes" -le 10485760
+          echo "AQLEVON_A0_LOG_RECOVERED bytes=$bytes"
+
+      - name: Stop exact Pod and verify EXITED
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -s /tmp/start_epoch ]; then exit 0; fi
+          for i in $(seq 1 12); do
+            curl -sS -X POST "https://rest.runpod.io/v1/pods/$EXACT_POD/stop" -H "Authorization: Bearer $RUNPOD_API_KEY" -H 'Content-Type: application/json' -d '{}' >/tmp/stop.json || true
+            sleep 3
+            curl -fsS "https://rest.runpod.io/v1/pods/$EXACT_POD" -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/stop-probe.json || true
+            if python3 - <<'PY'
+          import json,sys
+          try:p=json.load(open('/tmp/stop-probe.json'))
+          except Exception:sys.exit(1)
+          sys.exit(0 if p.get('desiredStatus')=='EXITED' else 1)
+          PY
+            then echo AQLEVON_A0_LOG_RECOVERY_STOP_EXITED; exit 0; fi
+          done
+          echo "::error::diagnostic Pod stop not verified EXITED"
+          exit 98
+
+      - name: Record diagnostic result
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json,datetime,hashlib,os
+          from pathlib import Path
+          def txt(p):
+              q=Path(p); return q.read_text(errors='replace') if q.exists() else ''
+          start=txt('/tmp/start_epoch').strip()
+          elapsed=max(0,int(datetime.datetime.now(datetime.timezone.utc).timestamp())-int(start)) if start.isdigit() else None
+          rate=txt('/tmp/live_rate').strip()
+          log=txt('/tmp/a0-recovered.log')
+          out={
+            'authorization_id':os.environ['AUTH_ID'],
+            'pod_id':os.environ['EXACT_POD'],
+            'checked_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            'log_recovered':bool(log),
+            'log_bytes':len(log.encode()),
+            'log_sha256':hashlib.sha256(log.encode()).hexdigest() if log else None,
+            'remote_rc':txt('/tmp/a0-recovered.rc').strip() or None,
+            'elapsed_seconds_estimate':elapsed,
+            'rate_per_hour_usd':rate or None,
+            'compute_cost_estimate_usd':round(float(rate)*elapsed/3600,6) if rate and elapsed is not None else None,
+            'stop_status':json.loads(Path('/tmp/stop-probe.json').read_text()).get('desiredStatus') if Path('/tmp/stop-probe.json').exists() else None
+          }
+          Path('.github/runpod-control/a0-flex05-log-recovery-result.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
+          print('AQLEVON_A0_LOG_RECOVERY_RESULT',json.dumps(out,sort_keys=True))
+          PY
+          git config user.name aqlevon-runpod-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/runpod-control/a0-flex05-log-recovery-result.json
+          git commit -m "ops: record A0 exact-Pod log recovery [skip ci]" || true
+          git pull --rebase origin ops/runpod-control-v1
+          git push origin HEAD:ops/runpod-control-v1 || true
+
+      - name: Upload recovered bounded logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aqlevon-a0-flex05-log-recovery
+          path: |
+            /tmp/a0-recovered.log
+            /tmp/a0-recovered-supervisor.log
+            /tmp/a0-recovered.rc
+            /tmp/a0-diagnostic-index.txt
+            /tmp/pod-live.json
+            /tmp/stop-probe.json
+          if-no-files-found: warn
+          retention-days: 7
