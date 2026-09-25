@@ -1,0 +1,6 @@
+{
+  "pod_id": "uawhmvcg0ksot4",
+  "authorization_id": "P4-ONE-DAY-PUBLIC-PASSN-20260925-02",
+  "reason": "workflow exited after Pod creation before experiment due local dirty tree during consumed-record push",
+  "requested_at_utc": "2026-09-25T13:53:00Z"
+}
