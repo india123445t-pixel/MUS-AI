@@ -1,0 +1,10 @@
+{
+  "authorization_id": "P4-ONE-DAY-CRYSTALLIZE-20260925-06",
+  "authorization_sha256": "421795be22ddc505daade0e763a19e642f5ac115dfe1f877df8f0c99cb9dda48",
+  "expected_source_head": "b3bb3901b7f50e028e5939c55195ebf347551777",
+  "experiment_kind": "PUBLIC_RECOVERED_CORE_CRYSTALLIZATION_LORA",
+  "training_authorized": true,
+  "sealed_eval_consumed": false,
+  "worker05_used_for_tuning": false,
+  "requested_at_utc": "2026-09-25T15:24:00Z"
+}
