@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AQLEVON P4 Method Tournament Spec V1 — Worker 01 handoff",
+  "type": "object",
+  "required": ["schema_version","spec_kind","task_id","student_model","common_stack","common_adapter","generation","screen_budget","training_seeds","arms","execution_order"],
+  "properties": {
+    "schema_version": {"const": "1"},
+    "spec_kind": {"const": "AQLEVON_P4_METHOD_TOURNAMENT_SPEC_V1"},
+    "task_id": {"const": "P4-A01-METHOD-TOURNAMENT-DIRECTOR"},
+    "student_model": {"type": "object"},
+    "common_stack": {"type": "object"},
+    "common_adapter": {"type": "object"},
+    "generation": {"type": "object"},
+    "screen_budget": {"type": "object"},
+    "training_seeds": {"const": [1701,1702,1703]},
+    "arms": {"type": "array", "minItems": 3, "maxItems": 3},
+    "execution_order": {"type": "array", "minItems": 6}
+  }
+}

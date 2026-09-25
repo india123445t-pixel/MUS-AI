@@ -1,0 +1,164 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+START_TS="$(date +%s)"
+ROOT=/workspace
+REPO="$ROOT/MUS-AI"
+SDPO="$ROOT/SDPO"
+DATA="$ROOT/aqlevon_p4/data"
+MODEL="$ROOT/models/qwen35-4b-daa9c16f3712"
+AGENT="$REPO/research/weight_factory/agent03"
+AUTH="$AGENT/p4_a1_runpod_manager_authorization_retry11_v1.json"
+RUN="$AGENT/p4_a1_seed1701_run_manifest_v1.json"
+LOCK="$AGENT/p4_a1_seed1701_command_lock_v1.json"
+PLAN="$AGENT/p4_frozen_training_plan_v1.json"
+
+echo "AQLEVON_RETRY11_BOOTSTRAP_START $(date -u +%FT%TZ)"
+
+GPU_COUNT="$(nvidia-smi --query-gpu=name --format=csv,noheader | wc -l | tr -d ' ')"
+GPU_NAME="$(nvidia-smi --query-gpu=name --format=csv,noheader | head -n1 | xargs)"
+test "$GPU_COUNT" = "1"
+case "$GPU_NAME" in
+  *RTX\ 4090*) ;;
+  *) echo "FAIL_CLOSED unexpected GPU: $GPU_NAME"; exit 20 ;;
+esac
+echo "GPU_PASS $GPU_NAME"
+
+python - <<'PY'
+import json
+from pathlib import Path
+a=json.loads(Path("/workspace/MUS-AI/research/weight_factory/agent03/p4_a1_runpod_manager_authorization_retry11_v1.json").read_text())
+assert a["authorization_id"]=="P4-A1-RUNPOD-4090-20260920-11-SSH-READY"
+assert a["authorization_sha256"]=="fc595fd893369eae39ff0a5a3119a457fe3be0ea9b87d9dd00c4c9b71adcd961"
+assert a["max_billed_seconds"]==1800
+assert a["max_total_cost_usd"]=="0.40"
+assert a["max_hourly_rate_usd"]=="0.80"
+assert a["single_use"] is True
+print("RETRY11_FILE_IDENTITY_PASS")
+PY
+
+rm -rf "$SDPO" "$ROOT/aqlevon_p4" "$MODEL"
+mkdir -p "$DATA" "$MODEL" /tmp/p4inputs
+
+git clone -q https://github.com/lasgroup/SDPO.git "$SDPO"
+git -C "$SDPO" checkout -q 7c457fc1b1f636ae794eb0362ba37d4743b06fbc
+
+python -m pip install -q --disable-pip-version-check \
+  transformers==5.17.0 peft==0.21.0 accelerate==1.15.0 \
+  pyarrow==22.0.0 qwen-vl-utils==0.0.14 hydra-core==1.3.2 \
+  "ray[default]==2.53.0" vllm==0.10.2 \
+  torchdata==0.11.0 tensordict==0.10.0 datasets==4.4.2 \
+  codetiming==1.4.0 safetensors psutil huggingface-hub pillow
+
+git -C "$REPO" fetch -q --no-tags origin \
+  abb94ef134e2e97036b6959dbc9db4278d3736b6 \
+  f01e0ba91bbfa43e0d659fba5c0d0c4f64a06cae
+
+git -C "$REPO" show f01e0ba91bbfa43e0d659fba5c0d0c4f64a06cae:research/evaluation/gene1_worker01_method_tournament_spec_v1.json > /tmp/p4inputs/w01.json
+git -C "$REPO" show f01e0ba91bbfa43e0d659fba5c0d0c4f64a06cae:research/evaluation/gene1_worker02_public_pack_binding_v1.json > /tmp/p4inputs/w02_binding.json
+git -C "$REPO" show f01e0ba91bbfa43e0d659fba5c0d0c4f64a06cae:research/evaluation/gene1_evaluation_law_v1.json > /tmp/p4inputs/w05_law.json
+git -C "$REPO" show abb94ef134e2e97036b6959dbc9db4278d3736b6:research/weight_factory/agent02/gene1_training_shard_manifest_v1.json > /tmp/p4inputs/shard_manifest.json
+git -C "$REPO" show abb94ef134e2e97036b6959dbc9db4278d3736b6:research/weight_factory/agent02/gene1_training_shard_v1.jsonl > /tmp/p4inputs/shard.jsonl
+git -C "$REPO" show abb94ef134e2e97036b6959dbc9db4278d3736b6:research/weight_factory/agent02/gene1_training_visible_pack_v1.json > /tmp/p4inputs/pack.json
+git -C "$REPO" show abb94ef134e2e97036b6959dbc9db4278d3736b6:research/weight_factory/agent02/gene1_split_commitment_v1.json > /tmp/p4inputs/split.json
+
+cd "$AGENT"
+
+python p4_gene1_trainer.py freeze-plan \
+  --method-spec /tmp/p4inputs/w01.json \
+  --training-shard-manifest /tmp/p4inputs/shard_manifest.json \
+  --training-shard /tmp/p4inputs/shard.jsonl \
+  --training-pack /tmp/p4inputs/pack.json \
+  --split /tmp/p4inputs/split.json \
+  --w02-binding /tmp/p4inputs/w02_binding.json \
+  --w05-law /tmp/p4inputs/w05_law.json \
+  --output /tmp/p4inputs/generated_plan.json
+
+diff -u "$PLAN" /tmp/p4inputs/generated_plan.json
+
+python p4_surrogate_tournament.py prepare-data \
+  --training-shard /tmp/p4inputs/shard.jsonl \
+  --training-pack /tmp/p4inputs/pack.json \
+  --output-dir "$DATA"
+
+cd "$REPO"
+python research/weight_factory/agent03/p4_patch_sdpo_transformers5_compat.py
+
+python - <<'PY'
+import hashlib
+from pathlib import Path
+expected={
+ "/workspace/SDPO/verl/utils/model.py":"135f61865fcbe057d29da90bf07968b04dd778e2e96a31d3ad640a8650155f8d",
+ "/workspace/SDPO/verl/workers/fsdp_workers.py":"e0ec49a1b891daed8f180a35f5d1d7e5147a3a8289c3787fc7688892e0e55fed",
+}
+for p,w in expected.items():
+    g=hashlib.sha256(Path(p).read_bytes()).hexdigest()
+    assert g==w,(p,g,w)
+print("SDPO_PATCH_SHA_PASS")
+PY
+
+python - <<'PY'
+from huggingface_hub import snapshot_download
+snapshot_download(
+ repo_id="Qwen/Qwen3.5-4B-Base",
+ revision="daa9c16f371249f9ad1c75a9ed6f956c08ea08f5",
+ local_dir="/workspace/models/qwen35-4b-daa9c16f3712",
+)
+print("MODEL_STAGE_PASS")
+PY
+
+cd "$AGENT"
+python p4_surrogate_tournament.py check-runtime --sdpo-root "$SDPO"
+
+python - <<'PY'
+import json
+from pathlib import Path
+import p4_gene1_trainer as c
+import p4_surrogate_tournament as t
+run=json.loads(Path("p4_a1_seed1701_run_manifest_v1.json").read_text())
+lock=json.loads(Path("p4_a1_seed1701_command_lock_v1.json").read_text())
+auth=json.loads(Path("p4_a1_runpod_manager_authorization_retry11_v1.json").read_text())
+assert run["manifest_sha256"]=="7152cdea6ffd082f632a819e153122b401bd7394ed0273a327537ca961c7fe45"
+assert lock["lock_sha256"]=="f1d05b53d0e00b07f7f4d60c90a6bf489f4cd2bd118b2b6a6b38c66026cee44e"
+assert c.verify_self_digest(auth,"authorization_sha256")
+argv=t.build_a1_argv(Path("p4_frozen_training_plan_v1.json"),Path("/workspace"))
+assert argv==lock["argv"]
+assert c.canonical_sha256(argv)==run["command_sha256"]
+errors=c.validate_manager_authorization(auth,lock=lock,run_manifest_sha256=run["manifest_sha256"])
+assert not errors, errors
+print("RETRY11_EXACT_AUTHORIZATION_PASS")
+PY
+
+ELAPSED="$(( $(date +%s) - START_TS ))"
+if [ "$ELAPSED" -ge 720 ]; then
+  echo "FAIL_CLOSED staging consumed ${ELAPSED}s; refusing training to protect 1800s authorization"
+  exit 31
+fi
+
+echo "A1_LOCKED_TRAINING_START elapsed=${ELAPSED}s"
+
+set +e
+timeout --signal=TERM --kill-after=20s 900s \
+python - <<'PY' 2>&1 | tee "$ROOT/aqlevon_p4/P4_A1_seed1701_retry11.log"
+import json
+from pathlib import Path
+import p4_gene1_trainer as c
+run=json.loads(Path("p4_a1_seed1701_run_manifest_v1.json").read_text())
+lock=json.loads(Path("p4_a1_seed1701_command_lock_v1.json").read_text())
+auth=json.loads(Path("p4_a1_runpod_manager_authorization_retry11_v1.json").read_text())
+rc=c.run_locked(
+    lock,
+    paid=True,
+    authorization=auth,
+    run_manifest_sha256=run["manifest_sha256"],
+    cwd=Path("/workspace/MUS-AI"),
+)
+raise SystemExit(rc)
+PY
+RC=${PIPESTATUS[0]}
+set -e
+
+echo "AQLEVON_A1_EXIT_CODE=$RC"
+find "$ROOT/aqlevon_p4/runs" -maxdepth 5 -type f -printf '%p %s bytes\\n' 2>/dev/null | tail -n 100 || true
+echo "AQLEVON_RETRY11_TOTAL_SCRIPT_SECONDS=$(( $(date +%s) - START_TS ))"
+exit "$RC"

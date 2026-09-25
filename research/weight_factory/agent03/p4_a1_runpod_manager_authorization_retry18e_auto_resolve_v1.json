@@ -1,0 +1,16 @@
+{
+  "authorization_id": "P4-A1-RUNPOD-4090-20260921-18E-AUTO-RESOLVE",
+  "authorization_kind": "AQLEVON_MANAGER_COMPUTE_AUTHORIZATION_V1",
+  "authorization_sha256": "cfc0e5374afa9da36b0dd723419037bdd35b97f552467bd4922f855935735eb0",
+  "compute_origin": "paid_manager_authorized",
+  "hash_profile": "AQLEVON_CANONICAL_JSON_SHA256_V1",
+  "max_artifact_egress_bytes": 5368709120,
+  "max_billed_seconds": 1800,
+  "max_hourly_rate_usd": "0.80",
+  "max_total_cost_usd": "0.40",
+  "profile_id": "p4-surrogate-1x24",
+  "run_manifest_sha256": "24e3d21155c3f1011ca92f90e6c622fe03f92bfd65656d31d87fa627886fad47",
+  "run_task_id": "P4-A03-GENE1-PHYSICAL-TRAINER",
+  "schema_version": 1,
+  "single_use": true
+}

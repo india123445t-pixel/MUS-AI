@@ -1,0 +1,16 @@
+{
+  "authorization_id": "P4-A1-RUNPOD-4090-20260922-18V-FSDP-CPU-OFFLOAD",
+  "authorization_kind": "AQLEVON_MANAGER_COMPUTE_AUTHORIZATION_V1",
+  "authorization_sha256": "778cd0add7b4623abf47cf296c224e65a6a979f72d5f5f0c454f637dbb34018f",
+  "compute_origin": "paid_manager_authorized",
+  "hash_profile": "AQLEVON_CANONICAL_JSON_SHA256_V1",
+  "max_artifact_egress_bytes": 5368709120,
+  "max_billed_seconds": 1800,
+  "max_hourly_rate_usd": "0.80",
+  "max_total_cost_usd": "0.40",
+  "profile_id": "p4-surrogate-1x24",
+  "run_manifest_sha256": "3959adc602d0ac05c63a2cb6365d85dd7919f5c4d9461a932a512145eedf83f3",
+  "run_task_id": "P4-A03-GENE1-PHYSICAL-TRAINER",
+  "schema_version": 1,
+  "single_use": true
+}

@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "authorization_kind": "AQLEVON_MANAGER_COMPUTE_AUTHORIZATION_V1",
+  "hash_profile": "AQLEVON_CANONICAL_JSON_SHA256_V1",
+  "authorization_id": "P4-A1-RUNPOD-4090-20260919-03-HYDRA-REPAIR",
+  "run_task_id": "P4-A03-GENE1-PHYSICAL-TRAINER",
+  "run_manifest_sha256": "3717c01c4a291eb94931923c1332a94a64cbf9fa7290527c08f592a0f5aa9867",
+  "profile_id": "p4-surrogate-1x24",
+  "compute_origin": "paid_manager_authorized",
+  "max_billed_seconds": 3300,
+  "max_total_cost_usd": "0.70",
+  "max_hourly_rate_usd": "0.80",
+  "max_artifact_egress_bytes": 5368709120,
+  "single_use": true,
+  "authorization_sha256": "ae39fe881b71d79710320d42577eda6d30969efa874f3d1e1a5fe2f7baf6cc63"
+}

@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "authorization_kind": "AQLEVON_MANAGER_COMPUTE_AUTHORIZATION_V1",
+  "hash_profile": "AQLEVON_CANONICAL_JSON_SHA256_V1",
+  "authorization_id": "P4-A1-RUNPOD-A40-20260922-19O-VLLM019-A40-VRAM-GATE-REPAIR",
+  "run_task_id": "P4-A03-GENE1-PHYSICAL-TRAINER",
+  "run_manifest_sha256": "54d731c83b667e8db76255c0f07b783c8f100b051549c59411c1805b341d5240",
+  "profile_id": "p4-surrogate-1x24",
+  "compute_origin": "paid_manager_authorized",
+  "max_billed_seconds": 3600,
+  "max_total_cost_usd": "0.55",
+  "max_hourly_rate_usd": "0.55",
+  "max_artifact_egress_bytes": 5368709120,
+  "single_use": true,
+  "authorization_sha256": "1245ce4f7f399c3d4ebd413814d86a0988cc279d220bd0c2b82bbd998d502453"
+}

@@ -1,0 +1,144 @@
+name: P4 W03 Runtime Appliance v019 Native Qwen35
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/03-p4-gene1-physical-trainer
+    paths:
+      - 'research/weight_factory/agent03/runtime_appliance_v019/**'
+      - 'research/weight_factory/agent03/p4_a1_runtime_appliance_binding_retry*_v1.json'
+      - 'research/weight_factory/agent03/p4_a1_runpod_manager_authorization_retry*_v1.json'
+      - 'research/weight_factory/agent03/p4_patch_sdpo_transformers5_native_vllm019.py'
+      - 'research/weight_factory/agent03/p4_runpod_appliance_launch_v019.sh'
+      - 'research/weight_factory/agent03/p4_a1_candidate_packager.py'
+      - 'research/weight_factory/agent03/test_p4_a1_candidate_packager.py'
+      - 'research/weight_factory/agent03/test_p4_patch_sdpo_target_serialization.py'
+      - '.github/workflows/p4-w03-runtime-appliance-v019.yml'
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: p4-w03-runtime-appliance-v019-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contract:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Static prototype contract
+        run: |
+          set -euo pipefail
+          python -m py_compile research/weight_factory/agent03/p4_patch_sdpo_transformers5_native_vllm019.py
+          python -m py_compile research/weight_factory/agent03/p4_a1_candidate_packager.py research/weight_factory/agent03/test_p4_a1_candidate_packager.py research/weight_factory/agent03/test_p4_patch_sdpo_target_serialization.py
+          bash -n research/weight_factory/agent03/p4_runpod_appliance_launch_v019.sh
+          (cd research/weight_factory/agent03 && python -m unittest -v test_p4_a1_candidate_packager test_p4_patch_sdpo_target_serialization)
+          python -m py_compile research/weight_factory/agent03/runtime_appliance_v019/smoke_runtime_v019.py
+          python - <<'PY'
+          from pathlib import Path
+          docker=Path("research/weight_factory/agent03/runtime_appliance_v019/Dockerfile").read_text()
+          req=Path("research/weight_factory/agent03/runtime_appliance_v019/requirements-p4-a1-v019.txt").read_text()
+          smoke=Path("research/weight_factory/agent03/runtime_appliance_v019/smoke_runtime_v019.py").read_text()
+          patch=Path("research/weight_factory/agent03/p4_patch_sdpo_transformers5_native_vllm019.py").read_text()
+          for x in (
+              "vllm/vllm-openai:v0.19.1",
+              "7c457fc1b1f636ae794eb0362ba37d4743b06fbc",
+              "flash_attn-2.8.3%2Bcu12torch2.10cxx11abiTRUE-cp312-cp312-linux_x86_64.whl",
+              "d4a497a7bd837bf47f7a8f6a7aa6887695f2ea819fa597f307552552018ee9d7",
+              'ENTRYPOINT []',
+              'CMD ["/start.sh"]',
+          ):
+              assert x in docker,x
+          for x in (
+              "transformers==5.17.0","peft==0.21.0","accelerate==1.15.0",
+              "ray[default]==2.53.0","pyarrow==22.0.0"
+          ):
+              assert x in req,x
+          assert "Qwen3_5ForConditionalGeneration" in smoke
+          assert "AQLEVON_SDPO_TF5_NATIVE_VLLM019_PATCH_PASS" in patch
+          assert "AQLEVON_VLLM019_WORKER_DISPATCH" in patch
+          assert "from vllm.v1.serial_utils import run_method" in patch
+          assert "AQLEVON_VLLM019_PRESERVE_MAX_MODEL_LEN" in patch
+          assert "AQLEVON_VLLM019_LORA_WRAPPER_LOAD_WEIGHTS" in patch
+          assert "AQLEVON_VLLM019_LORA_LOGITS_MAPPING_RESET" in patch
+          assert "AQLEVON_VLLM019_LORA_MANAGER_MAPPING_RESET" in patch
+          assert "AQLEVON_VLLM019_RESET_LORA_STATE" in patch
+          assert "AQLEVON_VLLM019_RESET_AFTER_DIRECT_BASE_LOAD" in patch
+          assert "AQLEVON_SDPO_QWEN35_RAW_FSDP_LORA_STATE" in patch
+          assert "_aqlevon_extract_qwen35_lora_state_dict" in patch
+          assert "AQLEVON_FSDP_LORA_STATE_KEYS" in patch
+          assert "AQLEVON_SDPO_LORA_TARGET_MODULES_PRESERVED" in patch
+          packager=Path("research/weight_factory/agent03/p4_a1_candidate_packager.py").read_text()
+          assert "AQLEVON_P4_A1_CANDIDATE_PACKAGE_PASS" in packager
+          assert "latest_checkpointed_iteration.txt" in packager
+          launch=Path("research/weight_factory/agent03/p4_runpod_appliance_launch_v019.sh").read_text()
+          assert "p4_a1_candidate_packager.py" in launch
+          assert "AQLEVON_TENSOR_LORA_SYNC_COUNT" in patch
+          assert "AQLEVON_TENSOR_LORA_LOADER_NONEMPTY" in patch
+          assert "AQLEVON_QWEN35_TF5_MM_TOKEN_TYPE_IDS" in patch
+          assert "AQLEVON_QWEN35_TF5_ROPE_MM_TOKEN_TYPE_IDS_PASS" in smoke
+          assert "AQLEVON_V019_SECOND_WAKE_LORA_SYNC_GUARD_PASS" in smoke
+          assert "sdpo_second_wake_lora_sync_guard" in smoke
+          assert "sdpo_vllm019_worker_dispatch" in smoke
+          assert "sdpo_preserves_explicit_max_model_len" in smoke
+          assert "vllm019_level2_lora_backport" in smoke
+          assert "AQLEVON_V019_LEVEL2_LORA_BACKPORT_CPU_PASS" in smoke
+          assert "model_impl" not in patch
+          assert "TransformersForMultimodalLM" not in patch
+          print("AQLEVON_V019_STATIC_CONTRACT_PASS")
+          PY
+
+  build-publish:
+    needs: contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Free disk
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc || true
+          docker system prune -af || true
+          df -h
+      - uses: docker/setup-buildx-action@v3
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and publish v019 prototype
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: research/weight_factory/agent03/runtime_appliance_v019/Dockerfile
+          push: true
+          provenance: false
+          sbom: false
+          tags: |
+            ghcr.io/india123445t-pixel/mus-ai:p4-a1-w03-v019-${{ github.sha }}
+            ghcr.io/india123445t-pixel/mus-ai:p4-a1-w03-v019-latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Verify startup and immutable digest
+        env:
+          IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          set -euo pipefail
+          IMG="ghcr.io/india123445t-pixel/mus-ai@${IMAGE_DIGEST}"
+          docker pull "$IMG"
+          ssh-keygen -q -t ed25519 -N '' -f /tmp/k
+          docker rm -f aqlevon-v019-startup >/dev/null 2>&1 || true
+          docker run -d --name aqlevon-v019-startup -e PUBLIC_KEY="$(cat /tmp/k.pub)" "$IMG" >/dev/null
+          sleep 8
+          test "$(docker inspect aqlevon-v019-startup --format '{{.State.Running}}')" = "true"
+          docker exec aqlevon-v019-startup pgrep -x sshd >/dev/null
+          docker exec aqlevon-v019-startup python3 /opt/aqlevon/runtime/smoke_runtime_v019.py --build-check
+          docker rm -f aqlevon-v019-startup >/dev/null
+          echo "AQLEVON_V019_APPLIANCE_DIGEST=${IMAGE_DIGEST}"

@@ -1,0 +1,449 @@
+name: P4 Agent03 Exact Contract
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/03-p4-gene1-physical-trainer
+  pull_request:
+    branches:
+      - agent/03-p3-g1-ready
+    paths:
+      - 'research/weight_factory/agent03/p4_*'
+      - '.github/workflows/p4-agent03-exact.yml'
+
+jobs:
+  exact-contract:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install pinned parquet dependency
+        run: python -m pip install --disable-pip-version-check pyarrow==22.0.0 hydra-core==1.3.2
+
+      - name: Extract exact W01/W02/W05 public inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin abb94ef134e2e97036b6959dbc9db4278d3736b6 f01e0ba91bbfa43e0d659fba5c0d0c4f64a06cae
+          mkdir -p /tmp/p4inputs
+          git show f01e0ba91bbfa43e0d659fba5c0d0c4f64a06cae:research/evaluation/gene1_worker01_method_tournament_spec_v1.json > /tmp/p4inputs/w01.json
+          git show f01e0ba91bbfa43e0d659fba5c0d0c4f64a06cae:research/evaluation/gene1_worker02_public_pack_binding_v1.json > /tmp/p4inputs/w02_binding.json
+          git show f01e0ba91bbfa43e0d659fba5c0d0c4f64a06cae:research/evaluation/gene1_evaluation_law_v1.json > /tmp/p4inputs/w05_law.json
+          git show abb94ef134e2e97036b6959dbc9db4278d3736b6:research/weight_factory/agent02/gene1_training_shard_manifest_v1.json > /tmp/p4inputs/shard_manifest.json
+          git show abb94ef134e2e97036b6959dbc9db4278d3736b6:research/weight_factory/agent02/gene1_training_shard_v1.jsonl > /tmp/p4inputs/shard.jsonl
+          git show abb94ef134e2e97036b6959dbc9db4278d3736b6:research/weight_factory/agent02/gene1_training_visible_pack_v1.json > /tmp/p4inputs/pack.json
+          git show abb94ef134e2e97036b6959dbc9db4278d3736b6:research/weight_factory/agent02/gene1_split_commitment_v1.json > /tmp/p4inputs/split.json
+
+      - name: Python syntax + unit contract
+        working-directory: research/weight_factory/agent03
+        run: |
+          set -euo pipefail
+          python -m py_compile p4_gene1_trainer.py p4_sft_surrogate.py p4_aqlevon_reward.py p4_surrogate_tournament.py p4_v019_gpu_lora_smoke.py test_p4_gene1_trainer.py
+          bash -n p4_runpod_appliance_launch_v019.sh
+          python -m unittest -v test_p4_gene1_trainer.py
+
+      - name: Rebuild frozen plan from real cross-worker inputs
+        working-directory: research/weight_factory/agent03
+        shell: bash
+        run: |
+          set -euo pipefail
+          python p4_gene1_trainer.py freeze-plan \
+            --method-spec /tmp/p4inputs/w01.json \
+            --training-shard-manifest /tmp/p4inputs/shard_manifest.json \
+            --training-shard /tmp/p4inputs/shard.jsonl \
+            --training-pack /tmp/p4inputs/pack.json \
+            --split /tmp/p4inputs/split.json \
+            --w02-binding /tmp/p4inputs/w02_binding.json \
+            --w05-law /tmp/p4inputs/w05_law.json \
+            --output /tmp/p4inputs/generated_plan.json
+          diff -u p4_frozen_training_plan_v1.json /tmp/p4inputs/generated_plan.json
+
+      - name: Prepare and inspect real parquet
+        working-directory: research/weight_factory/agent03
+        shell: bash
+        run: |
+          set -euo pipefail
+          python p4_surrogate_tournament.py prepare-data \
+            --training-shard /tmp/p4inputs/shard.jsonl \
+            --training-pack /tmp/p4inputs/pack.json \
+            --output-dir /tmp/p4data
+          python - <<'PY'
+          import json
+          import pyarrow.parquet as pq
+          from pathlib import Path
+          for name in ("train.parquet","test.parquet"):
+              table=pq.read_table(Path("/tmp/p4data")/name)
+              assert table.num_rows==56, (name,table.num_rows)
+              assert set(table.column_names)=={"data_source","prompt","ability","reward_model","extra_info"}
+          m=json.loads(Path("/tmp/p4data/data_prep_manifest.json").read_text())
+          assert m["row_count"]==56
+          assert m["sealed_eval_consumed"] is False
+          print("P4_PARQUET_PASS")
+          PY
+
+      - name: Rebuild A1 command lock from source
+        working-directory: research/weight_factory/agent03
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          import p4_gene1_trainer as c
+          import p4_surrogate_tournament as t
+          plan=Path("p4_frozen_training_plan_v1.json")
+          run=json.loads(Path("p4_a1_seed1701_run_manifest_v1.json").read_text())
+          assert c.verify_self_digest(run,"manifest_sha256")
+          argv=t.build_a1_argv(plan,Path("/workspace"))
+          assert c.canonical_sha256(argv)==run["command_sha256"]
+          lock=c.build_command_lock(
+              argv,
+              plan_sha256=json.loads(plan.read_text())["plan_sha256"],
+              run_manifest_sha256=run["manifest_sha256"],
+              arm_id="P4_A1_RLVR_CONTROL",
+              seed=1701,
+          )
+          frozen=json.loads(Path("p4_a1_seed1701_command_lock_v1.json").read_text())
+          assert lock==frozen, (lock,frozen)
+          assert lock["run_manifest_sha256"]==run["manifest_sha256"]
+          assert "trainer.n_gpus_per_node=1" in argv
+          assert "actor_rollout_ref.rollout.tensor_model_parallel_size=1" in argv
+          assert "max_model_len=4096" in argv
+          assert "actor_rollout_ref.rollout.max_num_seqs=16" in argv
+          for seed_token in (
+              "data.seed=1701",
+              "actor_rollout_ref.actor.data_loader_seed=1701",
+              "actor_rollout_ref.actor.fsdp_config.seed=1701",
+              "actor_rollout_ref.ref.fsdp_config.seed=1701",
+              "++actor_rollout_ref.rollout.engine_kwargs.vllm.seed=1701",
+          ):
+              assert seed_token in argv, seed_token
+          assert not c.validate_command_seed_binding(argv,arm_id=lock["arm_id"],seed=lock["seed"])
+          print("P4_A1_SEED1701_BINDING_PASS")
+          print("P4_A1_COMMAND_LOCK_PASS", run["manifest_sha256"], lock["command_sha256"], lock["lock_sha256"])
+          PY
+
+      - name: Verify USER reaches fresh OmegaConf driver process
+        working-directory: research/weight_factory/agent03
+        shell: bash
+        run: |
+          set -euo pipefail
+          env -u USER env USER=root python - <<'PY'
+          from pathlib import Path
+          from omegaconf import OmegaConf
+          import p4_surrogate_tournament as t
+          argv=t.build_a1_argv(Path("p4_frozen_training_plan_v1.json"),Path("/workspace"))
+          assert argv[:3] == ["env","USER=root","bash"], argv[:3]
+          cfg=OmegaConf.create({"resolved_user":"${oc.env:USER}"})
+          OmegaConf.resolve(cfg)
+          assert cfg.resolved_user == "root", cfg.resolved_user
+          assert "++ray_kwargs.ray_init.runtime_env.env_vars.USER=root" in argv
+          print("P4_DRIVER_OMEGACONF_USER_PASS", cfg.resolved_user)
+          PY
+
+      - name: Public reward agrees with all 56 training oracles
+        working-directory: research/weight_factory/agent03
+        run: |
+          python - <<'PY'
+          import copy
+          import json
+          from pathlib import Path
+          import p4_aqlevon_reward as r
+          pack=json.loads(Path("/tmp/p4inputs/pack.json").read_text())
+          hard=[x for x in pack["tasks"] if x.get("training_eligible") is True and x.get("verifier_mode")=="hardened"]
+          assert len(hard)==56
+          dict_put_attacks=0
+          for task in hard:
+              gt=json.dumps({"initial_state":task["visible_initial_state"],"oracle_program":task["oracle_program"]},sort_keys=True,separators=(",",":"))
+              sol=json.dumps(task["oracle_program"],sort_keys=True,separators=(",",":"))
+              out=r.compute_score(solution_str=sol,ground_truth=gt)
+              assert out["score"]==1.0, (task["task_id"],out)
+              if task.get("family")=="dict_put":
+                  step=task["oracle_program"][0]
+                  final_dict=copy.deepcopy(task["visible_initial_state"][step["key"]])
+                  final_dict[step["subkey"]]=copy.deepcopy(step.get("value"))
+                  attack=[{"op":"set","key":step["key"],"value":final_dict}]
+                  bad=r.compute_score(solution_str=json.dumps(attack,separators=(",",":")),ground_truth=gt)
+                  assert bad["score"]==0.0, (task["task_id"],bad)
+                  assert bad["feedback"]=="side_effect_mismatch", (task["task_id"],bad)
+                  dict_put_attacks += 1
+          assert dict_put_attacks==4, dict_put_attacks
+          print("P4_REWARD_ORACLE_56_PASS")
+          print("P4_DICT_PUT_SHORTCUT_4_REJECT_PASS")
+          PY
+
+
+      - name: Install exact pre-GPU CPU runtime dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check --index-url https://download.pytorch.org/whl/cpu torch==2.7.1 torchvision==0.22.1
+          python -m pip install --disable-pip-version-check \
+            transformers==5.17.0 peft==0.21.0 accelerate==1.15.0 \
+            pyarrow==22.0.0 qwen-vl-utils==0.0.14 hydra-core==1.3.2 \
+            "ray[default]==2.53.0" torchdata==0.11.0 tensordict==0.10.0 \
+            datasets==4.4.2 codetiming==1.4.0 safetensors psutil huggingface-hub pillow
+
+      - name: Stage pinned SDPO and model metadata only
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo mkdir -p /workspace
+          sudo chown -R "$(id -u):$(id -g)" /workspace
+          rm -rf /workspace/SDPO /workspace/MUS-AI /workspace/models /workspace/aqlevon_p4
+          git clone --quiet https://github.com/lasgroup/SDPO.git /workspace/SDPO
+          git -C /workspace/SDPO checkout --quiet 7c457fc1b1f636ae794eb0362ba37d4743b06fbc
+          cp -a "$GITHUB_WORKSPACE" /workspace/MUS-AI
+          mkdir -p /workspace/aqlevon_p4/data /workspace/models/qwen35-4b-daa9c16f3712
+          cp /tmp/p4data/train.parquet /workspace/aqlevon_p4/data/train.parquet
+          cp /tmp/p4data/test.parquet /workspace/aqlevon_p4/data/test.parquet
+          python - <<'PY'
+          from huggingface_hub import snapshot_download
+          snapshot_download(
+              repo_id="Qwen/Qwen3.5-4B-Base",
+              revision="daa9c16f371249f9ad1c75a9ed6f956c08ea08f5",
+              local_dir="/workspace/models/qwen35-4b-daa9c16f3712",
+              ignore_patterns=["*.safetensors","*.bin","*.pt","*.pth","*.gguf","*.onnx","*.h5"],
+          )
+          PY
+
+      - name: Verify pinned Qwen3.5 hybrid target contract and v019 smoke wiring
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import re
+          from pathlib import Path
+          cfg=json.loads(Path("/workspace/models/qwen35-4b-daa9c16f3712/config.json").read_text())
+          assert cfg["architectures"]==["Qwen3_5ForConditionalGeneration"],cfg["architectures"]
+          layer_types=cfg["text_config"]["layer_types"]
+          full=[i for i,x in enumerate(layer_types) if x=="full_attention"]
+          assert full==[3,7,11,15,19,23,27,31],full
+          assert len(full)*2==16
+          smoke=Path("research/weight_factory/agent03/p4_v019_gpu_lora_smoke.py").read_text()
+          launch=Path("research/weight_factory/agent03/p4_runpod_appliance_launch_v019.sh").read_text()
+          for token in (
+              "EXPECTED_TARGET_MODULES = 16",
+              "init_lora_weights=False",
+              "language_model_only=True",
+              "LoRARequest",
+              "AQLEVON_LORA_FUNCTIONALLY_INERT",
+              "max_tokens=8",
+              "max_lora_rank=8",
+              '"peft_lora_rank": 4',
+              '"vllm_max_lora_rank_capacity": 8',
+          ):
+              assert token in smoke,token
+          for token in (
+              "AQLEVON_V019_LORA_SMOKE_START",
+              "AQLEVON_V019_LORA_SMOKE_PASS",
+              "smoke_runtime_v019.py --build-check",
+              "AQLEVON_V019_GPU_IDENTITY_PASS",
+              "2400s",
+          ):
+              assert token in launch,token
+          assert "p4_patch_sdpo_transformers5_compat.py" not in launch
+          assert '"vllm_lora_target_modules": None' in smoke
+          assert '"vllm_lora_target_modules": null' not in smoke
+          assert 'command -v python' in launch
+          assert 'ln -sf "$PY3" /usr/local/bin/python' in launch
+          assert "AQLEVON_SDPO_PYTHON_LAUNCHER_PASS" in launch
+          assert 'b277b41d3d67be1180b4d0600ab6f533f6dbf7b69163980ef5ecc6f0677195b7' in launch
+          assert '10f333cf453f5896402066d7c483ae170688909ca82a08a0adb1e90766213fcb' in launch
+          assert 'AQLEVON_V019_EFFECTIVE_SCHEDULER_PASS' in launch
+          assert 'max_num_seqs=16' in launch
+          assert "python3 /opt/aqlevon/runtime/smoke_runtime_v019.py --build-check" in launch
+          assert 'assert gib >= 44.0' in launch
+          assert 'assert gib >= 45.0' not in launch
+          print("V019_A40_APPLICATION_VRAM_GATE_PASS")
+          print("V019_PYTHON3_RUNTIME_COMMAND_GATE_PASS")
+          print("QWEN35_PINNED_HYBRID_16_TARGET_CONTRACT_PASS",full)
+          print("V019_FUNCTIONAL_LORA_SMOKE_WIRING_PASS")
+          PY
+
+      - name: Patch exact pinned SDPO and verify patch identities
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /workspace/MUS-AI
+          curl -fsSL https://raw.githubusercontent.com/vllm-project/vllm/v0.10.2/vllm/lora/models.py -o /tmp/vllm-0.10.2-lora-models.py
+          curl -fsSL https://raw.githubusercontent.com/vllm-project/vllm/v0.10.2/vllm/model_executor/models/transformers.py -o /tmp/vllm-0.10.2-transformers.py
+          curl -fsSL https://raw.githubusercontent.com/huggingface/transformers/v5.17.0/src/transformers/models/qwen3_5/modeling_qwen3_5.py -o /tmp/transformers-5.17-qwen35.py
+          AQLEVON_VLLM_LORA_MODELS_PATH=/tmp/vllm-0.10.2-lora-models.py \
+          AQLEVON_VLLM_TRANSFORMERS_MODELS_PATH=/tmp/vllm-0.10.2-transformers.py \
+          AQLEVON_TRANSFORMERS_QWEN35_MODELING_PATH=/tmp/transformers-5.17-qwen35.py \
+            python research/weight_factory/agent03/p4_patch_sdpo_transformers5_compat.py
+          python research/weight_factory/agent03/p4_patch_vllm_qwen35_transformers_backend.py
+          python - <<'PY'
+          import hashlib
+          from pathlib import Path
+          expected={
+            "/workspace/SDPO/verl/utils/model.py":"135f61865fcbe057d29da90bf07968b04dd778e2e96a31d3ad640a8650155f8d",
+            "/workspace/SDPO/verl/workers/fsdp_workers.py":"e0ec49a1b891daed8f180a35f5d1d7e5147a3a8289c3787fc7688892e0e55fed",
+          }
+          for p,want in expected.items():
+              got=hashlib.sha256(Path(p).read_bytes()).hexdigest()
+              assert got==want,(p,got,want)
+              print("PATCH_SHA_PASS",p,got)
+          vllm_lora=Path("/tmp/vllm-0.10.2-lora-models.py").read_text()
+          assert "AQLEVON_QWEN35_VLLM_LORA_GUARD" in vllm_lora
+          assert "AQLEVON_REQUIRED_ROLLOUT_LORA_MODULE_UNSUPPORTED" in vllm_lora
+          assert "AQLEVON_REQUIRED_ROLLOUT_LORA_MODULE_COUNT" in vllm_lora
+          assert "expected_16" in vllm_lora
+          print("QWEN35_VLLM_LORA_GUARD_PATCH_PASS")
+          vllm_tf=Path("/tmp/vllm-0.10.2-transformers.py").read_text()
+          assert "AQLEVON_QWEN35_MM_LORA_MAPPING" in vllm_tf
+          assert "from .module_mapping import MultiModelKeys" in vllm_tf
+          assert 'language_model="model.language_model"' in vllm_tf
+          assert 'tower_model="model.visual"' in vllm_tf
+          assert "AQLEVON_TRANSFORMERS_MM_MAPPING_UNSUPPORTED_MODEL" in vllm_tf
+          assert "AQLEVON_QWEN35_MM_MAPPING_STRUCTURE_MISMATCH" in vllm_tf
+          assert "AQLEVON_QWEN35_MM_OUTPUT_UNWRAP" in vllm_tf
+          assert "AQLEVON_QWEN35_MM_OUTPUT_UNSUPPORTED" in vllm_tf
+          assert 'vision_embeddings = vision_embeddings.pooler_output' in vllm_tf
+          print("QWEN35_VLLM_MM_LORA_MAPPING_PATCH_PASS")
+          print("QWEN35_VLLM_MM_OUTPUT_UNWRAP_PATCH_PASS")
+          qwen35_tf=Path("/tmp/transformers-5.17-qwen35.py").read_text()
+          assert "AQLEVON_QWEN35_VLLM_LINEAR_SHAPE_RESTORE" in qwen35_tf
+          assert "mixed_qkv = mixed_qkv.reshape(batch_size, seq_len, -1)" in qwen35_tf
+          assert "b = b.reshape(batch_size, seq_len, -1)" in qwen35_tf
+          assert "a = a.reshape(batch_size, seq_len, -1)" in qwen35_tf
+          assert "output = output.reshape(batch_size, seq_len, -1)" in qwen35_tf
+          print("QWEN35_VLLM_LINEAR_SHAPE_RESTORE_PATCH_PASS")
+          qwen=Path("/workspace/SDPO/verl/workers/rollout/vllm_rollout/vllm_async_server.py").read_text()
+          assert 'getattr(self.model_config.hf_config, "model_type", None) == "qwen3_5"' in qwen
+          assert 'engine_kwargs["model_impl"] = "transformers"' in qwen
+          assert '"TransformersForMultimodalLM"' in qwen
+          assert 'engine_kwargs["hf_overrides"] = required_hf_overrides' in qwen
+          assert "AQLEVON_QWEN35_VLLM_TRANSFORMERS_BACKEND_PASS" in qwen
+          print("QWEN35_VLLM_TRANSFORMERS_BACKEND_PATCH_PASS")
+          PY
+
+      - name: Full pre-GPU CPU runtime preflight
+        shell: bash
+        env:
+          USER: root
+          EXPERIMENT: AQLEVON-P4-A1-seed1701
+          TASK: /workspace/aqlevon_p4/data
+          PYTHONPATH: /workspace/SDPO:/workspace/MUS-AI/research/weight_factory/agent03/runtime_compat:/workspace/MUS-AI/research/weight_factory/agent03
+          CUDA_VISIBLE_DEVICES: ""
+        run: |
+          set -euo pipefail
+          cd /workspace/MUS-AI/research/weight_factory/agent03
+          python - <<'PY'
+          import hashlib, json, os, sys
+          from pathlib import Path
+
+          import hydra
+          import ray
+          from omegaconf import OmegaConf
+
+          import p4_gene1_trainer as c
+          import p4_surrogate_tournament as t
+
+          plan=Path("p4_frozen_training_plan_v1.json")
+          run=json.loads(Path("p4_a1_seed1701_run_manifest_v1.json").read_text())
+          lock=json.loads(Path("p4_a1_seed1701_command_lock_v1.json").read_text())
+          argv=t.build_a1_argv(plan,Path("/workspace"))
+
+          assert argv==lock["argv"]
+          assert argv[:3]==["env","USER=root","bash"]
+          assert c.canonical_sha256(argv)==run["command_sha256"]==lock["command_sha256"]
+          assert os.environ["USER"]=="root"
+          assert os.environ.get("CUDA_VISIBLE_DEVICES")==""
+
+          os.environ["EXPERIMENT"]=argv[4]
+          os.environ["TASK"]=argv[6]
+          with hydra.initialize_config_dir(config_dir="/workspace/SDPO/verl/trainer/config",version_base=None):
+              cfg=hydra.compose(config_name=argv[5],overrides=argv[7:])
+          OmegaConf.resolve(cfg)
+          assert cfg.vars.dir=="/users/root/SDPO",cfg.vars.dir
+          assert cfg.trainer.project_name=="SDPO-root",cfg.trainer.project_name
+          assert str(cfg.data.train_files)=="/workspace/aqlevon_p4/data/train.parquet"
+          assert str(cfg.data.val_files)=="/workspace/aqlevon_p4/data/test.parquet"
+          assert cfg.data.seed==1701,cfg.data.seed
+          assert cfg.actor_rollout_ref.actor.data_loader_seed==1701,cfg.actor_rollout_ref.actor.data_loader_seed
+          assert cfg.actor_rollout_ref.actor.fsdp_config.seed==1701,cfg.actor_rollout_ref.actor.fsdp_config.seed
+          assert str(cfg.actor_rollout_ref.actor.fsdp_config.model_dtype)=="bf16",cfg.actor_rollout_ref.actor.fsdp_config.model_dtype
+          assert cfg.actor_rollout_ref.ref.fsdp_config.seed==1701,cfg.actor_rollout_ref.ref.fsdp_config.seed
+          assert cfg.actor_rollout_ref.rollout.engine_kwargs.vllm.seed==1701,cfg.actor_rollout_ref.rollout.engine_kwargs.vllm.seed
+          assert cfg.actor_rollout_ref.rollout.max_model_len==4096,cfg.actor_rollout_ref.rollout.max_model_len
+          assert cfg.actor_rollout_ref.rollout.max_num_batched_tokens==4096,cfg.actor_rollout_ref.rollout.max_num_batched_tokens
+          assert cfg.actor_rollout_ref.rollout.max_num_seqs==16,cfg.actor_rollout_ref.rollout.max_num_seqs
+          profile_num_reqs=min(cfg.actor_rollout_ref.rollout.max_num_batched_tokens,cfg.actor_rollout_ref.rollout.max_num_seqs)
+          assert profile_num_reqs==16,profile_num_reqs
+          assert cfg.data.train_batch_size * cfg.actor_rollout_ref.rollout.n == 16
+          print("V019_PROFILE_REQUEST_BOUND_PASS",profile_num_reqs)
+          print("HYDRA_SEED1701_RESOLUTION_PASS")
+          print("HYDRA_OMEGACONF_EXACT_PASS")
+
+          t.install_runtime_compat()
+          from verl.utils import hf_processor, hf_tokenizer
+          model="/workspace/models/qwen35-4b-daa9c16f3712"
+          tokenizer=hf_tokenizer(model,trust_remote_code=False)
+          processor=hf_processor(model,trust_remote_code=False,use_fast=True)
+          processor=t.bridge_processor_chat_template(processor,model)
+          assert processor is not None
+          assert processor.__class__.__name__=="Qwen3VLProcessor",processor.__class__.__name__
+          tt=tokenizer.chat_template
+          pt=processor.chat_template
+          assert isinstance(tt,str) and tt and pt==tt
+          template_sha=hashlib.sha256(tt.encode()).hexdigest()
+          assert template_sha=="a4aee8afcf2e0711942cf848899be66016f8d14a889ff9ede07bca099c28f715",template_sha
+          print("PROCESSOR_TEMPLATE_PASS",template_sha)
+
+          from verl.trainer.main_ppo import create_rl_dataset, create_rl_sampler
+          from verl.trainer.ppo.utils import need_critic, need_reference_policy
+          from verl.utils.config import validate_config
+
+          validate_config(cfg, use_reference_policy=need_reference_policy(cfg), use_critic=need_critic(cfg))
+          train=create_rl_dataset(cfg.data.train_files,cfg.data,tokenizer,processor,is_train=True)
+          val=create_rl_dataset(cfg.data.val_files,cfg.data,tokenizer,processor,is_train=False)
+          sampler=create_rl_sampler(cfg.data,train)
+          assert len(train)==56,len(train)
+          assert len(val)==56,len(val)
+          assert sampler is not None
+          print("DATASET_SAMPLER_PASS",len(train),len(val),type(sampler).__name__)
+
+          runtime_env={
+              "env_vars":{
+                  "USER":"root",
+                  "EXPERIMENT":"AQLEVON-P4-A1-seed1701",
+                  "TASK":"/workspace/aqlevon_p4/data",
+                  "PYTHONPATH":"/workspace/SDPO:/workspace/MUS-AI/research/weight_factory/agent03/runtime_compat:/workspace/MUS-AI/research/weight_factory/agent03",
+                  "CUDA_VISIBLE_DEVICES":"",
+              }
+          }
+          ray.init(num_cpus=2,include_dashboard=False,runtime_env=runtime_env,log_to_driver=True)
+
+          @ray.remote
+          def worker_probe():
+              import os
+              from omegaconf import OmegaConf
+              x=OmegaConf.create({"user":"${oc.env:USER}"})
+              OmegaConf.resolve(x)
+              import verl.workers.fsdp_workers as fw
+              return {
+                  "user":os.environ.get("USER"),
+                  "resolved_user":x.user,
+                  "cuda_visible":os.environ.get("CUDA_VISIBLE_DEVICES"),
+                  "fsdp_workers":str(Path(fw.__file__).resolve()),
+              }
+
+          probe=ray.get(worker_probe.remote())
+          ray.shutdown()
+          assert probe["user"]=="root",probe
+          assert probe["resolved_user"]=="root",probe
+          assert probe["cuda_visible"]=="",probe
+          assert probe["fsdp_workers"].endswith("/workspace/SDPO/verl/workers/fsdp_workers.py"),probe
+          print("FRESH_RAY_FSDP_IMPORT_PASS",json.dumps(probe,sort_keys=True))
+          print("P4_PRE_GPU_CPU_PREFLIGHT_PASS")
+          PY

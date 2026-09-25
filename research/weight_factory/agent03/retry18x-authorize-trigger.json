@@ -1,0 +1,5 @@
+{
+  "action": "reconcile_and_authorize_retry18x",
+  "authorization_id": "P4-A1-RUNPOD-4090-20260922-18X-VLLM-LORA-GUARD",
+  "single_use": true
+}

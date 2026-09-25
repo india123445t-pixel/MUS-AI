@@ -1,0 +1,16 @@
+{
+  "authorization_id": "P4-A1-RUNPOD-A40-20260924-19Z-EGRESS-FIX-SMOKE-THEN-TRAIN",
+  "authorization_kind": "AQLEVON_MANAGER_COMPUTE_AUTHORIZATION_V1",
+  "authorization_sha256": "2e91aa02d1802bd744a5d6c1d5654430d01d003767c36e8deabbf55e3b927957",
+  "compute_origin": "paid_manager_authorized",
+  "hash_profile": "AQLEVON_CANONICAL_JSON_SHA256_V1",
+  "max_artifact_egress_bytes": 5368709120,
+  "max_billed_seconds": 3600,
+  "max_hourly_rate_usd": "0.55",
+  "max_total_cost_usd": "0.55",
+  "profile_id": "p4-surrogate-1x24",
+  "run_manifest_sha256": "b277b41d3d67be1180b4d0600ab6f533f6dbf7b69163980ef5ecc6f0677195b7",
+  "run_task_id": "P4-A03-GENE1-PHYSICAL-TRAINER",
+  "schema_version": 1,
+  "single_use": true
+}
