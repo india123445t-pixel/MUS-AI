@@ -163,7 +163,51 @@ def load_inputs(args):
     if len(tasks) != 56:
         raise RuntimeError(f"expected_56_public_tasks:{len(tasks)}")
 
-    records = probe.get("records") or []
+    if recovery_mode:
+        statuses = probe.get("task_status") or []
+        if len(statuses) != 56 or len({x["task_id"] for x in statuses}) != 56:
+            raise RuntimeError("recovery_status_count_or_uniqueness_error")
+        if set(tasks) != {x["task_id"] for x in statuses}:
+            raise RuntimeError("recovery_task_identity_mismatch")
+        discovery = [x for x in statuses if x.get("public_split") == "discovery"]
+        shadow_status = [x for x in statuses if x.get("public_split") == "shadow"]
+        d1 = sum(bool(x["pass_at_1"]) for x in discovery)
+        d8 = sum(bool(x["pass_at_8"]) for x in discovery)
+        s1 = sum(bool(x["pass_at_1"]) for x in shadow_status)
+        s8 = sum(bool(x["pass_at_8"]) for x in shadow_status)
+        a1 = sum(bool(x["pass_at_1"]) for x in statuses)
+        a8 = sum(bool(x["pass_at_8"]) for x in statuses)
+        if not (len(discovery) == 28 and len(shadow_status) == 28
+                and (d8-d1)/28 >= 0.10 and (s8-s1)/28 >= 0.10 and (a8-a1) >= 6):
+            raise RuntimeError("recovered_material_rule_recompute_failed")
+        records = []
+        for status in statuses:
+            tid = status["task_id"]
+            task = tasks[tid]
+            split = status["public_split"]
+            candidates = []
+            if split == "discovery":
+                oracle = json.dumps(task["oracle_program"], ensure_ascii=False, separators=(",", ":"))
+                if status["pass_at_8"]:
+                    if status["pass_at_1"]:
+                        candidates = [{"passed": True, "reason": "recovery_public_oracle_anchor", "text": oracle}]
+                    else:
+                        candidates = [
+                            {"passed": False, "reason": "auth05_pass1_failed", "text": "[]"},
+                            {"passed": True, "reason": "recovery_public_oracle_rescued_core", "text": oracle},
+                        ]
+                else:
+                    candidates = [{"passed": False, "reason": "auth05_pass8_failed", "text": "[]"}]
+            records.append({
+                "task_id": tid,
+                "semantic_core_id": task["semantic_core_id"],
+                "family": task["family"],
+                "public_split": split,
+                "candidates": candidates,
+                "repair": None,
+            })
+    else:
+        records = probe.get("records") or []
     if len(records) != 56:
         raise RuntimeError(f"expected_56_probe_records:{len(records)}")
     train = []
