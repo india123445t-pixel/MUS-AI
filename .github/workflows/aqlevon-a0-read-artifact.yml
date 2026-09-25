@@ -1,0 +1,28 @@
+name: AQLEVON A0 Read Failed Attempt Artifact
+on:
+  push:
+    branches: [ops/runpod-control-v1]
+    paths: [".github/runpod-control/a0-read-artifact-trigger.json"]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/runpod-control-v1
+      - name: Print exact bounded failed attempt evidence
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/evidence
+          gh run download 36130636033 --repo "$GITHUB_REPOSITORY" -n aqlevon-a0-sft-candidate-evidence -D /tmp/evidence
+          find /tmp/evidence -maxdepth 2 -type f -printf '%p %s bytes\n'
+          for item in a0.log a0-egress.log a0_train_rc pod.json stop-probe.json; do
+            echo "AQLEVON_EVIDENCE_FILE=$item"
+            if [ -f "/tmp/evidence/$item" ]; then cat "/tmp/evidence/$item"; else echo ABSENT; fi
+          done
