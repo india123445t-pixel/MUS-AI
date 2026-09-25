@@ -1,0 +1,47 @@
+name: AQLEVON Candidate C Live GPU Inventory Zero-Cost
+on:
+  push:
+    branches: [agent/03-one-day-rsft-crystallization-20260925]
+    paths: [".github/workflows/aqlevon-candidate-c-live-gpu-inventory-free.yml"]
+permissions:
+  contents: read
+jobs:
+  inventory:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect provider state without spend
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$RUNPOD_API_KEY"
+          curl -fsS https://rest.runpod.io/v1/pods -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/pods.json
+          curl -sSL https://cli.runpod.net | sudo bash >/dev/null
+          runpodctl user >/tmp/user.json
+          runpodctl gpu list --output json >/tmp/gpus.json
+          python3 - <<'PY'
+          import json
+          p=json.load(open('/tmp/pods.json')); xs=p if isinstance(p,list) else p.get('pods') or p.get('items') or []
+          active=[x for x in xs if str(x.get('name','')).startswith('AQLEVON-') and str(x.get('desiredStatus') or x.get('status'))!='EXITED']
+          assert not active,active
+          allowed={'NVIDIA RTX 6000 Ada Generation','NVIDIA A40','NVIDIA A100 80GB PCIe','NVIDIA A100-SXM4-80GB','NVIDIA RTX PRO 6000 Blackwell Server Edition'}
+          choices=[]
+          for g in json.load(open('/tmp/gpus.json')):
+              gid=str(g.get('gpuId',''))
+              if gid not in allowed or not g.get('secureCloud'): continue
+              price=float(g.get('securePricePerHr') or 999)
+              for d in g.get('dataCenterAvailability') or []:
+                  if str(d.get('stockStatus')).lower()!='none' and d.get('dataCenterId'):
+                      choices.append((price,gid,str(d['dataCenterId']),str(d.get('stockStatus'))))
+          assert choices,'no_permitted_secure_stock'
+          for row in sorted(set(choices))[:20]:
+              print('AQLEVON_CANDIDATE_C_GPU_OPTION',*row)
+          best=sorted(choices)[0]
+          print('AQLEVON_CANDIDATE_C_GPU_BEST',*best)
+          print('AQLEVON_CANDIDATE_C_20MIN_CAP_USD',round(best[0]*20/60,4))
+          print('AQLEVON_CANDIDATE_C_30MIN_CAP_USD',round(best[0]*30/60,4))
+          print('AQLEVON_CANDIDATE_C_NO_ACTIVE_PODS_PASS')
+          PY
