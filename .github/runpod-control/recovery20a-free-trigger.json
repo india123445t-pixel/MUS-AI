@@ -1,0 +1,5 @@
+{
+  "action": "verify_no_spend_contract",
+  "expected_w03_head": "83db1c03f176539784aa39a4474982cdcde3c42c",
+  "nonce": "2026-09-25T10:33:28.566Z"
+}
