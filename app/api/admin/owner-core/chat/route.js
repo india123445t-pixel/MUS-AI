@@ -31,7 +31,7 @@ export async function POST(req){
     const owner=await sb.from('system_owner').select('owner_id').eq('owner_id',user.id).maybeSingle();if(owner.error||!owner.data)return NextResponse.json({message:'OWNER_REQUIRED'},{status:403});
     const body=await req.json();const input=redactSecrets(String(body.input||'').trim());if(!input)return NextResponse.json({message:'اكتب طلبًا أولًا.'},{status:400});if(input.length>20000)return NextResponse.json({message:'الطلب طويل جدًا.'},{status:413});
     const profile=ALLOWED_PROFILES.has(body.profile)?body.profile:'guardian';const mode=body.mode==='mission'?'mission':'chat';const context=await ownerContext(sb,user.id);
-    const settings={...context.settings,allow_paid_external:false};
+    const settings={...context.settings,runtime_mode:'self_hosted_only',allow_paid_external:false,public_web_search_enabled:false};
     const history=sanitizeHistory(body.history,12);
     const result=await generateModelResponse([{role:'system',content:systemPrompt(profile,context)},...history,{role:'user',content:input}],false,settings,{temperature:0.25,includeDiagnostics:true,logDiagnostics:true});
     if(!result||result.unavailable)return NextResponse.json({message:'لا يوجد محرك استدلال متاح لـOwner Core الآن.',error_class:result?.error_class||'OWNER_CORE_INFERENCE_UNAVAILABLE'},{status:503});

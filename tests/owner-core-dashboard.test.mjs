@@ -17,15 +17,20 @@ test('Owner Core remains private to system_owner',()=>{
   assert.match(task,/OWNER_REQUIRED/);
 });
 
-test('mission preparation never claims external execution',()=>{
+test('mission preparation and approval never claim an absent executor',()=>{
   assert.match(chat,/executor_state:'NOT_CONNECTED'/);
+  assert.match(task,/executor_state:'NOT_CONNECTED',owner_approved:true/);
+  assert.doesNotMatch(task,/READY للتنفيذ/);
+  assert.match(page,/const executorState='NOT_CONNECTED'/);
   assert.match(chat,/AWAITING_OWNER_APPROVAL/);
   assert.doesNotMatch(chat,/executor_state:'CONNECTED'/);
 });
 
-test('approval is explicit before READY and is audited',()=>{
+test('approval is explicit before READY, compare-and-set guarded, and audited',()=>{
   assert.match(task,/current\.data\.phase!==\'OPEN\'/);
   assert.match(task,/phase:'READY'/);
+  assert.match(task,/\.eq\('id',taskId\)\.eq\('phase','OPEN'\)/);
+  assert.match(task,/status:409/);
   assert.match(task,/OWNER_APPROVED_MISSION/);
 });
 
@@ -69,6 +74,8 @@ test('trace-first V3 exposes Arabic mission trace and system workbenches',()=>{
 });
 
 test('V3 keeps execution truth explicit in Arabic',()=>{
+  assert.match(page,/const executorState='NOT_CONNECTED'/);
+  assert.doesNotMatch(page,/hasInFlight\?'LIVE':attempts\.length\?'IDLE'/);
   assert.match(page,/يحتاج موصل تنفيذ/);
   assert.match(page,/غير متصل/);
   assert.match(page,/موافقة المالك مطلوبة/);
