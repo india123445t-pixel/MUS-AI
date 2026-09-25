@@ -1,7 +1,7 @@
 name: AQLEVON One-Day Crystallization Auth06
 on:
   push:
-    branches: [ops/one-day-verified-trajectory-20260925]
+    branches: [ops/auth06-crystallization-frozen-20260925]
     paths: [".github/runpod-control/execute-one-day-crystallization-06.json"]
 permissions:
   contents: write
@@ -17,7 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ops/one-day-verified-trajectory-20260925
+          ref: ops/auth06-crystallization-frozen-20260925
           fetch-depth: 0
       - name: Execute bounded Auth06 crystallization
         shell: bash
