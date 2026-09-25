@@ -4,6 +4,9 @@ import { randomUUID } from 'crypto';
 import { generateModelResponse } from '../../../../../lib/aqlevon/providers.js';
 import { redactSecrets, sanitizeHistory } from '../../../../../lib/aqlevon/security.js';
 
+export const maxDuration=300;
+export const dynamic='force-dynamic';
+
 const SUPABASE_URL=process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_KEY=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 const ALLOWED_PROFILES=new Set(['guardian','engineer','model_lab','research','authorized_security']);
