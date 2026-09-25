@@ -1,0 +1,80 @@
+name: AQLEVON Canonical Serverless Cleanup
+on:
+  push:
+    branches: [release/aqlevon-unified-auth16-20260925]
+    paths: [".github/runpod-control/canonical-serverless-cleanup-trigger.json"]
+jobs:
+  cleanup:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      KEEP_ENDPOINT: qyb4is6cl1hn22
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/aqlevon-unified-auth16-20260925
+          fetch-depth: 0
+      - name: Keep only canonical Auth16 endpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${RUNPOD_API_KEY:-}"
+          curl -fsS https://rest.runpod.io/v1/endpoints -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/endpoints.json
+          python3 - <<'PY' >/tmp/delete-list
+          import json,os
+          d=json.load(open('/tmp/endpoints.json'))
+          xs=d if isinstance(d,list) else d.get('endpoints') or d.get('items') or []
+          keep=os.environ['KEEP_ENDPOINT']
+          for x in xs:
+              eid=str(x.get('id') or '')
+              name=str(x.get('name') or '')
+              if eid and eid!=keep and name.startswith('aqlevon-auth16'):
+                  print(eid)
+          PY
+          removed='[]'
+          python3 - <<'PY'
+          import json
+          open('/tmp/removed.json','w').write('[]')
+          PY
+          while read -r id; do
+            [ -n "$id" ] || continue
+            code="$(curl -sS -o /tmp/del.json -w '%{http_code}' -X DELETE "https://rest.runpod.io/v1/endpoints/$id" -H "Authorization: Bearer $RUNPOD_API_KEY" || true)"
+            echo "DELETE endpoint=$id http=$code"
+            if [ "$code" = "200" ] || [ "$code" = "204" ] || [ "$code" = "404" ]; then
+              python3 - "$id" <<'PY'
+          import json,sys
+          p='/tmp/removed.json'; a=json.load(open(p)); a.append(sys.argv[1]); open(p,'w').write(json.dumps(a))
+          PY
+            fi
+          done </tmp/delete-list
+          curl -fsS "https://rest.runpod.io/v1/endpoints/$KEEP_ENDPOINT" -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/keep.json
+          python3 - <<'PY'
+          import json,os,pathlib
+          ep=json.load(open('/tmp/keep.json'))
+          assert str(ep.get('id'))==os.environ['KEEP_ENDPOINT'],ep
+          assert ep.get('workersMin')==0,ep
+          assert ep.get('workersMax')==1,ep
+          out={
+            'kind':'AQLEVON_CANONICAL_SERVERLESS_CLEANUP_V1',
+            'canonical_endpoint_id':os.environ['KEEP_ENDPOINT'],
+            'canonical_name':ep.get('name'),
+            'workers_min':ep.get('workersMin'),
+            'workers_max':ep.get('workersMax'),
+            'idle_timeout_seconds':ep.get('idleTimeout'),
+            'removed_endpoints':json.load(open('/tmp/removed.json')),
+            'status':'PASS',
+          }
+          pathlib.Path('.github/runpod-control/canonical-serverless-cleanup-result.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
+          print('AQLEVON_CANONICAL_SERVERLESS_CLEANUP_PASS',json.dumps(out,sort_keys=True))
+          PY
+      - name: Persist
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name aqlevon-release-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/runpod-control/canonical-serverless-cleanup-result.json
+          git commit -m "ops: keep one canonical Auth16 serverless endpoint [skip ci]" || true
+          git pull --rebase origin release/aqlevon-unified-auth16-20260925
+          git push origin HEAD:release/aqlevon-unified-auth16-20260925
