@@ -55,7 +55,9 @@ jobs:
                       "grep -q 'AQLEVON_PREF_PUBLIC_PREFLIGHT_PASS discovery=28 shadow=28 families=14 epochs=3 updates=84 mining_n=8 probe_decision=MATERIAL_LATENT_CAPABILITY' /tmp/preflight08.log")
           s=s.replace('fresh_authorization_spend_before_auth12_usd','estimated_fresh_mission_spend_before_auth12_usd')
           s=s.replace('--volume-in-gb 40 --volume-mount-path /workspace ','')
-          s=s.replace('[ "$elapsed" -lt 600 ] || break','[ "$elapsed" -lt 480 ] || break')
+          s=s.replace('[ "$elapsed" -lt 600 ] || break','[ "$elapsed" -lt 240 ] || break')
+          s=s.replace('if str(d.get("stockStatus")).lower()!="none" and d.get("dataCenterId"):',
+                      'if str(d.get("stockStatus")).lower()!="none" and d.get("dataCenterId") and str(d.get("dataCenterId")) in set(a.get("permitted_datacenters") or []):')
           s=s.replace('choices.append((price,gid,str(d["dataCenterId"]),secs))',
                       'choices.append((0 if str(d["dataCenterId"])==str(a.get("preferred_datacenter")) else 1,price,gid,str(d["dataCenterId"]),secs))')
           s=s.replace('price,gpu,dc,secs=sorted(choices)[0]','_,price,gpu,dc,secs=sorted(choices)[0]')
