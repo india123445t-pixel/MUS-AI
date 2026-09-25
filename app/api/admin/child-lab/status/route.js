@@ -3,8 +3,8 @@ import {createClient} from '@supabase/supabase-js';
 import {childHealth} from '../../../../../lib/aqlevon/child-runtime.js';
 import {childToolStatus} from '../../../../../lib/aqlevon/child-tools.js';
 
-const URL=process.env.NEXT_PUBLIC_SUPABASE_URL;
-const KEY=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+const URL=process.env.NEXT_PUBLIC_SUPABASE_URL||'https://yaqjhcfitxhtzpaswuif.supabase.co';
+const KEY=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||'sb_publishable_1uRtACKcyT2ZQH9ixdKQ-Q_ARbY6xET';
 
 function bearer(req){const h=req.headers.get('authorization')||'';return h.startsWith('Bearer ')?h.slice(7).trim():''}
 function client(token){if(!URL||!KEY)throw new Error('Supabase environment is not configured.');return createClient(URL,KEY,{global:{headers:{Authorization:`Bearer ${token}`}},auth:{persistSession:false,autoRefreshToken:false}})}
