@@ -1,0 +1,78 @@
+name: AQLEVON Candidate D Synthetic Curriculum Zero-Cost Preflight
+on:
+  push:
+    branches: [agent/03-one-day-synthetic-curriculum-20260925]
+    paths:
+      - "research/weight_factory/agent03/p4_one_day_synthetic_curriculum.py"
+      - ".github/workflows/aqlevon-one-day-candidate-d-free.yml"
+      - "research/weight_factory/agent03/candidate_d_free_trigger.json"
+permissions:
+  contents: read
+jobs:
+  preflight:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    env:
+      RECOVERY_HEAD: 529e665ea140c2f8d6b96c02a42c100e9075c037
+      W02_HEAD: abb94ef134e2e97036b6959dbc9db4278d3736b6
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Static scientific firewall and syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          SRC=research/weight_factory/agent03/p4_one_day_synthetic_curriculum.py
+          python3 -m py_compile "$SRC"
+          python3 - <<'PY'
+          import ast
+          from pathlib import Path
+          s=Path("research/weight_factory/agent03/p4_one_day_synthetic_curriculum.py").read_text()
+          t=ast.parse(s); vals={}
+          for n in t.body:
+              if isinstance(n,ast.Assign) and len(n.targets)==1 and isinstance(n.targets[0],ast.Name):
+                  try: vals[n.targets[0].id]=ast.literal_eval(n.value)
+                  except Exception: pass
+          assert vals["SYNTH_START"]==4 and vals["SYNTH_STOP"]==20
+          assert vals["PROMPT_PERTURBATIONS"]==3 and vals["EPOCHS"]==1
+          assert vals["LR"]==2e-5 and vals["MIN_LR"]==2e-6
+          assert 'target_modules=["q_proj","k_proj","v_proj","o_proj"]' in s
+          assert 'AQLEVON_SEALED_EVAL_PATH' in s and 'AQLEVON_EVAL_SECRET' in s
+          assert '"worker05_used_for_tuning":False' in s
+          assert '"sealed_eval_consumed":False' in s
+          assert s.index("if dev_gate:") < s.index("shadow_post=evaluate_tasks")
+          assert "range(SYNTH_START,SYNTH_STOP)" in s
+          print("AQLEVON_CANDIDATE_D_STATIC_PASS")
+          PY
+      - name: Reconstruct public-only probe and run Candidate D preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch -q origin "$RECOVERY_HEAD" "$W02_HEAD"
+          git show "$RECOVERY_HEAD":research/weight_factory/agent03/p4_one_day_recovered_materializer.py >/tmp/materializer.py
+          git show "$RECOVERY_HEAD":research/weight_factory/agent03/auth05_recovered_material_decision.json >/tmp/recovered.json
+          git show "$W02_HEAD":research/weight_factory/agent02/gene1_training_visible_pack_v1.json >/tmp/public-pack.json
+          git show "$W02_HEAD":research/weight_factory/agent02/gene1_data_verifier_pack_v1.py >/tmp/w02.py
+          python3 /tmp/materializer.py --recovered-decision /tmp/recovered.json --training-pack /tmp/public-pack.json --output /tmp/probe.json >/tmp/materializer.log
+          grep -q 'train_targets=6 shadow_targets=0' /tmp/materializer.log
+          python3 research/weight_factory/agent03/p4_one_day_synthetic_curriculum.py \
+            --probe-result /tmp/probe.json --w02-module /tmp/w02.py \
+            --training-pack /tmp/public-pack.json --preflight-only | tee /tmp/preflight.log
+          grep -q 'AQLEVON_SYNTH_PUBLIC_PREFLIGHT_PASS synthetic=672 dev=28 shadow=28 families=14 updates=672 probe_decision=MATERIAL_LATENT_CAPABILITY' /tmp/preflight.log
+      - name: Confirm no active AQLEVON paid Pod
+        if: ${{ env.RUNPOD_API_KEY != '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS https://rest.runpod.io/v1/pods -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/pods.json
+          python3 - <<'PY'
+          import json
+          p=json.load(open("/tmp/pods.json")); xs=p if isinstance(p,list) else p.get("pods") or p.get("items") or []
+          active=[x for x in xs if str(x.get("name","")).startswith("AQLEVON-") and str(x.get("desiredStatus") or x.get("status"))!="EXITED"]
+          assert not active,active
+          print("AQLEVON_CANDIDATE_D_NO_ACTIVE_PODS_PASS")
+          PY
+      - name: Final zero-cost seal
+        run: echo "AQLEVON_CANDIDATE_D_ZERO_COST_PREFLIGHT_PASS"
