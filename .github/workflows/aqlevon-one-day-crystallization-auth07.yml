@@ -1,0 +1,135 @@
+name: AQLEVON One-Day Crystallization Auth07
+on:
+  push:
+    branches: [ops/auth07-crystallization-frozen-20260925]
+    paths: [".github/runpod-control/execute-one-day-crystallization-07.json"]
+permissions:
+  contents: write
+concurrency:
+  group: aqlevon-p4-paid-single-use
+  cancel-in-progress: false
+jobs:
+  execute:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/auth07-crystallization-frozen-20260925
+          fetch-depth: 0
+      - name: Execute bounded Auth07 tmp-only crystallization
+        id: run
+        continue-on-error: true
+        shell: bash
+        run: bash .github/runpod-control/run-one-day-crystallization-07.sh
+      - name: Record Auth07 terminal receipt
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import datetime,hashlib,json,tarfile
+          from pathlib import Path
+          def txt(p):
+              q=Path(p)
+              return q.read_text().strip() if q.exists() else None
+          start=txt('/tmp/auth07_pod_epoch')
+          elapsed=int(datetime.datetime.now(datetime.timezone.utc).timestamp())-int(start) if start else None
+          rate=txt('/tmp/auth07_rate')
+          remote=txt('/tmp/auth07_remote_rc')
+          driver=txt('/tmp/auth07_driver_rc')
+          out={
+            'kind':'AQLEVON_ONE_DAY_CRYSTALLIZATION_RUN_RECEIPT_V1',
+            'authorization_id':'P4-ONE-DAY-CRYSTALLIZATION-20260925-07',
+            'authorization_sha256':'8f5e7ce1ca79e4d8f0e8e041dc2b656bc57c2cbea918f4e888581c28f4dbf9df',
+            'source_head':'f3a2ca4c894e81cf9dffa1dd9935a3774b854cdb',
+            'pod_id':txt('/tmp/auth07_pod_id'),
+            'checked_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            'driver_exit_code':int(driver) if driver and driver.isdigit() else None,
+            'remote_exit_code':int(remote) if remote and remote.isdigit() else None,
+            'rate_per_hour_usd':rate,
+            'billed_seconds_estimate':elapsed,
+            'compute_cost_estimate_usd':round(float(rate)*elapsed/3600,6) if rate and elapsed is not None else None,
+            'evidence_archive_present':Path('/tmp/auth07-evidence.tgz').exists(),
+            'training_log_sha256':hashlib.sha256(Path('/tmp/auth07-train.log').read_bytes()).hexdigest() if Path('/tmp/auth07-train.log').exists() else None,
+            'pod_stopped_and_deleted':Path('/tmp/auth07_deleted_ok').exists(),
+            'sealed_eval_consumed':False,'worker05_used_for_tuning':False,'capability_gain_claim':False,
+            'artifact_gate_pass':False
+          }
+          if Path('/tmp/auth07-evidence.tgz').exists():
+              try:
+                  t=tarfile.open('/tmp/auth07-evidence.tgz','r:gz')
+                  root='auth07-runtime/candidate/'
+                  required=['candidate_artifact/adapter_config.json','candidate_artifact/adapter_model.safetensors',
+                            'candidate_artifact_manifest.json','training_run_receipt.json','shadow_pre_eval.json',
+                            'shadow_post_eval.json','verified_discovery_trajectories.json','worker05_handoff_index.json']
+                  names=set(t.getnames())
+                  assert all(root+x in names for x in required), sorted(names)
+                  def read(p): return t.extractfile(root+p).read()
+                  rec=json.loads(read('training_run_receipt.json'))
+                  man=json.loads(read('candidate_artifact_manifest.json'))
+                  hand=json.loads(read('worker05_handoff_index.json'))
+                  weights=read('candidate_artifact/adapter_model.safetensors')
+                  n=int.from_bytes(weights[:8],'little'); header=json.loads(weights[8:8+n])
+                  keys=[k for k in header if k!='__metadata__']
+                  assert len(keys)==32
+                  assert rec['train_examples']==6 and rec['optimizer_updates']==6
+                  assert rec['changed_lora_B_elements']>0 and rec['save_reload_hash_match'] is True
+                  assert man['save_reload_hash_match'] is True
+                  assert rec['sealed_eval_consumed'] is False and rec['worker05_used_for_tuning'] is False
+                  out.update({
+                    'artifact_gate_pass':True,
+                    'candidate_status':man.get('candidate_status'),
+                    'public_shadow_gate_pass':man.get('public_shadow_gate_pass'),
+                    'shadow_pre_successes':rec.get('shadow_pre_successes'),
+                    'shadow_post_successes':rec.get('shadow_post_successes'),
+                    'shadow_gain_tasks':rec.get('shadow_gain_tasks'),
+                    'shadow_improvement':rec.get('shadow_improvement'),
+                    'adapter_model_sha256':man.get('adapter_model_sha256'),
+                    'manifest_sha256':man.get('manifest_sha256'),
+                    'saved_adapter_tensors':len(keys),
+                    'worker05_handoff_candidate_status':hand.get('candidate_status')
+                  })
+              except Exception as e:
+                  out['artifact_parse_error']=repr(e)
+          Path('.github/runpod-control/one-day-crystallization-run-result-07.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
+          Path('/tmp/auth07_artifact_gate').write_text('1' if out['artifact_gate_pass'] else '0')
+          print('AQLEVON_AUTH07_RESULT',json.dumps(out,sort_keys=True))
+          PY
+          git config user.name aqlevon-runpod-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/runpod-control/one-day-crystallization-run-result-07.json
+          git commit -m "ops: persist Auth07 crystallization terminal receipt [skip ci]" || true
+          git push origin HEAD:ops/auth07-crystallization-frozen-20260925
+      - name: Upload Auth07 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aqlevon-one-day-crystallization-auth07
+          path: |
+            /tmp/auth07-evidence.tgz
+            /tmp/auth07-train.log
+            /tmp/auth07_remote_rc
+            /tmp/auth07_driver_rc
+            /tmp/auth07-create.json
+            /tmp/auth07-pod.json
+            /tmp/auth07-input-sha256.txt
+            /tmp/auth07-stop.json
+            /tmp/auth07-delete.json
+            /tmp/auth07-exit-stop.json
+            /tmp/auth07-exit-delete.json
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Enforce complete physical candidate evidence
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s /tmp/auth07_remote_rc
+          test "$(cat /tmp/auth07_remote_rc)" = 0
+          test -s /tmp/auth07-evidence.tgz
+          test -s /tmp/auth07_artifact_gate
+          test "$(cat /tmp/auth07_artifact_gate)" = 1
+          test -e /tmp/auth07_deleted_ok
