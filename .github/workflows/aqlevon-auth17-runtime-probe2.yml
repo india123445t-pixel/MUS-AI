@@ -1,0 +1,54 @@
+name: AQLEVON Auth17 Runtime Probe2
+on:
+  push:
+    branches: [ops/one-day-verified-trajectory-20260925]
+    paths: [".github/runpod-control/auth17-runtime-probe2-trigger.json"]
+permissions:
+  contents: write
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/one-day-verified-trajectory-20260925
+          fetch-depth: 0
+      - name: Probe exact Auth17 pod
+        shell: bash
+        run: |
+          set -euo pipefail
+          pod=ok0ftr5dsnls1z
+          code="$(curl -sS -o /tmp/pod.json -w '%{http_code}' "https://rest.runpod.io/v1/pods/$pod" -H "Authorization: Bearer $RUNPOD_API_KEY" || true)"
+          python3 - "$code" <<'PY'
+          import datetime,json,sys
+          from pathlib import Path
+          code=int(sys.argv[1])
+          p={}
+          if Path("/tmp/pod.json").exists():
+              try:p=json.loads(Path("/tmp/pod.json").read_text())
+              except Exception:pass
+          out={
+            "kind":"AQLEVON_AUTH17_RUNTIME_PROBE_V2",
+            "checked_at_utc":datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "http_code":code,
+            "pod_id":"ok0ftr5dsnls1z",
+            "desiredStatus":p.get("desiredStatus"),
+            "status":p.get("status"),
+            "publicIp":p.get("publicIp"),
+            "portMappings":p.get("portMappings"),
+            "costPerHr":p.get("costPerHr"),
+            "runtime":p.get("runtime"),
+            "raw":p
+          }
+          Path(".github/runpod-control/auth17-runtime-probe2-result.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print(json.dumps(out,sort_keys=True))
+          PY
+          git config user.name aqlevon-runpod-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/runpod-control/auth17-runtime-probe2-result.json
+          git commit -m "runtime: record Auth17 exact pod probe v2 [skip ci]" || true
+          git pull --rebase origin ops/one-day-verified-trajectory-20260925
+          git push origin HEAD:ops/one-day-verified-trajectory-20260925
