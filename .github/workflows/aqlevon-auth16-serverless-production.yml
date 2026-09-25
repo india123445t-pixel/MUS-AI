@@ -1,0 +1,211 @@
+name: AQLEVON Auth16 Serverless Production
+on:
+  push:
+    branches: [release/aqlevon-unified-live-20260925]
+    paths: [".github/deploy/execute-auth16-serverless.json"]
+permissions:
+  contents: write
+  actions: read
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/aqlevon-unified-live-20260925
+          fetch-depth: 0
+
+      - name: Validate canonical release and package frozen Auth16 adapter
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${RUNPOD_API_KEY:-}"
+          mkdir -p .github/deploy /tmp/auth16zip /tmp/auth16ev /tmp/auth16adapter
+          curl -fsSL -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json"             https://api.github.com/repos/india123445t-pixel/MUS-AI/actions/artifacts/10883200678/zip -o /tmp/auth16.zip
+          unzip -q /tmp/auth16.zip -d /tmp/auth16zip
+          EVIDENCE="$(find /tmp/auth16zip -name 'auth16-evidence.tgz' -o -name 'evidence.tgz' | head -n1)"
+          test -n "$EVIDENCE"
+          tar -xzf "$EVIDENCE" -C /tmp/auth16ev
+          ADAPTER="$(find /tmp/auth16ev -name adapter_model.safetensors | head -n1)"
+          CONFIG="$(find /tmp/auth16ev -name adapter_config.json | head -n1)"
+          test -n "$ADAPTER" -a -n "$CONFIG"
+          got="$(sha256sum "$ADAPTER" | awk '{print $1}')"
+          test "$got" = "2d4f0c3528129e702dfa0af27fad467d411f355b9ea72e771942d0f6703e2b2a"
+          cp "$ADAPTER" /tmp/auth16adapter/adapter_model.safetensors
+          cp "$CONFIG" /tmp/auth16adapter/adapter_config.json
+          tar -czf /tmp/aqlevon-auth16-adapter.tgz -C /tmp/auth16adapter .
+          sha256sum /tmp/aqlevon-auth16-adapter.tgz > /tmp/aqlevon-auth16-adapter.tgz.sha256
+          echo "AQLEVON_ADAPTER_VERIFIED $got"
+
+      - name: Publish immutable public runtime asset
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="aqlevon-auth16-runtime-20260925"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" /tmp/aqlevon-auth16-adapter.tgz /tmp/aqlevon-auth16-adapter.tgz.sha256 --clobber
+          else
+            gh release create "$TAG" /tmp/aqlevon-auth16-adapter.tgz /tmp/aqlevon-auth16-adapter.tgz.sha256               --title "AQLEVON Auth16 Runtime"               --notes "Frozen Auth16 LoRA runtime asset. Adapter SHA256: 2d4f0c3528129e702dfa0af27fad467d411f355b9ea72e771942d0f6703e2b2a"
+          fi
+          curl -fsSL "https://github.com/india123445t-pixel/MUS-AI/releases/download/$TAG/aqlevon-auth16-adapter.tgz" -o /tmp/public-adapter.tgz
+          test "$(sha256sum /tmp/public-adapter.tgz | awk '{print $1}')" = "$(sha256sum /tmp/aqlevon-auth16-adapter.tgz | awk '{print $1}')"
+          echo "AQLEVON_PUBLIC_ASSET_PASS"
+
+      - name: Install Runpod CLI and inspect current serverless state
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -sSL https://cli.runpod.net | sudo bash >/dev/null
+          runpodctl version || true
+          runpodctl serverless list > /tmp/serverless-before.json
+          runpodctl template list --type user --all > /tmp/templates-before.json || true
+          runpodctl gpu list --output json > /tmp/gpus.json
+          python3 - <<'PY'
+          import json
+          gs=json.load(open('/tmp/gpus.json'))
+          ok=[]
+          for g in gs:
+              if g.get('gpuId')=='NVIDIA GeForce RTX 4090':
+                  ok.append(g)
+          assert ok, 'RTX4090_gpu_type_missing'
+          print('AQLEVON_GPU_TYPE_PASS')
+          PY
+
+      - name: Create or reuse Auth16 serverless template
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          try: data=json.load(open('/tmp/templates-before.json'))
+          except Exception: data=[]
+          xs=data if isinstance(data,list) else data.get('templates') or data.get('items') or []
+          for x in xs:
+              if x.get('name')=='AQLEVON-Auth16-Serverless-v1':
+                  print(x.get('id') or x.get('templateId') or '')
+                  break
+          PY
+          > /tmp/template-id-existing || true
+          TEMPLATE_ID="$(tr -d '\n\r ' </tmp/template-id-existing)"
+          if [ -z "$TEMPLATE_ID" ]; then
+            START_CMD='-lc "set -euo pipefail; mkdir -p /opt/aqlevon-adapter; curl -fsSL https://github.com/india123445t-pixel/MUS-AI/releases/download/aqlevon-auth16-runtime-20260925/aqlevon-auth16-adapter.tgz | tar -xz -C /opt/aqlevon-adapter; test \"$(sha256sum /opt/aqlevon-adapter/adapter_model.safetensors | awk '\''{print $1}'\'')\" = \"2d4f0c3528129e702dfa0af27fad467d411f355b9ea72e771942d0f6703e2b2a\"; exec python3 /src/main.py"'
+            runpodctl template create               --name "AQLEVON-Auth16-Serverless-v1"               --image "runpod/worker-v1-vllm:v2.24.0"               --serverless               --container-disk-in-gb 20               --docker-entrypoint "/bin/bash"               --docker-start-cmd "$START_CMD"               --env MODEL_NAME=Qwen/Qwen3.5-4B-Base               --env MODEL_REVISION=daa9c16f371249f9ad1c75a9ed6f956c08ea08f5               --env MAX_MODEL_LEN=4096               --env GPU_MEMORY_UTILIZATION=0.88               --env MAX_NUM_SEQS=8               --env ENFORCE_EAGER=true               --env VLLM_EXTRA_ARGS="--enable-lora --max-lora-rank 8 --lora-modules AQLEVON-4B-Auth16=/opt/aqlevon-adapter"               > /tmp/template-created.json
+            python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/template-created.json'))
+          i=d.get('id') or d.get('templateId') or (d.get('template') or {}).get('id')
+          assert i,d
+          open('/tmp/template-id','w').write(str(i))
+          print('AQLEVON_TEMPLATE_CREATED',i)
+          PY
+          else
+            printf '%s' "$TEMPLATE_ID" >/tmp/template-id
+            echo "AQLEVON_TEMPLATE_REUSED $TEMPLATE_ID"
+          fi
+
+      - name: Create or reuse scale-to-zero endpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          runpodctl serverless list --include-template --include-workers > /tmp/endpoints.json
+          python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/endpoints.json'))
+          xs=d if isinstance(d,list) else d.get('endpoints') or d.get('items') or []
+          found=None
+          for x in xs:
+              if x.get('name')=='AQLEVON-Auth16-Live':
+                  found=x; break
+          if found:
+              open('/tmp/endpoint-id','w').write(str(found.get('id')))
+              print('AQLEVON_ENDPOINT_REUSE',found.get('id'))
+          PY
+          if [ ! -s /tmp/endpoint-id ]; then
+            runpodctl serverless create               --name "AQLEVON-Auth16-Live"               --template-id "$(cat /tmp/template-id)"               --gpu-id "NVIDIA GeForce RTX 4090"               --gpu-count 1               --workers-min 0               --workers-max 1               --model-reference "https://huggingface.co/Qwen/Qwen3.5-4B-Base:daa9c16f371249f9ad1c75a9ed6f956c08ea08f5"               > /tmp/endpoint-created.json
+            python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/endpoint-created.json'))
+          i=d.get('id') or d.get('endpointId') or (d.get('endpoint') or {}).get('id')
+          assert i,d
+          open('/tmp/endpoint-id','w').write(str(i))
+          print('AQLEVON_ENDPOINT_CREATED',i)
+          PY
+          fi
+          EP="$(cat /tmp/endpoint-id)"
+          runpodctl serverless update "$EP" --workers-min 0 --workers-max 1 --idle-timeout 5 --scaler-type QUEUE_DELAY --scaler-value 1 >/tmp/endpoint-updated.json
+          runpodctl serverless get "$EP" --include-template --include-workers > /tmp/endpoint-final.json
+          python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/endpoint-final.json'))
+          assert int(d.get('workersMin',-1))==0,d
+          assert int(d.get('workersMax',-1))==1,d
+          print('AQLEVON_SCALE_TO_ZERO_PASS',d.get('id'))
+          PY
+
+      - name: Smoke test exact Auth16 through Serverless OpenAI API
+        shell: bash
+        run: |
+          set -euo pipefail
+          EP="$(cat /tmp/endpoint-id)"
+          URL="https://api.runpod.ai/v2/$EP/openai/v1/chat/completions"
+          cat >/tmp/smoke.json <<'JSON'
+          {"model":"AQLEVON-4B-Auth16","messages":[{"role":"user","content":"Return only this exact text: AQLEVON_AUTH16_READY"}],"temperature":0,"max_tokens":32}
+          JSON
+          ok=0
+          for i in $(seq 1 4); do
+            code="$(curl -sS -o /tmp/smoke-out.json -w '%{http_code}' --max-time 300 -X POST "$URL"               -H "Authorization: Bearer $RUNPOD_API_KEY" -H "Content-Type: application/json" --data-binary @/tmp/smoke.json || true)"
+            echo "AQLEVON_SERVERLESS_SMOKE_ATTEMPT=$i HTTP=$code"
+            if [ "$code" = 200 ]; then ok=1; break; fi
+            cat /tmp/smoke-out.json || true
+            sleep 15
+          done
+          test "$ok" = 1
+          python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/smoke-out.json'))
+          t=d['choices'][0]['message']['content'].strip()
+          assert t, d
+          print('AQLEVON_SERVERLESS_SMOKE_PASS',t[:200])
+          PY
+
+      - name: Persist serverless receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          EP="$(cat /tmp/endpoint-id)"
+          python3 - <<'PY'
+          import json,datetime,hashlib
+          from pathlib import Path
+          d=json.load(open('/tmp/endpoint-final.json'))
+          out={
+            "kind":"AQLEVON_AUTH16_SERVERLESS_LIVE_V1",
+            "recorded_at_utc":datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "status":"LIVE_SMOKE_VERIFIED_SCALE_TO_ZERO",
+            "endpoint_id":Path('/tmp/endpoint-id').read_text().strip(),
+            "template_id":Path('/tmp/template-id').read_text().strip(),
+            "model":"AQLEVON-4B-Auth16",
+            "base_repo":"Qwen/Qwen3.5-4B-Base",
+            "base_revision":"daa9c16f371249f9ad1c75a9ed6f956c08ea08f5",
+            "adapter_sha256":"2d4f0c3528129e702dfa0af27fad467d411f355b9ea72e771942d0f6703e2b2a",
+            "workers_min":0,
+            "workers_max":1,
+            "idle_timeout_seconds":5,
+            "gpu":"NVIDIA GeForce RTX 4090",
+            "openai_base_url":"https://api.runpod.ai/v2/"+Path('/tmp/endpoint-id').read_text().strip()+"/openai/v1",
+            "chat_url":"https://api.runpod.ai/v2/"+Path('/tmp/endpoint-id').read_text().strip()+"/openai/v1/chat/completions",
+            "serverless_control_snapshot":d,
+            "worker05_final_gene_claim":False
+          }
+          Path('.github/deploy/auth16-serverless-live.json').write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          PY
+          git config user.name aqlevon-deploy-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/deploy/auth16-serverless-live.json
+          git commit -m "deploy: record Auth16 serverless live endpoint [skip ci]" || true
+          git fetch origin release/aqlevon-unified-live-20260925
+          git rebase origin/release/aqlevon-unified-live-20260925 || { git rebase --abort || true; exit 1; }
+          git push origin HEAD:release/aqlevon-unified-live-20260925
