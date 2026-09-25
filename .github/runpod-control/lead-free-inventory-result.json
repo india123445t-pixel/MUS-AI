@@ -1,32 +1,20 @@
 {
   "balances": [
-    13.7587792705
+    13.4629001288
   ],
-  "checked_at_utc": "2026-09-25T11:50:07.462411+00:00",
+  "checked_at_utc": "2026-09-25T13:30:59.078762+00:00",
   "gpu_catalog": [
     {
       "datacenters": [
         {
-          "id": "US-MD-1",
+          "id": "CA-MTL-3",
           "stock": "Low"
         }
       ],
-      "gpu_id": "NVIDIA A100-SXM4-80GB",
+      "gpu_id": "NVIDIA A100 80GB PCIe",
       "price_hr": 1.59,
       "stock": "Low",
       "vram_gb": 80
-    },
-    {
-      "datacenters": [
-        {
-          "id": "CA-MTL-1",
-          "stock": "Low"
-        }
-      ],
-      "gpu_id": "NVIDIA A40",
-      "price_hr": 0.49,
-      "stock": "Low",
-      "vram_gb": 48
     },
     {
       "datacenters": [
@@ -45,6 +33,10 @@
         {
           "id": "US-GA-2",
           "stock": "Low"
+        },
+        {
+          "id": "US-NE-1",
+          "stock": "Low"
         }
       ],
       "gpu_id": "NVIDIA H100 80GB HBM3",
@@ -55,7 +47,7 @@
     {
       "datacenters": [
         {
-          "id": "EUR-IS-1",
+          "id": "EU-CZ-1",
           "stock": "Low"
         },
         {
@@ -63,7 +55,7 @@
           "stock": "Low"
         },
         {
-          "id": "US-KS-2",
+          "id": "US-MD-1",
           "stock": "Low"
         },
         {
@@ -76,6 +68,10 @@
         },
         {
           "id": "US-NE-1",
+          "stock": "Low"
+        },
+        {
+          "id": "US-PA-1",
           "stock": "Low"
         }
       ],
@@ -107,7 +103,7 @@
     {
       "datacenters": [
         {
-          "id": "EUR-IS-2",
+          "id": "US-NE-1",
           "stock": "Low"
         },
         {
@@ -119,9 +115,61 @@
       "price_hr": 1.09,
       "stock": "Low",
       "vram_gb": 48
+    },
+    {
+      "datacenters": [
+        {
+          "id": "EU-CZ-1",
+          "stock": "Low"
+        }
+      ],
+      "gpu_id": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+      "price_hr": 2.19,
+      "stock": "Low",
+      "vram_gb": 96
     }
   ],
   "pods": [
+    {
+      "id": "lwd6ycwh1qxv8v",
+      "machine_id": "xhp1fy6ge6go",
+      "name": "AQLEVON-P4-A0-SFT-FLEX07-20260925",
+      "public_ip_present": false,
+      "rate": 0.49,
+      "runtime_status": null,
+      "ssh_port_present": false,
+      "status": "EXITED"
+    },
+    {
+      "id": "j5eezx11se1xm8",
+      "machine_id": "w20ky6oytt11",
+      "name": "AQLEVON-P4-A0-SFT-FLEX06-20260925",
+      "public_ip_present": false,
+      "rate": 0.49,
+      "runtime_status": null,
+      "ssh_port_present": false,
+      "status": "EXITED"
+    },
+    {
+      "id": "qqgof13ou1fu01",
+      "machine_id": "82r1c670g46x",
+      "name": "AQLEVON-P4-A0-SFT-FLEX05-20260925",
+      "public_ip_present": false,
+      "rate": 1.59,
+      "runtime_status": null,
+      "ssh_port_present": false,
+      "status": "EXITED"
+    },
+    {
+      "id": "ho5g1vqnkapznu",
+      "machine_id": "96n8a31lcj0g",
+      "name": "AQLEVON-P4-A0-SFT-FLEX-20260925",
+      "public_ip_present": false,
+      "rate": 1.59,
+      "runtime_status": null,
+      "ssh_port_present": false,
+      "status": "EXITED"
+    },
     {
       "id": "n2di6l60loo70j",
       "machine_id": "mrii00nzhxlp",
