@@ -28,8 +28,12 @@ jobs:
           rm -rf /tmp/auth16-artifact /tmp/auth16-release
           mkdir -p /tmp/auth16-artifact /tmp/auth16-release
           unzip -q /tmp/auth16-artifact.zip -d /tmp/auth16-artifact
-          model="$(find /tmp/auth16-artifact -type f -name adapter_model.safetensors | head -n1)"
-          config="$(find /tmp/auth16-artifact -type f -name adapter_config.json | head -n1)"
+          inner="$(find /tmp/auth16-artifact -maxdepth 2 -type f -name 'auth16-evidence.tgz' | head -n1)"
+          test -n "$inner"
+          mkdir -p /tmp/auth16-inner
+          tar -xzf "$inner" -C /tmp/auth16-inner
+          model="$(find /tmp/auth16-inner -type f -name adapter_model.safetensors | head -n1)"
+          config="$(find /tmp/auth16-inner -type f -name adapter_config.json | head -n1)"
           test -n "$model" && test -n "$config"
           got="$(sha256sum "$model" | awk '{print $1}')"
           test "$got" = "$EXPECTED_SHA"
