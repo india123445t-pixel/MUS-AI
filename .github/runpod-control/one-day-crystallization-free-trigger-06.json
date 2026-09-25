@@ -4,5 +4,7 @@
   "authorization_sha256": "271d954f40b5e9c67f75106cc1e0e480f9cb7b2ea12a1919383a79aa597cf327",
   "expected_source_head": "f3a2ca4c894e81cf9dffa1dd9935a3774b854cdb",
   "paid_resource_created": false,
-  "requested_at_utc": "2026-09-25T15:14:00Z"
+  "requested_at_utc": "2026-09-25T15:18:00Z",
+  "retry_sequence": 2,
+  "reason": "rerun zero-spend seal after binding Auth06 to immutable frozen source branch"
 }
