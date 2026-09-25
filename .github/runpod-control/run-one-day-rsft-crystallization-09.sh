@@ -8,6 +8,7 @@ CONSUMED=".github/runpod-control/one-day-rsft-crystallization-consumed-09.json"
 RESULT=".github/runpod-control/one-day-rsft-crystallization-run-result-09.json"
 SOURCE_HEAD="7b35fab86da22e46804e9af6f311a88ea5b02e27"
 SOURCE_BLOB="930e6742f15b77cfa4653485ea7be91d1d965fcb"
+RECOVERY_HEAD="529e665ea140c2f8d6b96c02a42c100e9075c037"
 W02_HEAD="abb94ef134e2e97036b6959dbc9db4278d3736b6"
 AUTH_ID="P4-ONE-DAY-RSFT-CRYSTALLIZATION-20260925-09"
 AUTH_SHA="76bdd6d24ba6007c3bc702568f026dfcf4d69d44a85f129510d127844f6adcc6"
@@ -50,7 +51,7 @@ assert float(a["fresh_authorization_spend_before_auth09_usd"])+float(a["max_tota
 print("AQLEVON_AUTH09_DRIVER_CONTRACT_PASS")
 PY
 
-git fetch -q origin "$SOURCE_HEAD" "$W02_HEAD"
+git fetch -q origin "$SOURCE_HEAD" "$RECOVERY_HEAD" "$W02_HEAD"
 blob="$(git rev-parse "$SOURCE_HEAD:research/weight_factory/agent03/p4_one_day_rsft_crystallize.py")"
 test "$blob" = "$SOURCE_BLOB"
 rm -rf /tmp/rsft-source
@@ -60,10 +61,12 @@ printf "%s\n" "$SOURCE_HEAD" > /tmp/rsft-source/.aqlevon_source_head
 test "$(cat /tmp/rsft-source/.aqlevon_source_head)" = "$SOURCE_HEAD"
 git show "$W02_HEAD":research/weight_factory/agent02/gene1_training_visible_pack_v1.json > /tmp/public-pack.json
 git show "$W02_HEAD":research/weight_factory/agent02/gene1_data_verifier_pack_v1.py > /tmp/w02.py
-python3 -m py_compile /tmp/rsft-source/research/weight_factory/agent03/p4_one_day_recovered_materializer.py
+git show "$RECOVERY_HEAD":research/weight_factory/agent03/p4_one_day_recovered_materializer.py > /tmp/materializer09.py
+git show "$RECOVERY_HEAD":research/weight_factory/agent03/auth05_recovered_material_decision.json > /tmp/recovered09.json
+python3 -m py_compile /tmp/materializer09.py
 python3 -m py_compile /tmp/rsft-source/research/weight_factory/agent03/p4_one_day_rsft_crystallize.py
-python3 /tmp/rsft-source/research/weight_factory/agent03/p4_one_day_recovered_materializer.py \
-  --recovered-decision /tmp/rsft-source/research/weight_factory/agent03/auth05_recovered_material_decision.json \
+python3 /tmp/materializer09.py \
+  --recovered-decision /tmp/recovered09.json \
   --training-pack /tmp/public-pack.json --output /tmp/recovered-materialized-probe.json > /tmp/materializer08.log
 grep -q 'train_targets=6 shadow_targets=0' /tmp/materializer08.log
 python3 /tmp/rsft-source/research/weight_factory/agent03/p4_one_day_rsft_crystallize.py \
