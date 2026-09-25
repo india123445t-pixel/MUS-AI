@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - fix/workspace-readiness-truth-20260922
+      - preview/ui-readiness-20260925-final
+      - release/aqlevon-unified-production-20260925
   workflow_dispatch:
 
 permissions:
