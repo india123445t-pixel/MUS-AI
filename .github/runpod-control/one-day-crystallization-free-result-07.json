@@ -1,0 +1,14 @@
+{
+  "active_aqlevon_pods": [],
+  "authorization_id": "P4-ONE-DAY-CRYSTALLIZATION-20260925-07",
+  "authorization_sha256": "7e5ccecce48c2340e45d2c9ccbfe6641a2aaccdca1675729a97d8d6dceddd222",
+  "balance_usd": 12.2048007993,
+  "checked_at_utc": "2026-09-25T15:34:08.728273+00:00",
+  "dynamic_max_billed_seconds": 1800,
+  "kind": "AQLEVON_ONE_DAY_CRYSTALLIZATION_FREE_SEAL_V2",
+  "paid_resource_created": false,
+  "selected_datacenter": "US-KS-2",
+  "selected_gpu_id": "NVIDIA A100-SXM4-80GB",
+  "selected_price_hr": 1.59,
+  "source_head": "f3a2ca4c894e81cf9dffa1dd9935a3774b854cdb"
+}
