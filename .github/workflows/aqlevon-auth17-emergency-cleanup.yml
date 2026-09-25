@@ -1,0 +1,49 @@
+name: AQLEVON Auth17 Emergency Cleanup
+on:
+  push:
+    branches: [ops/one-day-verified-trajectory-20260925]
+    paths: [".github/runpod-control/auth17-emergency-cleanup-trigger.json"]
+permissions:
+  contents: write
+jobs:
+  cleanup:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/one-day-verified-trajectory-20260925
+          fetch-depth: 0
+      - name: Stop/delete exact Auth17 pod
+        shell: bash
+        run: |
+          set -euo pipefail
+          pod=ok0ftr5dsnls1z
+          code="$(curl -sS -o /tmp/pre17.json -w '%{http_code}' "https://rest.runpod.io/v1/pods/$pod" -H "Authorization: Bearer $RUNPOD_API_KEY" || true)"
+          existed=true
+          if [ "$code" = 404 ]; then existed=false; else
+            curl -sS -X POST "https://rest.runpod.io/v1/pods/$pod/stop" -H "Authorization: Bearer $RUNPOD_API_KEY" -H 'Content-Type: application/json' -d '{}' >/tmp/stop17.json || true
+            sleep 2
+            curl -sS -X DELETE "https://rest.runpod.io/v1/pods/$pod" -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/delete17.json || true
+          fi
+          deleted=0
+          for i in $(seq 1 30); do
+            code="$(curl -sS -o /tmp/final17.json -w '%{http_code}' "https://rest.runpod.io/v1/pods/$pod" -H "Authorization: Bearer $RUNPOD_API_KEY" || true)"
+            if [ "$code" = 404 ]; then deleted=1; break; fi
+            sleep 2
+          done
+          test "$deleted" = 1
+          python3 - "$existed" <<'PY'
+          import datetime,json,sys
+          from pathlib import Path
+          out={"kind":"AQLEVON_AUTH17_EMERGENCY_CLEANUP_V1","pod_id":"ok0ftr5dsnls1z","checked_at_utc":datetime.datetime.now(datetime.timezone.utc).isoformat(),"existed_before_cleanup":sys.argv[1]=="true","stopped_and_deleted":True}
+          Path(".github/runpod-control/auth17-emergency-cleanup-result.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          PY
+          git config user.name aqlevon-runpod-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/runpod-control/auth17-emergency-cleanup-result.json
+          git commit -m "runtime: record Auth17 emergency cleanup [skip ci]" || true
+          git pull --rebase origin ops/one-day-verified-trajectory-20260925
+          git push origin HEAD:ops/one-day-verified-trajectory-20260925
