@@ -1,0 +1,286 @@
+name: AQLEVON One-Day Synthetic Curriculum Auth16 HTTP
+on:
+  push:
+    branches: [ops/one-day-verified-trajectory-20260925]
+    paths: [".github/runpod-control/execute-one-day-synthetic-curriculum-16.json"]
+permissions:
+  contents: write
+concurrency:
+  group: aqlevon-p4-paid-single-use
+  cancel-in-progress: false
+jobs:
+  execute:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 42
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/one-day-verified-trajectory-20260925
+          fetch-depth: 0
+      - name: Execute Auth16 HTTP bootstrap
+        shell: bash
+        run: |
+          set -euo pipefail
+          AUTH=.github/runpod-control/one-day-synthetic-curriculum-manager-authorization-16-20260925.json
+          FREE=.github/runpod-control/auth16-http-free-result.json
+          TRIGGER=.github/runpod-control/execute-one-day-synthetic-curriculum-16.json
+          CONSUMED=.github/runpod-control/one-day-synthetic-curriculum-consumed-16.json
+          RESULT=.github/runpod-control/one-day-synthetic-curriculum-run-result-16.json
+          LIVE=.github/runpod-control/one-day-synthetic-curriculum-live-selection-16.json
+          AUTH_ID=P4-ONE-DAY-SYNTHETIC-CURRICULUM-20260925-16
+          AUTH_SHA=2fe1047c9660f1fb8fc4cd9115b93764e81dbec36ccc13935286a5d176758cb9
+          IMAGE_DIGEST=sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec
+          BOOT_COMMIT=0ccf145cd1a9ce7c52387c63f671a0d17d0b4fb6
+          BOOT_URL="https://raw.githubusercontent.com/india123445t-pixel/MUS-AI/$BOOT_COMMIT/.github/runpod-control/auth16-http-bootstrap.sh"
+          pod=""
+          cleaned=0
+
+          cleanup() {
+            status=$?
+            if [ -n "$pod" ] && [ "$cleaned" != 1 ]; then
+              echo "AQLEVON_AUTH16_EXIT_CLEANUP pod=$pod status=$status"
+              curl -sS -X POST "https://rest.runpod.io/v1/pods/$pod/stop" -H "Authorization: Bearer $RUNPOD_API_KEY" -H 'Content-Type: application/json' -d '{}' >/tmp/auth16-exit-stop.json || true
+              sleep 2
+              curl -sS -X DELETE "https://rest.runpod.io/v1/pods/$pod" -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/auth16-exit-delete.json || true
+            fi
+            exit "$status"
+          }
+          trap cleanup EXIT
+
+          test -n "${RUNPOD_API_KEY:-}"
+          test ! -e "$CONSUMED"
+          python3 - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          a=json.loads(Path(".github/runpod-control/one-day-synthetic-curriculum-manager-authorization-16-20260925.json").read_text())
+          f=json.loads(Path(".github/runpod-control/auth16-http-free-result.json").read_text())
+          t=json.loads(Path(".github/runpod-control/execute-one-day-synthetic-curriculum-16.json").read_text())
+          h=hashlib.sha256(json.dumps({k:v for k,v in a.items() if k!="authorization_sha256"},sort_keys=True,separators=(",",":"),ensure_ascii=False,allow_nan=False).encode()).hexdigest()
+          assert h==a["authorization_sha256"]=="2fe1047c9660f1fb8fc4cd9115b93764e81dbec36ccc13935286a5d176758cb9"
+          assert a["authorization_id"]==f["authorization_id"]==t["authorization_id"]=="P4-ONE-DAY-SYNTHETIC-CURRICULUM-20260925-16"
+          assert a["single_use"] is True and a["training_authorized"] is True
+          assert a["transport"]=="HTTP_PROXY_BOOTSTRAP" and a["http_port"]==8000
+          assert f["status"]=="PASS" and f["paid_resource_created"] is False
+          assert a["max_total_cost_usd"]=="0.70" and a["max_hourly_rate_usd"]=="1.60" and a["max_billed_seconds"]==1500
+          assert float(a["conservative_mission_spend_before_auth16_usd"])+float(a["max_total_cost_usd"])<=float(a["mission_max_total_usd"])
+          assert a["bootstrap_commit"]=="0ccf145cd1a9ce7c52387c63f671a0d17d0b4fb6"
+          assert a["candidate_source_blob"]=="cb86e6494fada78328310dfe5900e75205862ee0"
+          print("AQLEVON_AUTH16_DRIVER_CONTRACT_PASS")
+          PY
+
+          # Live fail-closed checks immediately before paid creation.
+          curl -fsS https://rest.runpod.io/v1/pods -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/pods16.json
+          python3 - <<'PY'
+          import json
+          p=json.load(open("/tmp/pods16.json")); xs=p if isinstance(p,list) else p.get("pods") or p.get("items") or []
+          active=[x for x in xs if str(x.get("name","")).startswith("AQLEVON-") and str(x.get("desiredStatus") or x.get("status"))!="EXITED"]
+          assert not active,active
+          print("AQLEVON_AUTH16_NO_ACTIVE_PODS_PASS")
+          PY
+          curl -sSL https://cli.runpod.net | sudo bash >/dev/null
+          runpodctl gpu list --output json >/tmp/gpus16.json
+          python3 - <<'PY'
+          import datetime,json
+          from pathlib import Path
+          a=json.load(open(".github/runpod-control/one-day-synthetic-curriculum-manager-authorization-16-20260925.json"))
+          choices=[]
+          for g in json.load(open("/tmp/gpus16.json")):
+              gid=str(g.get("gpuId",""))
+              if gid!="NVIDIA A100-SXM4-80GB" or not g.get("secureCloud"): continue
+              price=float(g.get("securePricePerHr") or 999)
+              if price>float(a["max_hourly_rate_usd"]): continue
+              for d in g.get("dataCenterAvailability") or []:
+                  if str(d.get("stockStatus")).lower()!="none" and d.get("dataCenterId"):
+                      secs=min(int(a["max_billed_seconds"]),int(float(a["max_total_cost_usd"])*3600/price))
+                      if secs>=1200: choices.append((price,gid,str(d["dataCenterId"]),secs))
+          assert choices,"no_auth16_gpu_stock_at_paid_boundary"
+          price,gpu,observed_dc,secs=sorted(choices)[0]
+          out={
+            "selected_gpu_id":gpu,
+            "selected_datacenter":"UNPINNED_ANY_AVAILABLE",
+            "observed_capacity_datacenter":observed_dc,
+            "selected_price_hr":price,
+            "dynamic_max_billed_seconds":secs,
+            "transport":"HTTP_PROXY_BOOTSTRAP",
+            "paid_boundary_refresh_at_utc":datetime.datetime.now(datetime.timezone.utc).isoformat()
+          }
+          Path("/tmp/selected_gpu16").write_text(gpu)
+          Path(".github/runpod-control/one-day-synthetic-curriculum-live-selection-16.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("AQLEVON_AUTH16_LIVE_SELECTION",gpu,observed_dc,price,secs)
+          PY
+
+          DOCKER_ARGS="bash -lc 'curl -fsSL $BOOT_URL -o /tmp/auth16-http-bootstrap.sh && chmod +x /tmp/auth16-http-bootstrap.sh && exec bash /tmp/auth16-http-bootstrap.sh'"
+          runpodctl pod create --name AQLEVON-ONE-DAY-SYNTH-16             --image "ghcr.io/india123445t-pixel/mus-ai@$IMAGE_DIGEST"             --gpu-id "$(cat /tmp/selected_gpu16)" --gpu-count 1 --cloud-type SECURE             --container-disk-in-gb 40 --ports 8000/http --ssh=false             --docker-args "$DOCKER_ARGS" --output json > /tmp/create16.json
+
+          python3 - <<'PY'
+          import datetime,json,time
+          from pathlib import Path
+          p=json.load(open("/tmp/create16.json")); pod=p.get("id") or p.get("podId"); assert pod
+          Path("/tmp/pod_id16").write_text(str(pod)); Path("/tmp/pod_created_epoch16").write_text(str(int(time.time())))
+          sel=json.load(open(".github/runpod-control/one-day-synthetic-curriculum-live-selection-16.json"))
+          out={
+            "authorization_id":"P4-ONE-DAY-SYNTHETIC-CURRICULUM-20260925-16",
+            "authorization_sha256":"2fe1047c9660f1fb8fc4cd9115b93764e81dbec36ccc13935286a5d176758cb9",
+            "source_head":"22b95b0fdfaf97c3ba3314a94c2413d45439cc6e",
+            "bootstrap_commit":"0ccf145cd1a9ce7c52387c63f671a0d17d0b4fb6",
+            "image_digest":"sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec",
+            "pod_id":pod,
+            "created_at_utc":datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "single_use_consumed":True,
+            "training_authorized":True,
+            **sel
+          }
+          Path(".github/runpod-control/one-day-synthetic-curriculum-consumed-16.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("AQLEVON_AUTH16_POD_CREATED",pod)
+          PY
+          pod="$(cat /tmp/pod_id16)"
+          git config user.name aqlevon-runpod-bot
+          git config user.email actions@users.noreply.github.com
+          git add "$CONSUMED" "$LIVE"
+          git commit -m "ops: consume Auth16 HTTP synthetic authorization [skip ci]"
+          git fetch origin ops/one-day-verified-trajectory-20260925
+          git rebase origin/ops/one-day-verified-trajectory-20260925 || { git rebase --abort || true; exit 1; }
+          git push origin HEAD:ops/one-day-verified-trajectory-20260925
+
+          proxy="https://$pod-8000.proxy.runpod.net"
+          http_seen=0
+          final_stage=""
+          last_ok_epoch=0
+          for i in $(seq 1 300); do
+            now="$(date +%s)"
+            elapsed=$(( now - $(cat /tmp/pod_created_epoch16) ))
+            if curl -fsS --connect-timeout 5 --max-time 10 "$proxy/status.json?t=$now" -o /tmp/auth16-status.json 2>/dev/null; then
+              http_seen=1; last_ok_epoch="$now"
+              stage="$(python3 - <<'PY'
+          import json
+          try: print(json.load(open("/tmp/auth16-status.json")).get("stage",""))
+          except Exception: print("")
+          PY
+          )"
+              echo "AQLEVON_AUTH16_HTTP_STATUS elapsed=$elapsed stage=$stage"
+              case "$stage" in DONE|FAILED) final_stage="$stage"; break;; esac
+            elif [ "$http_seen" = 1 ] && [ "$last_ok_epoch" -gt 0 ] && [ $((now-last_ok_epoch)) -gt 120 ]; then
+              final_stage="HTTP_LOST"; break
+            fi
+            if [ "$http_seen" = 0 ] && [ "$elapsed" -ge 300 ]; then final_stage="HTTP_READINESS_TIMEOUT"; break; fi
+            if [ "$elapsed" -ge 1450 ]; then final_stage="BILLING_WINDOW_TIMEOUT"; break; fi
+            sleep 5
+          done
+          printf '%s\n' "$final_stage" >/tmp/auth16_final_stage
+
+          if [ "$final_stage" = "DONE" ] || [ "$final_stage" = "FAILED" ]; then
+            curl -fsS --connect-timeout 10 --max-time 180 "$proxy/evidence.tgz" -o /tmp/auth16-evidence.tgz || true
+          fi
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path("/tmp/auth16-evidence.tgz")
+          if p.exists():
+              size=p.stat().st_size
+              assert 0<size<=1073741824,size
+              print("AQLEVON_AUTH16_EGRESS_PASS",size)
+          PY
+
+          # Stop/delete exact Pod before committing terminal science receipt.
+          curl -sS -X POST "https://rest.runpod.io/v1/pods/$pod/stop" -H "Authorization: Bearer $RUNPOD_API_KEY" -H 'Content-Type: application/json' -d '{}' >/tmp/stop16.json || true
+          for i in $(seq 1 30); do
+            sleep 2
+            code="$(curl -sS -o /tmp/stop16-probe.json -w '%{http_code}' "https://rest.runpod.io/v1/pods/$pod" -H "Authorization: Bearer $RUNPOD_API_KEY" || true)"
+            [ "$code" = 404 ] && break
+            python3 -c 'import json,sys; p=json.load(open("/tmp/stop16-probe.json")); sys.exit(0 if p.get("desiredStatus")=="EXITED" else 1)' && break || true
+          done
+          curl -sS -X DELETE "https://rest.runpod.io/v1/pods/$pod" -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/delete16.json || true
+          for i in $(seq 1 30); do
+            code="$(curl -sS -o /tmp/final16.json -w '%{http_code}' "https://rest.runpod.io/v1/pods/$pod" -H "Authorization: Bearer $RUNPOD_API_KEY" || true)"
+            if [ "$code" = 404 ]; then cleaned=1; break; fi
+            sleep 2
+          done
+          test "$cleaned" = 1
+
+          python3 - <<'PY'
+          import datetime,hashlib,json,tarfile
+          from pathlib import Path
+          def txt(p): return Path(p).read_text().strip() if Path(p).exists() else None
+          start=txt("/tmp/pod_created_epoch16")
+          elapsed=int(datetime.datetime.now(datetime.timezone.utc).timestamp())-int(start) if start else None
+          sel=json.load(open(".github/runpod-control/one-day-synthetic-curriculum-live-selection-16.json"))
+          stage=txt("/tmp/auth16_final_stage")
+          status={}
+          if Path("/tmp/auth16-status.json").exists():
+              try: status=json.loads(Path("/tmp/auth16-status.json").read_text())
+              except Exception: pass
+          out={
+            "kind":"AQLEVON_ONE_DAY_SYNTHETIC_CURRICULUM_HTTP_RUN_RECEIPT_V1",
+            "authorization_id":"P4-ONE-DAY-SYNTHETIC-CURRICULUM-20260925-16",
+            "authorization_sha256":"2fe1047c9660f1fb8fc4cd9115b93764e81dbec36ccc13935286a5d176758cb9",
+            "source_head":"22b95b0fdfaf97c3ba3314a94c2413d45439cc6e",
+            "bootstrap_commit":"0ccf145cd1a9ce7c52387c63f671a0d17d0b4fb6",
+            "pod_id":txt("/tmp/pod_id16"),
+            "checked_at_utc":datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "transport":"HTTP_PROXY_BOOTSTRAP",
+            "final_transport_stage":stage,
+            "http_status":status,
+            "rate_per_hour_usd":sel.get("selected_price_hr"),
+            "billed_seconds_estimate":elapsed,
+            "compute_cost_estimate_usd":round(float(sel["selected_price_hr"])*elapsed/3600,6) if elapsed is not None else None,
+            "evidence_archive_present":Path("/tmp/auth16-evidence.tgz").exists(),
+            "evidence_archive_sha256":hashlib.sha256(Path("/tmp/auth16-evidence.tgz").read_bytes()).hexdigest() if Path("/tmp/auth16-evidence.tgz").exists() else None,
+            "pod_stopped_and_deleted":True,
+            "single_use_consumed":True,
+            "sealed_eval_consumed":False,
+            "worker05_used_for_tuning":False,
+            "capability_gain_claim":False
+          }
+          if Path("/tmp/auth16-evidence.tgz").exists():
+              try:
+                  with tarfile.open("/tmp/auth16-evidence.tgz","r:gz") as t:
+                      rec=json.loads(t.extractfile("candidate/training_run_receipt.json").read())
+                      man=json.loads(t.extractfile("candidate/candidate_artifact_manifest.json").read())
+                  out.update({
+                    "candidate_status":man.get("candidate_status"),
+                    "discovery_dev_gate_pass":rec.get("discovery_dev_gate_pass"),
+                    "public_shadow_gate_pass":man.get("public_shadow_gate_pass"),
+                    "optimizer_updates":rec.get("optimizer_updates"),
+                    "dev_pre_successes":rec.get("dev_pre_successes"),
+                    "dev_post_successes":rec.get("dev_post_successes"),
+                    "dev_gain_tasks":rec.get("dev_gain_tasks"),
+                    "dev_improvement":rec.get("dev_improvement"),
+                    "dev_regressions":rec.get("dev_regressions"),
+                    "shadow_pre_successes":rec.get("shadow_pre_successes"),
+                    "shadow_post_successes":rec.get("shadow_post_successes"),
+                    "shadow_gain_tasks":rec.get("shadow_gain_tasks"),
+                    "shadow_improvement":rec.get("shadow_improvement"),
+                    "shadow_regressions":rec.get("shadow_regressions"),
+                    "adapter_model_sha256":man.get("adapter_model_sha256"),
+                    "manifest_sha256":man.get("manifest_sha256"),
+                    "training_receipt_sha256":rec.get("receipt_sha256")
+                  })
+              except Exception as e:
+                  out["artifact_parse_error"]=repr(e)
+          Path(".github/runpod-control/one-day-synthetic-curriculum-run-result-16.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("AQLEVON_AUTH16_RESULT",json.dumps(out,sort_keys=True))
+          PY
+
+          git add "$RESULT"
+          git commit -m "ops: record Auth16 HTTP synthetic result [skip ci]" || true
+          git fetch origin ops/one-day-verified-trajectory-20260925
+          git rebase origin/ops/one-day-verified-trajectory-20260925 || { git rebase --abort || true; exit 1; }
+          git push origin HEAD:ops/one-day-verified-trajectory-20260925
+          trap - EXIT
+      - name: Upload Auth16 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aqlevon-one-day-synthetic-curriculum-auth16-http
+          path: |
+            /tmp/auth16-evidence.tgz
+            /tmp/auth16-status.json
+            /tmp/auth16_final_stage
+            /tmp/create16.json
+            /tmp/stop16.json
+            /tmp/delete16.json
+            /tmp/auth16-exit-stop.json
+            /tmp/auth16-exit-delete.json
+          if-no-files-found: warn
+          retention-days: 14
