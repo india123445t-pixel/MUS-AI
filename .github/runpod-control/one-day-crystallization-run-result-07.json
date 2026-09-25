@@ -1,0 +1,20 @@
+{
+  "artifact_gate_pass": false,
+  "authorization_id": "P4-ONE-DAY-CRYSTALLIZATION-20260925-07",
+  "authorization_sha256": "8f5e7ce1ca79e4d8f0e8e041dc2b656bc57c2cbea918f4e888581c28f4dbf9df",
+  "billed_seconds_estimate": null,
+  "capability_gain_claim": false,
+  "checked_at_utc": "2026-09-25T15:40:52.224864+00:00",
+  "compute_cost_estimate_usd": null,
+  "driver_exit_code": 1,
+  "evidence_archive_present": false,
+  "kind": "AQLEVON_ONE_DAY_CRYSTALLIZATION_RUN_RECEIPT_V1",
+  "pod_id": null,
+  "pod_stopped_and_deleted": false,
+  "rate_per_hour_usd": null,
+  "remote_exit_code": null,
+  "sealed_eval_consumed": false,
+  "source_head": "f3a2ca4c894e81cf9dffa1dd9935a3774b854cdb",
+  "training_log_sha256": null,
+  "worker05_used_for_tuning": false
+}
