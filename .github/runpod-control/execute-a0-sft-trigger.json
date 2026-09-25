@@ -6,5 +6,6 @@
   "image_digest": "sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec",
   "max_artifact_egress_bytes": 5368709120,
   "single_use": true,
-  "requested_at_utc": "2026-09-25T11:36:36.952Z"
+  "requested_at_utc": "2026-09-25T11:40:01.288Z",
+  "note": "no Pod was created by preflight-only Actions run 36130326195; fresh free inventory run 36130521911 confirms A100 capacity"
 }
