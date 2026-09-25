@@ -14,3 +14,6 @@ Next: trigger single paid A0 workflow only once by creating .github/runpod-contr
 
 ## 11:39 UTC free-only capacity recovery
 Paid workflow run 36130326195 failed in live GPU availability preflight, before Pod creation; consumed marker absent and result reports pod_id null/cost null. No spend. Auth remains unconsumed. Independent free GPU probe 36130521911 succeeded; NVIDIA A100-SXM4-80GB live available secure $1.59/h, US-KS-2 and US-WA-1 stock Low. A40 $0.49/h available too, but A100 preserves 125GB host memory margin and expected exact hardware. Reusing unconsumed authorization for a new trigger event while Pod creation remains zero. Scratch executor offline, GitHub checkpoint durable; mirror into Library when reconnected.
+
+## 11:40 UTC paid A0 Pod created
+Actions paid run 36130636033 passed source, public-only, no-duplicate and live A100 capacity. Exactly one A100 Pod n2di6l60loo70j created at 2026-09-25T11:40:18.078951+00:00. Consumed marker .github/runpod-control/a0-sft-consumed.json binds auth SHA dc854..., A0 source e8c60e05d688b8a5ce4805f1f959d041ab942512 and image ad4f48...; never reuse authorization. Stop step if always and billing watchdog configured. Next watch hardware, 12/12 true update markers, adapter evidence, EXITED and cost. GitHub Action run URL https://github.com/india123445t-pixel/MUS-AI/actions/runs/36130636033.
