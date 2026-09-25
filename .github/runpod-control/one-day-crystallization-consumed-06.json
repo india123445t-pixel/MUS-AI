@@ -1,0 +1,15 @@
+{
+  "authorization_id": "P4-ONE-DAY-CRYSTALLIZATION-20260925-06",
+  "authorization_sha256": "271d954f40b5e9c67f75106cc1e0e480f9cb7b2ea12a1919383a79aa597cf327",
+  "created_at_utc": "2026-09-25T15:23:59.898260+00:00",
+  "dynamic_max_billed_seconds": 1800,
+  "image_digest": "sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec",
+  "paid_boundary_refresh_at_utc": "2026-09-25T15:23:58.000006+00:00",
+  "pod_id": "92wrskgt3eg4az",
+  "selected_datacenter": "CA-MTL-3",
+  "selected_gpu_id": "NVIDIA A100 80GB PCIe",
+  "selected_price_hr": 1.59,
+  "single_use_consumed": true,
+  "source_head": "f3a2ca4c894e81cf9dffa1dd9935a3774b854cdb",
+  "training_authorized": true
+}
