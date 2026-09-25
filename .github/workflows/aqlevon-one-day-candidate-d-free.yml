@@ -42,6 +42,12 @@ jobs:
           assert 'AQLEVON_SEALED_EVAL_PATH' in s and 'AQLEVON_EVAL_SECRET' in s
           assert '"worker05_used_for_tuning":False' in s
           assert '"sealed_eval_consumed":False' in s
+          assert 'if trainable != 1572864:' in s
+          assert 'if parts["A"] != (8, 4096):' in s
+          # Runtime-proven Qwen3.5 full-attention LoRA parameter math:
+          # q:2560->8192, k/v:2560->1024, o:4096->2560, r=8, 8 full-attention layers.
+          expected=8 * 8 * ((2560+8192)+(2560+1024)+(2560+1024)+(4096+2560))
+          assert expected==1572864,expected
           assert s.index("if dev_gate:") < s.index("shadow_post=evaluate_tasks")
           assert "range(SYNTH_START,SYNTH_STOP)" in s
           print("AQLEVON_CANDIDATE_D_STATIC_PASS")
