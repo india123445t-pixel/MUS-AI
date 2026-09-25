@@ -1,0 +1,13 @@
+{
+  "authorization_id": "P4-ONE-DAY-SYNTHETIC-CURRICULUM-20260925-16",
+  "authorization_sha256": "2fe1047c9660f1fb8fc4cd9115b93764e81dbec36ccc13935286a5d176758cb9",
+  "bootstrap_blob": "75b33f3d7c23fef349c217f0dcb49f00365f80e7",
+  "bootstrap_commit": "0ccf145cd1a9ce7c52387c63f671a0d17d0b4fb6",
+  "checked_at_utc": "2026-09-25T18:53:02.854591+00:00",
+  "kind": "AQLEVON_AUTH16_HTTP_BOOTSTRAP_FREE_PREFLIGHT_V1",
+  "paid_resource_created": false,
+  "sealed_eval_consumed": false,
+  "status": "PASS",
+  "transport": "HTTP_PROXY_BOOTSTRAP",
+  "worker05_used_for_tuning": false
+}
