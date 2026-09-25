@@ -41,7 +41,7 @@ jobs:
           gs=json.load(open('/tmp/lead-gpus.json'))
           interesting=('A40','A6000','A100','L40','RTX 6000 Ada','H100','RTX PRO 6000')
           matches=[{'gpu_id':g.get('gpuId'),'vram_gb':g.get('memoryInGb'),'price_hr':g.get('securePricePerHr'),'stock':g.get('stockStatus'),'datacenters':[{'id':d.get('dataCenterId'),'stock':d.get('stockStatus')} for d in (g.get('dataCenterAvailability') or []) if str(d.get('stockStatus')).lower()!='none']} for g in gs if any(n in str(g.get('gpuId','')) for n in interesting) and g.get('secureCloud')]
-          out={'checked_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'balances':sorted(set(bal)),'pods':[{'id':p.get('id'),'name':p.get('name'),'status':p.get('desiredStatus') or p.get('status'),'rate':p.get('costPerHr')} for p in pods], 'gpu_catalog':matches}
+          out={'checked_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'balances':sorted(set(bal)),'pods':[{'id':p.get('id'),'name':p.get('name'),'status':p.get('desiredStatus') or p.get('status'),'rate':p.get('costPerHr'),'public_ip_present':bool(p.get('publicIp')),'ssh_port_present':bool((p.get('portMappings') or {}).get('22')),'runtime_status':p.get('runtimeStatus'),'machine_id':p.get('machineId')} for p in pods], 'gpu_catalog':matches}
           with open('.github/runpod-control/lead-free-inventory-result.json','w') as f: json.dump(out,f,sort_keys=True,indent=2);f.write('\n')
           print('AQLEVON_LEAD_INVENTORY',json.dumps(out,sort_keys=True))
           active=[p for p in out['pods'] if str(p['name']).startswith('AQLEVON-P4-A1-') and p['status']!='EXITED']
