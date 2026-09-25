@@ -10,5 +10,8 @@
   "previous_authorization_id": "P4-ONE-DAY-RSFT-CRYSTALLIZATION-20260925-09",
   "previous_outcome": "PROVISIONING_READINESS_TIMEOUT_NO_SCIENTIFIC_RUN",
   "authorization_consumed": false,
-  "requested_at_utc": "2026-09-25T17:09:30Z"
+  "requested_at_utc": "2026-09-25T17:12:15Z",
+  "no_spend_retry_sequence": 2,
+  "previous_attempt_run_id": 36165367224,
+  "previous_attempt_outcome": "NO_SPEND_GPU_STOCK_RACE"
 }
