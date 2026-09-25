@@ -1,0 +1,38 @@
+{
+  "authorization_kind": "AQLEVON_OWNER_ONE_DAY_CRYSTALLIZATION_A0_V1",
+  "authorization_id": "P4-ONE-DAY-CRYSTALLIZE-A0-20260925-01",
+  "candidate_arm": "P4_A0_SFT_LORA_CONTROL",
+  "expected_source_head": "11f40e8cc7575d9094bae508a6a4d5cb84c306a4",
+  "image_digest": "sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec",
+  "base_repo": "Qwen/Qwen3.5-4B-Base",
+  "base_revision": "daa9c16f371249f9ad1c75a9ed6f956c08ea08f5",
+  "public_shard_sha256": "59480e9ff48b36a0efb77a36d3e35d9f656ef4dee0ce18489d3017c92b2a0d49",
+  "scientific_plan_sha256": "3cd6e0bada2535a80f83f400f45f5d0fdc5ad8d938f42757785335959f331095",
+  "prerequisite_material_gate": "AUTH05_RECOVERED_MATERIAL_LATENT_CAPABILITY",
+  "prerequisite_evidence_commit": "804612b3704d72be1c86d086d563f995268af18b",
+  "permitted_gpu_ids": [
+    "NVIDIA A40",
+    "NVIDIA A100 80GB PCIe",
+    "NVIDIA A100-SXM4-80GB"
+  ],
+  "max_hourly_rate_usd": "1.60",
+  "max_total_cost_usd": "1.20",
+  "max_billed_seconds": 2700,
+  "max_artifact_egress_bytes": 1073741824,
+  "single_use": true,
+  "owner_fresh_mission_cap_usd": "5.00",
+  "fresh_mission_spend_before_this_auth_usd": "0.232758",
+  "fresh_mission_worst_case_after_this_auth_usd": "1.432758",
+  "training_authorized": true,
+  "worker05_evaluation_authorized": false,
+  "sealed_eval_consumed": false,
+  "selection_policy": "cheapest currently available permitted secure BF16 GPU at or below $1.60/hr; prefer A40; fail closed if no stock or duplicate AQLEVON paid Pod",
+  "evidence_policy": "stage exact source and public inputs before billing; consume auth immediately after Pod creation; retrieve raw log and candidate archive; stop and delete exact Pod after durable egress; no main merge; no capability claim",
+  "orchestration_repairs": [
+    "use source tar staged before billing instead of remote git clone",
+    "pass AQLEVON_EXPECTED_A0_HEAD and AQLEVON_EXPECTED_IMAGE_DIGEST into remote bootstrap environment",
+    "create /workspace before all remote log/rc paths",
+    "delete exact Pod after durable evidence egress"
+  ],
+  "authorization_sha256": "a1f2aaf407c27b4fb19c4d9cf95f0b2944fc7c701652174b47dade1eb5573dd3"
+}
