@@ -1,0 +1,11 @@
+{
+  "authorization_id": "P4-ONE-DAY-CRYSTALLIZATION-20260925-07",
+  "authorization_sha256": "7e5ccecce48c2340e45d2c9ccbfe6641a2aaccdca1675729a97d8d6dceddd222",
+  "expected_source_head": "f3a2ca4c894e81cf9dffa1dd9935a3774b854cdb",
+  "experiment_kind": "VERIFIED_TRAJECTORY_MICRO_LORA_CRYSTALLIZATION",
+  "training_authorized": true,
+  "requested_at_utc": "2026-09-25T15:35:00Z",
+  "retry_sequence": 7,
+  "previous_authorization_id": "P4-ONE-DAY-CRYSTALLIZATION-20260925-06",
+  "previous_outcome": "TAR_OWNERSHIP_FAILURE_BEFORE_TRAINING_POD_DELETED"
+}
