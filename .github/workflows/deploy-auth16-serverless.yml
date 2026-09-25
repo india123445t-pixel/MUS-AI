@@ -1,0 +1,162 @@
+name: Deploy AQLEVON Auth16 Serverless
+on:
+  push:
+    branches: [release/aqlevon-unified-production-20260925]
+    paths: [".github/runpod-control/deploy-auth16-serverless-trigger.json"]
+permissions:
+  contents: write
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      ENDPOINT_NAME: aqlevon-auth16-production
+      TEMPLATE_NAME: aqlevon-auth16-runtime-v1
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/aqlevon-unified-production-20260925
+          fetch-depth: 0
+      - name: Create scale-to-zero template and endpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${RUNPOD_API_KEY:-}"
+          auth=(-H "Authorization: Bearer $RUNPOD_API_KEY" -H "Content-Type: application/json")
+          curl -fsS https://rest.runpod.io/v1/endpoints "${auth[@]}" >/tmp/endpoints.json
+          existing="$(python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/endpoints.json'))
+          xs=d if isinstance(d,list) else d.get('endpoints') or d.get('items') or []
+          for x in xs:
+              if x.get('name')=='aqlevon-auth16-production':
+                  print(x.get('id','')); break
+          PY
+          )"
+          if [ -n "$existing" ]; then
+            echo "$existing" >/tmp/endpoint_id
+            echo "AQLEVON_SERVERLESS_REUSE endpoint=$existing"
+          else
+            curl -fsS https://rest.runpod.io/v1/templates "${auth[@]}" >/tmp/templates.json
+            template="$(python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/templates.json'))
+          xs=d if isinstance(d,list) else d.get('templates') or d.get('items') or []
+          for x in xs:
+              if x.get('name')=='aqlevon-auth16-runtime-v1':
+                  print(x.get('id','')); break
+          PY
+            )"
+            if [ -z "$template" ]; then
+              cat >/tmp/template.json <<'JSON'
+          {
+            "imageName":"runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404",
+            "name":"aqlevon-auth16-runtime-v1",
+            "category":"NVIDIA",
+            "containerDiskInGb":30,
+            "dockerEntrypoint":[],
+            "dockerStartCmd":["bash","-lc","curl -fsSL https://raw.githubusercontent.com/india123445t-pixel/MUS-AI/release/aqlevon-unified-production-20260925/deploy/runpod-auth16/bootstrap.sh -o /tmp/aqlevon-bootstrap.sh && bash /tmp/aqlevon-bootstrap.sh"],
+            "env":{"AQLEVON_MODEL_NAME":"AQLEVON-4B-Auth16"},
+            "isPublic":false,
+            "isServerless":true,
+            "ports":[],
+            "readme":"AQLEVON Auth16 frozen public-verified runtime. Exact adapter SHA 2d4f0c3528129e702dfa0af27fad467d411f355b9ea72e771942d0f6703e2b2a.",
+            "volumeInGb":0,
+            "volumeMountPath":"/workspace"
+          }
+          JSON
+              code="$(curl -sS -o /tmp/template-create.json -w '%{http_code}' -X POST https://rest.runpod.io/v1/templates "${auth[@]}" --data-binary @/tmp/template.json)"
+              test "$code" = "200" -o "$code" = "201" || { cat /tmp/template-create.json; exit 31; }
+              template="$(python3 -c "import json;print(json.load(open('/tmp/template-create.json'))['id'])")"
+            fi
+            test -n "$template"
+            echo "$template" >/tmp/template_id
+            python3 - "$template" <<'PY'
+          import json,sys
+          template=sys.argv[1]
+          payload={
+            "templateId":template,
+            "allowedCudaVersions":["12.8"],
+            "computeType":"GPU",
+            "executionTimeoutMs":600000,
+            "flashboot":True,
+            "gpuCount":1,
+            "gpuTypeIds":["NVIDIA RTX A5000","NVIDIA L4","NVIDIA GeForce RTX 3090"],
+            "idleTimeout":5,
+            "name":"aqlevon-auth16-production",
+            "scalerType":"QUEUE_DELAY",
+            "scalerValue":4,
+            "workersMax":1,
+            "workersMin":0
+          }
+          json.dump(payload,open('/tmp/endpoint-create-body.json','w'))
+          PY
+            code="$(curl -sS -o /tmp/endpoint-create.json -w '%{http_code}' -X POST https://rest.runpod.io/v1/endpoints "${auth[@]}" --data-binary @/tmp/endpoint-create-body.json)"
+            test "$code" = "200" -o "$code" = "201" || { cat /tmp/endpoint-create.json; exit 32; }
+            endpoint="$(python3 -c "import json;print(json.load(open('/tmp/endpoint-create.json'))['id'])")"
+            echo "$endpoint" >/tmp/endpoint_id
+            echo "AQLEVON_SERVERLESS_CREATED endpoint=$endpoint template=$template"
+          fi
+      - name: Cold-start exact Auth16 and verify real inference
+        shell: bash
+        run: |
+          set -euo pipefail
+          endpoint="$(cat /tmp/endpoint_id)"
+          auth=(-H "Authorization: Bearer $RUNPOD_API_KEY" -H "Content-Type: application/json")
+          cat >/tmp/test.json <<'JSON'
+          {"input":{"model":"AQLEVON-4B-Auth16","messages":[{"role":"user","content":"Reply with exactly: AQLEVON_AUTH16_RUNTIME_OK"}],"temperature":0,"max_tokens":32}}
+          JSON
+          code="$(curl -sS --max-time 900 -o /tmp/test-result.json -w '%{http_code}' -X POST "https://api.runpod.ai/v2/$endpoint/runsync?wait=600000" "${auth[@]}" --data-binary @/tmp/test.json)"
+          test "$code" = "200" || { cat /tmp/test-result.json; exit 41; }
+          python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/test-result.json'))
+          out=d.get('output') or {}
+          assert out.get('adapter_sha256')=='2d4f0c3528129e702dfa0af27fad467d411f355b9ea72e771942d0f6703e2b2a', d
+          text=((out.get('choices') or [{}])[0].get('message') or {}).get('content','')
+          assert text.strip(), d
+          assert out.get('model')=='AQLEVON-4B-Auth16', d
+          print('AQLEVON_AUTH16_SERVERLESS_INFERENCE_PASS',text[:160])
+          PY
+          sleep 12
+          curl -fsS "https://rest.runpod.io/v1/endpoints/$endpoint" "${auth[@]}" >/tmp/final-endpoint.json
+          python3 - <<'PY'
+          import json,datetime
+          ep=json.load(open('/tmp/final-endpoint.json'))
+          test=json.load(open('/tmp/test-result.json'))
+          out=test.get('output') or {}
+          assert ep.get('workersMin')==0, ep
+          assert ep.get('workersMax')==1, ep
+          assert ep.get('idleTimeout')==5, ep
+          receipt={
+            "kind":"AQLEVON_AUTH16_SERVERLESS_DEPLOYMENT_V1",
+            "status":"PASS",
+            "endpoint_id":ep.get("id"),
+            "endpoint_name":ep.get("name"),
+            "api_base":f"https://api.runpod.ai/v2/{ep.get('id')}",
+            "runsync_url":f"https://api.runpod.ai/v2/{ep.get('id')}/runsync",
+            "health_url":f"https://api.runpod.ai/v2/{ep.get('id')}/health",
+            "workers_min":ep.get("workersMin"),
+            "workers_max":ep.get("workersMax"),
+            "idle_timeout_seconds":ep.get("idleTimeout"),
+            "gpu_type_ids":ep.get("gpuTypeIds"),
+            "template_id":ep.get("templateId"),
+            "adapter_model_sha256":out.get("adapter_sha256"),
+            "model":out.get("model"),
+            "real_inference_verified":True,
+            "verified_at_utc":datetime.datetime.now(datetime.timezone.utc).isoformat()
+          }
+          open('.github/runpod-control/auth16-serverless-deployment-result.json','w').write(json.dumps(receipt,indent=2,sort_keys=True)+'\n')
+          print(json.dumps(receipt,sort_keys=True))
+          PY
+      - name: Persist deployment receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name aqlevon-runpod-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/runpod-control/auth16-serverless-deployment-result.json
+          git commit -m "runtime: record Auth16 serverless deployment [skip ci]" || true
+          git pull --rebase origin release/aqlevon-unified-production-20260925
+          git push origin HEAD:release/aqlevon-unified-production-20260925
