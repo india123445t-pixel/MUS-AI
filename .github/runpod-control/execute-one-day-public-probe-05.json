@@ -1,0 +1,13 @@
+{
+  "authorization_id": "P4-ONE-DAY-PUBLIC-PASSN-20260925-05",
+  "authorization_sha256": "187f4b4d17086e3352d873263787e717ac24e32096350a07e87c5816674bd859",
+  "expected_source_head": "c7b859f0a5459c1a79ea6fa96ca4adafe17599b6",
+  "image_digest": "sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec",
+  "experiment_kind": "PUBLIC_VERIFIED_TRAJECTORY_PASSN_PROBE",
+  "training_authorized": false,
+  "workspace_v2_required": true,
+  "requested_at_utc": "2026-09-25T14:55:00Z",
+  "retry_sequence": 5,
+  "previous_authorization_id": "P4-ONE-DAY-PUBLIC-PASSN-20260925-04",
+  "previous_outcome": "CONSUMED_WORKSPACE_PATH_FAILURE_POD_DELETED_NO_SCIENTIFIC_RESULT"
+}
