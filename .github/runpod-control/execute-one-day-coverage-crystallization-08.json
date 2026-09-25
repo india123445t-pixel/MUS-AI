@@ -1,0 +1,11 @@
+{
+  "authorization_id": "P4-ONE-DAY-COVERAGE-CRYSTALLIZATION-20260925-08",
+  "authorization_sha256": "0555925a86bb3cc5d5d46bfc20896bc47f39de12f160376a39d52370c5e4fee3",
+  "expected_source_head": "529e665ea140c2f8d6b96c02a42c100e9075c037",
+  "experiment_kind": "PUBLIC_DISCOVERY_FULL_COVERAGE_MICRO_LORA",
+  "training_authorized": true,
+  "requested_at_utc": "2026-09-25T15:53:00Z",
+  "retry_sequence": 8,
+  "previous_authorization_id": "P4-ONE-DAY-CRYSTALLIZATION-20260925-07",
+  "previous_outcome": "TECHNICALLY_VALID_PUBLIC_SHADOW_GATE_FAILED"
+}
