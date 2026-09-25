@@ -21,7 +21,33 @@ jobs:
           fetch-depth: 0
       - name: Execute bounded Auth10 RSFT crystallization
         shell: bash
-        run: bash .github/runpod-control/run-one-day-rsft-crystallization-10.sh
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path(".github/runpod-control/run-one-day-rsft-crystallization-09.sh").read_text()
+          reps={
+            "one-day-rsft-crystallization-manager-authorization-09-20260925.json":"one-day-rsft-crystallization-manager-authorization-10-20260925.json",
+            "one-day-rsft-crystallization-free-result-09.json":"one-day-rsft-crystallization-free-result-10.json",
+            "execute-one-day-rsft-crystallization-09.json":"execute-one-day-rsft-crystallization-10.json",
+            "one-day-rsft-crystallization-consumed-09.json":"one-day-rsft-crystallization-consumed-10.json",
+            "one-day-rsft-crystallization-run-result-09.json":"one-day-rsft-crystallization-run-result-10.json",
+            "P4-ONE-DAY-RSFT-CRYSTALLIZATION-20260925-09":"P4-ONE-DAY-RSFT-CRYSTALLIZATION-20260925-10",
+            "76bdd6d24ba6007c3bc702568f026dfcf4d69d44a85f129510d127844f6adcc6":"fedf49acb3ead6b882379a2fc8682b5486b89e0bcfb5f15b16346d287f8ba111",
+            "auth09-rsft-crystallization-remote-v1.sh":"auth10-rsft-crystallization-remote-v1.sh",
+            "AQLEVON-ONE-DAY-RSFT-09":"AQLEVON-ONE-DAY-RSFT-10",
+            "AUTH09":"AUTH10","Auth09":"Auth10","auth09":"auth10"
+          }
+          for a,b in reps.items(): s=s.replace(a,b)
+          s=s.replace('--volume-in-gb 40 --volume-mount-path /workspace ','')
+          s=s.replace('[ "$elapsed" -lt 600 ] || break','[ "$elapsed" -lt 480 ] || break')
+          s=s.replace('choices.append((price,gid,str(d["dataCenterId"]),secs))',
+                      'choices.append((0 if str(d["dataCenterId"])==str(a.get("preferred_datacenter")) else 1,price,gid,str(d["dataCenterId"]),secs))')
+          s=s.replace('price,gpu,dc,secs=sorted(choices)[0]','_,price,gpu,dc,secs=sorted(choices)[0]')
+          Path("/tmp/run-auth10.sh").write_text(s)
+          PY
+          bash -n /tmp/run-auth10.sh
+          bash /tmp/run-auth10.sh
       - name: Upload Auth10 evidence
         if: always()
         uses: actions/upload-artifact@v4
