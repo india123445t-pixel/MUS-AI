@@ -1,0 +1,51 @@
+name: AQLEVON Auth04 Driver Free Contract
+on:
+  push:
+    branches: [ops/one-day-verified-trajectory-20260925]
+    paths: [".github/runpod-control/auth04-driver-free-trigger.json"]
+permissions:
+  contents: write
+jobs:
+  contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    env:
+      AQLEVON_FREE_CONTRACT_ONLY: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/one-day-verified-trajectory-20260925
+          fetch-depth: 0
+      - name: Validate auth04 generated driver without spend
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n .github/runpod-control/run-one-day-public-probe-04-refresh.sh
+          bash .github/runpod-control/run-one-day-public-probe-04-refresh.sh
+          test ! -e .github/runpod-control/one-day-public-probe-consumed-04.json
+          python3 - <<'PY'
+          import datetime,json
+          from pathlib import Path
+          out={
+            "kind":"AQLEVON_AUTH04_DRIVER_FREE_CONTRACT_V1",
+            "authorization_id":"P4-ONE-DAY-PUBLIC-PASSN-20260925-04",
+            "source_head":"c7b859f0a5459c1a79ea6fa96ca4adafe17599b6",
+            "readiness_seconds":900,
+            "training_authorized":False,
+            "sealed_eval_consumed":False,
+            "passed":True,
+            "checked_at_utc":datetime.datetime.now(datetime.timezone.utc).isoformat()
+          }
+          Path(".github/runpod-control/auth04-driver-free-result.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("AQLEVON_AUTH04_DRIVER_FREE_PASS",json.dumps(out,sort_keys=True))
+          PY
+      - name: Persist free contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name aqlevon-runpod-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/runpod-control/auth04-driver-free-result.json
+          git commit -m "ops: record auth04 driver free contract [skip ci]"
+          git pull --rebase origin ops/one-day-verified-trajectory-20260925
+          git push origin HEAD:ops/one-day-verified-trajectory-20260925
