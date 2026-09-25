@@ -1,0 +1,14 @@
+{
+  "authorization_id": "P4-ONE-DAY-SYNTHETIC-CURRICULUM-20260925-13",
+  "authorization_sha256": "ee0f1a81372148ef38e44da0e5ab819b114793a235c6f24c22e4d002ca1deae5",
+  "expected_source_head": "22b95b0fdfaf97c3ba3314a94c2413d45439cc6e",
+  "candidate_source_blob": "cb86e6494fada78328310dfe5900e75205862ee0",
+  "experiment_kind": "PUBLIC_SYNTHETIC_CURRICULUM_QKVO_LORA_TOPOLOGY_FIXED",
+  "training_authorized": true,
+  "owner_single_use_cap_usd": "0.65",
+  "retry_sequence": 13,
+  "previous_paid_authorization_id": "P4-ONE-DAY-PREFERENCE-CRYSTALLIZATION-20260925-11",
+  "previous_paid_outcome": "PROVISIONING_READINESS_TIMEOUT_NO_SCIENTIFIC_RUN",
+  "authorization_consumed": false,
+  "requested_at_utc": "2026-09-25T18:23:00Z"
+}
