@@ -433,7 +433,7 @@ def run(args):
         "receipt_kind":"AQLEVON_ONE_DAY_VERIFIED_TRAJECTORY_CRYSTALLIZATION_RECEIPT_V1",
         "base_repo":MODEL_REPO,"base_revision":MODEL_REV,"probe_result_sha256":probe_sha,
         "public_pack_sha256":PACK_SHA,"seed":SEED,
-        "unique_train_targets":len(train_rows),"train_examples":len(used),
+        "train_rows_per_epoch":len(train_rows),"training_presentations":len(used),
         "on_policy_mined_examples":on_policy_examples,"mining_n":MINING_N,
         "mining_records":mining_rows,
         "train_task_ids":[x["task_id"] for x in used],
