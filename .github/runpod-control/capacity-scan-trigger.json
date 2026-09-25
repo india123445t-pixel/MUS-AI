@@ -1,5 +1,6 @@
 {
   "action": "scan_secure_gpu_capacity",
-  "reason": "Pre-spend refresh for Retry19Q after strengthened native Qwen3.5 LoRA smoke; prefer A40 48GB under existing 0.55 USD/hr ceiling",
-  "nonce": "20260922-v019-48gb-refresh-3"
+  "reason": "AQLEVON one-day lower-cost GPU scan after A100 provisioning stalls",
+  "nonce": "20260922-v019-48gb-refresh-3",
+  "requested_at_utc": "2026-09-25T18:30:00Z"
 }
