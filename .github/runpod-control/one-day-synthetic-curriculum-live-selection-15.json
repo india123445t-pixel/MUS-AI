@@ -1,0 +1,8 @@
+{
+  "dynamic_max_billed_seconds": 1500,
+  "observed_capacity_datacenter": "US-KS-2",
+  "paid_boundary_refresh_at_utc": "2026-09-25T18:43:02.002492+00:00",
+  "selected_datacenter": "UNPINNED_ANY_AVAILABLE",
+  "selected_gpu_id": "NVIDIA A100-SXM4-80GB",
+  "selected_price_hr": 1.59
+}
