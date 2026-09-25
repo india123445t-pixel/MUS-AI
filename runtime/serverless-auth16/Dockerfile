@@ -11,11 +11,14 @@ ENV DEBIAN_FRONTEND=noninteractive \
     AQLEVON_ADAPTER_DIR=/models/auth16 \
     AQLEVON_MODEL_NAME=AQLEVON-4B-Auth16
 
-RUN python3 -m pip install --no-cache-dir \
-    transformers==5.17.0 \
-    peft==0.21.0 \
-    accelerate==1.15.0 \
-    runpod==1.12.0
+# The RunPod base image contains Debian's cryptography package without pip RECORD metadata.
+# Overlay the compatible wheel first so pip never tries to uninstall the distro package.
+RUN python3 -m pip install --no-cache-dir --ignore-installed "cryptography==50.0.1" && \
+    python3 -m pip install --no-cache-dir \
+      transformers==5.17.0 \
+      peft==0.21.0 \
+      accelerate==1.15.0 \
+      runpod==1.12.0
 
 RUN mkdir -p /models/qwen35-4b /models/auth16 /app && \
     python3 - <<'PY'
