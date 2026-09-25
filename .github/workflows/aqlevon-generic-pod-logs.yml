@@ -1,0 +1,47 @@
+name: AQLEVON Generic Pod Logs Probe
+on:
+  push:
+    branches: [ops/one-day-verified-trajectory-20260925]
+    paths: [".github/runpod-control/generic-pod-logs-trigger.json"]
+permissions:
+  contents: write
+jobs:
+  logs:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/one-day-verified-trajectory-20260925
+          fetch-depth: 0
+      - name: Read requested pod logs
+        shell: bash
+        run: |
+          set -euo pipefail
+          pod="$(python3 - <<'PY'
+          import json
+          print(json.load(open(".github/runpod-control/generic-pod-logs-trigger.json"))["pod_id"])
+          PY
+          )"
+          curl -sSL https://cli.runpod.net | sudo bash >/dev/null
+          (runpodctl pod logs "$pod" --tail 100 > /tmp/logs.jsonl 2>/tmp/logs.err) || true
+          python3 - "$pod" <<'PY'
+          import datetime,json,sys
+          from pathlib import Path
+          pod=sys.argv[1]; lines=[]
+          if Path("/tmp/logs.jsonl").exists():
+              for raw in Path("/tmp/logs.jsonl").read_text(errors="replace").splitlines():
+                  try: lines.append(json.loads(raw))
+                  except Exception: lines.append({"raw":raw})
+          out={"kind":"AQLEVON_GENERIC_POD_LOGS_V1","checked_at_utc":datetime.datetime.now(datetime.timezone.utc).isoformat(),"pod_id":pod,"lines":lines,"stderr":Path("/tmp/logs.err").read_text(errors="replace") if Path("/tmp/logs.err").exists() else ""}
+          Path(".github/runpod-control/generic-pod-logs-result.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print(json.dumps(out,sort_keys=True))
+          PY
+          git config user.name aqlevon-runpod-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/runpod-control/generic-pod-logs-result.json
+          git commit -m "runtime: record generic pod logs [skip ci]" || true
+          git pull --rebase origin ops/one-day-verified-trajectory-20260925
+          git push origin HEAD:ops/one-day-verified-trajectory-20260925
