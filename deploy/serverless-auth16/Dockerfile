@@ -8,7 +8,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-RUN python -m pip install --no-cache-dir \
+RUN python -m pip install --no-cache-dir --ignore-installed cryptography && \
+    python -m pip install --no-cache-dir \
     runpod \
     transformers==5.17.0 \
     peft==0.21.0 \
