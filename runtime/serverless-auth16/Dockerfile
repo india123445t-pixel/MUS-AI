@@ -17,7 +17,7 @@ RUN python3 -m pip install --no-cache-dir \
     accelerate==1.15.0 \
     huggingface_hub==1.4.1 \
     safetensors==0.6.2 \
-    runpod==1.8.1
+    runpod==1.12.0
 
 RUN mkdir -p /models/qwen35-4b /models/auth16 /app && \
     python3 - <<'PY'
