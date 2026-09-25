@@ -6,5 +6,6 @@
   "image_digest": "sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec",
   "max_artifact_egress_bytes": 5368709120,
   "single_use": true,
-  "requested_at_utc": "2026-09-25T12:02:02.265Z"
+  "requested_at_utc": "2026-09-25T12:03:50.660Z",
+  "note": "previous run 36132643442 failed authorization preflight before Pod; no auth consumption or spend; exact trigger binding fixed and free gate 36132769652 passed"
 }
