@@ -156,6 +156,8 @@ export async function POST(req){
       history:body.history,
       contract,
       lessons,
+      personalization:String(body.personalization||'').slice(0,4000),
+      memories:Array.isArray(body.memories)?body.memories.slice(0,16):[],
       maxHistory:Math.max(4,Math.min(64,Number(settings?.max_history||16))),
     });
 
