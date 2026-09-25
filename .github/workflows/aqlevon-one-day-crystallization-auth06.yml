@@ -1,0 +1,42 @@
+name: AQLEVON One-Day Crystallization Auth06
+on:
+  push:
+    branches: [ops/one-day-verified-trajectory-20260925]
+    paths: [".github/runpod-control/execute-one-day-crystallization-06.json"]
+permissions:
+  contents: write
+concurrency:
+  group: aqlevon-p4-paid-single-use
+  cancel-in-progress: false
+jobs:
+  execute:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/one-day-verified-trajectory-20260925
+          fetch-depth: 0
+      - name: Execute bounded Auth06 crystallization
+        shell: bash
+        run: bash .github/runpod-control/run-one-day-crystallization-06.sh
+      - name: Upload Auth06 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aqlevon-one-day-crystallization-auth06
+          path: |
+            /tmp/auth06-evidence.tgz
+            /tmp/auth06-train.log
+            /tmp/crystal_rc
+            /tmp/create06.json
+            /tmp/pod06.json
+            /tmp/auth06-input-sha256.txt
+            /tmp/stop06.json
+            /tmp/delete06.json
+            /tmp/auth06-exit-stop.json
+            /tmp/auth06-exit-delete.json
+          if-no-files-found: warn
+          retention-days: 14
