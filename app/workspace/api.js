@@ -65,8 +65,15 @@ async function runJob(id){
   let input={}; try{input=JSON.parse(j0.input||'{}')}catch{}
   const prompt=input.prompt||input.question||input.goal||j0.title;
   try{
+    const userState=load();
     const r=await fetch('/api/commons/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-      input:prompt,history:[],webSearch:false,sessionId:ensureSession(),conversationId:uid()
+      input:prompt,
+      history:[],
+      webSearch:false,
+      personalization:String(userState.settings?.personalization||'').slice(0,4000),
+      memories:(userState.memory||[]).slice(0,16).map(x=>({content:String(x.content||'').slice(0,1000)})).filter(x=>x.content),
+      sessionId:ensureSession(),
+      conversationId:uid()
     })});
     const d=await r.json().catch(()=>({}));
     if(!r.ok) throw new Error(d.message||'AQLEVON runtime unavailable');
@@ -232,7 +239,10 @@ async function streamChat(chatId,payload,signal){
     else{prompt=[...c.messages].reverse().find(x=>x.role==='user')?.content||''}
     history=c.messages.slice(0,-1).slice(-20).map(({role,content})=>({role,content}));c.updated_at=now();return s});
   if(!prompt)throw Error('No user message to send');
-  const r=await fetch('/api/commons/chat',{method:'POST',headers:{'Content-Type':'application/json'},signal,body:JSON.stringify({input:prompt,history,webSearch:!!payload.useWebSearch,reasoning:payload.reasoning,sessionId:ensureSession(),conversationId:id})});
+  const userState=load();
+  const personalization=String(userState.settings?.personalization||'').slice(0,4000);
+  const memories=(userState.memory||[]).slice(0,16).map(x=>({content:String(x.content||'').slice(0,1000)})).filter(x=>x.content);
+  const r=await fetch('/api/commons/chat',{method:'POST',headers:{'Content-Type':'application/json'},signal,body:JSON.stringify({input:prompt,history,webSearch:!!payload.useWebSearch,reasoning:payload.reasoning,personalization,memories,sessionId:ensureSession(),conversationId:id})});
   const d=await r.json().catch(()=>({}));if(!r.ok){const err=new Error(d.message||'AQLEVON runtime unavailable');err.errorClass=d.error_class||null;throw err}
   const text=String(d.text||'');
   update(s=>{const c=findChat(s,id);if(!c)return s;c.messages.push({id:uid(),role:'assistant',content:text,created_at:now(),chatLogId:d.chat_log_id||null});if(!c.title||c.title==='New chat')c.title=prompt.slice(0,70)||'Chat';c.updated_at=now();return s});
