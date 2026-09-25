@@ -1,0 +1,7 @@
+{
+  "kind": "AQLEVON_AUTH10_PROXY_TRANSPORT_ZERO_COST_PREFLIGHT_TRIGGER_V1",
+  "paid_resource_created": false,
+  "auth10_authorized": false,
+  "purpose": "validate basic-SSH proxy transport prototype after Auth09 public-IP readiness timeout",
+  "candidate_source_head": "7b35fab86da22e46804e9af6f311a88ea5b02e27"
+}
