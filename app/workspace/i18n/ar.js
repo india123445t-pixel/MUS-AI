@@ -100,7 +100,7 @@ export default {
   'set.theme': 'السمة', 'set.dark': 'داكنة', 'set.light': 'فاتحة',
   'set.density': 'الكثافة', 'set.comfortable': 'مريحة', 'set.compact': 'مضغوطة',
   'set.customInstructions': 'تعليمات مخصصة',
-  'set.customInstructionsHint': 'تُحفظ محليًا كمسودة تخصيص؛ لا تُحقن حاليًا في محرك المحادثة.',
+  'set.customInstructionsHint': 'تُحفظ محليًا على هذا الجهاز وتُرسل كسياق تخصيص محدود إلى محادثات AQLEVON؛ لا تمنح صلاحيات ولا تتجاوز قواعد التشغيل.',
   'set.testOk': 'متصل — {ms} م.ث', 'set.testFail': 'فشل الاتصال',
   'set.searchDefault': 'تفعيل بحث الويب افتراضيًا',
   'set.researchDepth': 'عمق البحث', 'set.depth.quick': 'سريع', 'set.depth.standard': 'قياسي', 'set.depth.thorough': 'شامل',
@@ -146,7 +146,7 @@ export default {
   // settings (extra)
   'set.generalNote': 'تعمل نسخة المتصفح دون حساب؛ بيانات Workspace المحلية تُحفظ على هذا الجهاز ما لم تذكر الميزة صراحة أنها خادمية.',
   'set.langNote': 'اختيار العربية يحوّل الواجهة كاملة إلى اليمين.',
-  'set.memoryHint': 'ذاكرة محلية على هذا الجهاز فقط؛ لم تُربط بعد بذاكرة نموذج خادمية.',
+  'set.memoryHint': 'ذاكرة محلية على هذا الجهاز فقط؛ تُرسل أحدث الذكريات كسياق محدود إلى AQLEVON، وليست ذاكرة خادمية أو تعديلًا للأوزان.',
   'set.addMemory': 'أضف شيئًا ليتذكره…', 'set.add': 'إضافة', 'set.noMemories': 'لا شيء محفوظ بعد.',
   'set.advancedHint': 'معلومات تقنية لاستكشاف الأخطاء. لا يلزم أي منها للاستخدام اليومي.',
   'set.runDiagnostics': 'تشغيل التشخيصات',
