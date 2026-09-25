@@ -23,9 +23,13 @@ PY
 
 test "$(git -C "$REPO" rev-parse HEAD)" = "$HEAD"
 mkdir -p "$PUBLIC" "$MODEL" "$(dirname "$OUT")"
-git -C "$REPO" fetch -q --no-tags origin abb94ef134e2e97036b6959dbc9db4278d3736b6
-git -C "$REPO" show abb94ef134e2e97036b6959dbc9db4278d3736b6:research/weight_factory/agent02/gene1_training_shard_v1.jsonl > "$PUBLIC/shard.jsonl"
-git -C "$REPO" show abb94ef134e2e97036b6959dbc9db4278d3736b6:research/weight_factory/agent02/gene1_training_shard_manifest_v1.json > "$PUBLIC/manifest.json"
+if [[ -s "$PUBLIC/shard.jsonl" && -s "$PUBLIC/manifest.json" ]]; then
+  echo AQLEVON_A0_PINNED_PUBLIC_INPUTS_STAGED
+else
+  git -C "$REPO" fetch -q --no-tags origin abb94ef134e2e97036b6959dbc9db4278d3736b6
+  git -C "$REPO" show abb94ef134e2e97036b6959dbc9db4278d3736b6:research/weight_factory/agent02/gene1_training_shard_v1.jsonl > "$PUBLIC/shard.jsonl"
+  git -C "$REPO" show abb94ef134e2e97036b6959dbc9db4278d3736b6:research/weight_factory/agent02/gene1_training_shard_manifest_v1.json > "$PUBLIC/manifest.json"
+fi
 
 TRAINER="$REPO/research/weight_factory/agent03/p4_a0_sft_candidate.py"
 PLAN="$REPO/research/weight_factory/agent03/p4_frozen_training_plan_v1.json"
