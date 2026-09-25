@@ -1,0 +1,37 @@
+name: AQLEVON A0 Free GPU Availability
+on:
+  push:
+    branches: [ops/runpod-control-v1]
+    paths: [".github/runpod-control/a0-gpu-diagnostic-trigger.json"]
+permissions:
+  contents: write
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/runpod-control-v1
+      - name: Probe available secure GPU types without Pod
+        run: |
+          set -euo pipefail
+          curl -sSL https://cli.runpod.net | sudo bash
+          runpodctl gpu list --output json >/tmp/gpus.json
+          python3 - <<'PY'
+          import json,pathlib
+          gs=json.load(open('/tmp/gpus.json'))
+          out=[]
+          for g in gs:
+              name=str(g.get('gpuId',''))
+              if any(s in name for s in ('A100','A40','H100','L40','RTX 6000')):
+                  out.append({k:g.get(k) for k in ('gpuId','secureCloud','available','securePricePerHr','communityPricePerHr','dataCenterAvailability','memoryInGb')})
+          pathlib.Path('.github/runpod-control/a0-gpu-diagnostic-result.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
+          print('AQLEVON_A0_FREE_GPU_DIAGNOSTIC',json.dumps(out))
+          PY
+          git config user.name aqlevon-runpod-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/runpod-control/a0-gpu-diagnostic-result.json
+          git commit -m 'ops: record no-spend A0 GPU availability [skip ci]'
+          git pull --rebase origin ops/runpod-control-v1
+          git push origin HEAD:ops/runpod-control-v1
