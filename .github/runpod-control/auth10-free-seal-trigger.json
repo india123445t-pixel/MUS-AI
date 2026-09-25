@@ -1,0 +1,9 @@
+{
+  "kind": "AQLEVON_ONE_DAY_RSFT_AUTH10_FREE_SEAL_TRIGGER_V1",
+  "authorization_id": "P4-ONE-DAY-RSFT-CRYSTALLIZATION-20260925-10",
+  "authorization_sha256": "fedf49acb3ead6b882379a2fc8682b5486b89e0bcfb5f15b16346d287f8ba111",
+  "expected_source_head": "7b35fab86da22e46804e9af6f311a88ea5b02e27",
+  "candidate_source_blob": "930e6742f15b77cfa4653485ea7be91d1d965fcb",
+  "requested_at_utc": "2026-09-25T17:08:00Z",
+  "paid_resource_created": false
+}
