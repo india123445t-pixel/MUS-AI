@@ -1,0 +1,36 @@
+name: AQLEVON A0 Exact Pod Read Only Probe
+on:
+  push:
+    branches: [ops/runpod-control-v1]
+    paths: [".github/runpod-control/a0-pod-probe-trigger.json"]
+permissions:
+  contents: write
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/runpod-control-v1
+      - name: Read exact Pod status and bounded cost
+        run: |
+          set -euo pipefail
+          pod="$(python3 -c 'import json;print(json.load(open(".github/runpod-control/a0-sft-consumed.json"))["pod_id"])')"
+          test "$pod" = n2di6l60loo70j
+          curl -fsS "https://rest.runpod.io/v1/pods/$pod" -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/pod.json
+          python3 - <<'PY'
+          import json,datetime,pathlib
+          p=json.load(open('/tmp/pod.json'))
+          out={'checked_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'id':p.get('id'),'name':p.get('name'),'desiredStatus':p.get('desiredStatus'),'costPerHr':p.get('costPerHr'),'publicIp':p.get('publicIp'),'portMappings':p.get('portMappings'),'gpuCount':p.get('gpuCount'),'gpuTypeId':p.get('gpuTypeId'),'dataCenterId':p.get('dataCenterId'),'containerStatus':p.get('containerStatus'),'lastStatusChange':p.get('lastStatusChange')}
+          pathlib.Path('.github/runpod-control/a0-pod-probe-result.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
+          print('AQLEVON_A0_LIVE_POD_PROBE',json.dumps(out,sort_keys=True))
+          PY
+          git config user.name aqlevon-runpod-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/runpod-control/a0-pod-probe-result.json
+          git commit -m 'ops: record exact A0 live Pod status [skip ci]'
+          git pull --rebase origin ops/runpod-control-v1
+          git push origin HEAD:ops/runpod-control-v1
