@@ -6,6 +6,7 @@ on:
       - "research/weight_factory/agent03/p4_one_day_rsft_crystallize.py"
       - ".github/workflows/aqlevon-one-day-rsft-candidate-c-free.yml"
       - "research/weight_factory/agent03/candidate_c_free_trigger.json"
+      - ".github/runpod-control/auth09-rsft-crystallization-remote-v1.sh"
 permissions:
   contents: read
 jobs:
@@ -26,6 +27,10 @@ jobs:
           set -euo pipefail
           SRC=research/weight_factory/agent03/p4_one_day_rsft_crystallize.py
           python3 -m py_compile "$SRC"
+          bash -n .github/runpod-control/auth09-rsft-crystallization-remote-v1.sh
+          grep -q 'source head required' .github/runpod-control/auth09-rsft-crystallization-remote-v1.sh
+          grep -q 'p4_one_day_rsft_crystallize.py' .github/runpod-control/auth09-rsft-crystallization-remote-v1.sh
+          grep -q '1200s' .github/runpod-control/auth09-rsft-crystallization-remote-v1.sh
           python3 - <<'PY'
           import ast
           from pathlib import Path
