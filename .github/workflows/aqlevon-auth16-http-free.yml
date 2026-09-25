@@ -1,0 +1,74 @@
+name: AQLEVON Auth16 HTTP Bootstrap Zero-Cost Seal
+on:
+  push:
+    branches: [ops/one-day-verified-trajectory-20260925]
+    paths: [".github/runpod-control/auth16-http-free-trigger.json"]
+permissions:
+  contents: write
+jobs:
+  seal:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/one-day-verified-trajectory-20260925
+          fetch-depth: 0
+      - name: Validate frozen Auth16 contract and bootstrap
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          a=json.loads(Path(".github/runpod-control/one-day-synthetic-curriculum-manager-authorization-16-20260925.json").read_text())
+          body={k:v for k,v in a.items() if k!="authorization_sha256"}
+          h=hashlib.sha256(json.dumps(body,sort_keys=True,separators=(",",":"),ensure_ascii=False,allow_nan=False).encode()).hexdigest()
+          assert h==a["authorization_sha256"]=="2fe1047c9660f1fb8fc4cd9115b93764e81dbec36ccc13935286a5d176758cb9"
+          assert a["single_use"] is True and a["training_authorized"] is True
+          assert a["transport"]=="HTTP_PROXY_BOOTSTRAP"
+          assert a["http_port"]==8000
+          assert a["bootstrap_commit"]=="0ccf145cd1a9ce7c52387c63f671a0d17d0b4fb6"
+          assert a["expected_source_head"]=="22b95b0fdfaf97c3ba3314a94c2413d45439cc6e"
+          assert a["candidate_source_blob"]=="cb86e6494fada78328310dfe5900e75205862ee0"
+          print("AQLEVON_AUTH16_CONTRACT_PASS")
+          PY
+          git fetch -q origin 0ccf145cd1a9ce7c52387c63f671a0d17d0b4fb6
+          git show 0ccf145cd1a9ce7c52387c63f671a0d17d0b4fb6:.github/runpod-control/auth16-http-bootstrap.sh >/tmp/auth16-bootstrap.sh
+          test "$(git rev-parse 0ccf145cd1a9ce7c52387c63f671a0d17d0b4fb6:.github/runpod-control/auth16-http-bootstrap.sh)" = "75b33f3d7c23fef349c217f0dcb49f00365f80e7"
+          bash -n /tmp/auth16-bootstrap.sh
+          grep -q 'python3 -m http.server 8000' /tmp/auth16-bootstrap.sh
+          grep -q 'AQLEVON_SYNTH_PUBLIC_PREFLIGHT_PASS synthetic=672' /tmp/auth16-bootstrap.sh
+          grep -q 'timeout --signal=TERM --kill-after=20s 1200s' /tmp/auth16-bootstrap.sh
+          ! grep -q 'AQLEVON_SEALED_EVAL_PATH' /tmp/auth16-bootstrap.sh
+          ! grep -q 'Worker05' /tmp/auth16-bootstrap.sh
+          echo AQLEVON_AUTH16_BOOTSTRAP_STATIC_PASS
+      - name: Persist free seal
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json,datetime
+          from pathlib import Path
+          out={
+            "kind":"AQLEVON_AUTH16_HTTP_BOOTSTRAP_FREE_PREFLIGHT_V1",
+            "checked_at_utc":datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "authorization_id":"P4-ONE-DAY-SYNTHETIC-CURRICULUM-20260925-16",
+            "authorization_sha256":"2fe1047c9660f1fb8fc4cd9115b93764e81dbec36ccc13935286a5d176758cb9",
+            "bootstrap_commit":"0ccf145cd1a9ce7c52387c63f671a0d17d0b4fb6",
+            "bootstrap_blob":"75b33f3d7c23fef349c217f0dcb49f00365f80e7",
+            "transport":"HTTP_PROXY_BOOTSTRAP",
+            "paid_resource_created":False,
+            "worker05_used_for_tuning":False,
+            "sealed_eval_consumed":False,
+            "status":"PASS"
+          }
+          Path(".github/runpod-control/auth16-http-free-result.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          PY
+          git config user.name aqlevon-runpod-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/runpod-control/auth16-http-free-result.json
+          git commit -m "ops: record Auth16 HTTP zero-cost preflight [skip ci]" || true
+          git fetch origin ops/one-day-verified-trajectory-20260925
+          git rebase origin/ops/one-day-verified-trajectory-20260925 || { git rebase --abort || true; exit 1; }
+          git push origin HEAD:ops/one-day-verified-trajectory-20260925
