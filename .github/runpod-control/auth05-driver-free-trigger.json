@@ -4,5 +4,7 @@
   "authorization_sha256": "187f4b4d17086e3352d873263787e717ac24e32096350a07e87c5816674bd859",
   "workspace_v2_required": true,
   "paid_resource_created": false,
-  "requested_at_utc": "2026-09-25T14:54:00Z"
+  "requested_at_utc": "2026-09-25T14:57:00Z",
+  "retry_sequence": 2,
+  "reason": "revalidate after fresh-budget guard compatibility repair"
 }
