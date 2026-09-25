@@ -1,0 +1,80 @@
+name: AQLEVON A0 Flexible GPU Free Seal
+on:
+  push:
+    branches: [ops/runpod-control-v1]
+    paths: [".github/runpod-control/a0-flex-free-trigger.json"]
+permissions:
+  contents: write
+jobs:
+  seal:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 16
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      EXPECTED_HEAD: 11f40e8cc7575d9094bae508a6a4d5cb84c306a4
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/runpod-control-v1
+      - uses: actions/checkout@v4
+        with:
+          ref: 11f40e8cc7575d9094bae508a6a4d5cb84c306a4
+          path: a0-source
+          fetch-depth: 1
+      - name: Validate exact source, transfer archive, public-only inputs and stopped Pod
+        run: |
+          set -euo pipefail
+          test "$(git -C a0-source rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test "$(git ls-remote https://github.com/$GITHUB_REPOSITORY.git refs/heads/agent/03-p4-a0-sft-candidate-20260925 | cut -f1)" = "$EXPECTED_HEAD"
+          test ! -e .github/runpod-control/a0-flex-consumed.json
+          git -C a0-source fetch -q origin abb94ef134e2e97036b6959dbc9db4278d3736b6
+          git -C a0-source show abb94ef134e2e97036b6959dbc9db4278d3736b6:research/weight_factory/agent02/gene1_training_shard_v1.jsonl >/tmp/a0-shard.jsonl
+          git -C a0-source show abb94ef134e2e97036b6959dbc9db4278d3736b6:research/weight_factory/agent02/gene1_training_shard_manifest_v1.json >/tmp/a0-manifest.json
+          python3 -m py_compile a0-source/research/weight_factory/agent03/p4_a0_sft_candidate.py
+          bash -n a0-source/research/weight_factory/agent03/p4_a0_runpod_launch.sh
+          python3 a0-source/research/weight_factory/agent03/p4_a0_sft_candidate.py --shard-path /tmp/a0-shard.jsonl --manifest-path /tmp/a0-manifest.json --plan-path a0-source/research/weight_factory/agent03/p4_frozen_training_plan_v1.json --preflight-only
+          cp -a a0-source /tmp/a0-transfer
+          git -C /tmp/a0-transfer config --local --unset-all http.https://github.com/.extraheader || true
+          tar -czf /tmp/a0-source.tgz -C /tmp/a0-transfer .
+          test "$(stat -c %s /tmp/a0-source.tgz)" -lt 250000000
+          mkdir -p /tmp/rehydrated
+          tar -xzf /tmp/a0-source.tgz -C /tmp/rehydrated
+          test "$(git -C /tmp/rehydrated rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -s /tmp/rehydrated/research/weight_factory/agent03/p4_a0_sft_candidate.py
+          echo AQLEVON_A0_SOURCE_TRANSFER_FREE_PASS archive_bytes="$(stat -c %s /tmp/a0-source.tgz)"
+          curl -fsS https://rest.runpod.io/v1/pods -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/pods.json
+          python3 - <<'PY'
+          import json
+          ps=json.load(open('/tmp/pods.json'));ps=ps if isinstance(ps,list) else ps.get('pods') or ps.get('items') or []
+          target=[p for p in ps if p.get('id')=='n2di6l60loo70j']
+          assert len(target)==1 and target[0]['desiredStatus']=='EXITED',target
+          assert float(target[0]['costPerHr'])<=1.60
+          assert not [p for p in ps if str(p.get('name','')).startswith('AQLEVON-P4-') and p.get('desiredStatus')!='EXITED']
+          print('AQLEVON_A0_SAME_POD_EXITED_FREE_PASS')
+          PY
+      - name: Seal bounded new-machine Manager authorization without Pod
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json,hashlib,pathlib
+          f=pathlib.Path('.github/runpod-control/a0-flex-manager-authorization-20260925.json')
+          a=json.loads(f.read_text())
+          assert a.pop('authorization_sha256')=='PENDING_FREE_HASH'
+          assert a['authorization_kind']=='AQLEVON_MANAGER_COMPUTE_FLEX_GPU_A0_V1'
+          assert a['max_total_cost_usd']=='2.30'
+          assert a['permitted_gpu_ids']==['NVIDIA A40','NVIDIA A100 80GB PCIe','NVIDIA A100-SXM4-80GB']
+          assert a['expected_source_head']=='11f40e8cc7575d9094bae508a6a4d5cb84c306a4'
+          assert a['candidate_arm']=='P4_A0_SFT_LORA_CONTROL'
+          assert a['single_use'] is True
+          assert float(a['prior_mission_spend_usd'])+float(a['max_total_cost_usd'])<float(a['mission_max_total_usd'])
+          assert a['max_artifact_egress_bytes']==5368709120
+          a['authorization_sha256']=hashlib.sha256(json.dumps(a,sort_keys=True,separators=(',',':'),ensure_ascii=False,allow_nan=False).encode()).hexdigest()
+          f.write_text(json.dumps(a,sort_keys=True,indent=2)+'\n')
+          print('AQLEVON_A0_CONTINUATION_AUTH_SEALED',a['authorization_sha256'])
+          PY
+          git config user.name aqlevon-runpod-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/runpod-control/a0-flex-manager-authorization-20260925.json
+          git commit -m 'ops: seal A0 same-Pod continuation after free transfer preflight [skip ci]'
+          git pull --rebase origin ops/runpod-control-v1
+          git push origin HEAD:ops/runpod-control-v1
