@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - fix/workspace-readiness-truth-20260922
+      - main
   workflow_dispatch:
 
 permissions:
