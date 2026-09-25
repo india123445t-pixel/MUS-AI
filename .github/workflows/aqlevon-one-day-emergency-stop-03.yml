@@ -2,7 +2,7 @@ name: AQLEVON One-Day Emergency Stop 03
 on:
   push:
     branches: [ops/one-day-verified-trajectory-20260925]
-    paths: [".github/runpod-control/emergency-stop-one-day-probe-03-trigger.json"]
+    paths: [".github/runpod-control/emergency-stop-one-day-probe-03-trigger-v2.json"]
 permissions:
   contents: write
 jobs:
@@ -17,49 +17,33 @@ jobs:
         with:
           ref: ops/one-day-verified-trajectory-20260925
           fetch-depth: 0
-      - name: Stop and delete exact Pod
+      - name: Stop and delete exact auth03 Pod
         shell: bash
         run: |
           set -euo pipefail
           pod="$POD_ID"
           code="$(curl -sS -o /tmp/pre.json -w '%{http_code}' "https://rest.runpod.io/v1/pods/$pod" -H "Authorization: Bearer $RUNPOD_API_KEY" || true)"
-          if [ "$code" != 404 ]; then
+          if [ "$code" != "404" ]; then
             curl -sS -X POST "https://rest.runpod.io/v1/pods/$pod/stop" -H "Authorization: Bearer $RUNPOD_API_KEY" -H 'Content-Type: application/json' -d '{}' >/tmp/stop.json || true
             for i in $(seq 1 30); do
               sleep 2
               code="$(curl -sS -o /tmp/probe.json -w '%{http_code}' "https://rest.runpod.io/v1/pods/$pod" -H "Authorization: Bearer $RUNPOD_API_KEY" || true)"
-              [ "$code" = 404 ] && break
-              if python3 - <<'PY'
-import json,sys
-try:p=json.load(open('/tmp/probe.json'))
-except Exception:sys.exit(1)
-sys.exit(0 if p.get('desiredStatus')=='EXITED' else 1)
-PY
-              then break; fi
+              [ "$code" = "404" ] && break
+              python3 -c 'import json,sys; p=json.load(open("/tmp/probe.json")); sys.exit(0 if p.get("desiredStatus")=="EXITED" else 1)' && break || true
             done
             curl -sS -X DELETE "https://rest.runpod.io/v1/pods/$pod" -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/delete.json || true
           fi
           deleted=0
           for i in $(seq 1 30); do
-            sleep 2
             code="$(curl -sS -o /tmp/final.json -w '%{http_code}' "https://rest.runpod.io/v1/pods/$pod" -H "Authorization: Bearer $RUNPOD_API_KEY" || true)"
-            if [ "$code" = 404 ]; then deleted=1; break; fi
+            if [ "$code" = "404" ]; then deleted=1; break; fi
+            sleep 2
           done
-          test "$deleted" = 1
-          python3 - <<'PY'
-import datetime,json
-from pathlib import Path
-out={
-  'kind':'AQLEVON_EMERGENCY_STOP_DELETE_RECEIPT_V1',
-  'pod_id':'03kph2nb3s84bi',
-  'authorization_id':'P4-ONE-DAY-PUBLIC-PASSN-20260925-03',
-  'stopped_and_deleted':True,
-  'checked_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat()
-}
-Path('.github/runpod-control/one-day-public-probe-emergency-stop-03-result.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
-print('AQLEVON_EMERGENCY_STOP_DELETE_03_PASS',json.dumps(out,sort_keys=True))
-PY
-      - name: Persist emergency receipt
+          test "$deleted" = "1"
+          now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          printf '{\n  "authorization_id": "P4-ONE-DAY-PUBLIC-PASSN-20260925-03",\n  "checked_at_utc": "%s",\n  "kind": "AQLEVON_EMERGENCY_STOP_DELETE_RECEIPT_V1",\n  "pod_id": "03kph2nb3s84bi",\n  "stopped_and_deleted": true\n}\n' "$now" > .github/runpod-control/one-day-public-probe-emergency-stop-03-result.json
+          echo "AQLEVON_EMERGENCY_STOP_DELETE_03_PASS pod=$pod"
+      - name: Persist cleanup receipt
         shell: bash
         run: |
           set -euo pipefail
