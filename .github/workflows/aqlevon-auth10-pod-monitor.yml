@@ -1,0 +1,48 @@
+name: AQLEVON Auth10 Read-Only Pod Monitor
+on:
+  push:
+    branches: [ops/one-day-verified-trajectory-20260925]
+    paths: [".github/runpod-control/auth10-monitor-trigger.json"]
+permissions:
+  contents: write
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      POD_ID: ld8plafipdka6v
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/one-day-verified-trajectory-20260925
+          fetch-depth: 0
+      - name: Read exact Pod state only
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl -sS -o /tmp/pod.json -w '%{http_code}' "https://rest.runpod.io/v1/pods/$POD_ID" -H "Authorization: Bearer $RUNPOD_API_KEY" || true)"
+          CODE="$code" python3 - <<'PY'
+          import json,datetime,os
+          from pathlib import Path
+          code=os.environ["CODE"]
+          out={"kind":"AQLEVON_AUTH10_READ_ONLY_POD_MONITOR_V1","checked_at_utc":datetime.datetime.now(datetime.timezone.utc).isoformat(),"pod_id":os.environ["POD_ID"],"http_code":code,"mutated":False}
+          if code=="200":
+              p=json.load(open("/tmp/pod.json"))
+              out.update({"desiredStatus":p.get("desiredStatus"),"status":p.get("status"),"publicIp_present":bool(p.get("publicIp")),"port22":(p.get("portMappings") or {}).get("22"),"costPerHr":p.get("costPerHr"),"gpu":p.get("gpu") or p.get("gpuDisplayName")})
+          elif code=="404":
+              out["not_found"]=True
+          Path(".github/runpod-control/auth10-monitor-result.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print(json.dumps(out,sort_keys=True))
+          PY
+      - name: Persist read-only monitor
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name aqlevon-runpod-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/runpod-control/auth10-monitor-result.json
+          git commit -m "ops: record Auth10 read-only Pod state [skip ci]" || true
+          git fetch origin ops/one-day-verified-trajectory-20260925
+          git rebase origin/ops/one-day-verified-trajectory-20260925 || { git rebase --abort || true; exit 1; }
+          git push origin HEAD:ops/one-day-verified-trajectory-20260925
