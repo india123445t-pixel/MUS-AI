@@ -1,0 +1,15 @@
+{
+  "authorization_id": "P4-ONE-DAY-RSFT-CRYSTALLIZATION-20260925-09",
+  "authorization_sha256": "76bdd6d24ba6007c3bc702568f026dfcf4d69d44a85f129510d127844f6adcc6",
+  "created_at_utc": "2026-09-25T16:40:00.474010+00:00",
+  "dynamic_max_billed_seconds": 1500,
+  "image_digest": "sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec",
+  "paid_boundary_refresh_at_utc": "2026-09-25T16:39:58.558557+00:00",
+  "pod_id": "tlc2wscv0kt010",
+  "selected_datacenter": "EU-RO-1",
+  "selected_gpu_id": "NVIDIA A100 80GB PCIe",
+  "selected_price_hr": 1.59,
+  "single_use_consumed": true,
+  "source_head": "7b35fab86da22e46804e9af6f311a88ea5b02e27",
+  "training_authorized": true
+}
