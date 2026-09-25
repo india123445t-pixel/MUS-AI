@@ -1,0 +1,75 @@
+name: AQLEVON Auth07 Zero-Spend Seal
+on:
+  push:
+    branches: [ops/auth07-crystallization-frozen-20260925]
+    paths: [".github/runpod-control/auth07-free-seal-trigger.json"]
+permissions:
+  contents: write
+jobs:
+  seal:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/auth07-crystallization-frozen-20260925
+          fetch-depth: 0
+      - name: Seal exact Auth07 before spend
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${RUNPOD_API_KEY:-}"
+          test ! -e .github/runpod-control/one-day-crystallization-consumed-07.json
+          curl -fsS https://rest.runpod.io/v1/pods -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/pods07.json
+          curl -sSL https://cli.runpod.net | sudo bash >/dev/null
+          runpodctl user >/tmp/user07.json
+          runpodctl gpu list --output json >/tmp/gpus07.json
+          python3 - <<'PY'
+          import datetime,hashlib,json
+          from pathlib import Path
+          a=json.load(open('.github/runpod-control/one-day-crystallization-manager-authorization-07-20260925.json'))
+          sha=hashlib.sha256(json.dumps({k:v for k,v in a.items() if k!='authorization_sha256'},sort_keys=True,separators=(',',':'),ensure_ascii=False,allow_nan=False).encode()).hexdigest()
+          assert sha==a['authorization_sha256']=='8f5e7ce1ca79e4d8f0e8e041dc2b656bc57c2cbea918f4e888581c28f4dbf9df'
+          p=json.load(open('/tmp/pods07.json')); items=p if isinstance(p,list) else p.get('pods') or p.get('items') or []
+          active=[x for x in items if str(x.get('name','')).startswith('AQLEVON-') and str(x.get('desiredStatus') or x.get('status'))!='EXITED']
+          assert not active,active
+          balances=[]
+          def walk(x):
+              if isinstance(x,dict):
+                  for k,v in x.items():
+                      if k.lower().replace('_','') in ('balance','currentbalance','creditbalance','clientbalance') and type(v) in (int,float): balances.append(float(v))
+                      walk(v)
+              elif isinstance(x,list):
+                  for v in x: walk(v)
+          walk(json.load(open('/tmp/user07.json'))); assert balances
+          choices=[]; allowed=set(a['permitted_gpu_ids'])
+          for g in json.load(open('/tmp/gpus07.json')):
+              gid=str(g.get('gpuId',''))
+              if gid not in allowed or not g.get('secureCloud'): continue
+              price=float(g.get('securePricePerHr') or 999)
+              if price>float(a['max_hourly_rate_usd']): continue
+              for d in g.get('dataCenterAvailability') or []:
+                  if str(d.get('stockStatus')).lower()!='none' and d.get('dataCenterId'):
+                      secs=min(int(a['max_billed_seconds']),int(float(a['max_total_cost_usd'])*3600/price))
+                      if secs>=1200: choices.append((price,gid,str(d['dataCenterId']),secs))
+          assert choices,'no_cost_safe_auth07_gpu_stock'
+          price,gpu,dc,secs=sorted(choices)[0]
+          out={'kind':'AQLEVON_AUTH07_ZERO_SPEND_SEAL_V1','checked_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),
+               'authorization_id':a['authorization_id'],'authorization_sha256':a['authorization_sha256'],
+               'source_head':a['expected_source_head'],'balance_usd':max(balances),'active_aqlevon_pods':[],
+               'selected_gpu_id':gpu,'selected_datacenter':dc,'selected_price_hr':price,
+               'dynamic_max_billed_seconds':secs,'paid_resource_created':False}
+          Path('.github/runpod-control/one-day-crystallization-free-result-07.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
+          print('AQLEVON_AUTH07_ZERO_SPEND_SEAL_PASS',json.dumps(out,sort_keys=True))
+          PY
+      - name: Persist seal
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name aqlevon-runpod-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/runpod-control/one-day-crystallization-free-result-07.json
+          git commit -m "ops: persist Auth07 zero-spend seal [skip ci]"
+          git push origin HEAD:ops/auth07-crystallization-frozen-20260925
