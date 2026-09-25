@@ -310,8 +310,24 @@ def run(args):
         raise RuntimeError("no_lora_B_change")
     saved_hash=state_hash(saved)
 
-    model.config.use_cache=True
-    post=evaluate_shadow(model, tokenizer, w02, shadow, generation)
+    # Prove that the exact saved artifact reloads to the identical LoRA state,
+    # then evaluate the reloaded artifact rather than the in-memory trainer.
+    del saved, model, base, optimizer
+    import gc
+    gc.collect()
+    torch.cuda.empty_cache()
+    reloaded_base = Qwen3_5ForConditionalGeneration.from_pretrained(
+        str(args.model_dir), dtype=torch.bfloat16, device_map={"": 0},
+        low_cpu_mem_usage=True, local_files_only=True, trust_remote_code=False)
+    reloaded = PeftModel.from_pretrained(reloaded_base, str(artifact), is_trainable=False)
+    reloaded_state = get_peft_model_state_dict(reloaded)
+    if tensor_layout(reloaded_state) != layout:
+        raise RuntimeError("save_reload_layout_mismatch")
+    reloaded_hash = state_hash(reloaded_state)
+    if reloaded_hash != saved_hash:
+        raise RuntimeError("save_reload_hash_mismatch")
+    reloaded.config.use_cache = True
+    post=evaluate_shadow(reloaded, tokenizer, w02, shadow, generation)
     improvement=post["pass_at_1"]-pre["pass_at_1"]
     gain_tasks=post["successes"]-pre["successes"]
     public_gate=bool(improvement >= 0.10 and gain_tasks >= 3)
@@ -328,6 +344,7 @@ def run(args):
         "train_task_ids":[x["task_id"] for x in used],"optimizer_updates":len(used),
         "losses":losses,"gradient_norms":grad_norms,"adapter_tensors":32,"target_modules":16,
         "changed_lora_B_elements":changed,"adapter_state_sha256":saved_hash,
+        "reloaded_adapter_state_sha256":reloaded_hash,"save_reload_hash_match":True,
         "shadow_pre_successes":pre["successes"],"shadow_pre_pass_at_1":pre["pass_at_1"],
         "shadow_post_successes":post["successes"],"shadow_post_pass_at_1":post["pass_at_1"],
         "shadow_gain_tasks":gain_tasks,"shadow_improvement":improvement,"public_shadow_gate_pass":public_gate,
@@ -337,7 +354,7 @@ def run(args):
     write_json(outdir/"shadow_pre_eval.json",pre)
     write_json(outdir/"shadow_post_eval.json",post)
 
-    del saved
+    del reloaded_state
     manifest=sealed({
         "manifest_kind":"AQLEVON_ONE_DAY_CRYSTALLIZED_CANDIDATE_MANIFEST_V1",
         "candidate_status":"READY_FOR_WORKER05_EVALUATION" if public_gate else "PUBLIC_SHADOW_GATE_FAILED",
@@ -346,7 +363,8 @@ def run(args):
         "training_receipt_sha256":sha_file(outdir/"training_run_receipt.json"),
         "adapter_config_sha256":sha_file(artifact/"adapter_config.json"),
         "adapter_model_sha256":sha_file(artifact/"adapter_model.safetensors"),
-        "adapter_state_sha256":saved_hash,"tensor_layout":layout,
+        "adapter_state_sha256":saved_hash,"reloaded_adapter_state_sha256":reloaded_hash,
+        "save_reload_hash_match":True,"tensor_layout":layout,
         "public_shadow_gate_pass":public_gate,"sealed_eval_consumed":False,
         "worker05_used_for_tuning":False,"capability_gain_claim":False
     },"manifest_sha256")
