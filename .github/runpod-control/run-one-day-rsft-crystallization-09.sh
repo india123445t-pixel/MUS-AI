@@ -7,6 +7,7 @@ TRIGGER=".github/runpod-control/execute-one-day-rsft-crystallization-09.json"
 CONSUMED=".github/runpod-control/one-day-rsft-crystallization-consumed-09.json"
 RESULT=".github/runpod-control/one-day-rsft-crystallization-run-result-09.json"
 SOURCE_HEAD="7b35fab86da22e46804e9af6f311a88ea5b02e27"
+SOURCE_BLOB="930e6742f15b77cfa4653485ea7be91d1d965fcb"
 W02_HEAD="abb94ef134e2e97036b6959dbc9db4278d3736b6"
 AUTH_ID="P4-ONE-DAY-RSFT-CRYSTALLIZATION-20260925-09"
 AUTH_SHA="76bdd6d24ba6007c3bc702568f026dfcf4d69d44a85f129510d127844f6adcc6"
@@ -40,6 +41,8 @@ assert sha==a["authorization_sha256"]=="76bdd6d24ba6007c3bc702568f026dfcf4d69d44
 assert a["authorization_id"]==f["authorization_id"]==t["authorization_id"]=="P4-ONE-DAY-RSFT-CRYSTALLIZATION-20260925-09"
 assert a["expected_source_head"]==f["source_head"]==t["expected_source_head"]=="7b35fab86da22e46804e9af6f311a88ea5b02e27"
 assert a["training_authorized"] is True and a["single_use"] is True
+assert a["candidate_source_blob"]=="930e6742f15b77cfa4653485ea7be91d1d965fcb"
+assert a["max_total_cost_usd"]=="0.70" and a["max_hourly_rate_usd"]=="1.60" and a["max_billed_seconds"]==1500
 assert a["train_discovery_tasks"]==28 and a["train_families"]==14 and a["epochs"]==3 and a["mining_n"]==8 and a["max_on_policy_per_task"]==1 and a["minimum_optimizer_updates"]==84
 assert a["public_shadow_tasks"]==28
 assert f["paid_resource_created"] is False and f["active_aqlevon_pods"]==[]
@@ -48,6 +51,8 @@ print("AQLEVON_AUTH09_DRIVER_CONTRACT_PASS")
 PY
 
 git fetch -q origin "$SOURCE_HEAD" "$W02_HEAD"
+blob="$(git rev-parse "$SOURCE_HEAD:research/weight_factory/agent03/p4_one_day_rsft_crystallize.py")"
+test "$blob" = "$SOURCE_BLOB"
 rm -rf /tmp/rsft-source
 mkdir -p /tmp/rsft-source
 git archive "$SOURCE_HEAD" | tar -x -C /tmp/rsft-source
@@ -107,7 +112,7 @@ PY
 git config user.name aqlevon-runpod-bot
 git config user.email actions@users.noreply.github.com
 git add .github/runpod-control/one-day-rsft-crystallization-live-selection-09.json
-git commit -m "ops: persist Auth08 live selection before spend [skip ci]"
+git commit -m "ops: persist Auth09 RSFT live selection before spend [skip ci]"
 git push origin HEAD:ops/one-day-verified-trajectory-20260925
 
 ssh-keygen -q -t ed25519 -N '' -f /tmp/auth09_key
@@ -140,7 +145,7 @@ print("AQLEVON_AUTH09_POD_CREATED",pod)
 PY
 pod="$(cat /tmp/pod_id08)"
 git add "$CONSUMED"
-git commit -m "ops: consume Auth08 coverage crystallization authorization [skip ci]"
+git commit -m "ops: consume Auth09 RSFT crystallization authorization [skip ci]"
 git push origin HEAD:ops/one-day-verified-trajectory-20260925
 
 ready=0
@@ -250,7 +255,7 @@ print("AQLEVON_AUTH09_RESULT",json.dumps(out,sort_keys=True))
 PY
 
 git add "$RESULT"
-git commit -m "ops: record Auth08 coverage crystallization result [skip ci]" || true
+git commit -m "ops: record Auth09 RSFT crystallization result [skip ci]" || true
 git fetch origin ops/one-day-verified-trajectory-20260925
 git rebase origin/ops/one-day-verified-trajectory-20260925 || { git rebase --abort || true; echo AQLEVON_AUTH09_RESULT_BRANCH_PUSH_SKIPPED; }
 git push origin HEAD:ops/one-day-verified-trajectory-20260925 || echo AQLEVON_AUTH09_RESULT_PUSH_NONFATAL
