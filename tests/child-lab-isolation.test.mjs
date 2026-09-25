@@ -128,3 +128,17 @@ test('owner console links to child lab and no longer exposes legacy runtime mode
   assert.doesNotMatch(admin,/openrouter_model/);
   assert.doesNotMatch(admin,/openrouter_primary/);
 });
+
+
+test('child reset clears stale candidate state and revokes operational grants',()=>{
+  assert.match(page,/setCandidate\(null\)/);
+  assert.match(page,/setCandidateEval\(null\)/);
+  assert.match(page,/setPermissions\(defaultChildPermissions\(\)\)/);
+  assert.match(page,/CHILD_RESET/);
+  assert.match(page,/سحب صلاحيات الأدوات/);
+});
+
+test('child snapshots preserve and restore identity with persona state',()=>{
+  assert.match(page,/identity:pkg\.identity/);
+  assert.match(page,/snap\.identity/);
+});
