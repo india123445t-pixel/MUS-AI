@@ -178,7 +178,7 @@ for i in $(seq 1 240); do
 done
 [[ "$rc" =~ ^[0-9]+$ ]] || rc=255
 
-ssh -i /tmp/auth07_key -p "$port" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@"$host"   'tar --no-same-owner -czf /tmp/auth07-evidence.tgz -C /tmp auth07-runtime auth07-supervisor.log auth07.rc 2>/dev/null' || true
+ssh -i /tmp/auth07_key -p "$port" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@"$host"   'tar -czf /tmp/auth07-evidence.tgz -C /tmp auth07-runtime auth07-supervisor.log auth07.rc 2>/dev/null' || true
 ssh -i /tmp/auth07_key -p "$port" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@"$host"   'cat /tmp/auth07-runtime/train.log' >/tmp/auth07-train.log 2>/dev/null || true
 scp -q -i /tmp/auth07_key -P "$port" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null   root@"$host":/tmp/auth07-evidence.tgz /tmp/auth07-evidence.tgz 2>/dev/null || true
 printf '%s\n' "$rc" >/tmp/auth07_remote_rc
@@ -228,6 +228,7 @@ for i in $(seq 1 30); do
   sleep 2
 done
 test "$cleaned" = 1
+touch /tmp/auth07_deleted_ok
 echo AQLEVON_AUTH07_POD_STOP_DELETE_PASS
 printf '%s\n' "$rc" >/tmp/auth07_remote_rc
 test "$rc" = 0
