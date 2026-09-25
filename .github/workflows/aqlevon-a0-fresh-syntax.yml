@@ -32,6 +32,8 @@ jobs:
           assert auth['image_digest'] in raw
           assert auth['max_artifact_egress_bytes']==5368709120 and float(auth['prior_mission_spend_usd'])+float(auth['max_total_cost_usd'])<5
           assert not pathlib.Path('.github/runpod-control/a0-fresh-consumed.json').exists()
+          assert 'execute-a0-resume-trigger.json' not in raw
+          assert raw.count('execute-a0-fresh-trigger.json')==2
           assert 'runpodctl pod create' in raw
           assert 'Stage exact source and public data on runner before billing' in raw
           assert 'aqlevon_a0-previous-supervisor.log' in raw
