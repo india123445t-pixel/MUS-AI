@@ -1,0 +1,11 @@
+{
+  "kind": "AQLEVON_AUTH17_TEMP_RUNTIME_TRIGGER_V1",
+  "authorization_id": "AQLEVON-AUTH17-RUNTIME-20260925",
+  "requested_at_utc": "2026-09-25T19:38:00Z",
+  "exact_adapter_sha256": "2d4f0c3528129e702dfa0af27fad467d411f355b9ea72e771942d0f6703e2b2a",
+  "max_total_cost_usd": "1.00",
+  "max_hourly_rate_usd": "0.80",
+  "max_runtime_seconds": 3000,
+  "runtime_only": true,
+  "training_forbidden": true
+}
