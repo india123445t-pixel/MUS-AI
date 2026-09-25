@@ -1,6 +1,6 @@
 {
   "action": "scan_secure_gpu_capacity",
-  "reason": "AQLEVON one-day lower-cost GPU scan after A100 provisioning stalls",
+  "reason": "refresh capacity for reliable large-memory Auth15 after repeated low-stock races",
   "nonce": "20260922-v019-48gb-refresh-3",
-  "requested_at_utc": "2026-09-25T18:30:00Z"
+  "requested_at_utc": "2026-09-25T18:38:00Z"
 }
