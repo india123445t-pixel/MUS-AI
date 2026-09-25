@@ -85,9 +85,11 @@ export default function ScheduledPage({ onMenu }) {
       <div className="topbar">
         <button className="iconbtn hamburger" aria-label="Menu" onClick={onMenu}><Icon name="menu" /></button>
         <h1>{t('auto.title')}</h1>
+        <span className="tag warn">{t('auto.adapterRequired')}</span>
         <button className="btn" onClick={() => setShow(true)}><Icon name="plus" size={15} /> {t('auto.new')}</button>
       </div>
       <div className="content narrow" style={{ maxWidth: 760, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div className="card"><b>{t('auto.adapterRequired')}</b><p className="muted small" style={{ margin: '6px 0 0' }}>{t('auto.localDraftNotice')}</p></div>
         {items.length === 0 && (
           <div className="empty"><Icon name="clock" size={28} /><p>{t('auto.empty')}</p></div>
         )}
@@ -105,8 +107,7 @@ export default function ScheduledPage({ onMenu }) {
                     {!s.enabled ? ' · ' + t('auto.paused') : ''}
                   </div>
                 </div>
-                <button className={'switch' + (s.enabled ? ' on' : '')} role="switch" aria-checked={!!s.enabled}
-                  onClick={() => api.patch('/scheduled/' + s.id, { enabled: !s.enabled }).then(load)} />
+                <button className={'switch' + (s.enabled ? ' on' : '')} role="switch" aria-checked={false} disabled title={t('auto.adapterRequired')} />
                 <button className="iconbtn" title={t('auto.history')} onClick={() => setExpanded(expanded === s.id ? null : s.id)}><Icon name="history" size={15} /></button>
                 <button className="iconbtn" title={t('common.delete')} onClick={() => del(s)}><Icon name="trash" size={15} /></button>
               </div>

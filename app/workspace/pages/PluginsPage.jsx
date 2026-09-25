@@ -11,28 +11,9 @@ export default function PluginsPage({ onMenu }) {
   const { t } = useI18n();
   const [plugins, setPlugins] = useState([]);
   const [q, setQ] = useState('');
-  const [connecting, setConnecting] = useState(null);
-  const [token, setToken] = useState('');
-  const [scopes, setScopes] = useState([]);
-  const [note, setNote] = useState(null);
-  const [busy, setBusy] = useState(false);
 
   const load = () => api.get('/plugins').then(setPlugins).catch(() => {});
   useEffect(() => { load(); }, []);
-  const setP = (id, patch) => api.patch('/plugins/' + id, patch).then(load);
-
-  const connect = async () => {
-    if (!token.trim()) return;
-    setBusy(true);
-    try {
-      const r = await api.post(`/plugins/${connecting.id}/connect`, { token: token.trim(), scopes });
-      setNote({ ok: r.status === 'connected', text: r.note || (r.status === 'connected' ? t('apps.connected') : t('common.error')) });
-      if (r.status === 'connected') setTimeout(() => { setConnecting(null); setToken(''); setNote(null); }, 1200);
-      load();
-    } catch (e) { setNote({ ok: false, text: e.message }); }
-    finally { setBusy(false); }
-  };
-
   const match = p => !q || (p.name + ' ' + p.description).toLowerCase().includes(q.toLowerCase());
   const tools = plugins.filter(p => BUILT_IN[p.id] && match(p));
   const apps = plugins.filter(p => !BUILT_IN[p.id] && match(p));
@@ -47,6 +28,7 @@ export default function PluginsPage({ onMenu }) {
         <input className="input" style={{ maxWidth: 220 }} placeholder={t('apps.search')} value={q} onChange={e => setQ(e.target.value)} />
       </div>
       <div className="content narrow" style={{ maxWidth: 860 }}>
+        <div className="card" style={{ marginBottom: 14 }}><b>{t('apps.browserNoticeTitle')}</b><p className="muted small" style={{ margin: '6px 0 0' }}>{t('apps.browserNotice')}</p></div>
         {tools.length > 0 && <>
           <div className="sec-title">{t('apps.builtin')}</div>
           <p className="muted small" style={{ marginTop: -4 }}>{t('apps.builtinHint')}</p>
@@ -58,8 +40,7 @@ export default function PluginsPage({ onMenu }) {
                   <span className="tname">{t('apps.n.' + p.id)}</span>
                   <span className="tdesc">{t(descKey(p))}</span>
                 </span>
-                <button className={'switch' + (p.enabled ? ' on' : '')} role="switch" aria-checked={!!p.enabled}
-                  onClick={() => setP(p.id, { installed: true, enabled: !p.enabled })} />
+                <button className={'switch' + (p.enabled ? ' on' : '')} role="switch" aria-checked={false} disabled title={t('apps.adapterRequired')} />
               </div>
             ))}
           </div>
@@ -87,12 +68,7 @@ export default function PluginsPage({ onMenu }) {
                     </div>
                   )}
                   <div className="row">
-                    {st !== 'connected'
-                      ? <button className="btn sm" onClick={() => { setConnecting(p); setScopes(p.availableScopes.slice(0, 1)); setNote(null); setToken(''); }}>{t('apps.connect')}…</button>
-                      : <button className="btn sm ghost" onClick={() => api.post(`/plugins/${p.id}/disconnect`).then(load)}>{t('apps.disconnect')}</button>}
-                    {st === 'error' && (
-                      <button className="btn sm ghost" onClick={() => { setConnecting(p); setScopes(p.connection.scopes || []); setNote(null); setToken(''); }}>{t('apps.reconnect')}</button>
-                    )}
+                    <button className="btn sm" disabled title={t('apps.browserNotice')}>{t('apps.adapterRequired')}</button>
                   </div>
                 </div>
               );
@@ -103,33 +79,6 @@ export default function PluginsPage({ onMenu }) {
         <p className="muted small" style={{ marginTop: 22 }}>{t('apps.serverSide')}</p>
       </div>
 
-      {connecting && (
-        <div className="modal-backdrop" onClick={() => setConnecting(null)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
-            <h3>{t('apps.connect')} {t('apps.n.' + connecting.id)}</h3>
-            <div className="field">
-              <label className="lbl">{t('apps.token')}</label>
-              <input className="input" type="password" value={token} onChange={e => setToken(e.target.value)} autoComplete="off"
-                onKeyDown={e => { if (e.key === 'Enter') connect(); }} />
-              {connecting.id === 'github' && <div className="hint">{t('apps.githubHint')}</div>}
-            </div>
-            <div className="field">
-              <label className="lbl">{t('apps.permissions')}</label>
-              <div className="row" style={{ flexWrap: 'wrap' }}>
-                {connecting.availableScopes.map(s => (
-                  <button key={s} className={'chip' + (scopes.includes(s) ? ' on' : '')}
-                    onClick={() => setScopes(sc => sc.includes(s) ? sc.filter(x => x !== s) : [...sc, s])}>{s}</button>
-                ))}
-              </div>
-            </div>
-            {note && <p className={note.ok ? 'good-text' : 'bad-text'}>{note.ok ? '✓ ' : ''}{note.text}</p>}
-            <div className="row" style={{ justifyContent: 'flex-end' }}>
-              <button className="btn ghost" onClick={() => setConnecting(null)}>{t('common.cancel')}</button>
-              <button className="btn" disabled={busy || !token.trim()} onClick={connect}>{t('apps.connect')}</button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }

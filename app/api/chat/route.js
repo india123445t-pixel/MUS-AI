@@ -18,8 +18,8 @@ import { redactSecrets } from '../../../lib/aqlevon/security.js';
 import { AQLEVON_BOS_VERSION } from '../../../lib/aqlevon/constants.js';
 import { governResponse } from '../../../lib/aqlevon/response-governor.js';
 
-const SUPABASE_URL=process.env.NEXT_PUBLIC_SUPABASE_URL||'https://qkoscgdegnqcypkjrefn.supabase.co';
-const SUPABASE_KEY=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||'sb_publishable_wGDAyv5bwOrGjNX6QK0KzQ_K_xWI6w8';
+const SUPABASE_URL=process.env.NEXT_PUBLIC_SUPABASE_URL||'';
+const SUPABASE_KEY=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||'';
 
 function client(){
   if(!SUPABASE_URL||!SUPABASE_KEY)throw new Error('Supabase environment is not configured.');
@@ -41,6 +41,7 @@ async function loadRuntime(sb){
       max_model_calls_per_request:3,
       max_history:16,
       temperature:0.4,
+      runtime_mode:'self_hosted_only',
       allow_paid_external:false,
       public_web_search_enabled:false,
     },
@@ -52,7 +53,7 @@ async function loadRuntime(sb){
       sb.rpc('get_aqlevon_runtime_lessons',{p_limit:18}),
     ]);
     return {
-      settings:cfg.error?fallback.settings:{...fallback.settings,...(cfg.data||{})},
+      settings:cfg.error?fallback.settings:{...fallback.settings,...(cfg.data||{}),runtime_mode:'self_hosted_only',allow_paid_external:false,public_web_search_enabled:false},
       lessons:lessons.error?[]:(lessons.data||[]),
     };
   }catch{return fallback}
@@ -133,6 +134,9 @@ export async function POST(req){
     if(rawInput.length>20000)return NextResponse.json({message:'الرسالة طويلة جدًا.'},{status:413});
 
     const redactedInput=redactSecrets(rawInput);
+    if(!SUPABASE_URL||!SUPABASE_KEY){
+      return NextResponse.json({message:'قاعدة بيانات AQLEVON غير مهيأة.',error_class:'ENV_MISSING'},{status:503});
+    }
     const sb=client();
     const {settings,lessons}=await loadRuntime(sb);
     if(settings.public_chat_enabled===false)return NextResponse.json({message:'AQLEVON AI في وضع صيانة مؤقتًا.'},{status:503});
@@ -166,7 +170,7 @@ export async function POST(req){
     modelCalls++;
     if(!first||first.unavailable){
       const errorClass=first?.error_class||'UNKNOWN_PROVIDER_ERROR';
-      console.warn('AQLEVON_INFERENCE_UNAVAILABLE',{error_class:errorClass,route:settings?.runtime_mode||'openrouter_primary'});
+      console.warn('AQLEVON_INFERENCE_UNAVAILABLE',{error_class:errorClass,route:settings?.runtime_mode||'self_hosted_only'});
       return NextResponse.json({message:'لا يوجد محرك استدلال متاح الآن.',error_class:errorClass},{status:503});
     }
     candidates.push(first);

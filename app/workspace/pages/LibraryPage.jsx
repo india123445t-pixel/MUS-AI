@@ -75,10 +75,12 @@ export default function LibraryPage({ onMenu }) {
       <div className="topbar">
         <button className="iconbtn hamburger" aria-label="Menu" onClick={onMenu}><Icon name="menu" /></button>
         <h1>{t('lib.title')}</h1>
+        <span className="tag warn">{t('lib.browserOnly')}</span>
         <button className="btn" onClick={() => fileRef.current.click()}><Icon name="plus" size={15} /> {t('lib.upload')}</button>
         <input hidden type="file" ref={fileRef} onChange={e => e.target.files[0] && upload(e.target.files[0])} />
       </div>
       <div className="content narrow">
+        <div className="card" style={{ marginBottom: 14 }}><p className="muted small" style={{ margin: 0 }}>{t('lib.browserNotice')}</p></div>
         <div className="lib-toolbar">
           <input className="input" style={{ maxWidth: 260 }} placeholder={t('lib.search')} value={q} onChange={e => setQ(e.target.value)} />
           {FILTERS.map(f => (
@@ -162,9 +164,9 @@ export default function LibraryPage({ onMenu }) {
             </div>
             <div style={{ marginTop: 12, maxHeight: '60vh', overflow: 'auto' }}>
               {isImg(preview.file) ? (
-                <img src={`/api/files/${preview.file.id}/content`} alt={preview.file.name} style={{ maxWidth: '100%', borderRadius: 10 }} />
+                <img src={api.fileUrl(preview.file.id)} alt={preview.file.name} style={{ maxWidth: '100%', borderRadius: 10 }} />
               ) : preview.binary ? (
-                <p className="muted">{t('lib.noPreview')} <a href={`/api/files/${preview.file.id}/content`} download={preview.file.name}>{t('lib.download')}</a></p>
+                <p className="muted">{t('lib.noPreview')} <a href={api.fileUrl(preview.file.id)} download={preview.file.name}>{t('lib.download')}</a></p>
               ) : (
                 <pre className="preview-pre">{preview.text}</pre>
               )}
