@@ -23,7 +23,7 @@ jobs:
           python3 - <<'PY'
           import hashlib,json
           from pathlib import Path
-          a=json.loads(Path(".github/runpod-control/one-day-synthetic-curriculum-manager-authorization-12-20260925.json").read_text())
+          a=json.loads(Path(".github/runpod-control/one-day-synthetic-curriculum-manager-authorization-13-20260925.json").read_text())
           sha=hashlib.sha256(json.dumps({k:v for k,v in a.items() if k!="authorization_sha256"},sort_keys=True,separators=(",",":"),ensure_ascii=False,allow_nan=False).encode()).hexdigest()
           assert sha==a["authorization_sha256"]=="ee0f1a81372148ef38e44da0e5ab819b114793a235c6f24c22e4d002ca1deae5"
           assert a["single_use"] is True and a["training_authorized"] is True
@@ -45,7 +45,7 @@ jobs:
           python3 - <<'PY'
           import json,datetime
           from pathlib import Path
-          a=json.loads(Path(".github/runpod-control/one-day-synthetic-curriculum-manager-authorization-12-20260925.json").read_text())
+          a=json.loads(Path(".github/runpod-control/one-day-synthetic-curriculum-manager-authorization-13-20260925.json").read_text())
           p=json.load(open("/tmp/pods.json")); xs=p if isinstance(p,list) else p.get("pods") or p.get("items") or []
           active=[x for x in xs if str(x.get("name","")).startswith("AQLEVON-") and str(x.get("desiredStatus") or x.get("status"))!="EXITED"]
           assert not active,active
@@ -67,7 +67,7 @@ jobs:
                "candidate_source_blob":a["candidate_source_blob"],"checked_at_utc":datetime.datetime.now(datetime.timezone.utc).isoformat(),
                "active_aqlevon_pods":[],"paid_resource_created":False,"selected_gpu_id":gpu,"selected_datacenter":dc,
                "selected_price_hr":price,"stock_status":stock,"dynamic_max_billed_seconds":secs}
-          Path(".github/runpod-control/one-day-synthetic-curriculum-free-result-12.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          Path(".github/runpod-control/one-day-synthetic-curriculum-free-result-13.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
           print("AQLEVON_AUTH13_FREE_SEAL_PASS",json.dumps(out,sort_keys=True))
           PY
       - name: Persist Auth13 free seal
@@ -76,7 +76,7 @@ jobs:
           set -euo pipefail
           git config user.name aqlevon-runpod-bot
           git config user.email actions@users.noreply.github.com
-          git add .github/runpod-control/one-day-synthetic-curriculum-free-result-12.json
+          git add .github/runpod-control/one-day-synthetic-curriculum-free-result-13.json
           git commit -m "ops: record Auth13 free seal [skip ci]" || true
           git fetch origin ops/one-day-verified-trajectory-20260925
           git rebase origin/ops/one-day-verified-trajectory-20260925 || { git rebase --abort || true; exit 1; }
