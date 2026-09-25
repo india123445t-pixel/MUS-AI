@@ -100,3 +100,12 @@ test('sovereign evaluation runner covers required categories and stays self_host
   assert.ok(source.includes("runtime_mode:'self_hosted_only'"));
   assert.ok(source.includes('latency_ms'));
 });
+
+
+test('deep reasoning and advisory passes stay on the same AQLEVON engine without excluding it',async()=>{
+  const {readFile}=await import('node:fs/promises');
+  const source=await readFile(new URL('../app/api/chat/route.js',import.meta.url),'utf8');
+  assert.doesNotMatch(source,/excludeProviders/);
+  assert.match(source,/same_runtime:true/);
+  assert.match(source,/INDEPENDENT SOLUTION PATH/);
+});
