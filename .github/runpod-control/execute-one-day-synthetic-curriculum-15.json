@@ -1,0 +1,16 @@
+{
+  "authorization_id": "P4-ONE-DAY-SYNTHETIC-CURRICULUM-20260925-15",
+  "authorization_sha256": "6635c323573b54327171b31b9ae1506ab4f2c3bf176bf2ebc6f3a442cfd008cf",
+  "expected_source_head": "22b95b0fdfaf97c3ba3314a94c2413d45439cc6e",
+  "candidate_source_blob": "cb86e6494fada78328310dfe5900e75205862ee0",
+  "experiment_kind": "PUBLIC_SYNTHETIC_CURRICULUM_QKVO_LORA_TOPOLOGY_FIXED",
+  "training_authorized": true,
+  "owner_single_use_cap_usd": "0.70",
+  "scheduler_datacenter_policy": "UNPINNED_ANY_AVAILABLE_SECURE_DATACENTER",
+  "retry_sequence": 15,
+  "previous_paid_authorization_id": "P4-ONE-DAY-SYNTHETIC-CURRICULUM-20260925-13",
+  "previous_paid_outcome": "PROVISIONING_READINESS_TIMEOUT_NO_SCIENTIFIC_RUN",
+  "auth14_outcome": "PRESPEND_NO_PAID_RESOURCE",
+  "authorization_consumed": false,
+  "requested_at_utc": "2026-09-25T18:40:00Z"
+}
