@@ -249,7 +249,7 @@ export default function AdminPage(){
               <div className="v3-kv"><span>النتيجة</span><b>{outcomeLabel(activeTask.outcome)}</b></div>
               <div className="v3-kv"><span>النمط</span><b>{profileLabel(activeTask.scope?.profile)}</b></div>
               <div className="v3-kv"><span>الاستقلالية</span><b>{activeTask.scope?.autonomy||'approval_required'}</b></div>
-              <div className="v3-kv"><span>المنفّذ</span><b>{executorLabel(activeTask.scope?.executor_state||'NOT_CONNECTED')}</b></div>
+              <div className="v3-kv"><span>المنفّذ</span><b>{executorLabel(executorState)}</b></div>
               {activeTask.phase==='OPEN'&&<div className="v3-action-row"><button className="primary-btn" onClick={()=>taskAction(activeTask.id,'approve')} disabled={busy}>موافقة</button><button className="ghost-fit" onClick={()=>taskAction(activeTask.id,'cancel')} disabled={busy}>إلغاء</button></div>}
               <button className="owner-stop-btn" disabled={!hasInFlight} onClick={()=>taskAction(activeTask.id,'stop')}>إيقاف الآن</button>
             </div>}
@@ -283,7 +283,7 @@ export default function AdminPage(){
         <section className="mission-workbench">
           <div className="mission-table-pane">
             <div className="v3-table-head mission-grid"><span>المهمة</span><span>المرحلة</span><span>النتيجة</span><span>النمط</span><span>المنفّذ</span><span>آخر تحديث</span></div>
-            <div className="v3-scroll-list">{filteredTasks.length?filteredTasks.map(t=><button className={`v3-table-row mission-grid ${activeTask?.id===t.id?'selected':''}`} key={t.id} onClick={()=>setSelectedTask(t.id)}><span className="mission-title"><b>{t.title||'مهمة AQLEVON'}</b><small>{short(t.id,14)}</small></span><span>{phaseLabel(t.phase)}</span><span className={`tone-${String(t.outcome||'NONE').toLowerCase()}`}>{outcomeLabel(t.outcome)}</span><span>{profileLabel(t.scope?.profile)}</span><span>{t.scope?.executor_state||'NOT_CONNECTED'}</span><span>{when(t.updated_at||t.created_at)}</span></button>):<div className="empty-panel">لا توجد مهام تطابق البحث الحالي.</div>}</div>
+            <div className="v3-scroll-list">{filteredTasks.length?filteredTasks.map(t=><button className={`v3-table-row mission-grid ${activeTask?.id===t.id?'selected':''}`} key={t.id} onClick={()=>setSelectedTask(t.id)}><span className="mission-title"><b>{t.title||'مهمة AQLEVON'}</b><small>{short(t.id,14)}</small></span><span>{phaseLabel(t.phase)}</span><span className={`tone-${String(t.outcome||'NONE').toLowerCase()}`}>{outcomeLabel(t.outcome)}</span><span>{profileLabel(t.scope?.profile)}</span><span>{executorState}</span><span>{when(t.updated_at||t.created_at)}</span></button>):<div className="empty-panel">لا توجد مهام تطابق البحث الحالي.</div>}</div>
           </div>
           <aside className="v3-inspector">
             <div className="v3-inspector-head"><span className="eyebrow">تفاصيل المهمة</span><h3>{activeTask?.title||'اختر مهمة'}</h3><small>{activeTask?.id||'—'}</small></div>
@@ -292,7 +292,7 @@ export default function AdminPage(){
               <div className="v3-kv"><span>النتيجة</span><b>{outcomeLabel(activeTask.outcome)}</b></div>
               <div className="v3-kv"><span>النمط</span><b>{profileLabel(activeTask.scope?.profile)}</b></div>
               <div className="v3-kv"><span>الاستقلالية</span><b>{activeTask.scope?.autonomy||'approval_required'}</b></div>
-              <div className="v3-kv"><span>المنفّذ</span><b>{executorLabel(activeTask.scope?.executor_state||'NOT_CONNECTED')}</b></div>
+              <div className="v3-kv"><span>المنفّذ</span><b>{executorLabel(executorState)}</b></div>
               <div className="v3-divider"/>
               {activeTask.phase==='OPEN'&&<div className="v3-action-row"><button className="primary-btn" onClick={()=>taskAction(activeTask.id,'approve')} disabled={busy}>موافقة</button><button className="ghost-fit" onClick={()=>taskAction(activeTask.id,'cancel')} disabled={busy}>إلغاء</button></div>}
               <button className="owner-stop-btn" disabled={!hasInFlight} onClick={()=>taskAction(activeTask.id,'stop')}>إيقاف الآن</button>
