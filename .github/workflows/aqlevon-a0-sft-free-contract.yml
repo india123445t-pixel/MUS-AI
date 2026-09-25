@@ -1,0 +1,71 @@
+name: AQLEVON A0 No-Spend Contract
+on:
+  push:
+    branches: [ops/runpod-control-v1]
+    paths: [".github/runpod-control/a0-sft-free-trigger.json"]
+permissions:
+  contents: read
+jobs:
+  free_gate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      EXPECTED_HEAD: e8c60e05d688b8a5ce4805f1f959d041ab942512
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/runpod-control-v1
+      - uses: actions/checkout@v4
+        with:
+          ref: e8c60e05d688b8a5ce4805f1f959d041ab942512
+          path: a0-source
+          fetch-depth: 0
+      - name: Validate authorization, public input, and production gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C a0-source rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test "$(git ls-remote https://github.com/$GITHUB_REPOSITORY.git refs/heads/agent/03-p4-a0-sft-candidate-20260925 | cut -f1)" = "$EXPECTED_HEAD"
+          test ! -e .github/runpod-control/a0-sft-consumed.json
+          git -C a0-source fetch -q origin abb94ef134e2e97036b6959dbc9db4278d3736b6
+          git -C a0-source show abb94ef134e2e97036b6959dbc9db4278d3736b6:research/weight_factory/agent02/gene1_training_shard_v1.jsonl > /tmp/shard.jsonl
+          git -C a0-source show abb94ef134e2e97036b6959dbc9db4278d3736b6:research/weight_factory/agent02/gene1_training_shard_manifest_v1.json > /tmp/manifest.json
+          python3 -m py_compile a0-source/research/weight_factory/agent03/p4_a0_sft_candidate.py
+          bash -n a0-source/research/weight_factory/agent03/p4_a0_runpod_launch.sh
+          python3 a0-source/research/weight_factory/agent03/p4_a0_sft_candidate.py --shard-path /tmp/shard.jsonl --manifest-path /tmp/manifest.json --plan-path a0-source/research/weight_factory/agent03/p4_frozen_training_plan_v1.json --preflight-only
+          python3 - <<'PY'
+          import json,hashlib,importlib.util,os,pathlib
+          a=json.loads(pathlib.Path('.github/runpod-control/a0-manager-authorization-20260925.json').read_text())
+          def sha(v): return hashlib.sha256(json.dumps(v,sort_keys=True,separators=(',',':'),ensure_ascii=False,allow_nan=False).encode()).hexdigest()
+          assert a['authorization_sha256']==sha({k:v for k,v in a.items() if k!='authorization_sha256'})=='dc854cd9a903ce6b97b2f556fe827db05c308ef54e0b4ae87dbb626247d45397'
+          assert a['expected_source_head']==os.environ['EXPECTED_HEAD']
+          assert a['candidate_arm']=='P4_A0_SFT_LORA_CONTROL'
+          assert float(a['prior_mission_spend_usd'])+float(a['max_total_cost_usd'])<float(a['mission_max_total_usd'])
+          assert a['max_artifact_egress_bytes']==5368709120 and a['single_use'] is True
+          p=pathlib.Path('.github/workflows/aqlevon-a0-sft-execute.yml').read_text()
+          assert 'steps.source_auth.outputs.max_artifact_egress_bytes' not in p
+          for x in ('5368709120','a0-sft-consumed.json','AQLEVON_A0_INDEPENDENT_CANDIDATE_GATE_PASS','Stop exact Pod','if: always()'):
+              assert x in p,x
+          spec=importlib.util.spec_from_file_location('trainer','a0-source/research/weight_factory/agent03/p4_a0_sft_candidate.py')
+          m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
+          try:m.tensor_layout({})
+          except AssertionError:pass
+          else:raise AssertionError('empty adapter accepted')
+          print('AQLEVON_A0_AUTH_SOURCE_PUBLIC_EMPTY_REJECTION_PASS')
+          PY
+      - name: Verify live provider has no paid duplicate
+        env:
+          RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$RUNPOD_API_KEY"
+          curl -fsS https://rest.runpod.io/v1/pods -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/pods.json
+          python3 - <<'PY'
+          import json
+          o=json.load(open('/tmp/pods.json'));a=o if isinstance(o,list) else o.get('pods') or o.get('items') or []
+          active=[(p.get('id'),p.get('name'),p.get('desiredStatus')) for p in a if str(p.get('name','')).startswith('AQLEVON-P4-') and p.get('desiredStatus')!='EXITED']
+          assert not active,active
+          print('AQLEVON_A0_FREE_NO_ACTIVE_POD_PASS')
+          PY
+          echo AQLEVON_A0_FREE_CONTRACT_PASS
