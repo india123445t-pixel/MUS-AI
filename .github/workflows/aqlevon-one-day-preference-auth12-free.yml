@@ -23,7 +23,7 @@ jobs:
           python3 - <<'PY'
           import json,hashlib
           from pathlib import Path
-          p=Path(".github/runpod-control/one-day-preference-crystallization-manager-authorization-11-20260925.json")
+          p=Path(".github/runpod-control/one-day-preference-crystallization-manager-authorization-12-20260925.json")
           a=json.loads(p.read_text())
           body={k:v for k,v in a.items() if k!="authorization_sha256"}
           sha=hashlib.sha256(json.dumps(body,sort_keys=True,separators=(",",":"),ensure_ascii=False,allow_nan=False).encode()).hexdigest()
@@ -72,7 +72,7 @@ jobs:
             "preferred":rows[0] if rows else None,
             "paid_resource_created":False
           }
-          Path(".github/runpod-control/one-day-preference-crystallization-free-result-11.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          Path(".github/runpod-control/one-day-preference-crystallization-free-result-12.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
           print("AQLEVON_AUTH12_FREE_SEAL",json.dumps(out,sort_keys=True))
           PY
       - name: Persist Auth12 free seal
@@ -81,7 +81,7 @@ jobs:
           set -euo pipefail
           git config user.name aqlevon-runpod-bot
           git config user.email actions@users.noreply.github.com
-          git add .github/runpod-control/one-day-preference-crystallization-free-result-11.json
+          git add .github/runpod-control/one-day-preference-crystallization-free-result-12.json
           git commit -m "ops: record Auth12 preference free seal [skip ci]" || true
           git fetch origin ops/one-day-verified-trajectory-20260925
           git rebase origin/ops/one-day-verified-trajectory-20260925 || { git rebase --abort || true; exit 1; }
