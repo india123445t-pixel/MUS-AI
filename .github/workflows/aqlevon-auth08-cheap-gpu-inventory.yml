@@ -1,0 +1,45 @@
+name: AQLEVON Auth08 Cheap GPU Inventory
+on:
+  push:
+    branches: [ops/one-day-verified-trajectory-20260925]
+    paths: [".github/runpod-control/auth08-cheap-gpu-inventory-trigger.json"]
+permissions:
+  contents: read
+jobs:
+  inventory:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/one-day-verified-trajectory-20260925
+      - name: List cheap secure GPU stock without spend
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS https://rest.runpod.io/v1/pods -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/pods.json
+          python3 - <<'PY'
+          import json
+          p=json.load(open('/tmp/pods.json')); items=p if isinstance(p,list) else p.get('pods') or p.get('items') or []
+          active=[x for x in items if str(x.get('name','')).startswith('AQLEVON-') and str(x.get('desiredStatus') or x.get('status'))!='EXITED']
+          assert not active, active
+          print('AQLEVON_AUTH08_INVENTORY_NO_ACTIVE_PODS')
+          PY
+          curl -sSL https://cli.runpod.net | sudo bash >/dev/null
+          runpodctl gpu list --output json >/tmp/gpus.json
+          python3 - <<'PY'
+          import json
+          rows=[]
+          for g in json.load(open('/tmp/gpus.json')):
+              if not g.get('secureCloud'): continue
+              price=float(g.get('securePricePerHr') or 999)
+              if price>2.00: continue
+              stock=[str(d.get('dataCenterId')) for d in (g.get('dataCenterAvailability') or []) if str(d.get('stockStatus')).lower()!='none' and d.get('dataCenterId')]
+              if stock:
+                  rows.append((price,str(g.get('gpuId')),stock[:6]))
+          for price,gpu,stock in sorted(rows):
+              print('AQLEVON_GPU_OPTION',price,gpu,','.join(stock))
+          print('AQLEVON_GPU_OPTION_COUNT',len(rows))
+          PY
