@@ -1,12 +1,15 @@
 {
   "kind": "AQLEVON_AUTH16_SERVERLESS_DEPLOY_TRIGGER_V1",
-  "requested_at_utc": "2026-09-25T22:10:00Z",
+  "requested_at_utc": "2026-09-25T23:05:00Z",
   "source_branch": "release/aqlevon-unified-auth16-20260925",
-  "source_head_expected": "0cdd02967ecb34e83f39e788b32429f02c5e3139",
+  "source_head_expected": "05a3e022baffa3d72476baa6effeec01709efe53",
   "adapter_sha256": "2d4f0c3528129e702dfa0af27fad467d411f355b9ea72e771942d0f6703e2b2a",
   "workers_min": 0,
   "workers_max": 1,
   "gpu_pool": "AMPERE_24",
   "owner_budget_additional_usd": "5.00",
-  "purpose": "deploy exact frozen Auth16 for public app, Owner Core and Child Lab"
+  "purpose": "deploy exact frozen Auth16 for public app, Owner Core and Child Lab",
+  "retry_sequence": 2,
+  "previous_run_id": 36199177681,
+  "previous_outcome": "NO_GPU_IMAGE_BUILD_DEBIAN_CRYPTOGRAPHY_CONFLICT"
 }
