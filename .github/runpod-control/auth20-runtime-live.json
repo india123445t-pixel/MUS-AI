@@ -1,0 +1,21 @@
+{
+  "adapter_model_sha256": "2d4f0c3528129e702dfa0af27fad467d411f355b9ea72e771942d0f6703e2b2a",
+  "authorization_id": "AQLEVON-AUTH20-RUNTIME-20260925",
+  "chat_completions_url": "https://0kj4jtnesaycbu-8000.proxy.runpod.net/v1/chat/completions",
+  "experimental_candidate": true,
+  "final_worker05_gene_claim": false,
+  "gpu": "NVIDIA A100-SXM4-80GB",
+  "health_url": "https://0kj4jtnesaycbu-8000.proxy.runpod.net/health",
+  "kind": "AQLEVON_AUTH20_RUNTIME_LIVE_V1",
+  "launched_at_epoch": 1790366571,
+  "model": "AQLEVON-4B-Auth16",
+  "planned_cleanup_epoch": 1790369571,
+  "planned_cleanup_utc": "2026-09-25T20:52:51+00:00",
+  "pod_id": "0kj4jtnesaycbu",
+  "rate_per_hour_usd": 1.59,
+  "runtime_window_seconds": 3000,
+  "smoke_coding": "def add(a, b):\n    return a + b",
+  "smoke_general": "{\"status\":\"ready\"}",
+  "status": "LIVE_AND_SMOKE_VERIFIED",
+  "ui_url": "https://0kj4jtnesaycbu-8000.proxy.runpod.net/"
+}
