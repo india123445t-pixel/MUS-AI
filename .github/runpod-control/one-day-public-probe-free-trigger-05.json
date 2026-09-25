@@ -1,0 +1,7 @@
+{
+  "kind": "AQLEVON_ONE_DAY_PUBLIC_PROBE_FREE_TRIGGER_V5",
+  "authorization_id": "P4-ONE-DAY-PUBLIC-PASSN-20260925-05",
+  "authorization_sha256": "187f4b4d17086e3352d873263787e717ac24e32096350a07e87c5816674bd859",
+  "requested_at_utc": "2026-09-25T14:55:00Z",
+  "paid_resource_created": false
+}
