@@ -1,0 +1,43 @@
+name: AQLEVON Auth18 Pod Logs Probe
+on:
+  push:
+    branches: [ops/one-day-verified-trajectory-20260925]
+    paths: [".github/runpod-control/auth18-logs-probe-trigger.json"]
+permissions:
+  contents: write
+jobs:
+  logs:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/one-day-verified-trajectory-20260925
+          fetch-depth: 0
+      - name: Read exact Auth18 logs
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -sSL https://cli.runpod.net | sudo bash >/dev/null
+          (runpodctl pod logs yb8uswzt1cqqbz --tail 80 > /tmp/auth18-logs.jsonl 2>/tmp/auth18-logs.err) || true
+          python3 - <<'PY'
+          import datetime,json
+          from pathlib import Path
+          lines=[]
+          p=Path("/tmp/auth18-logs.jsonl")
+          if p.exists():
+              for raw in p.read_text(errors="replace").splitlines():
+                  try: lines.append(json.loads(raw))
+                  except Exception: lines.append({"raw":raw})
+          out={"kind":"AQLEVON_AUTH18_LOGS_PROBE_V1","checked_at_utc":datetime.datetime.now(datetime.timezone.utc).isoformat(),"pod_id":"yb8uswzt1cqqbz","lines":lines,"stderr":Path("/tmp/auth18-logs.err").read_text(errors="replace") if Path("/tmp/auth18-logs.err").exists() else ""}
+          Path(".github/runpod-control/auth18-logs-probe-result.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print(json.dumps(out,sort_keys=True))
+          PY
+          git config user.name aqlevon-runpod-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/runpod-control/auth18-logs-probe-result.json
+          git commit -m "runtime: record Auth18 pod logs probe [skip ci]" || true
+          git pull --rebase origin ops/one-day-verified-trajectory-20260925
+          git push origin HEAD:ops/one-day-verified-trajectory-20260925
