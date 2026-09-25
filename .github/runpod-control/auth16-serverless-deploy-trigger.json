@@ -13,5 +13,7 @@
   "owner_authorized_additional_budget_usd": 5,
   "no_gpu_retry_sequence": 4,
   "previous_run_id": 36190184074,
-  "previous_outcome": "NO_GPU_DEPENDENCY_CONFLICT_SAFETENSORS"
+  "previous_outcome": "NO_GPU_DEPENDENCY_CONFLICT_SAFETENSORS",
+  "retry_after_docker_overlay_fix": "2026-09-25T22:22:00Z",
+  "owner_runtime_budget_usd": 5
 }
