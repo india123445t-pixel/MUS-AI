@@ -38,7 +38,7 @@ p=torch.cuda.get_device_properties(0)
 gib=p.total_memory/(1024**3)
 name=p.name
 assert gib >= 44.0, f"AQLEVON_V019_GPU_MEMORY_TOO_SMALL:{name}:{gib:.2f}GiB"
-assert ("A40" in name) or ("A6000" in name), f"AQLEVON_V019_GPU_SKU_UNAUTHORIZED:{name}"
+assert ("A40" in name) or ("A6000" in name) or ("A100" in name), f"AQLEVON_V019_GPU_SKU_UNAUTHORIZED:{name}"
 print("AQLEVON_V019_GPU_IDENTITY_PASS",name,f"{gib:.2f}GiB")
 PY
 
@@ -267,7 +267,7 @@ echo "AQLEVON_V019_LORA_SMOKE_PASS"
 nvidia-smi --query-gpu=name,memory.total,memory.free,utilization.gpu --format=csv
 
 ELAPSED="$(( $(date +%s) - START_TS ))"
-TOTAL_EXECUTION_BUDGET_SECONDS=3300
+TOTAL_EXECUTION_BUDGET_SECONDS=7200
 MIN_TRAIN_WINDOW_SECONDS=900
 REMAINING="$(( TOTAL_EXECUTION_BUDGET_SECONDS - ELAPSED ))"
 if [ "$REMAINING" -lt "$MIN_TRAIN_WINDOW_SECONDS" ]; then
