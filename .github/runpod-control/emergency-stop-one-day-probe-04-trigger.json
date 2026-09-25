@@ -1,0 +1,7 @@
+{
+  "kind": "AQLEVON_ONE_DAY_EMERGENCY_STOP_TRIGGER_V1",
+  "pod_id": "hp8qhkh4y9gy5z",
+  "authorization_id": "P4-ONE-DAY-PUBLIC-PASSN-20260925-04",
+  "reason": "delete EXITED auth04 orchestration-failure Pod after durable artifact/log preservation; no new compute",
+  "requested_at_utc": "2026-09-25T14:44:00Z"
+}
