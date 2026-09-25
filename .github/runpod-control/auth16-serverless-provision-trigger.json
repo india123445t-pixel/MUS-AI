@@ -1,6 +1,6 @@
 {
   "kind": "AQLEVON_AUTH16_SERVERLESS_PROVISION_TRIGGER_V1",
-  "requested_at_utc": "2026-09-25T22:36:00Z",
+  "requested_at_utc": "2026-09-25T22:38:00Z",
   "model": "AQLEVON-4B-Auth16",
   "image": "ghcr.io/india123445t-pixel/aqlevon-auth16-serverless:auth16-20260925",
   "image_manifest_sha256": "2977f8f0cf25b3fd7785a634d17d2444e758d70bfde10cbadb834b8148406c2d",
@@ -13,5 +13,7 @@
   "workers_max": 1,
   "idle_timeout_seconds": 5,
   "invoke_inference": false,
-  "paid_gpu_expected": false
+  "paid_gpu_expected": false,
+  "retry_sequence": 2,
+  "retry_reason": "harden nested RunPod CLI JSON parsing"
 }
