@@ -39,14 +39,17 @@ export async function POST(req){
         training_lane_write:false,
       }
     });
-    if(!result.ok)return NextResponse.json({
-      message:result.error_class,
-      tool,
-      required_permissions:result.required_permissions||[],
-      missing_permissions:result.missing_permissions||[],
-      isolated:true,
-      execution_state:'NOT_EXECUTED'
-    },{status:result.error_class==='PERMISSION_DISABLED'?403:result.error_class==='ADAPTER_REQUIRED'?503:502});
+    if(!result.ok){
+      const status=result.error_class==='PERMISSION_DISABLED'?403:result.error_class==='ADAPTER_REQUIRED'?503:result.error_class==='ACTION_UNKNOWN'?400:502;
+      return NextResponse.json({
+        message:result.error_class,
+        tool,
+        required_permissions:result.required_permissions||[],
+        missing_permissions:result.missing_permissions||[],
+        isolated:true,
+        execution_state:'NOT_EXECUTED'
+      },{status});
+    }
     return NextResponse.json({
       ...result,
       isolated:true,

@@ -43,6 +43,10 @@ test('tool broker enforces every permission required by the selected action',()=
   assert.deepEqual(requiredChildPermissions('browser','account_modify',{multi_step:true}),['browser.submit','account.modify','workflow.multi_step']);
   assert.deepEqual(requiredChildPermissions('files','delete'),['files.delete']);
   assert.equal(CHILD_TOOL_ACTIONS.browser.some(x=>x.id==='session_login'),true);
+  assert.deepEqual(requiredChildPermissions('browser','unknown_action'),[]);
+  assert.deepEqual(requiredChildPermissions('files','unknown_action'),[]);
+  assert.match(tools,/ACTION_UNKNOWN/);
+  assert.match(route,/ACTION_UNKNOWN'\?400/);
 });
 
 test('owner UI exposes permission toggles autonomy log and emergency stop',()=>{
