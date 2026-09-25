@@ -1,0 +1,28 @@
+name: AQLEVON Auth06 Driver Free Contract
+on:
+  push:
+    branches: [ops/one-day-verified-trajectory-20260925]
+    paths: [".github/runpod-control/auth06-driver-free-trigger.json"]
+permissions:
+  contents: read
+jobs:
+  contract:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/one-day-verified-trajectory-20260925
+          fetch-depth: 0
+      - name: Validate Auth06 driver without spend
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n .github/runpod-control/run-one-day-crystallization-06.sh
+          bash -n .github/runpod-control/auth06-crystallization-remote.sh
+          test -s .github/runpod-control/one-day-crystallization-manager-authorization-06-20260925.json
+          test -s .github/runpod-control/one-day-crystallization-free-result-06.json
+          test ! -e .github/runpod-control/one-day-crystallization-consumed-06.json
+          grep -q 'SOURCE_HEAD="f3a2ca4c894e81cf9dffa1dd9935a3774b854cdb"' .github/runpod-control/run-one-day-crystallization-06.sh
+          grep -q 'train_targets=6 shadow_targets=0' .github/runpod-control/run-one-day-crystallization-06.sh
+          grep -q '1750' .github/runpod-control/run-one-day-crystallization-06.sh
+          echo AQLEVON_AUTH06_DRIVER_FREE_CONTRACT_PASS
