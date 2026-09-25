@@ -59,6 +59,8 @@ jobs:
                       'if str(d.get("stockStatus")).lower()!="none" and d.get("dataCenterId") and str(d.get("dataCenterId")) in set(a.get("permitted_datacenters") or []):')
           s=s.replace('if secs>=1200: choices.append','if secs>=1800: choices.append')
           s=s.replace('assert free>=70000','assert free>=40000')
+          s=s.replace('git add .github/runpod-control/one-day-synthetic-curriculum-live-selection-14.json\ngit commit -m "ops: persist Auth14 RSFT live selection before spend [skip ci]"\ngit push origin HEAD:ops/one-day-verified-trajectory-20260925\n\n','')
+          s=s.replace('git add "$CONSUMED"','git add "$CONSUMED" .github/runpod-control/one-day-synthetic-curriculum-live-selection-14.json')
           s=s.replace('[ "$elapsed" -lt 1450 ] || { rc=125; break; }','[ "$elapsed" -lt 2100 ] || { rc=125; break; }')
           s=s.replace('price,gpu,dc,secs=sorted(choices)[0]','_,price,gpu,dc,secs=sorted(choices)[0]')
           Path("/tmp/run-auth14.sh").write_text(s)
