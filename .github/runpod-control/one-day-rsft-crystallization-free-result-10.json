@@ -3,7 +3,7 @@
   "authorization_id": "P4-ONE-DAY-RSFT-CRYSTALLIZATION-20260925-10",
   "authorization_sha256": "fedf49acb3ead6b882379a2fc8682b5486b89e0bcfb5f15b16346d287f8ba111",
   "candidate_source_blob": "930e6742f15b77cfa4653485ea7be91d1d965fcb",
-  "checked_at_utc": "2026-09-25T17:09:17.846075+00:00",
+  "checked_at_utc": "2026-09-25T17:12:06.943129+00:00",
   "dynamic_max_billed_seconds": 1500,
   "kind": "AQLEVON_ONE_DAY_RSFT_AUTH10_FREE_SEAL_V1",
   "paid_resource_created": false,
