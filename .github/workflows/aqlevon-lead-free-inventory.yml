@@ -1,0 +1,57 @@
+name: AQLEVON Lead Free RunPod Inventory
+on:
+  push:
+    branches: [ops/runpod-control-v1]
+    paths: [".github/runpod-control/lead-free-inventory-trigger.json"]
+permissions:
+  contents: write
+jobs:
+  inventory:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/runpod-control-v1
+      - name: Query live account, pods, GPU catalog without spending
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${RUNPOD_API_KEY:-}"
+          curl -fsS https://rest.runpod.io/v1/pods -H "Authorization: Bearer $RUNPOD_API_KEY" > /tmp/lead-pods.json
+          curl -sSL https://cli.runpod.net | sudo bash
+          runpodctl user > /tmp/lead-user.json
+          runpodctl gpu list --output json > /tmp/lead-gpus.json
+          python3 - <<'PY'
+          import json,datetime
+          pods=json.load(open('/tmp/lead-pods.json'))
+          pods=pods if isinstance(pods,list) else pods.get('pods') or pods.get('items') or []
+          user=json.load(open('/tmp/lead-user.json'))
+          bal=[]
+          def walk(node):
+              if isinstance(node,dict):
+                  for k,v in node.items():
+                      if k.lower().replace('_','') in ('balance','currentbalance','creditbalance','clientbalance') and type(v) in (int,float): bal.append(float(v))
+                      walk(v)
+              elif isinstance(node,list):
+                  for v in node: walk(v)
+          walk(user)
+          gs=json.load(open('/tmp/lead-gpus.json'))
+          interesting=('A40','A6000','A100','L40','RTX 6000 Ada','H100','RTX PRO 6000')
+          matches=[{'gpu_id':g.get('gpuId'),'vram_gb':g.get('memoryInGb'),'price_hr':g.get('securePricePerHr'),'stock':g.get('stockStatus'),'datacenters':[{'id':d.get('dataCenterId'),'stock':d.get('stockStatus')} for d in (g.get('dataCenterAvailability') or []) if str(d.get('stockStatus')).lower()!='none']} for g in gs if any(n in str(g.get('gpuId','')) for n in interesting) and g.get('secureCloud')]
+          out={'checked_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'balances':sorted(set(bal)),'pods':[{'id':p.get('id'),'name':p.get('name'),'status':p.get('desiredStatus') or p.get('status'),'rate':p.get('costPerHr')} for p in pods], 'gpu_catalog':matches}
+          with open('.github/runpod-control/lead-free-inventory-result.json','w') as f: json.dump(out,f,sort_keys=True,indent=2);f.write('\n')
+          print('AQLEVON_LEAD_INVENTORY',json.dumps(out,sort_keys=True))
+          assert not [p for p in out['pods'] if str(p['name']).startswith('AQLEVON-P4-A1-') and p['status']!='EXITED'], 'active AQLEVON paid pod'
+          PY
+      - name: Persist sanitized inventory
+        run: |
+          set -euo pipefail
+          git config user.name aqlevon-runpod-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/runpod-control/lead-free-inventory-result.json
+          git commit -m "ops: record lead free RunPod inventory [skip ci]"
+          git pull --rebase origin ops/runpod-control-v1
+          git push origin HEAD:ops/runpod-control-v1
