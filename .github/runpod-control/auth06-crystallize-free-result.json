@@ -1,0 +1,14 @@
+{
+  "active_aqlevon_pods": [],
+  "authorization_id": "P4-ONE-DAY-CRYSTALLIZE-20260925-06",
+  "authorization_sha256": "421795be22ddc505daade0e763a19e642f5ac115dfe1f877df8f0c99cb9dda48",
+  "balance_usd": 12.3221365595,
+  "checked_at_utc": "2026-09-25T15:19:42.822460+00:00",
+  "dynamic_max_billed_seconds": 1800,
+  "kind": "AQLEVON_AUTH06_CRYSTALLIZATION_FREE_SEAL_V1",
+  "paid_resource_created": false,
+  "selected_datacenter": "CA-MTL-3",
+  "selected_gpu_id": "NVIDIA A100 80GB PCIe",
+  "selected_price_hr": 1.59,
+  "source_head": "b3bb3901b7f50e028e5939c55195ebf347551777"
+}
