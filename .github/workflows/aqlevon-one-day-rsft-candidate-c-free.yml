@@ -55,6 +55,32 @@ jobs:
           assert '"sealed_eval_consumed":False' in s
           print("AQLEVON_CANDIDATE_C_STATIC_PASS epochs=3 mining_n=8")
           PY
+      - name: Unit-test RSFT weighting and exact update schedule
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import importlib.util
+          p="research/weight_factory/agent03/p4_one_day_rsft_crystallize.py"
+          spec=importlib.util.spec_from_file_location("candc",p)
+          m=importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+          rows=[
+            {"task_id":"a","prompt":"p1","target":"[{\"op\":\"x\"}]","source":"public_discovery_oracle_full_coverage","priority":0,"family":"f1","task":{"task_id":"a"}},
+            {"task_id":"b","prompt":"p2","target":"[{\"op\":\"y\"}]","source":"public_discovery_oracle_full_coverage","priority":0,"family":"f2","task":{"task_id":"b"}},
+          ]
+          mined={"a":["[{\"op\":\"x\"}]"]}
+          out=m.build_rsft_rows(rows,mined)
+          assert len(out)==3,out
+          assert sum(x["source"]=="public_discovery_oracle_full_coverage" for x in out)==2
+          assert sum(x["source"]=="public_discovery_on_policy_verifier_pass" for x in out)==1
+          assert out[0]["target"]==out[1]["target"] or any(
+              x["source"]=="public_discovery_on_policy_verifier_pass" and x["target"]==rows[0]["target"] for x in out
+          )
+          updates=len(out)*m.EPOCHS
+          assert updates==9,updates
+          assert m.EPOCHS==3 and m.MINING_N==8
+          print("AQLEVON_CANDIDATE_C_RSFT_LOGIC_PASS rows_per_epoch=3 updates=9")
+          PY
       - name: Reconstruct PUBLIC-only training-safe probe and run preflight
         shell: bash
         run: |
