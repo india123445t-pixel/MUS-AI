@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import {defaultChildPermissions,normalizeChildPermissions,isChildPermissionGranted,CHILD_PERMISSION_CATALOG} from '../lib/aqlevon/child-permissions.js';
+import {defaultChildPermissions,normalizeChildPermissions,isChildPermissionGranted,requiredChildPermissions,CHILD_PERMISSION_CATALOG,CHILD_TOOL_ACTIONS} from '../lib/aqlevon/child-permissions.js';
 
 const root=path.resolve(path.dirname(new URL(import.meta.url).pathname),'..');
 const tools=fs.readFileSync(path.join(root,'lib/aqlevon/child-tools.js'),'utf8');
@@ -32,15 +32,17 @@ test('master execution off blocks a granted permission',()=>{
   assert.equal(isChildPermissionGranted(p,'terminal.run'),false);
 });
 
-test('tool broker enforces permission before adapter execution',()=>{
-  assert.match(tools,/requiredPermission/);
+test('tool broker enforces every permission required by the selected action',()=>{
+  assert.match(tools,/requiredChildPermissions/);
   assert.match(tools,/PERMISSION_DISABLED/);
-  assert.match(tools,/isChildPermissionGranted/);
-  assert.match(tools,/browser\.session_login/);
-  assert.match(tools,/files\.delete/);
-  assert.match(tools,/terminal\.run/);
+  assert.match(tools,/missing_permissions/);
+  assert.match(tools,/required_permissions/);
   assert.match(route,/permissions:body\.permissions/);
-  assert.match(route,/PERMISSION_DISABLED/);
+  assert.match(route,/missing_permissions/);
+  assert.deepEqual(requiredChildPermissions('browser','publish'),['browser.submit','external.publish']);
+  assert.deepEqual(requiredChildPermissions('browser','account_modify',{multi_step:true}),['browser.submit','account.modify','workflow.multi_step']);
+  assert.deepEqual(requiredChildPermissions('files','delete'),['files.delete']);
+  assert.equal(CHILD_TOOL_ACTIONS.browser.some(x=>x.id==='session_login'),true);
 });
 
 test('owner UI exposes permission toggles autonomy log and emergency stop',()=>{
@@ -52,4 +54,7 @@ test('owner UI exposes permission toggles autonomy log and emergency stop',()=>{
   assert.match(page,/togglePermission/);
   assert.match(page,/emergencyStop/);
   assert.match(page,/aqlevon-child-permissions-v1/);
+  assert.match(page,/مهمة متعددة الخطوات/);
+  assert.match(page,/الصلاحيات المطلوبة/);
+  assert.match(page,/CHILD_TOOL_ACTIONS/);
 });
