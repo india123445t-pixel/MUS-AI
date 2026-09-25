@@ -1,0 +1,8 @@
+{
+  "kind": "AQLEVON_RECOVERED_CRYSTALLIZATION_FREE_PREFLIGHT_TRIGGER_V1",
+  "auth05_recovered_decision": "MATERIAL_LATENT_CAPABILITY",
+  "expected_training_targets": 6,
+  "expected_shadow_targets": 0,
+  "paid_resource_created": false,
+  "requested_at_utc": "2026-09-25T15:12:00Z"
+}
