@@ -106,8 +106,10 @@ test('chat text-file attachment sends real content and multimodal stays fail-clo
   assert.match(ar,/تلخيص ملف نصي/);
 });
 
-test('Work fails closed when inference is unavailable and Library stays browser-local',()=>{
+test('Work fails closed when inference is unavailable, cancellation stays terminal, and Library stays browser-local',()=>{
   assert.match(work,/runtime\?\.inferenceReady !== true/);
+  assert.match(api,/function jobCancelled\(id\)/);
+  assert.ok((api.match(/if\(jobCancelled\(id\)\) return;/g)||[]).length>=2);
   assert.match(work,/work\.runtimeUnavailable/);
   assert.match(work,/disabled=\{!form\.prompt\.trim\(\) \|\| runtime\?\.inferenceReady !== true\}/);
   assert.match(library,/api\.fileUrl\(preview\.file\.id\)/);

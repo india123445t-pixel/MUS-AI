@@ -59,6 +59,8 @@ function calcNext(item){
   return new Date(Date.now()+mins*60000).toISOString();
 }
 
+function jobCancelled(id){ return load().jobs.find(j=>j.id===id)?.status==='cancelled'; }
+
 async function runJob(id){
   const s0=load(); const j0=s0.jobs.find(j=>j.id===id); if(!j0||!['queued','running','claimed'].includes(j0.status)) return;
   update(s=>{const j=s.jobs.find(x=>x.id===id);if(j){j.status='running';j.updated_at=now();j.steps=[{step:'generate',name:'generate',status:'running',detail:'AQLEVON is generating the result'}]}return s});
@@ -77,6 +79,7 @@ async function runJob(id){
     })});
     const d=await r.json().catch(()=>({}));
     if(!r.ok) throw new Error(d.message||'AQLEVON runtime unavailable');
+    if(jobCancelled(id)) return;
     const fid=uid(), created=now();
     update(s=>{
       s.files.unshift({id:fid,project_id:input.projectId||null,name:(j0.title||'result').replace(/[\\/:*?"<>|]/g,'-')+'.md',mime:'text/markdown',size:new Blob([d.text||'']).size,kind:'generated',dataUrl:textDataUrl(d.text||''),created_at:created});
@@ -84,6 +87,7 @@ async function runJob(id){
       return s;
     });
   }catch(e){
+    if(jobCancelled(id)) return;
     update(s=>{const j=s.jobs.find(x=>x.id===id);if(j){j.status='failed';j.error=String(e.message||e);j.steps=[...(j.steps||[]),{step:'verify',name:'verify',status:'failed',detail:j.error}];j.updated_at=now()}return s});
   }
 }
