@@ -2,5 +2,6 @@
   "new_machine": true,
   "expected_source_head": "36e57c059729165b47eae2a0130589cccefc97d6",
   "free_only": true,
-  "at": "2026-09-25T11:59:15.870Z"
+  "at": "2026-09-25T12:00:23.826Z",
+  "reason": "correct path of new authorization in free GitHub commit"
 }
