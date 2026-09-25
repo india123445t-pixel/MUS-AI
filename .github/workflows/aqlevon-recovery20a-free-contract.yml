@@ -1,0 +1,95 @@
+name: AQLEVON Recovery20A Free Contract
+on:
+  push:
+    branches: [ops/runpod-control-v1]
+    paths: [".github/runpod-control/recovery20a-free-trigger.json"]
+permissions:
+  contents: write
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      EXPECTED_HEAD: 83db1c03f176539784aa39a4474982cdcde3c42c
+      IMAGE_DIGEST: sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/runpod-control-v1
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EXPECTED_HEAD }}
+          path: w03-source
+          fetch-depth: 0
+      - name: Verify frozen science and exact source binding without GPU
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${RUNPOD_API_KEY:-}"
+          test ! -e .github/runpod-control/execute-recovery20a-trigger.json
+          test ! -e .github/runpod-control/recovery20a-consumed.json
+          test "$(git -C w03-source rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test "$(git ls-remote https://github.com/${GITHUB_REPOSITORY}.git refs/heads/agent/03-p4-gene1-physical-trainer | cut -f1)" = "$EXPECTED_HEAD"
+          python3 -m py_compile w03-source/research/weight_factory/agent03/p4_gene1_trainer.py
+          python3 -m py_compile w03-source/research/weight_factory/agent03/p4_a1_candidate_packager.py
+          python3 - <<'PY'
+          import json,os,sys,subprocess,datetime
+          from pathlib import Path
+          agent=Path('w03-source/research/weight_factory/agent03')
+          sys.path.insert(0,str(agent))
+          import p4_gene1_trainer as c
+          lock=c.load_json(agent/'p4_a1_seed1701_command_lock_v1.json')
+          run=c.load_json(agent/'p4_a1_seed1701_run_manifest_v1.json')
+          plan=c.load_json(agent/'p4_frozen_training_plan_v1.json')
+          auth=c.load_json(agent/'p4_a1_runpod_manager_authorization_retry20a_a100_recovery_v1.json')
+          binding=c.load_json(agent/'p4_a1_runtime_appliance_binding_retry20a_a100_recovery_v1.json')
+          assert c.verify_self_digest(lock,'lock_sha256') and lock['lock_sha256']=='10f333cf453f5896402066d7c483ae170688909ca82a08a0adb1e90766213fcb'
+          assert c.verify_self_digest(run,'manifest_sha256') and run['manifest_sha256']=='b277b41d3d67be1180b4d0600ab6f533f6dbf7b69163980ef5ecc6f0677195b7'
+          assert c.verify_self_digest(plan,'plan_sha256') and plan['plan_sha256']=='3cd6e0bada2535a80f83f400f45f5d0fdc5ad8d938f42757785335959f331095'
+          assert c.verify_self_digest(auth,'authorization_sha256') and auth['authorization_sha256']=='8af0cfa954ea802d5faf7cf9c083d46b5b71d4554361572e3070cb4eecf0da93'
+          assert not c.validate_manager_authorization(auth,lock=lock,run_manifest_sha256=run['manifest_sha256'])
+          assert auth['max_billed_seconds']==8400 and auth['max_total_cost_usd']=='4.00' and auth['max_hourly_rate_usd']=='1.60'
+          assert auth['max_artifact_egress_bytes']==5368709120
+          assert c.verify_self_digest(binding,'binding_sha256')
+          assert binding['authorization_sha256']==auth['authorization_sha256']
+          assert binding['runtime_appliance_digest']==os.environ['IMAGE_DIGEST']
+          src=binding['worker03_runtime_source_commit']
+          delta=subprocess.check_output(['git','-C','w03-source','diff','--name-only',src+'..'+os.environ['EXPECTED_HEAD']],text=True).splitlines()
+          assert delta==['research/weight_factory/agent03/p4_a1_runtime_appliance_binding_retry20a_a100_recovery_v1.json'],delta
+          x=c.resolve_runtime_launch_files(agent_dir=agent.resolve(),repo_dir=Path('w03-source').resolve(),actual_head=os.environ['EXPECTED_HEAD'],expected_image_digest=os.environ['IMAGE_DIGEST'],run_manifest_sha256=run['manifest_sha256'],command_lock_sha256=lock['lock_sha256'])
+          assert x==('p4_a1_runpod_manager_authorization_retry20a_a100_recovery_v1.json','p4_a1_runtime_appliance_binding_retry20a_a100_recovery_v1.json'),x
+          launcher=(agent/'p4_runpod_appliance_launch_v019.sh').read_text()
+          assert 'TOTAL_EXECUTION_BUDGET_SECONDS=7200' in launcher and 'or ("A100" in name)' in launcher
+          workflow=Path('.github/workflows/aqlevon-recovery20a-execute.yml').read_text()
+          assert 'steps.source_auth.outputs.max_artifact_egress_bytes' in workflow
+          assert 'BILLING_WATCHDOG' in workflow
+          assert '--volume-in-gb 80' in workflow and 'if name != "NVIDIA A100-SXM4-80GB"' in workflow
+          assert 'if: always()' in workflow
+          out={'checked_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'exact_w03_head':os.environ['EXPECTED_HEAD'],'image_digest':os.environ['IMAGE_DIGEST'],'authorization_sha256':auth['authorization_sha256'],'binding_sha256':binding['binding_sha256'],'science_plan_sha256':plan['plan_sha256'],'command_lock_sha256':lock['lock_sha256'],'egress_bytes':auth['max_artifact_egress_bytes'],'prepaid_contract_pass':True}
+          Path('.github/runpod-control/recovery20a-free-result.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
+          print('AQLEVON_RECOVERY20A_FREE_CONTRACT_PASS',json.dumps(out,sort_keys=True))
+          PY
+      - name: Confirm live provider no active paid Pod
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS https://rest.runpod.io/v1/pods -H "Authorization: Bearer $RUNPOD_API_KEY" > /tmp/live-pods.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('/tmp/live-pods.json').read_text())
+          pods=p if isinstance(p,list) else p.get('pods') or p.get('items') or []
+          active=[x for x in pods if str(x.get('name') or '').startswith('AQLEVON-P4-A1-') and str(x.get('desiredStatus') or x.get('status'))!='EXITED']
+          assert not active, active
+          print('AQLEVON_RECOVERY20A_NO_ACTIVE_PODS_PASS',len(pods))
+          PY
+      - name: Save free gate
+        run: |
+          set -euo pipefail
+          git config user.name aqlevon-runpod-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/runpod-control/recovery20a-free-result.json
+          git commit -m "ops: record Recovery20A free contract [skip ci]"
+          git pull --rebase origin ops/runpod-control-v1
+          git push origin HEAD:ops/runpod-control-v1
