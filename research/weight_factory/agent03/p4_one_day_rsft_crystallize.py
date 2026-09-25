@@ -166,7 +166,7 @@ def load_inputs(args):
     if len(records) != 56:
         raise RuntimeError(f"expected_56_probe_records:{len(records)}")
 
-    # Candidate B: broaden crystallization coverage without touching PUBLIC shadow.
+    # Candidate C: preserve full discovery coverage without touching PUBLIC shadow.
     # Every PUBLIC discovery core (idx 00-01) contributes its Worker02 oracle_program;
     # PUBLIC shadow cores (idx 02-03) remain evaluation-only and receive zero gradients.
     train = []
@@ -258,8 +258,13 @@ def mine_discovery_on_policy(model, tokenizer, w02, train_rows, generation):
         for out in outs:
             text = tokenizer.decode(out[prefix_len:], skip_special_tokens=True).strip()
             ok, reason = verify_text(w02, task, text)
-            if ok and text not in accepted:
-                accepted.append(text)
+            if ok:
+                program = strict_json_program(text)
+                if program is None:
+                    raise RuntimeError("verifier_pass_without_parse")
+                canonical = json.dumps(program, ensure_ascii=False, separators=(",", ":"))
+                if canonical not in accepted:
+                    accepted.append(canonical)
                 if len(accepted) >= MAX_ON_POLICY_PER_TASK:
                     break
         if accepted:
@@ -278,8 +283,8 @@ def build_rsft_rows(train_rows, mined):
         base = {k:v for k,v in row.items() if k != "task"}
         out.append(base)
         for text in mined.get(row["task_id"], [])[:MAX_ON_POLICY_PER_TASK]:
-            if text.strip() == row["target"].strip():
-                continue
+            # Keep the verified on-policy hit as a second weighted positive even
+            # when its canonical program equals the oracle target.
             out.append({
                 "task_id":row["task_id"], "prompt":row["prompt"], "target":text.strip(),
                 "source":"public_discovery_on_policy_verifier_pass",
