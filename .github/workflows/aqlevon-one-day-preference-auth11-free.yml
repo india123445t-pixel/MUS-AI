@@ -1,0 +1,88 @@
+name: AQLEVON Auth11 Preference Zero-Cost Seal
+on:
+  push:
+    branches: [ops/one-day-verified-trajectory-20260925]
+    paths: [".github/runpod-control/auth11-preference-free-trigger.json"]
+permissions:
+  contents: write
+jobs:
+  seal:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/one-day-verified-trajectory-20260925
+          fetch-depth: 0
+      - name: Validate Auth11 contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json,hashlib
+          from pathlib import Path
+          p=Path(".github/runpod-control/one-day-preference-crystallization-manager-authorization-11-20260925.json")
+          a=json.loads(p.read_text())
+          body={k:v for k,v in a.items() if k!="authorization_sha256"}
+          sha=hashlib.sha256(json.dumps(body,sort_keys=True,separators=(",",":"),ensure_ascii=False,allow_nan=False).encode()).hexdigest()
+          assert sha==a["authorization_sha256"]=="b570a9d7e485ec2bed08dac491ccb35f2f52cd739481dae23ded0697caeb0854"
+          assert a["authorization_id"]=="P4-ONE-DAY-PREFERENCE-CRYSTALLIZATION-20260925-11"
+          assert a["single_use"] is True and a["training_authorized"] is True
+          assert a["expected_source_head"]=="a5521a0f4a00884de0470d7831023b8fafc09759"
+          assert a["candidate_source_blob"]=="733e375e44c4e5b505d5bd8f14e20c3ed01fa943"
+          assert a["max_total_cost_usd"]=="0.70" and a["max_hourly_rate_usd"]=="1.60"
+          print("AQLEVON_AUTH11_CONTRACT_PASS")
+          PY
+      - name: Inspect provider without spend
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${RUNPOD_API_KEY:-}"
+          curl -fsS https://rest.runpod.io/v1/pods -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/pods.json
+          curl -sSL https://cli.runpod.net | sudo bash >/dev/null
+          runpodctl gpu list --output json >/tmp/gpus.json
+          python3 - <<'PY'
+          import json,datetime
+          from pathlib import Path
+          p=json.load(open("/tmp/pods.json")); xs=p if isinstance(p,list) else p.get("pods") or p.get("items") or []
+          active=[x for x in xs if str(x.get("name","")).startswith("AQLEVON-") and str(x.get("desiredStatus") or x.get("status"))!="EXITED"]
+          assert not active,active
+          rows=[]
+          for g in json.load(open("/tmp/gpus.json")):
+              gid=str(g.get("gpuId",""))
+              if gid!="NVIDIA A100-SXM4-80GB" or not g.get("secureCloud"): continue
+              price=float(g.get("securePricePerHr") or 999)
+              if price>1.60: continue
+              for d in g.get("dataCenterAvailability") or []:
+                  dc=d.get("dataCenterId"); stock=str(d.get("stockStatus","")).lower()
+                  if dc and stock!="none":
+                      rows.append({"gpu_id":gid,"datacenter":str(dc),"price_hr":price,"stock_status":d.get("stockStatus")})
+          rows=sorted(rows,key=lambda r:(0 if r["datacenter"]=="EUR-IS-1" else 1,r["price_hr"],r["datacenter"]))
+          out={
+            "kind":"AQLEVON_ONE_DAY_PREFERENCE_CRYSTALLIZATION_FREE_SEAL_V1",
+            "authorization_id":"P4-ONE-DAY-PREFERENCE-CRYSTALLIZATION-20260925-11",
+            "authorization_sha256":"b570a9d7e485ec2bed08dac491ccb35f2f52cd739481dae23ded0697caeb0854",
+            "source_head":"a5521a0f4a00884de0470d7831023b8fafc09759",
+            "candidate_source_blob":"733e375e44c4e5b505d5bd8f14e20c3ed01fa943",
+            "checked_at_utc":datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "active_aqlevon_pods":[],
+            "eligible_capacity":rows,
+            "preferred":rows[0] if rows else None,
+            "paid_resource_created":False
+          }
+          Path(".github/runpod-control/one-day-preference-crystallization-free-result-11.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("AQLEVON_AUTH11_FREE_SEAL",json.dumps(out,sort_keys=True))
+          PY
+      - name: Persist Auth11 free seal
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name aqlevon-runpod-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/runpod-control/one-day-preference-crystallization-free-result-11.json
+          git commit -m "ops: record Auth11 preference free seal [skip ci]" || true
+          git fetch origin ops/one-day-verified-trajectory-20260925
+          git rebase origin/ops/one-day-verified-trajectory-20260925 || { git rebase --abort || true; exit 1; }
+          git push origin HEAD:ops/one-day-verified-trajectory-20260925
