@@ -1,0 +1,42 @@
+name: AQLEVON One-Day RSFT Crystallization Auth09
+on:
+  push:
+    branches: [ops/one-day-verified-trajectory-20260925]
+    paths: [".github/runpod-control/execute-one-day-rsft-crystallization-09.json"]
+permissions:
+  contents: write
+concurrency:
+  group: aqlevon-p4-paid-single-use
+  cancel-in-progress: false
+jobs:
+  execute:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 42
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/one-day-verified-trajectory-20260925
+          fetch-depth: 0
+      - name: Execute bounded Auth09 RSFT crystallization
+        shell: bash
+        run: bash .github/runpod-control/run-one-day-rsft-crystallization-09.sh
+      - name: Upload Auth09 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aqlevon-one-day-rsft-crystallization-auth09
+          path: |
+            /tmp/auth09-evidence.tgz
+            /tmp/auth09-train.log
+            /tmp/auth09_rc
+            /tmp/create08.json
+            /tmp/pod08.json
+            /tmp/auth09-input-sha256.txt
+            /tmp/stop08.json
+            /tmp/delete08.json
+            /tmp/auth09-exit-stop.json
+            /tmp/auth09-exit-delete.json
+          if-no-files-found: warn
+          retention-days: 14
