@@ -3,6 +3,9 @@ import {createClient} from '@supabase/supabase-js';
 import {generateChildResponse} from '../../../../../lib/aqlevon/child-runtime.js';
 import {redactSecrets,sanitizeHistory} from '../../../../../lib/aqlevon/security.js';
 
+export const maxDuration=300;
+export const dynamic='force-dynamic';
+
 const URL=process.env.NEXT_PUBLIC_SUPABASE_URL;
 const KEY=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
