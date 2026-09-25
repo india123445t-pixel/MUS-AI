@@ -9,7 +9,7 @@ RESULT=".github/runpod-control/one-day-coverage-crystallization-run-result-08.js
 SOURCE_HEAD="529e665ea140c2f8d6b96c02a42c100e9075c037"
 W02_HEAD="abb94ef134e2e97036b6959dbc9db4278d3736b6"
 AUTH_ID="P4-ONE-DAY-COVERAGE-CRYSTALLIZATION-20260925-08"
-AUTH_SHA="67fb385b49b3f2f0764458311136c395c269e63567d8e23a714b7395100f6a6e"
+AUTH_SHA="0555925a86bb3cc5d5d46bfc20896bc47f39de12f160376a39d52370c5e4fee3"
 IMAGE_DIGEST="sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec"
 pod=""
 cleaned=0
@@ -36,7 +36,7 @@ a=json.loads(Path(".github/runpod-control/one-day-coverage-crystallization-manag
 f=json.loads(Path(".github/runpod-control/one-day-coverage-crystallization-free-result-08.json").read_text())
 t=json.loads(Path(".github/runpod-control/execute-one-day-coverage-crystallization-08.json").read_text())
 sha=hashlib.sha256(json.dumps({k:v for k,v in a.items() if k!="authorization_sha256"},sort_keys=True,separators=(",",":"),ensure_ascii=False,allow_nan=False).encode()).hexdigest()
-assert sha==a["authorization_sha256"]=="67fb385b49b3f2f0764458311136c395c269e63567d8e23a714b7395100f6a6e"
+assert sha==a["authorization_sha256"]=="0555925a86bb3cc5d5d46bfc20896bc47f39de12f160376a39d52370c5e4fee3"
 assert a["authorization_id"]==f["authorization_id"]==t["authorization_id"]=="P4-ONE-DAY-COVERAGE-CRYSTALLIZATION-20260925-08"
 assert a["expected_source_head"]==f["source_head"]==t["expected_source_head"]=="529e665ea140c2f8d6b96c02a42c100e9075c037"
 assert a["training_authorized"] is True and a["single_use"] is True
@@ -130,7 +130,7 @@ p=json.load(open("/tmp/create08.json")); pod=p.get("id") or p.get("podId"); asse
 Path("/tmp/pod_id08").write_text(str(pod)); Path("/tmp/pod_created_epoch08").write_text(str(int(time.time())))
 sel=json.load(open(".github/runpod-control/one-day-coverage-crystallization-live-selection-08.json"))
 out={"authorization_id":"P4-ONE-DAY-COVERAGE-CRYSTALLIZATION-20260925-08",
-     "authorization_sha256":"67fb385b49b3f2f0764458311136c395c269e63567d8e23a714b7395100f6a6e",
+     "authorization_sha256":"0555925a86bb3cc5d5d46bfc20896bc47f39de12f160376a39d52370c5e4fee3",
      "source_head":"529e665ea140c2f8d6b96c02a42c100e9075c037",
      "image_digest":"sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec",
      "pod_id":pod,"created_at_utc":datetime.datetime.now(datetime.timezone.utc).isoformat(),
@@ -225,7 +225,7 @@ start=txt("/tmp/pod_created_epoch08"); elapsed=int(datetime.datetime.now(datetim
 rate=txt("/tmp/live_rate08"); rc=txt("/tmp/auth08_rc")
 out={"kind":"AQLEVON_ONE_DAY_COVERAGE_CRYSTALLIZATION_RUN_RECEIPT_V1",
      "authorization_id":"P4-ONE-DAY-COVERAGE-CRYSTALLIZATION-20260925-08",
-     "authorization_sha256":"67fb385b49b3f2f0764458311136c395c269e63567d8e23a714b7395100f6a6e",
+     "authorization_sha256":"0555925a86bb3cc5d5d46bfc20896bc47f39de12f160376a39d52370c5e4fee3",
      "source_head":"529e665ea140c2f8d6b96c02a42c100e9075c037","pod_id":txt("/tmp/pod_id08"),
      "checked_at_utc":datetime.datetime.now(datetime.timezone.utc).isoformat(),
      "true_exit_code":int(rc) if rc and rc.isdigit() else None,"rate_per_hour_usd":rate,
