@@ -100,7 +100,7 @@ git config user.name aqlevon-runpod-bot
 git config user.email actions@users.noreply.github.com
 git add .github/runpod-control/one-day-crystallization-live-selection-06.json
 git commit -m "ops: persist Auth06 live selection before spend [skip ci]"
-git push origin HEAD:ops/one-day-verified-trajectory-20260925
+git push origin HEAD:ops/auth06-crystallization-frozen-20260925
 
 ssh-keygen -q -t ed25519 -N '' -f /tmp/auth06_key
 PUBKEY="$(cat /tmp/auth06_key.pub)"
@@ -129,7 +129,7 @@ PY
 pod="$(cat /tmp/pod_id)"
 git add "$CONSUMED"
 git commit -m "ops: consume Auth06 crystallization authorization [skip ci]"
-git push origin HEAD:ops/one-day-verified-trajectory-20260925
+git push origin HEAD:ops/auth06-crystallization-frozen-20260925
 
 ready=0
 for i in $(seq 1 120); do
@@ -230,7 +230,7 @@ print("AQLEVON_AUTH06_RESULT",json.dumps(out,sort_keys=True))
 PY
 git add "$RESULT"
 git commit -m "ops: record Auth06 crystallization result [skip ci]" || true
-git push origin HEAD:ops/one-day-verified-trajectory-20260925
+git push origin HEAD:ops/auth06-crystallization-frozen-20260925
 
 if [ "$rc" != 0 ] || [ ! -s /tmp/auth06-evidence.tgz ]; then
   exit "$rc"
