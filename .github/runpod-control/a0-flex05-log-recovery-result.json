@@ -1,0 +1,13 @@
+{
+  "authorization_id": "P4-A0-DIAG-LOG-RECOVERY-20260925-01",
+  "checked_at_utc": "2026-09-25T12:46:02.291653+00:00",
+  "compute_cost_estimate_usd": null,
+  "elapsed_seconds_estimate": 5,
+  "log_bytes": 0,
+  "log_recovered": false,
+  "log_sha256": null,
+  "pod_id": "qqgof13ou1fu01",
+  "rate_per_hour_usd": null,
+  "remote_rc": null,
+  "stop_status": "EXITED"
+}
