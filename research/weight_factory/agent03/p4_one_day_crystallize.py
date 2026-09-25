@@ -162,21 +162,34 @@ def load_inputs(args):
         tid = rec["task_id"]
         task = tasks[tid]
         if rec["public_split"] == "discovery":
+            candidates = rec.get("candidates") or []
             chosen = None
             chosen_kind = None
-            for idx, cand in enumerate(rec.get("candidates") or []):
-                if cand.get("passed"):
-                    chosen, chosen_kind = cand["text"], f"sample_{idx+1}"
+            priority = None
+            # Highest-value signal: pass@1 failed but a later sampled trajectory passed.
+            for idx, cand in enumerate(candidates[1:], start=2):
+                if candidates and not candidates[0].get("passed") and cand.get("passed"):
+                    chosen, chosen_kind, priority = cand["text"], f"rescued_sample_{idx}", 0
                     break
+            # Next: deterministic verifier feedback repaired a task after all 8 samples failed.
             if chosen is None and (rec.get("repair") or {}).get("passed"):
-                chosen, chosen_kind = rec["repair"]["text"], "repair_after_8_failures"
+                chosen, chosen_kind, priority = rec["repair"]["text"], "repair_after_8_failures", 1
+            # Filler/stability only: a task already solved at pass@1.
+            if chosen is None and candidates and candidates[0].get("passed"):
+                chosen, chosen_kind, priority = candidates[0]["text"], "pass1_verified_filler", 2
+            # Last fallback: any verified later sample (should normally already be rescue).
+            if chosen is None:
+                for idx, cand in enumerate(candidates[1:], start=2):
+                    if cand.get("passed"):
+                        chosen, chosen_kind, priority = cand["text"], f"later_verified_sample_{idx}", 3
+                        break
             if chosen is not None:
                 program = strict_json_program(chosen)
                 if program is None:
                     raise RuntimeError(f"verified_candidate_not_json:{tid}")
                 canonical = json.dumps(program, ensure_ascii=False, separators=(",", ":"))
                 train.append({"task_id": tid, "prompt": task["prompt"], "target": canonical,
-                              "source": chosen_kind, "family": task["family"]})
+                              "source": chosen_kind, "priority": priority, "family": task["family"]})
         elif rec["public_split"] == "shadow":
             shadow.append(task)
         else:
@@ -185,8 +198,14 @@ def load_inputs(args):
         raise RuntimeError(f"expected_28_shadow:{len(shadow)}")
     if len(train) < 6:
         raise RuntimeError(f"too_few_verified_discovery_trajectories:{len(train)}")
-    random.Random(SEED).shuffle(train)
+    # Preserve information efficiency: rescue/repaired blind spots first, then stable fillers.
+    rng = random.Random(SEED)
+    for item in train:
+        item["_tie"] = rng.random()
+    train.sort(key=lambda x: (x["priority"], x["_tie"], x["task_id"]))
     train = train[:MAX_TRAIN_EXAMPLES]
+    for item in train:
+        item.pop("_tie", None)
     return probe, train, sorted(shadow, key=lambda x: x["task_id"])
 
 
@@ -341,7 +360,9 @@ def run(args):
         "receipt_kind":"AQLEVON_ONE_DAY_VERIFIED_TRAJECTORY_CRYSTALLIZATION_RECEIPT_V1",
         "base_repo":MODEL_REPO,"base_revision":MODEL_REV,"probe_result_sha256":probe_sha,
         "public_pack_sha256":PACK_SHA,"seed":SEED,"train_examples":len(used),
-        "train_task_ids":[x["task_id"] for x in used],"optimizer_updates":len(used),
+        "train_task_ids":[x["task_id"] for x in used],
+        "train_sources":[{"task_id":x["task_id"],"source":x["source"],"priority":x["priority"]} for x in used],
+        "optimizer_updates":len(used),
         "losses":losses,"gradient_norms":grad_norms,"adapter_tensors":32,"target_modules":16,
         "changed_lora_B_elements":changed,"adapter_state_sha256":saved_hash,
         "reloaded_adapter_state_sha256":reloaded_hash,"save_reload_hash_match":True,
