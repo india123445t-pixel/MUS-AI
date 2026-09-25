@@ -1,0 +1,71 @@
+name: AQLEVON Auth10 Zero-Cost Readiness Seal
+on:
+  push:
+    branches: [ops/one-day-verified-trajectory-20260925]
+    paths: [".github/runpod-control/auth10-readiness-free-trigger.json"]
+permissions:
+  contents: write
+jobs:
+  seal:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/one-day-verified-trajectory-20260925
+          fetch-depth: 0
+      - name: Inspect provider without creating a Pod
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${RUNPOD_API_KEY:-}"
+          curl -fsS https://rest.runpod.io/v1/pods -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/pods.json
+          curl -sSL https://cli.runpod.net | sudo bash >/dev/null
+          runpodctl gpu list --output json >/tmp/gpus.json
+          python3 - <<'PY'
+          import json,datetime
+          from pathlib import Path
+          p=json.load(open("/tmp/pods.json")); xs=p if isinstance(p,list) else p.get("pods") or p.get("items") or []
+          active=[x for x in xs if str(x.get("name","")).startswith("AQLEVON-") and str(x.get("desiredStatus") or x.get("status"))!="EXITED"]
+          assert not active,active
+          permitted={"NVIDIA A100-SXM4-80GB","NVIDIA A100 80GB PCIe"}
+          rows=[]
+          for g in json.load(open("/tmp/gpus.json")):
+              gid=str(g.get("gpuId",""))
+              if gid not in permitted or not g.get("secureCloud"): continue
+              price=float(g.get("securePricePerHr") or 999)
+              if price>1.60: continue
+              for d in g.get("dataCenterAvailability") or []:
+                  stock=str(d.get("stockStatus","")).lower()
+                  dc=d.get("dataCenterId")
+                  if dc and stock!="none":
+                      rows.append({"gpu_id":gid,"datacenter":str(dc),"price_hr":price,"stock_status":d.get("stockStatus")})
+          rows=sorted(rows,key=lambda r:(0 if r["gpu_id"]=="NVIDIA A100-SXM4-80GB" else 1,r["price_hr"],r["datacenter"]))
+          out={
+            "kind":"AQLEVON_AUTH10_ZERO_COST_READINESS_SEAL_V1",
+            "checked_at_utc":datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "active_aqlevon_pods":[],
+            "paid_resource_created":False,
+            "candidate_source_head":"7b35fab86da22e46804e9af6f311a88ea5b02e27",
+            "candidate_source_blob":"930e6742f15b77cfa4653485ea7be91d1d965fcb",
+            "eligible_80gb_secure_capacity":rows,
+            "preferred": rows[0] if rows else None,
+            "auth09_consumed":True,
+            "auth10_authorized":False
+          }
+          Path(".github/runpod-control/auth10-readiness-free-result.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("AQLEVON_AUTH10_ZERO_COST_READINESS_PASS",json.dumps(out,sort_keys=True))
+          PY
+      - name: Persist free seal
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name aqlevon-runpod-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/runpod-control/auth10-readiness-free-result.json
+          git commit -m "ops: record Auth10 zero-cost readiness seal [skip ci]" || true
+          git fetch origin ops/one-day-verified-trajectory-20260925
+          git rebase origin/ops/one-day-verified-trajectory-20260925 || { git rebase --abort || true; exit 1; }
+          git push origin HEAD:ops/one-day-verified-trajectory-20260925
