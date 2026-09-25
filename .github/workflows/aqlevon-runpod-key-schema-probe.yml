@@ -1,0 +1,58 @@
+name: AQLEVON RunPod API Key Schema Probe
+on:
+  push:
+    branches: [main]
+    paths: [".github/runpod-control/runpod-key-schema-probe-trigger.json"]
+permissions:
+  contents: write
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Probe API-key mutation schema without secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${RUNPOD_API_KEY:-}"
+          python3 - <<'PY'
+          import os,json,urllib.request
+          url="https://api.runpod.io/graphql"
+          key=os.environ["RUNPOD_API_KEY"]
+          q="""query { __type(name: "Mutation") { fields { name args { name type { kind name ofType { kind name ofType { kind name } } } } type { kind name ofType { kind name } } } } myself { apiKeys { id name permissions policies isActive isLegacy createdAt lastUsed } } }"""
+          req=urllib.request.Request(url,data=json.dumps({"query":q}).encode(),headers={"Authorization":"Bearer "+key,"Content-Type":"application/json"})
+          with urllib.request.urlopen(req,timeout=30) as r: d=json.load(r)
+          if d.get("errors"):
+              raise SystemExit("graphql_errors:"+json.dumps(d["errors"])[:1000])
+          fields=d["data"]["__type"]["fields"]
+          hits=[]
+          for f in fields:
+              n=f["name"].lower()
+              if "api" in n and "key" in n or "apikey" in n or "token" in n:
+                  hits.append(f)
+          keys=[]
+          for k in (d["data"].get("myself") or {}).get("apiKeys") or []:
+              keys.append({
+                "id":k.get("id"),"name":k.get("name"),"permissions":k.get("permissions"),
+                "policies":k.get("policies"),"isActive":k.get("isActive"),"isLegacy":k.get("isLegacy"),
+                "createdAt":k.get("createdAt"),"lastUsed":k.get("lastUsed")
+              })
+          out={"kind":"AQLEVON_RUNPOD_KEY_SCHEMA_PROBE_V1","mutation_candidates":hits,"api_key_metadata":keys}
+          open(".github/runpod-control/runpod-key-schema-probe-result.json","w").write(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("AQLEVON_RUNPOD_KEY_SCHEMA_PROBE_PASS mutations=",",".join(x["name"] for x in hits))
+          PY
+      - name: Persist safe schema result
+        run: |
+          set -euo pipefail
+          git config user.name aqlevon-runtime-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/runpod-control/runpod-key-schema-probe-result.json
+          git commit -m "ops: record safe RunPod key schema probe [skip ci]" || true
+          git pull --rebase origin main
+          git push origin HEAD:main
