@@ -1,0 +1,14 @@
+{
+  "checked_at_utc": "2026-09-25T11:44:24.884116+00:00",
+  "containerStatus": null,
+  "costPerHr": 1.59,
+  "dataCenterId": null,
+  "desiredStatus": "RUNNING",
+  "gpuCount": 1,
+  "gpuTypeId": null,
+  "id": "n2di6l60loo70j",
+  "lastStatusChange": "Rented by User: Fri Sep 25 2026 11:40:17 GMT+0000 (Coordinated Universal Time)",
+  "name": "AQLEVON-P4-A0-SFT-20260925",
+  "portMappings": null,
+  "publicIp": ""
+}
