@@ -55,7 +55,8 @@ jobs:
           s=s.replace('choices.append((price,gid,str(d["dataCenterId"]),secs))',
                       'choices.append((0 if str(d["dataCenterId"])==str(a.get("preferred_datacenter")) else 1,price,gid,str(d["dataCenterId"]),secs))')
           s=s.replace('price,gpu,dc,secs=sorted(choices)[0]','_,price,gpu,dc,secs=sorted(choices)[0]')
-          s=s.replace("set -euo pipefail","set -euxo pipefail",1)\n          Path("/tmp/run-auth11.sh").write_text(s)
+          s=s.replace("set -euo pipefail","set -euxo pipefail",1)
+          Path("/tmp/run-auth11.sh").write_text(s)
           PY
           bash -n /tmp/run-auth11.sh
           bash /tmp/run-auth11.sh
