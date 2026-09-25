@@ -1,0 +1,31 @@
+name: AQLEVON Auth07 V4 Pod Readonly Check
+on:
+  push:
+    branches: [ops/auth07-crystallization-frozen-20260925]
+    paths: [".github/runpod-control/auth07-v4-pod-readonly-trigger.json"]
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      POD_ID: rjx7qmmnnhg0gc
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/auth07-crystallization-frozen-20260925
+      - name: Read exact Auth07 V4 Pod only
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl -sS -o /tmp/pod.json -w '%{http_code}' "https://rest.runpod.io/v1/pods/$POD_ID" -H "Authorization: Bearer $RUNPOD_API_KEY")"
+          echo "HTTP=$code"
+          if [ "$code" = 404 ]; then
+            echo AQLEVON_AUTH07_V4_POD_DELETED_PASS
+          elif [ "$code" = 200 ]; then
+            cat /tmp/pod.json
+            exit 2
+          else
+            exit 1
+          fi
