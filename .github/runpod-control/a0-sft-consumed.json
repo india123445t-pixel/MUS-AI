@@ -1,0 +1,9 @@
+{
+  "authorization_id": "P4-A0-SFT-A100-20260925-01",
+  "authorization_sha256": "dc854cd9a903ce6b97b2f556fe827db05c308ef54e0b4ae87dbb626247d45397",
+  "created_at_utc": "2026-09-25T11:40:18.078951+00:00",
+  "image_digest": "sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec",
+  "pod_id": "n2di6l60loo70j",
+  "single_use_consumed": true,
+  "source_head": "e8c60e05d688b8a5ce4805f1f959d041ab942512"
+}
