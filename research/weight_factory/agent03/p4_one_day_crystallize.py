@@ -311,6 +311,20 @@ def run(args):
     probe, train_rows, shadow = load_inputs(args)
     w02 = load_w02(args.w02_module)
     generation = dict(probe["generation"])
+    if probe.get("kind") == RECOVERY_KIND:
+        expanded = []
+        for row in train_rows:
+            core = w02._core(row["family"], task_index({"task_id": row["task_id"]}))
+            hashes = [w02.sha256_obj(x) for x in core["prompt_perturbations"]]
+            for variant in range(3):
+                item = dict(row)
+                item["prompt"] = w02._render_prompt(core, variant)
+                item["variant"] = variant
+                item["public_perturbation_hash"] = hashes[variant]
+                expanded.append(item)
+        train_rows = expanded
+        if len(train_rows) != 18:
+            raise RuntimeError(f"expected_18_recovery_training_variants:{len(train_rows)}")
 
     random.seed(SEED)
     torch.manual_seed(SEED)
