@@ -1,0 +1,12 @@
+{
+  "active_aqlevon_pods": [],
+  "auth09_consumed": true,
+  "auth10_authorized": false,
+  "candidate_source_blob": "930e6742f15b77cfa4653485ea7be91d1d965fcb",
+  "candidate_source_head": "7b35fab86da22e46804e9af6f311a88ea5b02e27",
+  "checked_at_utc": "2026-09-25T17:02:21.253741+00:00",
+  "eligible_80gb_secure_capacity": [],
+  "kind": "AQLEVON_AUTH10_ZERO_COST_READINESS_SEAL_V1",
+  "paid_resource_created": false,
+  "preferred": null
+}
