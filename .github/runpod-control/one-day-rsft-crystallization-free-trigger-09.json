@@ -1,0 +1,9 @@
+{
+  "authorization_id": "P4-ONE-DAY-RSFT-CRYSTALLIZATION-20260925-09",
+  "authorization_sha256": "76bdd6d24ba6007c3bc702568f026dfcf4d69d44a85f129510d127844f6adcc6",
+  "expected_source_head": "7b35fab86da22e46804e9af6f311a88ea5b02e27",
+  "candidate_source_blob": "930e6742f15b77cfa4653485ea7be91d1d965fcb",
+  "experiment_kind": "PUBLIC_DISCOVERY_VERIFIER_GUIDED_RSFT_CRYSTALLIZATION",
+  "paid_resource_created": false,
+  "requested_after_owner_explicit_authorization": true
+}
