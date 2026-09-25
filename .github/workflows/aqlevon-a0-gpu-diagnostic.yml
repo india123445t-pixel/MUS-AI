@@ -2,13 +2,15 @@ name: AQLEVON A0 Free GPU Availability
 on:
   push:
     branches: [ops/runpod-control-v1]
-    paths: [".github/runpod-control/a0-gpu-diagnostic-trigger.json"]
+    paths: [".github/runpod-control/a0-gpu-diagnostic-trigger-2.json"]
 permissions:
   contents: write
 jobs:
   probe:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
     steps:
       - uses: actions/checkout@v4
         with:
