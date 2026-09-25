@@ -1,6 +1,6 @@
 {
   "kind": "AQLEVON_AUTH16_SERVERLESS_DEPLOY_TRIGGER_V1",
-  "requested_at_utc": "2026-09-25T21:06:00Z",
+  "requested_at_utc": "2026-09-25T21:11:00Z",
   "source_main": "e1b81b435763c3c605dae81c68c841d8c844a1c2",
   "auth16_adapter_sha256": "2d4f0c3528129e702dfa0af27fad467d411f355b9ea72e771942d0f6703e2b2a",
   "base_revision": "daa9c16f371249f9ad1c75a9ed6f956c08ea08f5",
@@ -11,7 +11,7 @@
   "workers_max": 1,
   "idle_timeout_seconds": 5,
   "owner_authorized_additional_budget_usd": 5,
-  "no_gpu_retry_sequence": 2,
-  "previous_run_id": 36189242538,
-  "previous_outcome": "NO_GPU_NESTED_ARTIFACT_EXTRACTION_FAIL"
+  "no_gpu_retry_sequence": 3,
+  "previous_run_id": 36189550421,
+  "previous_outcome": "NO_GPU_DEPENDENCY_CONFLICT_HF_HUB"
 }
