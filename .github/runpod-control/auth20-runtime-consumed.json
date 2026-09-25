@@ -1,0 +1,14 @@
+{
+  "adapter_model_sha256": "2d4f0c3528129e702dfa0af27fad467d411f355b9ea72e771942d0f6703e2b2a",
+  "authorization_id": "AQLEVON-AUTH20-RUNTIME-20260925",
+  "created_at_utc": "2026-09-25T20:02:51.386065+00:00",
+  "kind": "AQLEVON_AUTH20_RUNTIME_CONSUMED_V1",
+  "max_runtime_seconds": 3000,
+  "observed_capacity_datacenter": "US-MD-1",
+  "pod_id": "0kj4jtnesaycbu",
+  "runtime_only": true,
+  "selected_gpu_id": "NVIDIA A100-SXM4-80GB",
+  "selected_price_hr": 1.59,
+  "single_use_consumed": true,
+  "source_head": "22b95b0fdfaf97c3ba3314a94c2413d45439cc6e"
+}
