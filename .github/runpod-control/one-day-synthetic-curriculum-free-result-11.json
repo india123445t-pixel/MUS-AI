@@ -3,7 +3,7 @@
   "authorization_id": "P4-ONE-DAY-SYNTHETIC-CURRICULUM-20260925-11",
   "authorization_sha256": "8cea75f33b3bf9fbceeaf00b97b9a098704e61b1343bb39ab91a4a33802ee7af",
   "candidate_source_blob": "d0a6742c9df6fa52a04bade5f2a4b9f1dbb785f9",
-  "checked_at_utc": "2026-09-25T17:31:01.866738+00:00",
+  "checked_at_utc": "2026-09-25T17:34:10.058147+00:00",
   "dynamic_max_billed_seconds": 1450,
   "kind": "AQLEVON_ONE_DAY_SYNTHETIC_AUTH11_FREE_SEAL_V1",
   "paid_resource_created": false,
