@@ -1,0 +1,25 @@
+{
+  "authorization_kind": "AQLEVON_MANAGER_COMPUTE_FLEX_GPU_A0_V1",
+  "authorization_id": "P4-A0-SFT-FLEX-GPU-20260925-04",
+  "candidate_arm": "P4_A0_SFT_LORA_CONTROL",
+  "expected_source_head": "11f40e8cc7575d9094bae508a6a4d5cb84c306a4",
+  "image_digest": "sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec",
+  "permitted_gpu_ids": [
+    "NVIDIA A40",
+    "NVIDIA A100 80GB PCIe",
+    "NVIDIA A100-SXM4-80GB"
+  ],
+  "base_repo": "Qwen/Qwen3.5-4B-Base",
+  "base_revision": "daa9c16f371249f9ad1c75a9ed6f956c08ea08f5",
+  "public_shard_sha256": "59480e9ff48b36a0efb77a36d3e35d9f656ef4dee0ce18489d3017c92b2a0d49",
+  "scientific_plan_sha256": "3cd6e0bada2535a80f83f400f45f5d0fdc5ad8d938f42757785335959f331095",
+  "max_hourly_rate_usd": "1.60",
+  "max_total_cost_usd": "2.30",
+  "max_billed_seconds": 4800,
+  "max_artifact_egress_bytes": 5368709120,
+  "single_use": true,
+  "mission_max_total_usd": "5.00",
+  "prior_mission_spend_usd": "1.2500000000",
+  "prior_authorization_id": "P4-A0-SFT-FRESH-A100-20260925-03",
+  "authorization_sha256": "PENDING_FREE_HASH"
+}
