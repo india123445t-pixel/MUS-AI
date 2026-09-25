@@ -1,55 +1,5 @@
 [
   {
-    "gpuId": "NVIDIA A40",
-    "displayName": "A40",
-    "memoryInGb": 48,
-    "securePricePerHr": 0.49,
-    "stockStatus": "Low",
-    "dataCenterAvailability": [
-      {
-        "dataCenterId": "CA-MTL-1",
-        "stockStatus": "none"
-      },
-      {
-        "dataCenterId": "EU-SE-1",
-        "stockStatus": "Low"
-      },
-      {
-        "dataCenterId": "US-MO-1",
-        "stockStatus": "none"
-      }
-    ]
-  },
-  {
-    "gpuId": "NVIDIA L4",
-    "displayName": "L4",
-    "memoryInGb": 24,
-    "securePricePerHr": 0.49,
-    "stockStatus": "Low",
-    "dataCenterAvailability": [
-      {
-        "dataCenterId": "EU-RO-1",
-        "stockStatus": "none"
-      },
-      {
-        "dataCenterId": "EUR-IS-1",
-        "stockStatus": "none"
-      },
-      {
-        "dataCenterId": "EUR-IS-2",
-        "stockStatus": "none"
-      },
-      {
-        "dataCenterId": "US-GA-2",
-        "stockStatus": "none"
-      },
-      {
-        "dataCenterId": "US-MO-2",
-        "stockStatus": "Low"
-      }
-    ]
-  },
-  {
     "gpuId": "NVIDIA B300 SXM6 AC MIG 1g.34gb",
     "displayName": "B300 MIG 34GB",
     "memoryInGb": 34,
@@ -75,36 +25,7 @@
       },
       {
         "dataCenterId": "EUR-IS-2",
-        "stockStatus": "Low"
-      }
-    ]
-  },
-  {
-    "gpuId": "NVIDIA RTX A6000",
-    "displayName": "RTX A6000",
-    "memoryInGb": 48,
-    "securePricePerHr": 0.53,
-    "stockStatus": "Low",
-    "dataCenterAvailability": [
-      {
-        "dataCenterId": "CA-MTL-3",
         "stockStatus": "none"
-      },
-      {
-        "dataCenterId": "EU-RO-1",
-        "stockStatus": "none"
-      },
-      {
-        "dataCenterId": "EU-SE-1",
-        "stockStatus": "none"
-      },
-      {
-        "dataCenterId": "US-KS-2",
-        "stockStatus": "none"
-      },
-      {
-        "dataCenterId": "US-TX-1",
-        "stockStatus": "Low"
       }
     ]
   },
@@ -177,6 +98,80 @@
     ]
   },
   {
+    "gpuId": "NVIDIA GeForce RTX 4090",
+    "displayName": "RTX 4090",
+    "memoryInGb": 24,
+    "securePricePerHr": 0.74,
+    "stockStatus": "Low",
+    "dataCenterAvailability": [
+      {
+        "dataCenterId": "CA-MTL-3",
+        "stockStatus": "none"
+      },
+      {
+        "dataCenterId": "EU-CZ-1",
+        "stockStatus": "none"
+      },
+      {
+        "dataCenterId": "EU-RO-1",
+        "stockStatus": "Low"
+      },
+      {
+        "dataCenterId": "EUR-IS-1",
+        "stockStatus": "none"
+      },
+      {
+        "dataCenterId": "EUR-IS-2",
+        "stockStatus": "none"
+      },
+      {
+        "dataCenterId": "EUR-NO-1",
+        "stockStatus": "Low"
+      },
+      {
+        "dataCenterId": "US-CA-2",
+        "stockStatus": "none"
+      },
+      {
+        "dataCenterId": "US-IL-1",
+        "stockStatus": "none"
+      },
+      {
+        "dataCenterId": "US-NC-1",
+        "stockStatus": "none"
+      },
+      {
+        "dataCenterId": "US-TX-3",
+        "stockStatus": "none"
+      }
+    ]
+  },
+  {
+    "gpuId": "NVIDIA RTX 6000 Ada Generation",
+    "displayName": "RTX 6000 Ada",
+    "memoryInGb": 48,
+    "securePricePerHr": 0.84,
+    "stockStatus": "Low",
+    "dataCenterAvailability": [
+      {
+        "dataCenterId": "US-CA-2",
+        "stockStatus": "none"
+      },
+      {
+        "dataCenterId": "US-IL-1",
+        "stockStatus": "none"
+      },
+      {
+        "dataCenterId": "US-KS-3",
+        "stockStatus": "none"
+      },
+      {
+        "dataCenterId": "US-WA-1",
+        "stockStatus": "Low"
+      }
+    ]
+  },
+  {
     "gpuId": "NVIDIA GeForce RTX 5090",
     "displayName": "RTX 5090",
     "memoryInGb": 32,
@@ -185,11 +180,11 @@
     "dataCenterAvailability": [
       {
         "dataCenterId": "EU-CZ-1",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "EU-RO-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "EUR-IS-1",
@@ -238,7 +233,7 @@
       },
       {
         "dataCenterId": "US-WA-1",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       }
     ]
   },
@@ -283,7 +278,7 @@
       },
       {
         "dataCenterId": "US-KS-2",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "US-MD-1",
@@ -303,7 +298,7 @@
       },
       {
         "dataCenterId": "US-NE-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "US-PA-1",
@@ -324,11 +319,24 @@
       },
       {
         "dataCenterId": "EU-RO-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "EUR-IS-1",
         "stockStatus": "none"
+      }
+    ]
+  },
+  {
+    "gpuId": "NVIDIA H100 PCIe",
+    "displayName": "H100 PCIe",
+    "memoryInGb": 80,
+    "securePricePerHr": 2.89,
+    "stockStatus": "Low",
+    "dataCenterAvailability": [
+      {
+        "dataCenterId": "US-KS-2",
+        "stockStatus": "Low"
       }
     ]
   },
@@ -349,11 +357,11 @@
       },
       {
         "dataCenterId": "AP-JP-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "CA-MTL-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "EU-FR-1",
@@ -369,11 +377,11 @@
       },
       {
         "dataCenterId": "EUR-NO-2",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "US-CA-2",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "US-GA-2",
@@ -447,6 +455,56 @@
       {
         "dataCenterId": "US-PA-1",
         "stockStatus": "Low"
+      }
+    ]
+  },
+  {
+    "gpuId": "NVIDIA B200",
+    "displayName": "B200",
+    "memoryInGb": 180,
+    "securePricePerHr": 6.79,
+    "stockStatus": "Low",
+    "dataCenterAvailability": [
+      {
+        "dataCenterId": "EU-RO-1",
+        "stockStatus": "none"
+      },
+      {
+        "dataCenterId": "US-CA-2",
+        "stockStatus": "Low"
+      },
+      {
+        "dataCenterId": "US-NC-2",
+        "stockStatus": "none"
+      },
+      {
+        "dataCenterId": "US-NE-1",
+        "stockStatus": "none"
+      },
+      {
+        "dataCenterId": "US-TX-6",
+        "stockStatus": "none"
+      }
+    ]
+  },
+  {
+    "gpuId": "NVIDIA B300 SXM6 AC",
+    "displayName": "B300",
+    "memoryInGb": 288,
+    "securePricePerHr": 7.89,
+    "stockStatus": "Low",
+    "dataCenterAvailability": [
+      {
+        "dataCenterId": "EU-NL-1",
+        "stockStatus": "Low"
+      },
+      {
+        "dataCenterId": "EUR-IS-1",
+        "stockStatus": "none"
+      },
+      {
+        "dataCenterId": "US-WA-2",
+        "stockStatus": "none"
       }
     ]
   }
