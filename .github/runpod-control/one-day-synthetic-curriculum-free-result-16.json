@@ -1,0 +1,16 @@
+{
+  "kind": "AQLEVON_ONE_DAY_SYNTHETIC_AUTH16_FREE_SEAL_V1",
+  "authorization_id": "P4-ONE-DAY-SYNTHETIC-CURRICULUM-20260925-16",
+  "authorization_sha256": "2fe1047c9660f1fb8fc4cd9115b93764e81dbec36ccc13935286a5d176758cb9",
+  "source_head": "22b95b0fdfaf97c3ba3314a94c2413d45439cc6e",
+  "candidate_source_blob": "cb86e6494fada78328310dfe5900e75205862ee0",
+  "bootstrap_commit": "0ccf145cd1a9ce7c52387c63f671a0d17d0b4fb6",
+  "bootstrap_path": ".github/runpod-control/auth16-http-bootstrap.sh",
+  "independent_no_pods_run_id": 36175799656,
+  "independent_no_pods_observed_at_utc": "2026-09-25T18:48:59.246598+00:00",
+  "active_aqlevon_pods": [],
+  "all_account_pods": [],
+  "paid_resource_created": false,
+  "transport": "HTTP_PROXY_BOOTSTRAP",
+  "live_boundary_refresh_required": true
+}
