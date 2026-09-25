@@ -28,14 +28,15 @@
   "public_shadow_tasks": 28,
   "public_shadow_gate": "post pass@1 improvement >=0.10 AND >=3 net additional successes AND zero regression among pre-passing shadow tasks",
   "permitted_gpu_ids": [
+    "NVIDIA RTX 6000 Ada Generation",
     "NVIDIA A40",
     "NVIDIA A100 80GB PCIe",
     "NVIDIA A100-SXM4-80GB",
     "NVIDIA RTX PRO 6000 Blackwell Server Edition"
   ],
   "minimum_free_vram_mib": 40000,
-  "selection_policy": "choose cheapest currently available permitted secure BF16 GPU <=2.00/hr with >=40GB class VRAM; fail closed if dynamic paid window <1200s; no H100",
+  "selection_policy": "choose cheapest currently available permitted secure BF16 GPU <=2.00/hr with >=40GB class VRAM; RTX 6000 Ada 48GB is permitted; fail closed if dynamic paid window <1200s; no H100; no <=34GB MIG",
   "evaluation_firewall": "PUBLIC discovery gradients only; PUBLIC shadow eval only; Worker05 sealed/private not used for tuning or checkpoint selection",
   "evidence_policy": "stage exact source+public inputs before billing; retrieve adapter/log/manifest/receipts before deletion; stop/delete exact Pod after durable egress",
-  "authorization_sha256": "67fb385b49b3f2f0764458311136c395c269e63567d8e23a714b7395100f6a6e"
+  "authorization_sha256": "0555925a86bb3cc5d5d46bfc20896bc47f39de12f160376a39d52370c5e4fee3"
 }
