@@ -1,0 +1,27 @@
+name: AQLEVON Auth07 Driver Free Contract
+on:
+  push:
+    branches: [ops/auth07-crystallization-frozen-20260925]
+    paths: [".github/runpod-control/auth07-driver-free-trigger.json"]
+permissions:
+  contents: read
+jobs:
+  contract:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/auth07-crystallization-frozen-20260925
+      - name: Validate Auth07 execution graph without spend
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n .github/runpod-control/run-one-day-crystallization-07.sh
+          bash -n .github/runpod-control/auth07-crystallization-remote.sh
+          test ! -e .github/runpod-control/one-day-crystallization-consumed-07.json
+          grep -q 'tar --owner=1001 --group=1001' .github/runpod-control/run-one-day-crystallization-07.sh
+          grep -q 'tar --no-same-owner -xzf' .github/runpod-control/auth07-crystallization-remote.sh
+          grep -q 'ROOT=/tmp/auth07-runtime' .github/runpod-control/auth07-crystallization-remote.sh
+          test -z "$(grep -n '/workspace' .github/runpod-control/auth07-crystallization-remote.sh || true)"
+          grep -q 'AQLEVON_AUTH07_POD_STOP_DELETE_PASS' .github/runpod-control/run-one-day-crystallization-07.sh
+          echo AQLEVON_AUTH07_DRIVER_FREE_CONTRACT_PASS
