@@ -1,0 +1,58 @@
+name: AQLEVON One-Day Emergency Stop 09
+on:
+  push:
+    branches: [ops/one-day-verified-trajectory-20260925]
+    paths: [".github/runpod-control/emergency-stop-auth09-trigger.json"]
+permissions:
+  contents: write
+jobs:
+  stop:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      POD_ID: tlc2wscv0kt010
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/one-day-verified-trajectory-20260925
+          fetch-depth: 0
+      - name: Verify stop and delete exact Auth09 Pod
+        shell: bash
+        run: |
+          set -euo pipefail
+          pod="$POD_ID"
+          code="$(curl -sS -o /tmp/pre.json -w '%{http_code}' "https://rest.runpod.io/v1/pods/$pod" -H "Authorization: Bearer $RUNPOD_API_KEY" || true)"
+          existed_before=true
+          if [ "$code" = "404" ]; then
+            existed_before=false
+          else
+            curl -sS -X POST "https://rest.runpod.io/v1/pods/$pod/stop" -H "Authorization: Bearer $RUNPOD_API_KEY" -H 'Content-Type: application/json' -d '{}' >/tmp/stop.json || true
+            for i in $(seq 1 30); do
+              sleep 2
+              code="$(curl -sS -o /tmp/probe.json -w '%{http_code}' "https://rest.runpod.io/v1/pods/$pod" -H "Authorization: Bearer $RUNPOD_API_KEY" || true)"
+              [ "$code" = "404" ] && break
+              python3 -c 'import json,sys; p=json.load(open("/tmp/probe.json")); sys.exit(0 if p.get("desiredStatus")=="EXITED" else 1)' && break || true
+            done
+            curl -sS -X DELETE "https://rest.runpod.io/v1/pods/$pod" -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/delete.json || true
+          fi
+          deleted=0
+          for i in $(seq 1 30); do
+            code="$(curl -sS -o /tmp/final.json -w '%{http_code}' "https://rest.runpod.io/v1/pods/$pod" -H "Authorization: Bearer $RUNPOD_API_KEY" || true)"
+            if [ "$code" = "404" ]; then deleted=1; break; fi
+            sleep 2
+          done
+          test "$deleted" = "1"
+          now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          printf '{\n  "authorization_id": "P4-ONE-DAY-RSFT-CRYSTALLIZATION-20260925-09",\n  "checked_at_utc": "%s",\n  "existed_before_cleanup_check": %s,\n  "kind": "AQLEVON_EMERGENCY_STOP_DELETE_RECEIPT_V1",\n  "pod_id": "tlc2wscv0kt010",\n  "stopped_and_deleted": true\n}\n' "$now" "$existed_before" > .github/runpod-control/one-day-rsft-crystallization-emergency-stop-09-result.json
+          echo "AQLEVON_EMERGENCY_STOP_DELETE_09_PASS pod=$pod existed_before=$existed_before"
+      - name: Persist cleanup receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name aqlevon-runpod-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/runpod-control/one-day-rsft-crystallization-emergency-stop-09-result.json
+          git commit -m "ops: record Auth09 exact Pod cleanup [skip ci]" || true
+          git pull --rebase origin ops/one-day-verified-trajectory-20260925
+          git push origin HEAD:ops/one-day-verified-trajectory-20260925
