@@ -1,0 +1,42 @@
+name: AQLEVON One-Day Coverage Crystallization Auth08
+on:
+  push:
+    branches: [ops/one-day-verified-trajectory-20260925]
+    paths: [".github/runpod-control/execute-one-day-coverage-crystallization-08.json"]
+permissions:
+  contents: write
+concurrency:
+  group: aqlevon-p4-paid-single-use
+  cancel-in-progress: false
+jobs:
+  execute:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 42
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/one-day-verified-trajectory-20260925
+          fetch-depth: 0
+      - name: Execute bounded Auth08 coverage crystallization
+        shell: bash
+        run: bash .github/runpod-control/run-one-day-coverage-crystallization-08.sh
+      - name: Upload Auth08 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aqlevon-one-day-coverage-crystallization-auth08
+          path: |
+            /tmp/auth08-evidence.tgz
+            /tmp/auth08-train.log
+            /tmp/auth08_rc
+            /tmp/create08.json
+            /tmp/pod08.json
+            /tmp/auth08-input-sha256.txt
+            /tmp/stop08.json
+            /tmp/delete08.json
+            /tmp/auth08-exit-stop.json
+            /tmp/auth08-exit-delete.json
+          if-no-files-found: warn
+          retention-days: 14
