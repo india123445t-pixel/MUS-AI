@@ -1,0 +1,8 @@
+{
+  "kind": "AQLEVON_ONE_DAY_COVERAGE_CRYSTALLIZATION_FREE_TRIGGER_V1",
+  "authorization_id": "P4-ONE-DAY-COVERAGE-CRYSTALLIZATION-20260925-08",
+  "authorization_sha256": "67fb385b49b3f2f0764458311136c395c269e63567d8e23a714b7395100f6a6e",
+  "expected_source_head": "529e665ea140c2f8d6b96c02a42c100e9075c037",
+  "paid_resource_created": false,
+  "requested_at_utc": "2026-09-25T15:48:00Z"
+}
