@@ -425,7 +425,11 @@ def run(args):
     post=evaluate_shadow(reloaded, tokenizer, w02, shadow, generation)
     improvement=post["pass_at_1"]-pre["pass_at_1"]
     gain_tasks=post["successes"]-pre["successes"]
-    public_gate=bool(improvement >= 0.10 and gain_tasks >= 3)
+    pre_map={x["task_id"]: bool(x["passed"]) for x in pre["records"]}
+    post_map={x["task_id"]: bool(x["passed"]) for x in post["records"]}
+    gained_tasks=sorted(t for t,v in post_map.items() if v and not pre_map[t])
+    regressed_tasks=sorted(t for t,v in pre_map.items() if v and not post_map[t])
+    public_gate=bool(improvement >= 0.10 and gain_tasks >= 3 and not regressed_tasks)
     print("AQLEVON_CRYSTALLIZE_SHADOW_POST", json.dumps({k:v for k,v in post.items() if k!="records"}, sort_keys=True), flush=True)
     print(f"AQLEVON_CRYSTALLIZE_PUBLIC_GATE={'PASS' if public_gate else 'FAIL'} improvement={improvement:.6f} gain_tasks={gain_tasks}", flush=True)
 
@@ -434,17 +438,17 @@ def run(args):
     write_json(train_path, used)
     receipt=sealed({
         "receipt_kind":"AQLEVON_ONE_DAY_VERIFIED_TRAJECTORY_CRYSTALLIZATION_RECEIPT_V1",
-        "base_repo":MODEL_REPO,"base_revision":MODEL_REV,"probe_result_sha256":probe_sha,
+        "base_repo":MODEL_REPO,"base_revision":MODEL_REV,"probe_result_sha256":probe_sha,"input_kind":probe.get("kind") or probe.get("result_kind"),
         "public_pack_sha256":PACK_SHA,"seed":SEED,"train_examples":len(used),
         "train_task_ids":[x["task_id"] for x in used],
-        "train_sources":[{"task_id":x["task_id"],"source":x["source"],"priority":x["priority"]} for x in used],
+        "train_sources":[{"task_id":x["task_id"],"source":x["source"],"priority":x["priority"],"variant":x.get("variant",0)} for x in used],
         "optimizer_updates":len(used),
         "losses":losses,"gradient_norms":grad_norms,"adapter_tensors":32,"target_modules":16,
         "changed_lora_B_elements":changed,"adapter_state_sha256":saved_hash,
         "reloaded_adapter_state_sha256":reloaded_hash,"save_reload_hash_match":True,
         "shadow_pre_successes":pre["successes"],"shadow_pre_pass_at_1":pre["pass_at_1"],
         "shadow_post_successes":post["successes"],"shadow_post_pass_at_1":post["pass_at_1"],
-        "shadow_gain_tasks":gain_tasks,"shadow_improvement":improvement,"public_shadow_gate_pass":public_gate,
+        "shadow_gain_tasks":gain_tasks,"shadow_gained_task_ids":gained_tasks,"shadow_regressed_task_ids":regressed_tasks,"shadow_improvement":improvement,"public_shadow_gate_pass":public_gate,
         "recovered_materialization":bool(probe.get("recovered_materialization", False)),
         "target_provenance":probe.get("target_provenance"),
         "recovered_decision_sha256":probe.get("recovered_decision_sha256"),
@@ -497,7 +501,8 @@ def main():
     p.add_argument("--preflight-only", action="store_true")
     args=p.parse_args()
     probe, train, shadow=load_inputs(args)
-    print(f"AQLEVON_CRYSTALLIZE_PUBLIC_PREFLIGHT_PASS train_verified={len(train)} shadow={len(shadow)} probe_decision={probe['decision']}", flush=True)
+    decision = probe.get("decision") or probe.get("recovered_decision")
+    print(f"AQLEVON_CRYSTALLIZE_PUBLIC_PREFLIGHT_PASS train_verified={len(train)} shadow={len(shadow)} probe_decision={decision} input_kind={probe.get('kind') or probe.get('result_kind')}", flush=True)
     if args.preflight_only:
         return
     if not args.model_dir or not args.output_dir:
