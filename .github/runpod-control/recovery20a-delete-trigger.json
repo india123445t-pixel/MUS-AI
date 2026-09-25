@@ -1,0 +1,6 @@
+{
+  "pod_id": "j17ed3nyyl5fyv",
+  "evidence_sha256": "a111cefd32d6a9143bc651db3435e6ec78bf57c2e253e164ea4ad9cfa7dd930b",
+  "reason": "A1 12 steps all zero gradients and saved empty adapter; evidence persisted in Library; stop accruing failed 80GB volume storage",
+  "created_at_utc": "2026-09-25T11:22:45.921Z"
+}
