@@ -1,0 +1,48 @@
+name: AQLEVON Delete Failed Recovery20A Stopped Volume
+on:
+  push:
+    branches: [ops/runpod-control-v1]
+    paths: [".github/runpod-control/recovery20a-delete-trigger.json"]
+permissions:
+  contents: write
+jobs:
+  cleanup:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/runpod-control-v1
+      - name: Delete only the failed and stopped exact Pod
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${RUNPOD_API_KEY:-}"
+          test "$(jq -r '.pod_id' .github/runpod-control/recovery20a-delete-trigger.json)" = "j17ed3nyyl5fyv"
+          test "$(jq -r '.pod_id' .github/runpod-control/recovery20a-consumed.json)" = "j17ed3nyyl5fyv"
+          test "$(jq -r '.candidate_package_gate_pass' .github/runpod-control/recovery20a-result.json)" = "false"
+          test "$(jq -r '.stop_status' .github/runpod-control/recovery20a-result.json)" = "exited"
+          test ! -e .github/runpod-control/recovery20a-deleted.json
+          curl -fsS https://rest.runpod.io/v1/pods/j17ed3nyyl5fyv -H "Authorization: Bearer $RUNPOD_API_KEY" > /tmp/before.json
+          test "$(jq -r '.desiredStatus' /tmp/before.json)" = "EXITED"
+          test "$(jq -r '.name' /tmp/before.json)" = "AQLEVON-P4-A1-Recovery20A"
+          curl -fsS -X DELETE https://rest.runpod.io/v1/pods/j17ed3nyyl5fyv -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/deletion.json
+          code="$(curl -sS -o /tmp/after.json -w '%{http_code}' https://rest.runpod.io/v1/pods/j17ed3nyyl5fyv -H "Authorization: Bearer $RUNPOD_API_KEY")"
+          test "$code" = "404" || { echo "FAIL_CLOSED_POD_STILL_PRESENT status=$code"; exit 1; }
+          python3 - <<'PY'
+          import json,datetime
+          from pathlib import Path
+          Path('.github/runpod-control/recovery20a-deleted.json').write_text(json.dumps({'pod_id':'j17ed3nyyl5fyv','previous_status':'EXITED','after_status':'NOT_FOUND','deleted_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'evidence_zip_sha256':'a111cefd32d6a9143bc651db3435e6ec78bf57c2e253e164ea4ad9cfa7dd930b'},indent=2,sort_keys=True)+'\n')
+          print('AQLEVON_FAILED_POD_VOLUME_DELETED_PASS')
+          PY
+      - name: Preserve deletion record
+        run: |
+          set -euo pipefail
+          git config user.name aqlevon-runpod-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/runpod-control/recovery20a-deleted.json
+          git commit -m "ops: record failed Recovery20A volume deletion [skip ci]"
+          git pull --rebase origin ops/runpod-control-v1
+          git push origin HEAD:ops/runpod-control-v1
