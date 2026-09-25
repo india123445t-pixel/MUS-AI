@@ -43,7 +43,8 @@ jobs:
           print('AQLEVON_AUTH09_CONTRACT_PASS',sha)
           PY
           git fetch -q origin "$SOURCE_HEAD"
-          test "$(git rev-parse \"$SOURCE_HEAD:research/weight_factory/agent03/p4_one_day_rsft_crystallize.py\")" = "$SOURCE_BLOB"
+          blob="$(git rev-parse "$SOURCE_HEAD:research/weight_factory/agent03/p4_one_day_rsft_crystallize.py")"
+          test "$blob" = "$SOURCE_BLOB"
           git show "$SOURCE_HEAD":research/weight_factory/agent03/p4_one_day_rsft_crystallize.py >/tmp/rsft.py
           python3 -m py_compile /tmp/rsft.py
           grep -q '^MAX_TRAIN_EXAMPLES = 28$' /tmp/rsft.py
