@@ -1,0 +1,47 @@
+name: AQLEVON Coverage Crystallization Free Preflight
+on:
+  push:
+    branches: [agent/03-one-day-coverage-crystallization-20260925]
+    paths: ["research/weight_factory/agent03/coverage_crystallization_free_trigger.json"]
+permissions:
+  contents: read
+jobs:
+  preflight:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/03-one-day-coverage-crystallization-20260925
+          fetch-depth: 0
+      - name: Validate Candidate B full public discovery coverage
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile research/weight_factory/agent03/p4_one_day_recovered_materializer.py
+          python3 -m py_compile research/weight_factory/agent03/p4_one_day_crystallize_coverage.py
+          git fetch -q origin abb94ef134e2e97036b6959dbc9db4278d3736b6
+          git show abb94ef134e2e97036b6959dbc9db4278d3736b6:research/weight_factory/agent02/gene1_training_visible_pack_v1.json > /tmp/public-pack.json
+          git show abb94ef134e2e97036b6959dbc9db4278d3736b6:research/weight_factory/agent02/gene1_data_verifier_pack_v1.py > /tmp/w02.py
+          python3 research/weight_factory/agent03/p4_one_day_recovered_materializer.py             --recovered-decision research/weight_factory/agent03/auth05_recovered_material_decision.json             --training-pack /tmp/public-pack.json             --output /tmp/recovered-materialized-probe.json
+          python3 research/weight_factory/agent03/p4_one_day_crystallize_coverage.py             --probe-result /tmp/recovered-materialized-probe.json             --w02-module /tmp/w02.py             --training-pack /tmp/public-pack.json             --preflight-only | tee /tmp/preflight.log
+          grep -q 'train_verified=28 shadow=28 probe_decision=MATERIAL_LATENT_CAPABILITY' /tmp/preflight.log
+          python3 - <<'PY'
+          import ast,json
+          from pathlib import Path
+          pack=json.load(open('/tmp/public-pack.json'))
+          tasks=[t for t in pack['tasks'] if t.get('training_eligible') is True and t.get('verifier_mode')=='hardened']
+          import re
+          disc=[]; shadow=[]
+          for t in tasks:
+              i=int(re.search(r'-(\d{2})-hardened$',t['task_id']).group(1))
+              (disc if i in (0,1) else shadow).append(t)
+          assert len(disc)==28 and len(shadow)==28
+          assert len({t['family'] for t in disc})==14
+          assert all(isinstance(t.get('oracle_program'),list) and t['oracle_program'] for t in disc)
+          src=Path('research/weight_factory/agent03/p4_one_day_crystallize_coverage.py').read_text()
+          tree=ast.parse(src)
+          assert 'EPOCHS = 2' in src
+          assert 'and not regressions' in src
+          assert 'public_discovery_oracle_full_coverage' in src
+          print('AQLEVON_COVERAGE_CRYSTALLIZATION_FREE_PREFLIGHT_PASS')
+          PY
