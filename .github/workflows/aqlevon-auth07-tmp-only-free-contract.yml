@@ -1,0 +1,50 @@
+name: AQLEVON Auth07 Tmp-Only Free Contract
+on:
+  push:
+    branches: [ops/auth07-crystallization-frozen-20260925]
+    paths: [".github/runpod-control/auth07-free-contract-trigger.json"]
+permissions:
+  contents: read
+jobs:
+  contract:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/auth07-crystallization-frozen-20260925
+          fetch-depth: 0
+      - name: Validate exact Auth07 repair without spend
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n .github/runpod-control/auth07-crystallization-remote.sh
+          test -z "$(grep -n '/workspace' .github/runpod-control/auth07-crystallization-remote.sh || true)"
+          grep -q 'tar --no-same-owner -xzf' .github/runpod-control/auth07-crystallization-remote.sh
+          rm -rf /tmp/auth07-owner-test /tmp/auth07-owner-out
+          mkdir -p /tmp/auth07-owner-test /tmp/auth07-owner-out
+          echo ok >/tmp/auth07-owner-test/payload
+          tar --owner=1001 --group=1001 -czf /tmp/auth07-owner-test.tgz -C /tmp/auth07-owner-test .
+          tar --no-same-owner -xzf /tmp/auth07-owner-test.tgz -C /tmp/auth07-owner-out
+          test "$(cat /tmp/auth07-owner-out/payload)" = ok
+          python3 - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          a=json.loads(Path('.github/runpod-control/one-day-crystallization-manager-authorization-07-20260925.json').read_text())
+          sha=hashlib.sha256(json.dumps({k:v for k,v in a.items() if k!='authorization_sha256'},sort_keys=True,separators=(',',':'),ensure_ascii=False,allow_nan=False).encode()).hexdigest()
+          assert sha==a['authorization_sha256']=='8f5e7ce1ca79e4d8f0e8e041dc2b656bc57c2cbea918f4e888581c28f4dbf9df'
+          assert a['authorization_id']=='P4-ONE-DAY-CRYSTALLIZATION-20260925-07'
+          assert a['expected_source_head']=='f3a2ca4c894e81cf9dffa1dd9935a3774b854cdb'
+          assert a['training_examples']==6 and a['public_shadow_tasks']==28
+          assert float(a['fresh_authorization_spend_before_auth07_usd'])+float(a['max_total_cost_usd'])<=5.0
+          print('AQLEVON_AUTH07_CONTRACT_SHA_PASS',sha)
+          PY
+          git fetch -q origin f3a2ca4c894e81cf9dffa1dd9935a3774b854cdb abb94ef134e2e97036b6959dbc9db4278d3736b6
+          rm -rf /tmp/auth07-src && mkdir -p /tmp/auth07-src
+          git archive f3a2ca4c894e81cf9dffa1dd9935a3774b854cdb | tar -x -C /tmp/auth07-src
+          git show abb94ef134e2e97036b6959dbc9db4278d3736b6:research/weight_factory/agent02/gene1_training_visible_pack_v1.json > /tmp/public-pack.json
+          git show abb94ef134e2e97036b6959dbc9db4278d3736b6:research/weight_factory/agent02/gene1_data_verifier_pack_v1.py > /tmp/w02.py
+          python3 /tmp/auth07-src/research/weight_factory/agent03/p4_one_day_recovered_materializer.py             --recovered-decision /tmp/auth07-src/research/weight_factory/agent03/auth05_recovered_material_decision.json             --training-pack /tmp/public-pack.json --output /tmp/recovered-materialized-probe.json | tee /tmp/auth07-mat.log
+          grep -q 'train_targets=6 shadow_targets=0' /tmp/auth07-mat.log
+          python3 /tmp/auth07-src/research/weight_factory/agent03/p4_one_day_crystallize.py             --probe-result /tmp/recovered-materialized-probe.json --w02-module /tmp/w02.py             --training-pack /tmp/public-pack.json --preflight-only | tee /tmp/auth07-crystal.log
+          grep -q 'train_verified=6 shadow=28 probe_decision=MATERIAL_LATENT_CAPABILITY' /tmp/auth07-crystal.log
+          echo AQLEVON_AUTH07_TMP_ONLY_FREE_CONTRACT_PASS
