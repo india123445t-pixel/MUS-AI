@@ -1,0 +1,26 @@
+name: AQLEVON Auth03 Driver Free Contract
+on:
+  push:
+    branches: [ops/one-day-verified-trajectory-20260925]
+    paths:
+      - ".github/runpod-control/run-one-day-public-probe-03-refresh.sh"
+      - ".github/workflows/aqlevon-auth03-driver-free.yml"
+permissions:
+  contents: read
+jobs:
+  contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/one-day-verified-trajectory-20260925
+      - name: Validate generated auth03 driver without spend
+        shell: bash
+        env:
+          AQLEVON_FREE_CONTRACT_ONLY: "1"
+        run: |
+          set -euo pipefail
+          bash -n .github/runpod-control/run-one-day-public-probe-03-refresh.sh
+          bash .github/runpod-control/run-one-day-public-probe-03-refresh.sh
+          echo AQLEVON_AUTH03_WRAPPER_FREE_GATE_PASS
