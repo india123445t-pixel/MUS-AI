@@ -95,25 +95,45 @@ PY
 curl -sSL https://cli.runpod.net | sudo bash >/dev/null || die runpodctl_install_failed
 runpodctl gpu list --output json >/tmp/pre-gpus.json || die gpu_inventory_failed
 python3 - <<'PY' || exit 1
-import json
+import datetime,json
+from pathlib import Path
 a=json.load(open(".github/runpod-control/one-day-crystallize-manager-authorization-06-20260925.json"))
 f=json.load(open(".github/runpod-control/auth06-crystallize-free-result.json"))
-gpu=f["selected_gpu_id"]; dc=f["selected_datacenter"]; price=float(f["selected_price_hr"])
-assert gpu in set(a["permitted_gpu_ids"]) and price<=float(a["max_hourly_rate_usd"])
-found=False
+choices=[]; allowed=set(a["permitted_gpu_ids"])
 for g in json.load(open("/tmp/pre-gpus.json")):
-    if g.get("gpuId")!=gpu or not g.get("secureCloud"): continue
-    live=float(g.get("securePricePerHr") or 999)
-    if live>float(a["max_hourly_rate_usd"]): continue
+    gid=str(g.get("gpuId",""))
+    if gid not in allowed or not g.get("secureCloud"): continue
+    price=float(g.get("securePricePerHr") or 999)
+    if price>float(a["max_hourly_rate_usd"]): continue
     for d in (g.get("dataCenterAvailability") or []):
-        if d.get("dataCenterId")==dc and str(d.get("stockStatus")).lower()!="none":
-            found=True; price=live
-assert found,(gpu,dc,"stock_vanished")
+        if str(d.get("stockStatus")).lower()!="none":
+            seconds=min(int(a["max_billed_seconds"]),int(float(a["max_total_cost_usd"])*3600/price))
+            if seconds>=1200: choices.append((price,gid,d.get("dataCenterId"),seconds))
+assert choices,"no_permitted_live_stock_at_paid_boundary"
+price,gpu,dc,seconds=sorted(choices)[0]
 open("/tmp/selected_gpu","w").write(gpu)
-open("/tmp/selected_dc","w").write(dc)
+open("/tmp/selected_dc","w").write(str(dc))
 open("/tmp/selected_rate","w").write(str(price))
-print("AQLEVON_AUTH06_EXACT_CAPACITY_PASS",gpu,dc,price)
+f.update({"selected_gpu_id":gpu,"selected_datacenter":dc,"selected_price_hr":price,
+          "dynamic_max_billed_seconds":seconds,
+          "paid_boundary_refresh_at_utc":datetime.datetime.now(datetime.timezone.utc).isoformat(),
+          "paid_boundary_refresh_committed_before_pod":True})
+Path(".github/runpod-control/auth06-crystallize-free-result.json").write_text(json.dumps(f,indent=2,sort_keys=True)+"\n")
+print("AQLEVON_AUTH06_LIVE_CAPACITY_SELECTED",gpu,dc,price,seconds)
 PY
+git config user.name aqlevon-runpod-bot
+git config user.email actions@users.noreply.github.com
+git add "$FREE"
+if ! git diff --cached --quiet; then
+  git commit -m "ops: persist Auth06 live GPU selection before spend [skip ci]" || die live_selection_commit_failed
+  git push origin HEAD:ops/one-day-verified-trajectory-20260925 || die live_selection_push_failed
+fi
+test -z "$(git status --porcelain)" || die dirty_tree_before_auth06_pod
+
+if [ "${AQLEVON_PRESPEND_ONLY:-0}" = "1" ]; then
+  echo AQLEVON_AUTH06_PRESPEND_REFRESH_PASS
+  exit 0
+fi
 
 ssh-keygen -q -t ed25519 -N '' -f /tmp/auth06_key || die ssh_key_failed
 PUBKEY="$(cat /tmp/auth06_key.pub)"; export PUBKEY
