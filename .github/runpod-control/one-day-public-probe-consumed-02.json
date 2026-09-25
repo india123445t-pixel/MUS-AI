@@ -1,0 +1,13 @@
+{
+  "authorization_id": "P4-ONE-DAY-PUBLIC-PASSN-20260925-02",
+  "authorization_sha256": "430ae3149249d9522aa027a852bde786f5ef4a97d252781fea15080483e467c6",
+  "source_head": "c7b859f0a5459c1a79ea6fa96ca4adafe17599b6",
+  "image_digest": "sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec",
+  "pod_id": "uawhmvcg0ksot4",
+  "created_at_utc": "2026-09-25T13:51:45Z",
+  "single_use_consumed": true,
+  "training_authorized": false,
+  "experiment_started": false,
+  "terminal_outcome": "EMERGENCY_STOPPED_AND_DELETED_BEFORE_PROBE",
+  "emergency_stop_verified_at_utc": "2026-09-25T13:52:43.030850+00:00"
+}
