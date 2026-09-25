@@ -1,0 +1,67 @@
+name: Publish Frozen Auth16 Runtime Asset
+on:
+  push:
+    branches: [release/aqlevon-unified-production-20260925]
+    paths: [".github/runpod-control/publish-auth16-runtime-trigger.json"]
+permissions:
+  contents: write
+  actions: read
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: aqlevon-auth16-runtime-v1
+      ARTIFACT_ID: "10883200678"
+      EXPECTED_SHA: "2d4f0c3528129e702dfa0af27fad467d411f355b9ea72e771942d0f6703e2b2a"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/aqlevon-unified-production-20260925
+          fetch-depth: 0
+      - name: Recover exact Auth16 adapter
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$ARTIFACT_ID/zip" > /tmp/auth16-artifact.zip
+          rm -rf /tmp/auth16-artifact /tmp/auth16-release
+          mkdir -p /tmp/auth16-artifact /tmp/auth16-release
+          unzip -q /tmp/auth16-artifact.zip -d /tmp/auth16-artifact
+          model="$(find /tmp/auth16-artifact -type f -name adapter_model.safetensors | head -n1)"
+          config="$(find /tmp/auth16-artifact -type f -name adapter_config.json | head -n1)"
+          test -n "$model" && test -n "$config"
+          got="$(sha256sum "$model" | awk '{print $1}')"
+          test "$got" = "$EXPECTED_SHA"
+          cp "$model" /tmp/auth16-release/adapter_model.safetensors
+          cp "$config" /tmp/auth16-release/adapter_config.json
+          tar -C /tmp/auth16-release -czf /tmp/AQLEVON_AUTH16_ADAPTER.tar.gz adapter_model.safetensors adapter_config.json
+          sha256sum /tmp/AQLEVON_AUTH16_ADAPTER.tar.gz > /tmp/AQLEVON_AUTH16_ADAPTER.tar.gz.sha256
+          echo "AQLEVON_AUTH16_ADAPTER_RECOVERED sha=$got"
+      - name: Publish immutable public release asset
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" /tmp/AQLEVON_AUTH16_ADAPTER.tar.gz /tmp/AQLEVON_AUTH16_ADAPTER.tar.gz.sha256 --clobber
+          else
+            gh release create "$TAG" --target "$GITHUB_SHA" --title "AQLEVON Auth16 Runtime v1" --notes "Frozen public-verified Auth16 adapter. Base Qwen/Qwen3.5-4B-Base@daa9c16f371249f9ad1c75a9ed6f956c08ea08f5. Adapter SHA256: $EXPECTED_SHA."
+            gh release upload "$TAG" /tmp/AQLEVON_AUTH16_ADAPTER.tar.gz /tmp/AQLEVON_AUTH16_ADAPTER.tar.gz.sha256 --clobber
+          fi
+          url="https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/AQLEVON_AUTH16_ADAPTER.tar.gz"
+          curl -fsSL "$url" -o /tmp/verify.tgz
+          rm -rf /tmp/verify && mkdir /tmp/verify
+          tar -xzf /tmp/verify.tgz -C /tmp/verify
+          got="$(sha256sum /tmp/verify/adapter_model.safetensors | awk '{print $1}')"
+          test "$got" = "$EXPECTED_SHA"
+          printf '{"kind":"AQLEVON_AUTH16_RUNTIME_RELEASE_V1","status":"PASS","tag":"%s","asset_url":"%s","adapter_model_sha256":"%s","source_artifact_id":%s,"published_at_utc":"%s"}\n' "$TAG" "$url" "$got" "$ARTIFACT_ID" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > .github/runpod-control/auth16-runtime-release-result.json
+      - name: Persist release receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name aqlevon-release-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/runpod-control/auth16-runtime-release-result.json
+          git commit -m "runtime: record frozen Auth16 release asset [skip ci]" || true
+          git pull --rebase origin release/aqlevon-unified-production-20260925
+          git push origin HEAD:release/aqlevon-unified-production-20260925
