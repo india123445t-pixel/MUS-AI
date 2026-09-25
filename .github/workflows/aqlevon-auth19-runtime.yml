@@ -117,7 +117,7 @@ jobs:
           }
           trap cleanup_fail EXIT
 
-          runpodctl pod create --name AQLEVON-AUTH19-RUNTIME             --image "ghcr.io/india123445t-pixel/mus-ai@$IMAGE_DIGEST"             --gpu-id "$(cat /tmp/gpu18)" --gpu-count 1 --cloud-type SECURE             --container-disk-in-gb 40 --ports 8000/http --ssh=false             --docker-args "$DOCKER_ARGS" --output json >/tmp/create18.json
+          runpodctl pod create --name AQLEVON-AUTH19-RUNTIME             --image "ghcr.io/india123445t-pixel/mus-ai@$IMAGE_DIGEST"             --gpu-id "$(cat /tmp/gpu18)" --gpu-count 1 --cloud-type SECURE --data-center-ids "US-KS-2"             --container-disk-in-gb 40 --ports 8000/http --ssh=false             --docker-args "$DOCKER_ARGS" --output json >/tmp/create18.json
 
           python3 - <<'PY'
           import datetime,json,time
