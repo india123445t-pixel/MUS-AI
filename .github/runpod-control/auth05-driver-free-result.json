@@ -1,0 +1,11 @@
+{
+  "authorization_id": "P4-ONE-DAY-PUBLIC-PASSN-20260925-05",
+  "checked_at_utc": "2026-09-25T14:53:49.046581+00:00",
+  "kind": "AQLEVON_AUTH05_DRIVER_FREE_CONTRACT_V1",
+  "passed": true,
+  "readiness_seconds": 900,
+  "sealed_eval_consumed": false,
+  "source_head": "c7b859f0a5459c1a79ea6fa96ca4adafe17599b6",
+  "training_authorized": false,
+  "workspace_v2": true
+}
