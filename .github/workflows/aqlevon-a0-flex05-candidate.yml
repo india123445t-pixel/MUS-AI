@@ -1,0 +1,401 @@
+name: AQLEVON A0 Dynamic GPU Corrected Hardware Candidate
+on:
+  push:
+    branches: [ops/runpod-control-v1]
+    paths: [".github/runpod-control/execute-a0-flex05-trigger.json"]
+permissions:
+  contents: write
+concurrency:
+  group: aqlevon-p4-paid-single-use
+  cancel-in-progress: false
+jobs:
+  execute:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 100
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      AUTH_SHA: 29e960888dd3993f0bbc4873e68c0e394009d3669438834b05579a155f06e058
+      AUTH_ID: P4-A0-SFT-FLEX-GPU-20260925-05
+      EXPECTED_HEAD: 11f40e8cc7575d9094bae508a6a4d5cb84c306a4
+      IMAGE_DIGEST: sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/runpod-control-v1
+      - name: Validate fresh A0 authorization and scientific distinction
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$RUNPOD_API_KEY"
+          test ! -e .github/runpod-control/a0-flex05-consumed.json
+          python3 - <<'PY'
+          import json,hashlib,os
+          from pathlib import Path
+          a=json.loads(Path('.github/runpod-control/a0-flex05-manager-authorization-20260925.json').read_text())
+          t=json.loads(Path('.github/runpod-control/execute-a0-flex05-trigger.json').read_text())
+          def sha(v):return hashlib.sha256(json.dumps(v,sort_keys=True,separators=(',',':'),ensure_ascii=False,allow_nan=False).encode()).hexdigest()
+          assert a['authorization_sha256']==sha({k:v for k,v in a.items() if k!='authorization_sha256'})==os.environ['AUTH_SHA']
+          assert a['authorization_id']==t['authorization_id']==os.environ['AUTH_ID']
+          assert t['authorization_sha256']==a['authorization_sha256']
+          assert a['candidate_arm']==t['candidate_arm']=='P4_A0_SFT_LORA_CONTROL'
+          assert a['expected_source_head']==t['expected_source_head']==os.environ['EXPECTED_HEAD']
+          assert a['image_digest']==t['image_digest']==os.environ['IMAGE_DIGEST']
+          assert a['max_hourly_rate_usd']=='1.60' and a['max_total_cost_usd']=='2.30'
+          assert a['permitted_gpu_ids']==['NVIDIA A40','NVIDIA A100 80GB PCIe','NVIDIA A100-SXM4-80GB']
+          assert a['max_billed_seconds']==4800 and a['max_artifact_egress_bytes']==5368709120
+          assert a['single_use'] is True and a['mission_max_total_usd']=='5.00'
+          assert float(a['prior_mission_spend_usd'])+float(a['max_total_cost_usd'])<5.00
+          assert t['single_use'] is True and t['max_artifact_egress_bytes']==5368709120
+          print('AQLEVON_A0_SINGLE_USE_SOURCE_AND_BUDGET_PASS',a['authorization_sha256'])
+          PY
+      - uses: actions/checkout@v4
+        with:
+          ref: 11f40e8cc7575d9094bae508a6a4d5cb84c306a4
+          path: a0-source
+          fetch-depth: 0
+      - name: Verify exact A0 source and public data before spend
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C a0-source rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test "$(git ls-remote https://github.com/$GITHUB_REPOSITORY.git refs/heads/agent/03-p4-a0-sft-candidate-20260925 | cut -f1)" = "$EXPECTED_HEAD"
+          git -C a0-source fetch -q origin abb94ef134e2e97036b6959dbc9db4278d3736b6
+          git -C a0-source show abb94ef134e2e97036b6959dbc9db4278d3736b6:research/weight_factory/agent02/gene1_training_shard_v1.jsonl > /tmp/a0-shard.jsonl
+          git -C a0-source show abb94ef134e2e97036b6959dbc9db4278d3736b6:research/weight_factory/agent02/gene1_training_shard_manifest_v1.json > /tmp/a0-manifest.json
+          python3 -m py_compile a0-source/research/weight_factory/agent03/p4_a0_sft_candidate.py
+          bash -n a0-source/research/weight_factory/agent03/p4_a0_runpod_launch.sh
+          python3 a0-source/research/weight_factory/agent03/p4_a0_sft_candidate.py --shard-path /tmp/a0-shard.jsonl --manifest-path /tmp/a0-manifest.json --plan-path a0-source/research/weight_factory/agent03/p4_frozen_training_plan_v1.json --preflight-only
+          python3 - <<'PY'
+          import importlib.util
+          p='a0-source/research/weight_factory/agent03/p4_a0_sft_candidate.py'
+          spec=importlib.util.spec_from_file_location('trainer',p);m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
+          class T:
+              def __init__(self,shape):self.shape=shape
+          keys={}
+          for i in m.LAYERS:
+              for proj in ('q_proj','v_proj'):
+                  prefix=f'model.language_model.layers.{i}.self_attn.{proj}'
+                  keys[prefix+'.lora_A.weight']=T((4,2560))
+                  keys[prefix+'.lora_B.weight']=T((8192 if proj=='q_proj' else 1024,4))
+          assert len(m.tensor_layout(keys))==16
+          try:m.tensor_layout({})
+          except AssertionError:pass
+          else:raise AssertionError('empty A1-style adapter was accepted')
+          print('AQLEVON_A0_EMPTY_ADAPTER_REJECTION_CPU_PASS')
+          PY
+      - name: Verify no duplicate Pod and choose bounded live BF16 GPU
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS https://rest.runpod.io/v1/pods -H "Authorization: Bearer $RUNPOD_API_KEY" > /tmp/pods-preflight.json
+          python3 - <<'PY'
+          import json
+          p=json.load(open('/tmp/pods-preflight.json'))
+          items=p if isinstance(p,list) else p.get('pods') or p.get('items') or []
+          active=[x for x in items if str(x.get('name','')).startswith('AQLEVON-P4-') and str(x.get('desiredStatus') or x.get('status'))!='EXITED']
+          assert not active,active
+          print('AQLEVON_A0_NO_DUPLICATE_POD_PASS')
+          PY
+          curl -sSL https://cli.runpod.net | sudo bash
+          runpodctl gpu list --output json > /tmp/gpus.json
+          python3 - <<'PY'
+          import json
+          gs=json.load(open('/tmp/gpus.json'))
+          permitted=['NVIDIA A40','NVIDIA A100 80GB PCIe','NVIDIA A100-SXM4-80GB']
+          choices=[]
+          for i,name in enumerate(permitted):
+              for g in gs:
+                  if g.get('gpuId')!=name or not g.get('secureCloud') or not g.get('available') or float(g.get('securePricePerHr') or 999)>1.60:continue
+                  for dc in g.get('dataCenterAvailability') or []:
+                      if str(dc.get('stockStatus')).lower()!='none' and dc.get('dataCenterId'):
+                          choices.append((i,str(dc['dataCenterId']),name,float(g['securePricePerHr'])))
+          assert choices,'no authorized BF16 GPU currently available'
+          chosen=sorted(choices)[0]
+          open('/tmp/selected_dc','w').write(chosen[1])
+          open('/tmp/selected_gpu_type','w').write(chosen[2])
+          print('AQLEVON_A0_GPU_CAPACITY_PASS',chosen)
+          PY
+      - name: Stage exact source and public data on runner before billing
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp -a a0-source /tmp/a0-transfer
+          git -C /tmp/a0-transfer config --local --unset-all http.https://github.com/.extraheader || true
+          tar -czf /tmp/a0-source.tgz -C /tmp/a0-transfer .
+          test "$(stat -c %s /tmp/a0-source.tgz)" -lt 250000000
+          mkdir -p /tmp/a0-verify
+          tar -xzf /tmp/a0-source.tgz -C /tmp/a0-verify
+          test "$(git -C /tmp/a0-verify rev-parse HEAD)" = "$EXPECTED_HEAD"
+          sha256sum /tmp/a0-shard.jsonl /tmp/a0-manifest.json /tmp/a0-source.tgz
+          echo AQLEVON_A0_EXACT_SOURCE_STAGED_BEFORE_BILLING
+      - name: Create one bounded fresh A100 Pod and consume authorization
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh-keygen -q -t ed25519 -N '' -f /tmp/a0_key
+          PUBKEY="$(cat /tmp/a0_key.pub)"
+          export PUBKEY
+          env_json="$(python3 - <<'PY'
+          import json,os
+          print(json.dumps({'PUBLIC_KEY':os.environ['PUBKEY'],'AQLEVON_EXPECTED_A0_HEAD':os.environ['EXPECTED_HEAD'],'AQLEVON_EXPECTED_IMAGE_DIGEST':os.environ['IMAGE_DIGEST']},separators=(',',':')))
+          PY
+          )"
+          runpodctl pod create --name AQLEVON-P4-A0-SFT-FLEX05-20260925 --image "ghcr.io/india123445t-pixel/mus-ai@$IMAGE_DIGEST" --gpu-id "$(cat /tmp/selected_gpu_type)" --gpu-count 1 --cloud-type SECURE --data-center-ids "$(cat /tmp/selected_dc)" --container-disk-in-gb 40 --volume-in-gb 40 --volume-mount-path /workspace --ports 22/tcp --env "$env_json" --output json > /tmp/create.json
+          python3 - <<'PY'
+          import json,time
+          p=json.load(open('/tmp/create.json'));pod=p.get('id') or p.get('podId')
+          assert pod,p
+          open('/tmp/pod_id','w').write(pod)
+          open('/tmp/pod_created_epoch','w').write(str(int(time.time())))
+          print('AQLEVON_A0_POD_CREATED',pod)
+          PY
+          python3 - <<'PY'
+          import json,datetime,os
+          from pathlib import Path
+          out={'authorization_id':os.environ['AUTH_ID'],'authorization_sha256':os.environ['AUTH_SHA'],'source_head':os.environ['EXPECTED_HEAD'],'image_digest':os.environ['IMAGE_DIGEST'],'pod_id':Path('/tmp/pod_id').read_text().strip(),'created_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'single_use_consumed':True}
+          Path('.github/runpod-control/a0-flex05-consumed.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
+          PY
+          git config user.name aqlevon-runpod-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/runpod-control/a0-flex05-consumed.json
+          git commit -m "ops: consume A0 SFT single-use authorization [skip ci]"
+          git pull --rebase origin ops/runpod-control-v1
+          git push origin HEAD:ops/runpod-control-v1
+      - name: Verify exact Pod hardware and SSH readiness
+        shell: bash
+        run: |
+          set -euo pipefail
+          pod="$(cat /tmp/pod_id)"
+          ready=0
+          for i in $(seq 1 120); do
+            curl -fsS "https://rest.runpod.io/v1/pods/$pod" -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/pod.json || true
+            if python3 - <<'PY'
+          import json,sys
+          try:p=json.load(open('/tmp/pod.json'))
+          except Exception:sys.exit(1)
+          if float(p.get('costPerHr') or 999)>1.60:sys.exit(2)
+          ip=p.get('publicIp');port=(p.get('portMappings') or {}).get('22')
+          if p.get('desiredStatus')=='RUNNING' and ip and port:
+              open('/tmp/ssh_target','w').write(str(ip)+'|'+str(port))
+              open('/tmp/live_rate','w').write(str(p['costPerHr']))
+              sys.exit(0)
+          sys.exit(1)
+          PY
+            then ready=1; break
+            else status=$?; if [ "$status" -eq 2 ]; then exit 97; fi
+            fi
+            sleep 5
+          done
+          test "$ready" = 1
+          host="$(cut -d'|' -f1 /tmp/ssh_target)"
+          port="$(cut -d'|' -f2 /tmp/ssh_target)"
+          cat > /tmp/a0-hardware.py <<'PY'
+          import subprocess,pathlib
+          name=subprocess.check_output(['nvidia-smi','--query-gpu=name','--format=csv,noheader'],text=True).splitlines()[0].strip()
+          free=float(subprocess.check_output(['nvidia-smi','--query-gpu=memory.free','--format=csv,noheader,nounits'],text=True).splitlines()[0])
+          limits=[pathlib.Path('/sys/fs/cgroup/memory.max'),pathlib.Path('/sys/fs/cgroup/memory/memory.limit_in_bytes')]
+          cap=next((int(p.read_text()) for p in limits if p.exists() and p.read_text().strip().isdigit()),0)
+          expected=pathlib.Path('/tmp/selected_gpu_type').read_text().strip()
+          assert name==expected,(name,expected)
+          min_free,min_ram=(40000,45_000_000_000) if name=='NVIDIA A40' else (70000,100_000_000_000)
+          assert free>=min_free and cap>=min_ram,(name,free,cap)
+          print('AQLEVON_A0_HARDWARE_PASS',name,free,cap)
+          PY
+          scp -q -i /tmp/a0_key -P "$port" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null /tmp/a0-hardware.py /tmp/selected_gpu_type root@"$host":/tmp/
+          ssh -i /tmp/a0_key -p "$port" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@"$host" python3 /tmp/a0-hardware.py
+      - name: Run distinct A0 SFT experiment and retrieve bounded Candidate evidence
+        id: train
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          host="$(cut -d'|' -f1 /tmp/ssh_target)"
+          port="$(cut -d'|' -f2 /tmp/ssh_target)"
+          ssh -i /tmp/a0_key -p "$port" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@"$host" 'mv /workspace/aqlevon_a0-supervisor.log /workspace/aqlevon_a0-previous-supervisor.log 2>/dev/null || true; touch /workspace/aqlevon_a0-previous-supervisor.log; cat /workspace/aqlevon_a0-previous-supervisor.log' > /tmp/a0-previous-supervisor.log || true
+          echo AQLEVON_A0_PREVIOUS_SUPERVISOR_BEGIN
+          head -c 4000 /tmp/a0-previous-supervisor.log || true
+          echo AQLEVON_A0_PREVIOUS_SUPERVISOR_END
+          scp -q -i /tmp/a0_key -P "$port" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null /tmp/a0-source.tgz /tmp/a0-shard.jsonl /tmp/a0-manifest.json root@"$host":/tmp/
+          cat > /tmp/a0-bootstrap.sh <<'REMOTE'
+          #!/usr/bin/env bash
+          set -uo pipefail
+          rc=255
+          trap 'printf "%s\n" "$rc" >/workspace/aqlevon_a0.rc' EXIT
+          rm -f /workspace/aqlevon_a0.rc
+          mkdir -p /workspace/MUS-AI /workspace/aqlevon_a0/public
+          tar -xzf /tmp/a0-source.tgz -C /workspace/MUS-AI || { rc=81; exit "$rc"; }
+          test "$(git -C /workspace/MUS-AI rev-parse HEAD)" = "$AQLEVON_EXPECTED_A0_HEAD" || { rc=82; exit "$rc"; }
+          cp /tmp/a0-shard.jsonl /workspace/aqlevon_a0/public/shard.jsonl || { rc=83; exit "$rc"; }
+          cp /tmp/a0-manifest.json /workspace/aqlevon_a0/public/manifest.json || { rc=84; exit "$rc"; }
+          bash /workspace/MUS-AI/research/weight_factory/agent03/p4_a0_runpod_launch.sh >/workspace/aqlevon_a0.log 2>&1
+          rc=$?
+          exit "$rc"
+          REMOTE
+          scp -q -i /tmp/a0_key -P "$port" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null /tmp/a0-bootstrap.sh root@"$host":/tmp/a0-bootstrap.sh
+          ssh -i /tmp/a0_key -p "$port" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@"$host" 'rm -f /workspace/aqlevon_a0.rc; nohup setsid bash /tmp/a0-bootstrap.sh >/workspace/aqlevon_a0-supervisor.log 2>&1 < /dev/null &'
+          echo AQLEVON_A0_DURABLE_REMOTE_START
+          done_remote=0
+          rc=255
+          for i in $(seq 1 420); do
+            if ssh -i /tmp/a0_key -p "$port" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10 root@"$host" 'test -s /workspace/aqlevon_a0.rc' >/dev/null 2>&1; then
+              done_remote=1
+              rc="$(ssh -i /tmp/a0_key -p "$port" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@"$host" 'cat /workspace/aqlevon_a0.rc' | tail -n1)"
+              break
+            fi
+            elapsed=$(( $(date +%s) - $(cat /tmp/pod_created_epoch) ))
+            if [ "$elapsed" -gt 4400 ]; then rc=125; echo "FAIL_CLOSED_A0_BILLING_WATCHDOG seconds=$elapsed"; break; fi
+            sleep 10
+          done
+          [[ "$rc" =~ ^[0-9]+$ ]] || rc=255
+          [ "$done_remote" = 1 ] || { echo FAIL_CLOSED_A0_REMOTE_NOT_FINISHED; rc=124; }
+          ssh -i /tmp/a0_key -p "$port" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@"$host" 'cd /workspace && tar -czf /tmp/aqlevon-a0-evidence.tgz aqlevon_a0 aqlevon_a0.log aqlevon_a0-supervisor.log aqlevon_a0-previous-supervisor.log aqlevon_a0.rc 2>/dev/null' || true
+          sizes="$(ssh -i /tmp/a0_key -p "$port" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@"$host" 'stat -c %s /workspace/aqlevon_a0.log /tmp/aqlevon-a0-evidence.tgz' 2>/dev/null || true)"
+          readarray -t parts <<< "$sizes"
+          cap=5368709120
+          if [ "${#parts[@]}" -eq 2 ] && [[ "${parts[0]}" =~ ^[0-9]+$ ]] && [[ "${parts[1]}" =~ ^[0-9]+$ ]] && [ $((parts[0]+parts[1])) -le "$cap" ]; then
+             ssh -i /tmp/a0_key -p "$port" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@"$host" 'cat /workspace/aqlevon_a0.log' > /tmp/a0.log
+             scp -q -i /tmp/a0_key -P "$port" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@"$host":/tmp/aqlevon-a0-evidence.tgz /tmp/aqlevon-a0-evidence.tgz
+             echo "AQLEVON_A0_EGRESS_PASS bytes=$((parts[0]+parts[1])) cap=$cap" >/tmp/a0-egress.log
+          else
+             echo "FAIL_CLOSED_A0_EGRESS_PROBE sizes=$sizes" >/tmp/a0-egress.log
+             rc=96
+          fi
+          printf '%s\n' "$rc" >/tmp/a0_train_rc
+          # The archive contains candidate bytes; actual training rc alone is insufficient.
+          if [ "$rc" -eq 0 ]; then
+            python3 - <<'PY'
+          import hashlib,json,os,re,sys,tarfile
+          from pathlib import Path
+          t=tarfile.open('/tmp/aqlevon-a0-evidence.tgz','r:gz')
+          root='aqlevon_a0/candidate/P4_A0_seed1701_Worker05/'
+          req=['candidate_artifact/adapter_config.json','candidate_artifact/adapter_model.safetensors','candidate_artifact_manifest.json','training_run_receipt.json','worker05_handoff_index.json']
+          names=set(t.getnames())
+          assert all(root+k in names for k in req),sorted(names)
+          def read(path):return t.extractfile(root+path).read()
+          receipt=json.loads(read('training_run_receipt.json'))
+          manifest=json.loads(read('candidate_artifact_manifest.json'))
+          handoff=json.loads(read('worker05_handoff_index.json'))
+          config=json.loads(read('candidate_artifact/adapter_config.json'))
+          weights=read('candidate_artifact/adapter_model.safetensors')
+          assert len(weights)>1000
+          length=int.from_bytes(weights[:8],'little')
+          header=json.loads(weights[8:8+length])
+          keys={k:v for k,v in header.items() if k!='__metadata__'}
+          assert len(keys)==32
+          modules=set();a=b=0
+          for key,item in keys.items():
+              hit=re.search(r'layers\.(\d+)\.self_attn\.(q_proj|v_proj)\.lora_([AB])(?:\.default)?\.weight$',key)
+              assert hit,key
+              modules.add((int(hit[1]),hit[2]))
+              if hit[3]=='A':a+=1
+              else:b+=1
+          assert len(modules)==16 and a==b==16
+          assert config['r']==config['lora_alpha']==4
+          assert set(config['target_modules'])=={'q_proj','v_proj'}
+          assert receipt['optimizer_updates']==12 and receipt['unique_training_examples']==48
+          assert receipt['changed_lora_B_elements']>0 and receipt['save_reload_hash_match'] is True
+          assert receipt['saved_adapter_state_sha256']==receipt['reloaded_adapter_state_sha256']
+          assert receipt['w03_a0_execution_head']==os.environ['EXPECTED_HEAD']
+          assert receipt['runtime_appliance_digest']==os.environ['IMAGE_DIGEST']
+          assert receipt['sealed_eval_consumed'] is False and receipt['capability_gain_claim'] is False
+          assert hashlib.sha256(read('training_run_receipt.json')).hexdigest()==manifest['training_run_receipt_sha256']
+          assert hashlib.sha256(read('candidate_artifact/adapter_model.safetensors')).hexdigest()==manifest['adapter_model_sha256']
+          assert handoff['candidate_manifest_sha256']==manifest['manifest_sha256']
+          assert handoff['training_receipt_sha256']==manifest['training_run_receipt_sha256']
+          assert handoff['candidate_status']=='ARTIFACT_READY_FOR_WORKER05_EVALUATION'
+          assert handoff['arm_id']=='P4_A0_SFT_LORA_CONTROL'
+          log=Path('/tmp/a0.log').read_text(errors='replace')
+          updates=[int(x) for x in re.findall(r'AQLEVON_A0_OPTIMIZER_UPDATE=(\d+)/12',log)]
+          assert updates==list(range(1,13)),updates
+          assert 'AQLEVON_A0_CANDIDATE_PACKAGE_PASS' in log
+          diag=t.extractfile('aqlevon_a0/resource.tsv').read().decode(errors='replace')
+          assert len(diag.splitlines())>3
+          for line in diag.splitlines()[1:]:
+              if 'oom_kill ' in line:
+                  x=re.search(r'oom_kill (\d+)',line)
+                  assert not x or int(x[1])==0,line
+          print('AQLEVON_A0_INDEPENDENT_CANDIDATE_GATE_PASS',len(keys),len(modules),receipt['changed_lora_B_elements'])
+          PY
+            evidence_rc=$?
+            [ "$evidence_rc" -eq 0 ] || rc="$evidence_rc"
+          fi
+          printf '%s\n' "$rc" >/tmp/a0_train_rc
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          exit "$rc"
+      - name: Stop exact Pod and verify EXITED regardless of training result
+        id: stop
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          pod="$(cat /tmp/pod_id 2>/dev/null || true)"
+          if [ -z "$pod" ]; then echo 'state=no_pod' >>"$GITHUB_OUTPUT"; exit 0; fi
+          success=0
+          for i in $(seq 1 15); do
+            curl -sS -X POST "https://rest.runpod.io/v1/pods/$pod/stop" -H "Authorization: Bearer $RUNPOD_API_KEY" -H 'Content-Type: application/json' -d '{}' >/tmp/stop.json || true
+            sleep 3
+            curl -sS -f "https://rest.runpod.io/v1/pods/$pod" -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/stop-probe.json || true
+            if python3 - <<'PY'
+          import json,sys
+          try:p=json.load(open('/tmp/stop-probe.json'))
+          except Exception:sys.exit(1)
+          sys.exit(0 if p.get('desiredStatus')=='EXITED' else 1)
+          PY
+            then success=1;break;fi
+          done
+          test "$success" = 1 || { echo FAIL_CLOSED_A0_STOP_NOT_VERIFIED;exit 97; }
+          date -u +%FT%TZ >/tmp/pod_stopped_at_utc
+          echo 'state=exited' >>"$GITHUB_OUTPUT"
+      - name: Record true A0 outcome and bounded cost evidence
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json,os,datetime,re,hashlib
+          from pathlib import Path
+          log=Path('/tmp/a0.log').read_text(errors='replace') if Path('/tmp/a0.log').exists() else ''
+          def get(path):return Path(path).read_text().strip() if Path(path).exists() else None
+          start=get('/tmp/pod_created_epoch')
+          elapsed=int(datetime.datetime.now(datetime.timezone.utc).timestamp())-int(start) if start else None
+          rate=get('/tmp/live_rate')
+          rc=get('/tmp/a0_train_rc')
+          out={'authorization_id':os.environ['AUTH_ID'],'pod_id':get('/tmp/pod_id'),'expected_head':os.environ['EXPECTED_HEAD'],'image_digest':os.environ['IMAGE_DIGEST'],'checked_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'true_exit_code':int(rc) if rc and rc.isdigit() else None,'pod_status':json.loads(Path('/tmp/stop-probe.json').read_text()).get('desiredStatus') if Path('/tmp/stop-probe.json').exists() else None,'gpu_type':get('/tmp/selected_gpu_type'),'rate_per_hour_usd':rate,'billed_seconds_estimate':elapsed,'compute_cost_estimate_usd':round(float(rate)*elapsed/3600,6) if rate and elapsed is not None else None,'candidate_package_marker':('AQLEVON_A0_CANDIDATE_PACKAGE_PASS' in log),'optimizer_update_markers':len(re.findall(r'AQLEVON_A0_OPTIMIZER_UPDATE=\d+/12',log)),'evidence_archive_present':Path('/tmp/aqlevon-a0-evidence.tgz').exists(),'egress_log':get('/tmp/a0-egress.log'),'max_authorized_total_usd':'2.30','max_authorized_billed_seconds':4800,'log_sha256':hashlib.sha256(log.encode()).hexdigest() if log else None}
+          Path('.github/runpod-control/a0-flex05-result.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
+          print('AQLEVON_A0_FRESH_RESULT',json.dumps(out,sort_keys=True))
+          PY
+          git config user.name aqlevon-runpod-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/runpod-control/a0-flex05-result.json
+          git commit -m "ops: record fresh A0 candidate attempt [skip ci]"
+          git pull --rebase origin ops/runpod-control-v1
+          git push origin HEAD:ops/runpod-control-v1
+      - name: Upload bounded A0 Candidate and evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aqlevon-a0-flex05-candidate-evidence
+          path: |
+            /tmp/a0.log
+            /tmp/a0-previous-supervisor.log
+            /tmp/aqlevon-a0-evidence.tgz
+            /tmp/a0_train_rc
+            /tmp/a0-egress.log
+            /tmp/create.json
+            /tmp/pod.json
+            /tmp/stop-probe.json
+            /tmp/pod_created_epoch
+            /tmp/pod_stopped_at_utc
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Fail if true training or Candidate gate failed
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s /tmp/a0_train_rc
+          rc="$(cat /tmp/a0_train_rc)"
+          echo "AQLEVON_A0_TRUE_EXIT_CODE=$rc"
+          test "$rc" = 0
+          test "$(python3 -c 'import json;print(json.load(open("/tmp/stop-probe.json")).get("desiredStatus"))')" = EXITED
+          test -s /tmp/aqlevon-a0-evidence.tgz
