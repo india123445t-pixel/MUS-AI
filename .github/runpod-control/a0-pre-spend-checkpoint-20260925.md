@@ -1,0 +1,13 @@
+# AQLEVON A0 pre-spend recovery checkpoint — 2026-09-25 11:36 UTC
+
+Goal: genuine 4B public-only A0 SFT LoRA Candidate, 12 optimizer updates, Worker05 handoff, mission cap $5. This is a new scientific A0 control arm after A1 Recovery20A 12/12 yielded zero rewards/gradients and an empty adapter. Do not mislabel it A1 or claim capability gain.
+
+Prior paid Recovery20A: GitHub Actions 36124898316; A100 Pod j17ed3nyyl5fyv EXITED then volume deleted; evidence ZIP Library ID libfile_7059ec8f94f081918f733ab31fc5c725 SHA a111cefd32d6a9143bc651db3435e6ec78bf57c2e253e164ea4ad9cfa7dd930b. Account balance went from $15 to $13.891060589; mission spent $1.108939411, left $3.891060589. Existing Library checkpoint ID libfile_0f1342f8da788191a2805097e9df1b3c version 6 contains deeper history.
+
+A0 source branch agent/03-p4-a0-sft-candidate-20260925 exact HEAD e8c60e05d688b8a5ce4805f1f959d041ab942512. Runtime image sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec. Public W02 shard SHA 59480e9ff48b36a0efb77a36d3e35d9f656ef4dee0ce18489d3017c92b2a0d49, model Qwen3.5-4B Base revision daa9c16f371249f9ad1c75a9ed6f956c08ea08f5. Trainer and launcher on A0 branch; distinct scientific arm documented there.
+
+Single-use Manager A0 auth P4-A0-SFT-A100-20260925-01 stored .github/runpod-control/a0-manager-authorization-20260925.json, SHA dc854cd9a903ce6b97b2f556fe827db05c308ef54e0b4ae87dbb626247d45397, A100 rate <=$1.60/h, attempt <=$2.50/4800 seconds, 5GiB egress. Unconsumed as of this checkpoint.
+
+Paid workflow .github/workflows/aqlevon-a0-sft-execute.yml on ops/runpod-control-v1 added commit 5bf157616f26b7f0df76185e61347a16b947e1bd. All run Bash parsed with bash -n and embedded Python passed AST parse locally. Free contract workflow added d85d6a26581ff7081e4948f0c5b2ac4924b0660d; free trigger 7accac42ce463e81a65b24775842b518afa98ae9; GitHub Actions run 36130201366 COMPLETED SUCCESS, both source/public/auth and live no-active-Pod steps passed. PR #30 OPEN DRAFT UNMERGED verified live. A0 source branch head verified live exact.
+
+Next: trigger single paid A0 workflow only once by creating .github/runpod-control/execute-a0-sft-trigger.json with auth SHA, id, exact head, image, 5GiB, single_use:true, candidate_arm P4_A0_SFT_LORA_CONTROL. Then watch run; consumed marker .github/runpod-control/a0-sft-consumed.json and Pod ID; verify Candidate through downloaded archive and Pod EXITED; save ZIP and handoff to Library/Worker05. If failure diagnose, preserve evidence, avoid blind paid retry; budget remains. Scratch exec-server temporarily offline; update Library checkpoint once connectivity returns. Do not merge main, do not launch 27B or G1.
