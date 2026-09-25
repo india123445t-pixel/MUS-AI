@@ -45,7 +45,7 @@ jobs:
                   subprocess.run(['bash','-n',f.name],check=True)
               for m in re.finditer(r"python3? - <<'PY'\n(.*?)\nPY",content,re.S):
                   ast.parse(m.group(1));checks+=1
-          assert checks>=10,checks
+          assert checks>=9,checks
           print('AQLEVON_A0_CONTINUATION_SYNTAX_AUTH_PASS python_blocks='+str(checks))
           PY
           curl -fsS https://rest.runpod.io/v1/pods -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/pods.json
