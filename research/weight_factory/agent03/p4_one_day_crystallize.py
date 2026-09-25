@@ -137,10 +137,17 @@ def load_inputs(args):
     if os.environ.get("AQLEVON_SEALED_EVAL_PATH") or os.environ.get("AQLEVON_EVAL_SECRET"):
         raise RuntimeError("sealed_eval_environment_forbidden")
     probe = json.loads(args.probe_result.read_text())
-    if probe.get("result_kind") != "AQLEVON_ONE_DAY_PUBLIC_VERIFIED_TRAJECTORY_PROBE_V1":
-        raise RuntimeError("wrong_probe_kind")
-    if probe.get("decision") != "MATERIAL_LATENT_CAPABILITY":
-        raise RuntimeError(f"probe_not_material:{probe.get('decision')}")
+    recovery_mode = probe.get("kind") == RECOVERY_KIND
+    if recovery_mode:
+        if probe.get("recovered_decision") != "MATERIAL_LATENT_CAPABILITY":
+            raise RuntimeError("recovery_not_material")
+        if probe.get("probe_log_sha256") != AUTH05_LOG_SHA or probe.get("artifact_zip_sha256") != AUTH05_ARTIFACT_SHA:
+            raise RuntimeError("auth05_recovery_evidence_identity_mismatch")
+    else:
+        if probe.get("result_kind") != "AQLEVON_ONE_DAY_PUBLIC_VERIFIED_TRAJECTORY_PROBE_V1":
+            raise RuntimeError("wrong_probe_kind")
+        if probe.get("decision") != "MATERIAL_LATENT_CAPABILITY":
+            raise RuntimeError(f"probe_not_material:{probe.get('decision')}")
     if probe.get("sealed_eval_consumed") is not False or probe.get("worker05_used_for_tuning") is not False:
         raise RuntimeError("protected_eval_contamination")
     if probe.get("model_repo") != MODEL_REPO or probe.get("model_revision") != MODEL_REV:
