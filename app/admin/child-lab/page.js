@@ -528,7 +528,7 @@ export default function ChildLabPage(){
             <button style={permissions.grants?.[p.id]?S.good:S.small} onClick={()=>togglePermission(p.id)}>{permissions.grants?.[p.id]?'مسموح':'موقوف'}</button>
           </div>)}
         </div>
-        <p style={{...S.muted,marginTop:14}}>هذه اللوحة تتحكم في صلاحيات أدوات Child Lab. وضع الاستقلالية يُرسل كسياسة إلى Adapter؛ لا توجد حاليًا حلقة Agent ذاتية مخفية تدّعي التنفيذ بدون Adapter وReceipt. حدود الأمان الأساسية للمنصة تبقى مستقلة عن هذه الأزرار.</p>
+        <p style={{...S.muted,marginTop:14}}>هذه الصلاحيات محفوظة محليًا في هذا المتصفح/الجهاز وليست مزامنة خادمية. وضع الاستقلالية يُرسل كسياسة إلى Adapter؛ لا توجد حاليًا حلقة Agent ذاتية مخفية تدّعي التنفيذ بدون Adapter وReceipt. حدود الأمان الأساسية للمنصة تبقى مستقلة عن هذه الأزرار.</p>
         <h3>سجل تغييرات الصلاحيات</h3>
         <div style={S.list}>{permissionLog.slice(0,12).map(x=><div key={x.id} style={S.item}><div><b>{x.action}</b><small style={{display:'block',opacity:.7}}>{x.detail}</small></div><small>{new Date(x.created_at).toLocaleString('ar-MA')}</small></div>)}</div>
       </section>
