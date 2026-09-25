@@ -1,8 +1,8 @@
 {
   "kind": "AQLEVON_COVERAGE_CRYSTALLIZATION_FREE_PREFLIGHT_TRIGGER_V1",
   "source_parent": "f3a2ca4c894e81cf9dffa1dd9935a3774b854cdb",
-  "candidate_b_commit": "9bf568f3aef15bb38fd998d539e2003972debca4",
+  "candidate_b_commit": "a4e8199c35c609c74d163469e1cf0cbfed29103e",
   "paid_resource_created": false,
-  "requested_at_utc": "2026-09-25T15:44:00Z",
-  "retry": 2
+  "requested_at_utc": "2026-09-25T15:45:00Z",
+  "retry": 3
 }
