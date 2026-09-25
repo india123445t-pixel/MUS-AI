@@ -10,8 +10,8 @@
   "previous_authorization_id": "P4-ONE-DAY-RSFT-CRYSTALLIZATION-20260925-10",
   "previous_outcome": "TECHNICALLY_VALID_PUBLIC_SHADOW_GATE_FAILED",
   "authorization_consumed": false,
-  "requested_at_utc": "2026-09-25T17:54:00Z",
-  "no_spend_retry_sequence": 2,
-  "previous_attempt_run_id": 36169886041,
-  "previous_attempt_outcome": "NO_SPEND_BUDGET_FIELD_MAPPING_FAIL"
+  "requested_at_utc": "2026-09-25T17:55:00Z",
+  "no_spend_retry_sequence": 3,
+  "previous_attempt_run_id": 36169987419,
+  "previous_attempt_outcome": "NO_SPEND_GENERATED_DRIVER_NEWLINE_FAIL"
 }
