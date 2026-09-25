@@ -1,0 +1,19 @@
+{
+  "active_aqlevon_pods": [],
+  "authorization_sha256": "675dd63f63a451d78c9f24bd0974bc087438fb0626d4bfe26a2d5fbf8219fae9",
+  "balance_usd": 13.4536408696,
+  "checked_at_utc": "2026-09-25T13:41:44.040855+00:00",
+  "kind": "AQLEVON_ONE_DAY_PUBLIC_PROBE_FREE_SEAL_V1",
+  "paid_resource_created": false,
+  "permitted_capacity": [
+    {
+      "datacenters": [
+        "CA-MTL-3"
+      ],
+      "gpu_id": "NVIDIA A100 80GB PCIe",
+      "price_hr": 1.59,
+      "stock": "Low"
+    }
+  ],
+  "source_head": "c7b859f0a5459c1a79ea6fa96ca4adafe17599b6"
+}
