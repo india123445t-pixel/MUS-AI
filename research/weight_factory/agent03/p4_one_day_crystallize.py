@@ -251,6 +251,11 @@ def load_inputs(args):
             shadow.append(task)
         else:
             raise RuntimeError(f"unexpected_split:{rec['public_split']}")
+    if recovery_mode:
+        for item in train:
+            item["source"] = ("recovery_public_oracle_rescued_core"
+                              if item["priority"] == 0
+                              else "recovery_public_oracle_pass1_anchor")
     if len(shadow) != 28:
         raise RuntimeError(f"expected_28_shadow:{len(shadow)}")
     if len(train) < 6:
