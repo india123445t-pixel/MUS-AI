@@ -44,6 +44,9 @@ test('child lab browser state is isolated and tools fail closed',()=>{
   assert.match(page,/مختبر الطفل/);
   assert.match(page,/لا تلمس نموذج المستخدمين/);
   assert.match(tools,/ADAPTER_REQUIRED/);
+  assert.match(tools,/CONFIGURED/);
+  assert.doesNotMatch(tools,/cfg\.configured\?'CONNECTED'/);
+  assert.match(page,/configured!==true/);
   assert.match(page,/Runtime الطفل غير متصل/);
   assert.match(page,/clearChildMemories/);
   assert.match(page,/إعادة الطفل إلى بداية جديدة/);

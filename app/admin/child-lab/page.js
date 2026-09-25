@@ -282,7 +282,7 @@ export default function ChildLabPage(){
     const action=actions.some(x=>x.id===lab.currentTrial.action)?lab.currentTrial.action:(actions[0]?.id||'run');
     const multiStep=lab.currentTrial.multi_step===true;
     if(!goal||!session||toolBusy)return;
-    if(status?.tools?.[tool]?.state!=='CONNECTED'){setNotice(`${tool}: يحتاج Adapter خاص بمختبر الطفل.`);return}
+    if(status?.tools?.[tool]?.configured!==true){setNotice(`${tool}: يحتاج Adapter خاص بمختبر الطفل.`);return}
     setToolBusy(true);setNotice('');
     try{
       const r=await fetch('/api/admin/child-lab/tool',{
@@ -443,7 +443,7 @@ export default function ChildLabPage(){
           {Object.entries(status?.tools||{}).map(([k,v])=><span key={k} style={S.tool}>{k}: {v.state}</span>)}
         </div>
         <p style={S.muted}>الطفل يستطيع التفكير والرد عند اتصال Runtime الخاص به. أي فعل خارجي يمر فقط عبر Adapter الطفل المختار ولا يُعتبر منفذًا بدون Receipt.</p>
-        <div style={S.row}><button style={S.primary} disabled={toolBusy||!lab.currentTrial.goal.trim()||status?.tools?.[lab.currentTrial.tool||'web']?.state!=='CONNECTED'} onClick={runChildTool}>{toolBusy?'ينفّذ…':'نفّذ بالأداة'}</button><button style={S.good} onClick={()=>saveTrial('PASS')}>نجح</button><button style={S.bad} onClick={()=>saveTrial('FAIL')}>فشل</button></div>
+        <div style={S.row}><button style={S.primary} disabled={toolBusy||!lab.currentTrial.goal.trim()||status?.tools?.[lab.currentTrial.tool||'web']?.configured!==true} onClick={runChildTool}>{toolBusy?'ينفّذ…':'نفّذ بالأداة'}</button><button style={S.good} onClick={()=>saveTrial('PASS')}>نجح</button><button style={S.bad} onClick={()=>saveTrial('FAIL')}>فشل</button></div>
         <div style={S.list}>{lab.trials.slice(0,12).map(t=><div key={t.id} style={S.item}><div><b>{t.result==='PASS'?'✓':'✕'} {t.goal}</b><small style={{display:'block',opacity:.7}}>{t.success_criteria||'بدون معيار مكتوب'}</small></div></div>)}</div>
       </section>
 
