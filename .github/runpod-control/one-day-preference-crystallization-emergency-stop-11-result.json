@@ -1,0 +1,8 @@
+{
+  "authorization_id": "P4-ONE-DAY-PREFERENCE-CRYSTALLIZATION-20260925-11",
+  "checked_at_utc": "2026-09-25T18:08:28Z",
+  "existed_before_cleanup_check": false,
+  "kind": "AQLEVON_EMERGENCY_STOP_DELETE_RECEIPT_V1",
+  "pod_id": "5yoaz852em7k3b",
+  "stopped_and_deleted": true
+}
