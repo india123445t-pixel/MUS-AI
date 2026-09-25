@@ -1,0 +1,47 @@
+{
+  "kind": "AQLEVON_ONE_DAY_PUBLIC_PASSN_PROBE_RECOVERED_DECISION_V1",
+  "authorization_id": "P4-ONE-DAY-PUBLIC-PASSN-20260925-05",
+  "source_head": "c7b859f0a5459c1a79ea6fa96ca4adafe17599b6",
+  "evidence_run_id": 36150756084,
+  "evidence_artifact_id": 10871647898,
+  "artifact_sha256": "7aa1949505d9e10c8e332f0a5cca288e16f975e93d6bff12b20531316f8454bd",
+  "probe_log_sha256": "047c1a06bb68ba7c8799eff3d569dd6639ed96d16deae1700c279ecb1449875d",
+  "full_56_tasks_completed_before_summary_exception": true,
+  "summary_exception": "summarize() called .get('passed') on repair=None after all 56 task rows were emitted",
+  "pass_at_4": "UNRECOVERABLE_FROM_TASK_SUMMARY_LOG; not required by frozen material gate",
+  "all": {
+    "tasks": 56,
+    "pass_at_1_successes": 3,
+    "pass_at_1": 0.05357142857142857,
+    "pass_at_8_successes": 10,
+    "pass_at_8": 0.17857142857142858,
+    "rescued_1_to_8": 7,
+    "gap_1_to_8": 0.125,
+    "repair_successes": 0
+  },
+  "discovery": {
+    "tasks": 28,
+    "pass_at_1_successes": 2,
+    "pass_at_1": 0.07142857142857142,
+    "pass_at_8_successes": 6,
+    "pass_at_8": 0.21428571428571427,
+    "rescued_1_to_8": 4,
+    "gap_1_to_8": 0.14285714285714285
+  },
+  "shadow": {
+    "tasks": 28,
+    "pass_at_1_successes": 1,
+    "pass_at_1": 0.03571428571428571,
+    "pass_at_8_successes": 4,
+    "pass_at_8": 0.14285714285714285,
+    "rescued_1_to_8": 3,
+    "gap_1_to_8": 0.10714285714285714
+  },
+  "frozen_gate": "full 56 tasks AND discovery gap>=0.10 AND shadow gap>=0.10 AND >=6 tasks rescued pass@1->pass@8",
+  "decision": "MATERIAL_LATENT_CAPABILITY",
+  "capability_gain_claim": false,
+  "training_performed": false,
+  "worker05_used_for_tuning": false,
+  "sealed_eval_consumed": false,
+  "note": "Recovered from durable task-level log after post-loop summary bug; no rerun needed to establish frozen material gate."
+}
