@@ -1,0 +1,291 @@
+name: AQLEVON One-Day Public Verified-Trajectory Probe
+on:
+  push:
+    branches: [ops/one-day-verified-trajectory-20260925]
+    paths: [".github/runpod-control/execute-one-day-public-probe-02-trigger.json"]
+permissions:
+  contents: write
+concurrency:
+  group: aqlevon-p4-paid-single-use
+  cancel-in-progress: false
+
+jobs:
+  execute:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      AUTH_ID: P4-ONE-DAY-PUBLIC-PASSN-20260925-02
+      AUTH_SHA: 430ae3149249d9522aa027a852bde786f5ef4a97d252781fea15080483e467c6
+      EXPECTED_HEAD: c7b859f0a5459c1a79ea6fa96ca4adafe17599b6
+      IMAGE_DIGEST: sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec
+      W02_HEAD: abb94ef134e2e97036b6959dbc9db4278d3736b6
+      PACK_SHA: 35c7ebe6d5e82f42d7553fa28391f6d82c8800d6eced582d06881c8eb17d9d6b
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/one-day-verified-trajectory-20260925
+          fetch-depth: 0
+
+      - name: Validate authorization and exact public source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$RUNPOD_API_KEY"
+          test ! -e .github/runpod-control/one-day-public-probe-02-consumed.json
+          python3 - <<'PY'
+          import json,hashlib,os
+          from pathlib import Path
+          a=json.loads(Path('.github/runpod-control/one-day-public-probe-manager-authorization-02-20260925.json').read_text())
+          t=json.loads(Path('.github/runpod-control/execute-one-day-public-probe-02-trigger.json').read_text())
+          def sha(v): return hashlib.sha256(json.dumps(v,sort_keys=True,separators=(',',':'),ensure_ascii=False,allow_nan=False).encode()).hexdigest()
+          assert a['authorization_sha256']==sha({k:v for k,v in a.items() if k!='authorization_sha256'})==os.environ['AUTH_SHA']
+          assert a['authorization_id']==t['authorization_id']==os.environ['AUTH_ID']
+          assert t['authorization_sha256']==a['authorization_sha256']
+          assert a['expected_source_head']==t['expected_source_head']==os.environ['EXPECTED_HEAD']
+          assert a['image_digest']==t['image_digest']==os.environ['IMAGE_DIGEST']
+          assert a['single_use'] and not a['training_authorized']
+          assert not a['sealed_eval_consumed'] and not a['worker05_used_for_tuning']
+          assert a['training_visible_pack_sha256']==os.environ['PACK_SHA']
+          assert float(a['prior_mission_spend_usd'])+float(a['max_total_cost_usd']) < float(a['mission_max_total_usd'])
+          PY
+          git worktree add --detach /tmp/probe-source "$EXPECTED_HEAD"
+          PROBE=/tmp/probe-source/research/weight_factory/agent03/p4_one_day_verified_trajectory_probe.py
+          python3 -m py_compile "$PROBE"
+          python3 "$PROBE" --self-test
+          git -C /tmp/probe-source fetch -q origin "$W02_HEAD"
+          git -C /tmp/probe-source show "$W02_HEAD":research/weight_factory/agent02/gene1_data_verifier_pack_v1.py >/tmp/w02.py
+          git -C /tmp/probe-source show "$W02_HEAD":research/weight_factory/agent02/gene1_training_visible_pack_v1.json >/tmp/public-pack.json
+          python3 - <<'PY'
+          import importlib.util,json,os
+          p='/tmp/probe-source/research/weight_factory/agent03/p4_one_day_verified_trajectory_probe.py'
+          s=importlib.util.spec_from_file_location('m',p);m=importlib.util.module_from_spec(s);s.loader.exec_module(m)
+          ws=importlib.util.spec_from_file_location('w','/tmp/w02.py');w=importlib.util.module_from_spec(ws);ws.loader.exec_module(w)
+          pack=json.load(open('/tmp/public-pack.json'))
+          assert pack['pack_sha256']==m.W02_TRAINING_PACK_SHA==os.environ['PACK_SHA']
+          tasks=sorted([t for t in pack['tasks'] if t.get('verifier_mode')=='hardened' and t.get('training_eligible') is True],key=lambda x:x['task_id'])
+          assert len(tasks)==56
+          assert sum(m.split_name(t)=='discovery' for t in tasks)==28
+          assert sum(m.split_name(t)=='shadow' for t in tasks)==28
+          assert all('eval' not in str(t.get('semantic_core_id','')).lower() for t in tasks)
+          for t in tasks:
+              c=m.build_core(w,t); assert w.verify(t,c,c['oracle_program'])['passed']
+          print('PUBLIC_ONLY_CONTRACT_PASS')
+          PY
+          if grep -RniE 'gene1_sealed_eval_pack_PRIVATE_v1\.json|gene1_eval_secret_v1\.key' "$PROBE"; then exit 88; fi
+          git -C /tmp/probe-source config --local --unset-all http.https://github.com/.extraheader || true
+          tar -czf /tmp/probe-source.tgz -C /tmp/probe-source .
+          test "$(stat -c %s /tmp/probe-source.tgz)" -lt 250000000
+
+      - name: Fresh inventory and create one bounded Pod
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS https://rest.runpod.io/v1/pods -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/pods.json
+          python3 - <<'PY'
+          import json
+          p=json.load(open('/tmp/pods.json'));xs=p if isinstance(p,list) else p.get('pods') or p.get('items') or []
+          a=[x for x in xs if str(x.get('name','')).startswith('AQLEVON-P4-') and str(x.get('desiredStatus') or x.get('status'))!='EXITED']
+          assert not a,a
+          PY
+          curl -sSL https://cli.runpod.net | sudo bash
+          runpodctl gpu list --output json >/tmp/gpus.json
+          python3 - <<'PY'
+          import json,math
+          from pathlib import Path
+          a=json.loads(Path('.github/runpod-control/one-day-public-probe-manager-authorization-02-20260925.json').read_text())
+          gs=json.load(open('/tmp/gpus.json')); choices=[]
+          for g in gs:
+              if g.get('gpuId') not in a['permitted_gpu_ids'] or not g.get('secureCloud') or not g.get('available'): continue
+              rate=float(g.get('securePricePerHr') or 999)
+              if rate>float(a['max_hourly_rate_usd']): continue
+              for dc in g.get('dataCenterAvailability') or []:
+                  if str(dc.get('stockStatus')).lower()!='none' and dc.get('dataCenterId'):
+                      sec=min(int(a['max_billed_seconds']),int(math.floor(float(a['max_total_cost_usd'])*3600/rate)))
+                      if sec>=600: choices.append((rate,g['gpuId'],str(dc['dataCenterId']),sec))
+          assert choices,'no permitted GPU'
+          rate,gpu,dc,sec=sorted(choices)[0]
+          for p,v in [('rate',rate),('gpu',gpu),('dc',dc),('seconds',sec)]: Path('/tmp/'+p).write_text(str(v))
+          print('GPU_SELECTED',gpu,dc,rate,sec)
+          PY
+          ssh-keygen -q -t ed25519 -N '' -f /tmp/key
+          PUB="$(cat /tmp/key.pub)"; export PUB
+          ENVJSON="$(python3 - <<'PY'
+          import json,os
+          print(json.dumps({'PUBLIC_KEY':os.environ['PUB'],'AQLEVON_EXPECTED_PROBE_HEAD':os.environ['EXPECTED_HEAD']},separators=(',',':')))
+          PY
+          )"
+          runpodctl pod create --name AQLEVON-P4-ONE-DAY-PASSN-02-20260925 --image "ghcr.io/india123445t-pixel/mus-ai@$IMAGE_DIGEST" --gpu-id "$(cat /tmp/gpu)" --gpu-count 1 --cloud-type SECURE --data-center-ids "$(cat /tmp/dc)" --container-disk-in-gb 40 --volume-in-gb 40 --volume-mount-path /workspace --ports 22/tcp --env "$ENVJSON" --output json >/tmp/create.json
+          python3 - <<'PY'
+          import json,time,datetime,os
+          from pathlib import Path
+          p=json.load(open('/tmp/create.json'));pod=p.get('id') or p.get('podId');assert pod
+          Path('/tmp/pod').write_text(pod);Path('/tmp/start').write_text(str(int(time.time())))
+          out={'authorization_id':os.environ['AUTH_ID'],'authorization_sha256':os.environ['AUTH_SHA'],'source_head':os.environ['EXPECTED_HEAD'],'image_digest':os.environ['IMAGE_DIGEST'],'pod_id':pod,'created_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'single_use_consumed':True}
+          Path('.github/runpod-control/one-day-public-probe-02-consumed.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
+          PY
+          git config user.name aqlevon-runpod-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/runpod-control/one-day-public-probe-02-consumed.json
+          git commit -m "ops: consume one-day public probe authorization 02 [skip ci]"
+          git pull --rebase origin ops/one-day-verified-trajectory-20260925
+          git push origin HEAD:ops/one-day-verified-trajectory-20260925
+
+      - name: Run exact public passN probe
+        id: probe
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          pod="$(cat /tmp/pod)"; ready=0
+          for i in $(seq 1 120); do
+            curl -fsS "https://rest.runpod.io/v1/pods/$pod" -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/pod.json 2>/dev/null || true
+            python3 - <<'PY'
+          import json,sys
+          from pathlib import Path
+          try:p=json.load(open('/tmp/pod.json'))
+          except:sys.exit(1)
+          ip=p.get('publicIp');port=(p.get('portMappings') or {}).get('22')
+          if p.get('desiredStatus')=='RUNNING' and ip and port:
+              Path('/tmp/target').write_text(str(ip)+'|'+str(port));Path('/tmp/live_rate').write_text(str(p.get('costPerHr')));sys.exit(0)
+          sys.exit(1)
+          PY
+            if [ $? -eq 0 ]; then ready=1;break;fi
+            sleep 5
+          done
+          [ "$ready" = 1 ] || { echo 91 >/tmp/rc; exit 91; }
+          host="$(cut -d'|' -f1 /tmp/target)";port="$(cut -d'|' -f2 /tmp/target)"
+          for i in $(seq 1 60); do
+            ssh -i /tmp/key -p "$port" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5 root@"$host" 'nvidia-smi >/dev/null' >/dev/null 2>&1 && break
+            sleep 3
+          done
+          ssh -i /tmp/key -p "$port" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@"$host" "python3 - <<'PY'
+          import torch
+          assert torch.cuda.is_available() and torch.cuda.is_bf16_supported()
+          free,_=torch.cuda.mem_get_info(); assert free>35_000_000_000,free
+          print(torch.cuda.get_device_name(),free)
+          PY" || { echo 92 >/tmp/rc; exit 92; }
+          scp -q -i /tmp/key -P "$port" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null /tmp/probe-source.tgz /tmp/w02.py /tmp/public-pack.json root@"$host":/tmp/
+          cat >/tmp/remote.sh <<'REMOTE'
+          #!/usr/bin/env bash
+          set -uo pipefail
+          rc=255
+          trap 'echo "$rc" >/workspace/aqlevon_one_day.rc' EXIT
+          rm -rf /workspace/MUS-AI /workspace/aqlevon_one_day
+          mkdir -p /workspace/MUS-AI /workspace/aqlevon_one_day/public /workspace/models/qwen35-4b-daa9c16f3712
+          tar -xzf /tmp/probe-source.tgz -C /workspace/MUS-AI || { rc=81;exit "$rc"; }
+          test "$(git -C /workspace/MUS-AI rev-parse HEAD)" = "$AQLEVON_EXPECTED_PROBE_HEAD" || { rc=82;exit "$rc"; }
+          cp /tmp/w02.py /workspace/aqlevon_one_day/public/w02.py
+          cp /tmp/public-pack.json /workspace/aqlevon_one_day/public/public-pack.json
+          python3 - <<'PY' || { rc=85;exit "$rc"; }
+          from huggingface_hub import snapshot_download
+          snapshot_download(repo_id='Qwen/Qwen3.5-4B-Base',revision='daa9c16f371249f9ad1c75a9ed6f956c08ea08f5',local_dir='/workspace/models/qwen35-4b-daa9c16f3712')
+          PY
+          python3 /workspace/MUS-AI/research/weight_factory/agent03/p4_one_day_verified_trajectory_probe.py --w02-module /workspace/aqlevon_one_day/public/w02.py --training-pack /workspace/aqlevon_one_day/public/public-pack.json --model-dir /workspace/models/qwen35-4b-daa9c16f3712 --output /workspace/aqlevon_one_day/probe.json --n 8 --max-new-tokens 96 >/workspace/aqlevon_one_day/probe.log 2>&1
+          rc=$?
+          exit "$rc"
+          REMOTE
+          scp -q -i /tmp/key -P "$port" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null /tmp/remote.sh root@"$host":/tmp/
+          ssh -i /tmp/key -p "$port" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@"$host" 'rm -f /workspace/aqlevon_one_day.rc; nohup bash /tmp/remote.sh >/workspace/aqlevon_one_day-supervisor.log 2>&1 </dev/null &'
+          sec="$(cat /tmp/seconds)";done=0;rc=255
+          for i in $(seq 1 180); do
+            if ssh -i /tmp/key -p "$port" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=8 root@"$host" 'test -s /workspace/aqlevon_one_day.rc' >/dev/null 2>&1; then done=1;rc="$(ssh -i /tmp/key -p "$port" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@"$host" 'cat /workspace/aqlevon_one_day.rc' | tail -1)";break;fi
+            elapsed=$(( $(date +%s)-$(cat /tmp/start) )); if [ "$elapsed" -gt $((sec-90)) ]; then rc=125;break;fi
+            sleep 5
+          done
+          [ "$done" = 1 ] || [ "$rc" = 125 ] || rc=124
+          ssh -i /tmp/key -p "$port" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@"$host" 'cat /workspace/aqlevon_one_day/probe.log 2>/dev/null || true' >/tmp/probe.log || true
+          ssh -i /tmp/key -p "$port" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@"$host" 'cat /workspace/aqlevon_one_day/probe.json 2>/dev/null || true' >/tmp/probe.json || true
+          if [ "$rc" = 0 ]; then
+            python3 - <<'PY' || rc=96
+          import json,os
+          p=json.load(open('/tmp/probe.json'))
+          assert p['result_kind']=='AQLEVON_ONE_DAY_PUBLIC_VERIFIED_TRAJECTORY_PROBE_V1'
+          assert p['w02_head']==os.environ['W02_HEAD'] and p['training_pack_sha256']==os.environ['PACK_SHA']
+          assert not p['sealed_eval_consumed'] and not p['worker05_used_for_tuning']
+          assert p['summary_all']['tasks']==56 and p['summary_discovery']['tasks']==28 and p['summary_shadow']['tasks']==28
+          assert p['decision'] in {'MATERIAL_LATENT_CAPABILITY','NO_MATERIAL_GAP'}
+          PY
+          fi
+          echo "$rc" >/tmp/rc
+          echo "rc=$rc" >>"$GITHUB_OUTPUT"
+          exit "$rc"
+
+      - name: Stop and delete exact Pod
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          pod="$(cat /tmp/pod 2>/dev/null || true)";[ -n "$pod" ] || exit 0
+          for i in $(seq 1 20); do
+            curl -sS -X POST "https://rest.runpod.io/v1/pods/$pod/stop" -H "Authorization: Bearer $RUNPOD_API_KEY" -H 'Content-Type: application/json' -d '{}' >/dev/null || true
+            sleep 2
+            code="$(curl -sS -o /tmp/st.json -w '%{http_code}' "https://rest.runpod.io/v1/pods/$pod" -H "Authorization: Bearer $RUNPOD_API_KEY" || true)"
+            [ "$code" = 404 ] && break
+            python3 - <<'PY' && break || true
+          import json,sys
+          try:p=json.load(open('/tmp/st.json'))
+          except:sys.exit(1)
+          sys.exit(0 if p.get('desiredStatus')=='EXITED' else 1)
+          PY
+          done
+          curl -sS -X DELETE "https://rest.runpod.io/v1/pods/$pod" -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/delete.json || true
+          for i in $(seq 1 20); do
+            code="$(curl -sS -o /tmp/delprobe -w '%{http_code}' "https://rest.runpod.io/v1/pods/$pod" -H "Authorization: Bearer $RUNPOD_API_KEY" || true)"
+            [ "$code" = 404 ] && { echo POD_DELETE_VERIFIED;exit 0; }
+            sleep 2
+          done
+          exit 98
+
+      - name: Record result
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json,datetime,hashlib,os
+          from pathlib import Path
+          def g(p): return Path(p).read_text().strip() if Path(p).exists() else None
+          start=g('/tmp/start'); elapsed=int(datetime.datetime.now(datetime.timezone.utc).timestamp())-int(start) if start else None
+          rate=g('/tmp/live_rate') or g('/tmp/rate'); rc=g('/tmp/rc')
+          try: probe=json.loads(Path('/tmp/probe.json').read_text()) if Path('/tmp/probe.json').exists() and Path('/tmp/probe.json').stat().st_size else None
+          except: probe=None
+          out={'kind':'AQLEVON_ONE_DAY_PUBLIC_PROBE_PAID_RESULT_V1','authorization_id':os.environ['AUTH_ID'],'source_head':os.environ['EXPECTED_HEAD'],'pod_id':g('/tmp/pod'),'gpu_type':g('/tmp/gpu'),'datacenter':g('/tmp/dc'),'rate_per_hour_usd':rate,'billed_seconds_estimate':elapsed,'compute_cost_estimate_usd':round(float(rate)*elapsed/3600,6) if rate and elapsed is not None else None,'true_exit_code':int(rc) if rc and rc.isdigit() else None,'decision':probe.get('decision') if probe else None,'summary_all':probe.get('summary_all') if probe else None,'summary_discovery':probe.get('summary_discovery') if probe else None,'summary_shadow':probe.get('summary_shadow') if probe else None,'sealed_eval_consumed':False,'worker05_used_for_tuning':False,'checked_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'probe_json_sha256':hashlib.sha256(Path('/tmp/probe.json').read_bytes()).hexdigest() if Path('/tmp/probe.json').exists() and Path('/tmp/probe.json').stat().st_size else None}
+          Path('.github/runpod-control/one-day-public-probe-02-result.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
+          print(json.dumps(out,sort_keys=True))
+          PY
+          git config user.name aqlevon-runpod-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/runpod-control/one-day-public-probe-02-result.json
+          git commit -m "ops: record one-day public passN probe result [skip ci]" || true
+          git pull --rebase origin ops/one-day-verified-trajectory-20260925
+          git push origin HEAD:ops/one-day-verified-trajectory-20260925
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aqlevon-one-day-public-probe-02-evidence
+          path: |
+            /tmp/probe.json
+            /tmp/probe.log
+            /tmp/rc
+            /tmp/create.json
+            /tmp/pod.json
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Require clean completion
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s /tmp/rc
+          test "$(cat /tmp/rc)" = 0
+          test -s /tmp/probe.json
+          python3 - <<'PY'
+          import json
+          p=json.load(open('/tmp/probe.json'))
+          assert p['decision'] in {'MATERIAL_LATENT_CAPABILITY','NO_MATERIAL_GAP'}
+          print('AQLEVON_ONE_DAY_PROBE_COMPLETE',p['decision'])
+          PY
