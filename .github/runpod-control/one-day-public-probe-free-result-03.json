@@ -6,11 +6,11 @@
   "checked_at_utc": "2026-09-25T13:57:05.348589+00:00",
   "dynamic_max_billed_seconds": 1200,
   "kind": "AQLEVON_ONE_DAY_PUBLIC_PROBE_FREE_SEAL_V3",
-  "paid_boundary_refresh_at_utc": "2026-09-25T14:01:29.821276+00:00",
+  "paid_boundary_refresh_at_utc": "2026-09-25T14:02:09.717626+00:00",
   "paid_boundary_refresh_committed_before_pod": true,
   "paid_resource_created": false,
-  "selected_datacenter": "US-MD-1",
-  "selected_gpu_id": "NVIDIA A100-SXM4-80GB",
-  "selected_price_hr": 1.59,
+  "selected_datacenter": "US-NE-1",
+  "selected_gpu_id": "NVIDIA H100 80GB HBM3",
+  "selected_price_hr": 3.49,
   "source_head": "c7b859f0a5459c1a79ea6fa96ca4adafe17599b6"
 }
