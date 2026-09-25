@@ -1,0 +1,103 @@
+name: AQLEVON One-Day Public Probe Free Seal
+on:
+  push:
+    branches: [ops/one-day-verified-trajectory-20260925]
+    paths: [".github/runpod-control/one-day-public-probe-free-trigger.json"]
+permissions:
+  contents: write
+jobs:
+  seal:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      AUTH_SHA: 675dd63f63a451d78c9f24bd0974bc087438fb0626d4bfe26a2d5fbf8219fae9
+      SOURCE_HEAD: c7b859f0a5459c1a79ea6fa96ca4adafe17599b6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/one-day-verified-trajectory-20260925
+          fetch-depth: 0
+      - name: Validate authorization source and live provider without spend
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${RUNPOD_API_KEY:-}"
+          python3 - <<'PY'
+          import hashlib,json,os
+          from pathlib import Path
+          p=Path('.github/runpod-control/one-day-public-probe-manager-authorization-20260925.json')
+          a=json.loads(p.read_text())
+          raw={k:v for k,v in a.items() if k!='authorization_sha256'}
+          sha=hashlib.sha256(json.dumps(raw,sort_keys=True,separators=(',',':'),ensure_ascii=False,allow_nan=False).encode()).hexdigest()
+          assert sha==a['authorization_sha256']==os.environ['AUTH_SHA']
+          assert a['expected_source_head']==os.environ['SOURCE_HEAD']
+          assert a['training_authorized'] is False
+          assert a['sealed_eval_consumed'] is False
+          assert a['worker05_used_for_tuning'] is False
+          assert a['single_use'] is True
+          assert a['permitted_gpu_ids']==['NVIDIA A100 80GB PCIe']
+          assert float(a['max_hourly_rate_usd'])<=1.60
+          assert int(a['max_billed_seconds'])<=1800
+          assert float(a['max_total_cost_usd'])<=0.80
+          assert float(a['prior_mission_spend_usd'])+float(a['max_total_cost_usd']) < float(a['mission_max_total_usd'])
+          print('AQLEVON_ONE_DAY_AUTH_CONTRACT_PASS',sha)
+          PY
+          remote="$(git ls-remote https://github.com/$GITHUB_REPOSITORY.git refs/heads/agent/03-one-day-verified-trajectory-20260925 | cut -f1)"
+          test "$remote" = "$SOURCE_HEAD"
+          curl -fsS https://rest.runpod.io/v1/pods -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/pods.json
+          curl -sSL https://cli.runpod.net | sudo bash >/dev/null
+          runpodctl user >/tmp/user.json
+          runpodctl gpu list --output json >/tmp/gpus.json
+          python3 - <<'PY'
+          import datetime,json,os
+          from pathlib import Path
+          pods=json.load(open('/tmp/pods.json'))
+          pods=pods if isinstance(pods,list) else pods.get('pods') or pods.get('items') or []
+          active=[p for p in pods if str(p.get('name','')).startswith('AQLEVON-') and str(p.get('desiredStatus') or p.get('status'))!='EXITED']
+          assert not active,active
+          user=json.load(open('/tmp/user.json'))
+          balances=[]
+          def walk(x):
+              if isinstance(x,dict):
+                  for k,v in x.items():
+                      if k.lower().replace('_','') in ('balance','currentbalance','creditbalance','clientbalance') and type(v) in (int,float):
+                          balances.append(float(v))
+                      walk(v)
+              elif isinstance(x,list):
+                  for v in x: walk(v)
+          walk(user)
+          assert balances, user
+          balance=max(balances)
+          assert balance>=0.80,balance
+          gs=json.load(open('/tmp/gpus.json'))
+          hits=[]
+          for g in gs:
+              if g.get('gpuId')!='NVIDIA A100 80GB PCIe' or not g.get('secureCloud'): continue
+              if float(g.get('securePricePerHr') or 999)>1.60: continue
+              dcs=[d.get('dataCenterId') for d in (g.get('dataCenterAvailability') or []) if str(d.get('stockStatus')).lower()!='none']
+              if dcs: hits.append({'gpu_id':g.get('gpuId'),'price_hr':g.get('securePricePerHr'),'stock':g.get('stockStatus'),'datacenters':dcs})
+          assert hits,'no_permitted_a100_stock'
+          out={
+            'kind':'AQLEVON_ONE_DAY_PUBLIC_PROBE_FREE_SEAL_V1',
+            'checked_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            'authorization_sha256':os.environ['AUTH_SHA'],
+            'source_head':os.environ['SOURCE_HEAD'],
+            'balance_usd':balance,
+            'active_aqlevon_pods':[],
+            'permitted_capacity':hits,
+            'paid_resource_created':False,
+          }
+          Path('.github/runpod-control/one-day-public-probe-free-result.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
+          print('AQLEVON_ONE_DAY_FREE_SEAL_PASS',json.dumps(out,sort_keys=True))
+          PY
+      - name: Persist free seal
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name aqlevon-runpod-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/runpod-control/one-day-public-probe-free-result.json
+          git commit -m "ops: record one-day public probe free seal [skip ci]"
+          git pull --rebase origin ops/one-day-verified-trajectory-20260925
+          git push origin HEAD:ops/one-day-verified-trajectory-20260925
