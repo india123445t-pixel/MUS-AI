@@ -1,0 +1,6 @@
+{
+  "kind": "AQLEVON_RUNPOD_KEY_SCHEMA_PROBE_TRIGGER_V1",
+  "requested_at_utc": "2026-09-25T22:26:00Z",
+  "no_gpu": true,
+  "no_paid_resource": true
+}
