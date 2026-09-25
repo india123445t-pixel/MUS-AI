@@ -100,7 +100,7 @@ export default {
   'set.theme': 'Theme', 'set.dark': 'Dark', 'set.light': 'Light',
   'set.density': 'Density', 'set.comfortable': 'Comfortable', 'set.compact': 'Compact',
   'set.customInstructions': 'Custom instructions',
-  'set.customInstructionsHint': 'Saved locally as a personalization draft; it is not currently injected into the chat engine.',
+  'set.customInstructionsHint': 'Saved locally on this device and sent as bounded personalization context to AQLEVON chats; it grants no permissions and cannot override runtime rules.',
   'set.testOk': 'Connected — {ms}ms', 'set.testFail': 'Connection failed',
   'set.searchDefault': 'Enable web search by default',
   'set.researchDepth': 'Research depth', 'set.depth.quick': 'Quick', 'set.depth.standard': 'Standard', 'set.depth.thorough': 'Thorough',
@@ -146,7 +146,7 @@ export default {
   // settings (extra)
   'set.generalNote': 'The browser edition works without an account; local Workspace data is stored on this device unless a feature explicitly says it is server-backed.',
   'set.langNote': 'Arabic switches the whole interface to right-to-left.',
-  'set.memoryHint': 'Local memory on this device only; it is not yet connected to server-side model memory.',
+  'set.memoryHint': 'Local memory on this device only; recent memories are sent as bounded context to AQLEVON and are not server-side memory or weight updates.',
   'set.addMemory': 'Add something to remember…', 'set.add': 'Add', 'set.noMemories': 'Nothing remembered yet.',
   'set.advancedHint': 'Technical information for troubleshooting. Nothing here is needed for everyday use.',
   'set.runDiagnostics': 'Run diagnostics',
