@@ -1,0 +1,24 @@
+name: AQLEVON Crystallization Free Contract
+on:
+  push:
+    branches: [agent/03-one-day-crystallization-20260925]
+    paths: ["research/weight_factory/agent03/one_day_crystallization_free_trigger.json"]
+permissions:
+  contents: read
+jobs:
+  contract:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/03-one-day-crystallization-20260925
+      - name: Syntax and static boundary checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile research/weight_factory/agent03/p4_one_day_crystallize.py
+          grep -q 'MATERIAL_LATENT_CAPABILITY' research/weight_factory/agent03/p4_one_day_crystallize.py
+          grep -q 'public_split.*discovery' research/weight_factory/agent03/p4_one_day_crystallize.py
+          grep -q 'PUBLIC_SHADOW_GATE_FAILED' research/weight_factory/agent03/p4_one_day_crystallize.py
+          grep -q 'sealed_eval_environment_forbidden' research/weight_factory/agent03/p4_one_day_crystallize.py
+          echo AQLEVON_CRYSTALLIZATION_FREE_CONTRACT_PASS
