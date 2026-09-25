@@ -1,0 +1,33 @@
+{
+  "authorization_id": "P4-ONE-DAY-PUBLIC-PASSN-20260925-03",
+  "authorization_kind": "AQLEVON_MANAGER_COMPUTE_ONE_DAY_PUBLIC_PROBE_V3",
+  "authorization_sha256": "062487f3de6bd60bafc269643bb40bb982eb39c05cfe9a99d28f3ee766098c03",
+  "base_repo": "Qwen/Qwen3.5-4B-Base",
+  "base_revision": "daa9c16f371249f9ad1c75a9ed6f956c08ea08f5",
+  "evidence_policy": "retrieve result/log before deletion; always stop exact Pod; delete only after durable result/log egress; no training",
+  "expected_source_head": "c7b859f0a5459c1a79ea6fa96ca4adafe17599b6",
+  "experiment_kind": "PUBLIC_VERIFIED_TRAJECTORY_PASSN_PROBE",
+  "image_digest": "sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec",
+  "max_artifact_egress_bytes": 1073741824,
+  "max_billed_seconds": 1200,
+  "max_hourly_rate_usd": "3.50",
+  "max_total_cost_usd": "1.20",
+  "mission_max_total_usd": "5.00",
+  "orchestration_repairs": [
+    "GPU selection refresh committed before Pod creation; no tracked working-tree mutation after Pod creation",
+    "consumed-record push has no pull/rebase after Pod creation",
+    "EXIT trap stops exact Pod on any post-create nonzero exit",
+    "source/public verifier bytes staged before billing; no remote git clone"
+  ],
+  "permitted_gpu_ids": ["NVIDIA A40", "NVIDIA A100 80GB PCIe", "NVIDIA A100-SXM4-80GB", "NVIDIA H100 80GB HBM3", "NVIDIA RTX PRO 6000 Blackwell Server Edition"],
+  "prior_authorization_id": "P4-ONE-DAY-PUBLIC-PASSN-20260925-02",
+  "prior_authorization_outcome": "CONSUMED_POD_EMERGENCY_STOPPED_DELETED_BEFORE_EXPERIMENT",
+  "prior_mission_spend_usd": "1.575911",
+  "sealed_eval_consumed": false,
+  "selection_policy": "choose and persist cheapest currently available permitted secure GPU before Pod creation; dynamic time ceiling must preserve max_total_cost",
+  "single_use": true,
+  "training_authorized": false,
+  "training_visible_pack_sha256": "35c7ebe6d5e82f42d7553fa28391f6d82c8800d6eced582d06881c8eb17d9d6b",
+  "w02_head": "abb94ef134e2e97036b6959dbc9db4278d3736b6",
+  "worker05_used_for_tuning": false
+}
