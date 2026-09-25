@@ -2,7 +2,7 @@ name: AQLEVON A0 Free GPU Availability
 on:
   push:
     branches: [ops/runpod-control-v1]
-    paths: [".github/runpod-control/a0-gpu-diagnostic-trigger-2.json"]
+    paths: [".github/runpod-control/a0-gpu-diagnostic-trigger-3.json"]
 permissions:
   contents: write
 jobs:
@@ -26,7 +26,7 @@ jobs:
           out=[]
           for g in gs:
               name=str(g.get('gpuId',''))
-              if any(s in name for s in ('A100','A40','H100','L40','RTX 6000')):
+              if any(s in name for s in ('A100','A40','H100','L40','RTX 6000','A6000','RTX 4090','RTX PRO','RTX A5000','RTX A6000')):
                   out.append({k:g.get(k) for k in ('gpuId','secureCloud','available','securePricePerHr','communityPricePerHr','dataCenterAvailability','memoryInGb')})
           pathlib.Path('.github/runpod-control/a0-gpu-diagnostic-result.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
           print('AQLEVON_A0_FREE_GPU_DIAGNOSTIC',json.dumps(out))
