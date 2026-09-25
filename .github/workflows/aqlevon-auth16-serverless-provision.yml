@@ -1,0 +1,118 @@
+name: AQLEVON Auth16 Serverless Provision
+on:
+  push:
+    branches: [main]
+    paths: [".github/runpod-control/auth16-serverless-provision-trigger.json"]
+permissions:
+  contents: write
+jobs:
+  provision:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      IMAGE: ghcr.io/india123445t-pixel/aqlevon-auth16-serverless:auth16-20260925
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Provision exact zero-idle endpoints without inference
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${RUNPOD_API_KEY:-}"
+          curl -sSL https://cli.runpod.net | sudo bash >/dev/null
+          runpodctl version
+          runpodctl template list --type user --all -o json >/tmp/templates.json
+          python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/templates.json'))
+          xs=d if isinstance(d,list) else d.get('templates') or d.get('items') or []
+          found=next((x for x in xs if x.get('name')=='aqlevon-auth16-serverless-v1-cli'),None)
+          if found:
+              i=found.get('id') or found.get('templateId')
+              if i: open('/tmp/template-id','w').write(str(i))
+          PY
+          if [ ! -s /tmp/template-id ]; then
+            runpodctl template create               --name aqlevon-auth16-serverless-v1-cli               --image "$IMAGE"               --serverless               --container-disk-in-gb 30               -o json >/tmp/template-create.json
+            python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/template-create.json'))
+          i=d.get('id') or d.get('templateId') or (d.get('template') or {}).get('id')
+          assert i,d
+          open('/tmp/template-id','w').write(str(i))
+          PY
+          fi
+          runpodctl serverless list --include-template --include-workers -o json >/tmp/endpoints-before.json
+          python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/endpoints-before.json'))
+          xs=d if isinstance(d,list) else d.get('endpoints') or d.get('items') or []
+          names=['aqlevon-auth16-public-v1','aqlevon-auth16-child-v1']
+          for n in names:
+              x=next((e for e in xs if e.get('name')==n),None)
+              if x and x.get('id'): open('/tmp/'+n+'.id','w').write(str(x['id']))
+          PY
+          for n in aqlevon-auth16-public-v1 aqlevon-auth16-child-v1; do
+            if [ ! -s "/tmp/$n.id" ]; then
+              runpodctl serverless create                 --name "$n"                 --template-id "$(cat /tmp/template-id)"                 --gpu-id "NVIDIA GeForce RTX 4090"                 --gpu-count 1                 --workers-min 0                 --workers-max 1                 --idle-timeout 5                 --scale-by delay                 --scale-threshold 2                 --execution-timeout 900                 -o json >"/tmp/$n.create.json"
+              python3 - "$n" <<'PY'
+          import json,sys
+          n=sys.argv[1]
+          d=json.load(open('/tmp/'+n+'.create.json'))
+          i=d.get('id') or d.get('endpointId') or (d.get('endpoint') or {}).get('id')
+          assert i,d
+          open('/tmp/'+n+'.id','w').write(str(i))
+          PY
+            fi
+          done
+          for n in aqlevon-auth16-public-v1 aqlevon-auth16-child-v1; do
+            runpodctl serverless update "$(cat /tmp/$n.id)"               --workers-min 0 --workers-max 1 --idle-timeout 5               --scale-by delay --scale-threshold 2 -o json >"/tmp/$n.update.json"
+            runpodctl serverless get "$(cat /tmp/$n.id)" --include-template --include-workers -o json >"/tmp/$n.final.json"
+          done
+          python3 - <<'PY'
+          import json,datetime,pathlib
+          names=['aqlevon-auth16-public-v1','aqlevon-auth16-child-v1']
+          ids={}
+          snaps={}
+          for n in names:
+              i=pathlib.Path('/tmp/'+n+'.id').read_text().strip()
+              d=json.load(open('/tmp/'+n+'.final.json'))
+              ids[n]=i; snaps[n]=d
+              w=d.get('workers') or {}
+              assert int(w.get('min',w.get('workersMin',-1)))==0,(n,w)
+              assert int(w.get('max',w.get('workersMax',-1)))==1,(n,w)
+          out={
+            'kind':'AQLEVON_AUTH16_SERVERLESS_PROVISION_V1',
+            'recorded_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            'status':'PROVISIONED_SCALE_TO_ZERO_AWAITING_INFERENCE_KEY',
+            'image':'ghcr.io/india123445t-pixel/aqlevon-auth16-serverless:auth16-20260925',
+            'image_manifest_sha256':'2977f8f0cf25b3fd7785a634d17d2444e758d70bfde10cbadb834b8148406c2d',
+            'model':'AQLEVON-4B-Auth16',
+            'adapter_sha256':'2d4f0c3528129e702dfa0af27fad467d411f355b9ea72e771942d0f6703e2b2a',
+            'template_id':pathlib.Path('/tmp/template-id').read_text().strip(),
+            'public_endpoint_id':ids[names[0]],
+            'child_endpoint_id':ids[names[1]],
+            'public_base_url':'https://api.runpod.ai/v2/'+ids[names[0]],
+            'child_base_url':'https://api.runpod.ai/v2/'+ids[names[1]],
+            'workers_min':0,'workers_max':1,'idle_timeout_seconds':5,
+            'gpu':'NVIDIA GeForce RTX 4090',
+            'gpu_started_by_this_provision':False,
+            'inference_smoke_completed':False,
+            'reason_smoke_pending':'current management key lacks endpoint invocation permission',
+            'snapshots':snaps
+          }
+          pathlib.Path('.github/runpod-control/auth16-serverless-provision.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
+          print('AQLEVON_AUTH16_SERVERLESS_PROVISION_PASS',ids)
+          PY
+      - name: Persist provision receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name aqlevon-runtime-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/runpod-control/auth16-serverless-provision.json
+          git commit -m "runtime: record Auth16 zero-idle endpoint identities [skip ci]" || true
+          git pull --rebase origin main
+          git push origin HEAD:main
