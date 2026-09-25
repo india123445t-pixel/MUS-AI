@@ -1,0 +1,88 @@
+name: AQLEVON One-Day Synthetic Curriculum Auth11
+on:
+  push:
+    branches: [ops/one-day-verified-trajectory-20260925]
+    paths: [".github/runpod-control/execute-one-day-synthetic-curriculum-11.json"]
+permissions:
+  contents: write
+concurrency:
+  group: aqlevon-p4-paid-single-use
+  cancel-in-progress: false
+jobs:
+  execute:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 42
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/one-day-verified-trajectory-20260925
+          fetch-depth: 0
+      - name: Derive and seal Auth11 driver
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path(".github/runpod-control/run-one-day-rsft-crystallization-09.sh").read_text()
+          reps={
+            "one-day-rsft-crystallization-manager-authorization-09-20260925.json":"one-day-synthetic-curriculum-manager-authorization-11-20260925.json",
+            "one-day-rsft-crystallization-free-result-09.json":"one-day-synthetic-curriculum-free-result-11.json",
+            "execute-one-day-rsft-crystallization-09.json":"execute-one-day-synthetic-curriculum-11.json",
+            "one-day-rsft-crystallization-consumed-09.json":"one-day-synthetic-curriculum-consumed-11.json",
+            "one-day-rsft-crystallization-run-result-09.json":"one-day-synthetic-curriculum-run-result-11.json",
+            "one-day-rsft-crystallization-live-selection-09.json":"one-day-synthetic-curriculum-live-selection-11.json",
+            "P4-ONE-DAY-RSFT-CRYSTALLIZATION-20260925-09":"P4-ONE-DAY-SYNTHETIC-CURRICULUM-20260925-11",
+            "76bdd6d24ba6007c3bc702568f026dfcf4d69d44a85f129510d127844f6adcc6":"8cea75f33b3bf9fbceeaf00b97b9a098704e61b1343bb39ab91a4a33802ee7af",
+            "7b35fab86da22e46804e9af6f311a88ea5b02e27":"3c5a38197a10a7aaa797f9735c0c7764f40e0dd7",
+            "930e6742f15b77cfa4653485ea7be91d1d965fcb":"d0a6742c9df6fa52a04bade5f2a4b9f1dbb785f9",
+            "auth09-rsft-crystallization-remote-v1.sh":"auth11-synthetic-curriculum-remote-v1.sh",
+            "AQLEVON-ONE-DAY-RSFT-09":"AQLEVON-ONE-DAY-SYNTH-11",
+            "p4_one_day_rsft_crystallize.py":"p4_one_day_synthetic_curriculum.py",
+            "fresh_authorization_spend_before_auth09_usd":"fresh_authorization_spend_before_auth11_usd",
+            "AQLEVON_ONE_DAY_RSFT_CRYSTALLIZATION_RUN_RECEIPT_V1":"AQLEVON_ONE_DAY_SYNTHETIC_CURRICULUM_RUN_RECEIPT_V1"
+          }
+          for a,b in reps.items(): s=s.replace(a,b)
+          s=s.replace("AUTH09","AUTH11").replace("Auth09","Auth11").replace("auth09","auth11")
+          s=s.replace('assert a["max_total_cost_usd"]=="0.70" and a["max_hourly_rate_usd"]=="1.60" and a["max_billed_seconds"]==1500',
+                      'assert a["max_total_cost_usd"]=="0.65" and a["max_hourly_rate_usd"]=="1.60" and a["max_billed_seconds"]==1450')
+          s=s.replace('assert a["train_discovery_tasks"]==28 and a["train_families"]==14 and a["epochs"]==3 and a["mining_n"]==8 and a["max_on_policy_per_task"]==1 and a["minimum_optimizer_updates"]==84',
+                      'assert a["synthetic_examples"]==672 and a["discovery_dev_tasks"]==28 and a["epochs"]==1 and a["minimum_optimizer_updates"]==672 and a["lora_rank"]==8 and a["lora_alpha"]==16 and a["lora_targets"]==["q_proj","k_proj","v_proj","o_proj"]')
+          s=s.replace('train_verified=28 shadow=28 epochs=3 minimum_updates=84 probe_decision=MATERIAL_LATENT_CAPABILITY',
+                      'AQLEVON_SYNTH_PUBLIC_PREFLIGHT_PASS synthetic=672 dev=28 shadow=28 families=14 updates=672 probe_decision=MATERIAL_LATENT_CAPABILITY')
+          s=s.replace('--volume-in-gb 40 --volume-mount-path /workspace ','')
+          s=s.replace('[ "$elapsed" -lt 600 ] || break','[ "$elapsed" -lt 480 ] || break')
+          s=s.replace('choices.append((price,gid,str(d["dataCenterId"]),secs))',
+                      'choices.append((0 if str(d["dataCenterId"])==str(a.get("preferred_datacenter")) else 1,price,gid,str(d["dataCenterId"]),secs))')
+          s=s.replace('price,gpu,dc,secs=sorted(choices)[0]','_,price,gpu,dc,secs=sorted(choices)[0]')
+          Path("/tmp/run-auth11.sh").write_text(s)
+          PY
+          bash -n /tmp/run-auth11.sh
+          grep -q 'P4-ONE-DAY-SYNTHETIC-CURRICULUM-20260925-11' /tmp/run-auth11.sh
+          grep -q 'p4_one_day_synthetic_curriculum.py' /tmp/run-auth11.sh
+          grep -q 'synthetic_examples.*672' /tmp/run-auth11.sh
+          grep -q 'one-day-synthetic-curriculum-live-selection-11.json' /tmp/run-auth11.sh
+          grep -q 'AQLEVON-ONE-DAY-SYNTH-11' /tmp/run-auth11.sh
+          ! grep -q -- '--volume-in-gb' /tmp/run-auth11.sh
+      - name: Execute bounded Auth11 synthetic curriculum
+        shell: bash
+        run: bash /tmp/run-auth11.sh
+      - name: Upload Auth11 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aqlevon-one-day-synthetic-curriculum-auth11
+          path: |
+            /tmp/auth11-evidence.tgz
+            /tmp/auth11-train.log
+            /tmp/auth11_rc
+            /tmp/create08.json
+            /tmp/pod08.json
+            /tmp/auth11-input-sha256.txt
+            /tmp/stop08.json
+            /tmp/delete08.json
+            /tmp/auth11-exit-stop.json
+            /tmp/auth11-exit-delete.json
+          if-no-files-found: warn
+          retention-days: 14
