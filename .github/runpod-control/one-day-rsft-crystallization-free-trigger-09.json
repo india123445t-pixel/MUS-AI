@@ -6,5 +6,6 @@
   "experiment_kind": "PUBLIC_DISCOVERY_VERIFIER_GUIDED_RSFT_CRYSTALLIZATION",
   "paid_resource_created": false,
   "requested_after_owner_explicit_authorization": true,
-  "retry_zero_cost_seal_sequence": 2
+  "retry_zero_cost_seal_sequence": 3,
+  "reason": "quote_fix_and_exact_source_driver_lock"
 }
