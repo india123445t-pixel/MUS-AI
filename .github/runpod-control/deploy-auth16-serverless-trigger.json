@@ -1,0 +1,12 @@
+{
+  "kind": "AQLEVON_AUTH16_SERVERLESS_DEPLOY_TRIGGER_V1",
+  "requested_at_utc": "2026-09-25T20:45:00Z",
+  "owner_additional_budget_usd": "5.00",
+  "cost_policy": "workersMin=0 workersMax=1; pay only while active",
+  "gpu_priority": [
+    "NVIDIA RTX A5000",
+    "NVIDIA L4",
+    "NVIDIA GeForce RTX 3090"
+  ],
+  "adapter_model_sha256": "2d4f0c3528129e702dfa0af27fad467d411f355b9ea72e771942d0f6703e2b2a"
+}
