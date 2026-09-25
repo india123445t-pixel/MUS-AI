@@ -1,0 +1,14 @@
+{
+  "active_aqlevon_pods": [],
+  "authorization_id": "P4-ONE-DAY-PUBLIC-PASSN-20260925-05",
+  "authorization_sha256": "187f4b4d17086e3352d873263787e717ac24e32096350a07e87c5816674bd859",
+  "balance_usd": 12.5543262188,
+  "checked_at_utc": "2026-09-25T14:53:20.249074+00:00",
+  "dynamic_max_billed_seconds": 1800,
+  "kind": "AQLEVON_ONE_DAY_PUBLIC_PROBE_FREE_SEAL_V5",
+  "paid_resource_created": false,
+  "selected_datacenter": "EUR-IS-1",
+  "selected_gpu_id": "NVIDIA A100-SXM4-80GB",
+  "selected_price_hr": 1.59,
+  "source_head": "c7b859f0a5459c1a79ea6fa96ca4adafe17599b6"
+}
