@@ -16,7 +16,8 @@ export async function PATCH(req){
     if(action==='approve'){
       if(current.data.phase!=='OPEN')return NextResponse.json({message:'يمكن اعتماد Mission وهي OPEN فقط.'},{status:409});
       const scope={...(current.data.scope||{}),owner_approved:true,owner_approved_at:new Date().toISOString()};
-      const updated=await sb.from('aqlevon_tasks').update({phase:'READY',scope,updated_at:new Date().toISOString()}).eq('id',taskId).select('id,phase,outcome,title,scope,updated_at').single();if(updated.error)throw updated.error;
+      const updated=await sb.from('aqlevon_tasks').update({phase:'READY',scope,updated_at:new Date().toISOString()}).eq('id',taskId).eq('phase','OPEN').select('id,phase,outcome,title,scope,updated_at').maybeSingle();if(updated.error)throw updated.error;
+      if(!updated.data)return NextResponse.json({message:'Mission تغيّرت قبل الموافقة. حدّث الحالة وراجعها من جديد.'},{status:409});
       await sb.from('aqlevon_audit_events').insert({owner_id:user.id,task_id:taskId,event_type:'OWNER_APPROVED_MISSION',subject_type:'TASK',subject_ref:taskId,event_data:{executor_state:scope.executor_state||'NOT_CONNECTED'}});
       const message=scope.executor_state==='NOT_CONNECTED'?'تم اعتماد Mission. لا يوجد Executor Adapter متصل بعد، لذلك لم يبدأ أي تنفيذ خارجي ولم يتم ادعاء نجاح مزيف.':'تم اعتماد Mission وأصبحت READY للتنفيذ.';
       return NextResponse.json({task:updated.data,message});

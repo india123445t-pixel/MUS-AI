@@ -154,7 +154,7 @@ export default function AdminPage(){
   const evidenceCoverage=attempts.length?Math.min(100,Math.round(receipts.length/attempts.length*100)):0;
   const incidentCount=attempts.filter(a=>['FAILED','UNKNOWN'].includes(a.outcome)).length;
   const latestModel=logs.find(x=>x.model)?.model||'AQLEVON';
-  const executorState=hasInFlight?'LIVE':attempts.length?'IDLE':'NOT CONNECTED';
+  const executorState='NOT_CONNECTED';
   const latencyValues=logs.map(x=>Number(x.latency_ms||0)).filter(x=>x>0);
   const p50Latency=percentile(latencyValues,50),p95Latency=percentile(latencyValues,95),p99Latency=percentile(latencyValues,99);
   const terminalAttempts=attempts.filter(a=>['SUCCESS','PARTIAL','FAILED','CANCELLED'].includes(a.outcome));
