@@ -1,0 +1,13 @@
+{
+  "checked_at_utc": "2026-09-25T17:15:58.208983+00:00",
+  "costPerHr": 1.59,
+  "desiredStatus": "RUNNING",
+  "gpu": null,
+  "http_code": "200",
+  "kind": "AQLEVON_AUTH10_READ_ONLY_POD_MONITOR_V1",
+  "mutated": false,
+  "pod_id": "ld8plafipdka6v",
+  "port22": 12285,
+  "publicIp_present": true,
+  "status": null
+}
