@@ -1,0 +1,7 @@
+{
+  "authorization_id": "P4-ONE-DAY-PUBLIC-PASSN-20260925-02",
+  "authorization_sha256": "430ae3149249d9522aa027a852bde786f5ef4a97d252781fea15080483e467c6",
+  "expected_source_head": "c7b859f0a5459c1a79ea6fa96ca4adafe17599b6",
+  "purpose": "free flexible provider/source/capacity seal only",
+  "paid_resource_created": false
+}
