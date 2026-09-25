@@ -1,5 +1,7 @@
 {
   "action": "status_v3",
   "requested_by": "AQLEVON_MANAGER",
-  "nonce": "2026-09-22T05:31:00Z"
+  "nonce": "2026-09-22T05:31:00Z",
+  "requested_at_utc": "2026-09-25T18:32:00Z",
+  "reason": "verify no active AQLEVON pod before Auth14"
 }
