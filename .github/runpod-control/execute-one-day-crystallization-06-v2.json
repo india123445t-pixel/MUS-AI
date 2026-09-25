@@ -1,0 +1,12 @@
+{
+  "kind": "AQLEVON_ONE_DAY_CRYSTALLIZATION_AUTH06_V2_EXECUTE_TRIGGER_V1",
+  "authorization_id": "P4-ONE-DAY-CRYSTALLIZATION-20260925-06",
+  "authorization_sha256": "271d954f40b5e9c67f75106cc1e0e480f9cb7b2ea12a1919383a79aa597cf327",
+  "expected_source_head": "f3a2ca4c894e81cf9dffa1dd9935a3774b854cdb",
+  "driver": ".github/runpod-control/run-one-day-crystallization-06-v2.sh",
+  "training_authorized": true,
+  "worker05_used_for_tuning": false,
+  "single_use": true,
+  "retry_basis": "previous Auth06 paid workflow attempt failed before Pod creation at live-selection push; authorization remained unconsumed",
+  "requested_at_utc": "2026-09-25T15:24:00Z"
+}
