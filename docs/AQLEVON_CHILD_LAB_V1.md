@@ -447,3 +447,15 @@ These remain intentionally fail-closed until their dedicated runtime/adapters ex
 - Owner Core external Executor
 
 The UI must continue to label these as unavailable / adapter required rather than simulate success.
+
+
+## 2026-09-25 final Child Lab hardening
+
+The final readiness audit added four fail-closed guarantees:
+
+1. Unknown or stale tool action ids are rejected. They never fall back to the first action and never inherit a different action's permissions.
+2. A configured Child tool endpoint is reported as CONFIGURED, not CONNECTED. Actual execution is accepted only with a real adapter receipt.
+3. Child Candidate SHA-256 is content-bound and excludes volatile creation time. Evaluation recomputes the hash and rejects changed content with CANDIDATE_HASH_MISMATCH.
+4. The Child Lab UI rejects invalid local action state instead of silently remapping it.
+
+These changes do not connect public AQLEVON, Worker 03/P4, paid compute, production weights, or any external model fallback.

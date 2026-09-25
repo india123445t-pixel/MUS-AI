@@ -150,3 +150,51 @@ Exact final head/run/live preview should be recorded after this document commit 
 - no Worker 03/P4 mutation
 - no paid GPU
 - no capability-gain claim
+
+
+## Deep final readiness hardening — 2026-09-25
+
+A second behavior-first audit found and repaired additional truth/readiness defects after the earlier R1-R7 pass.
+
+### R8 — Child tool actions failed open to the first known action
+- unknown/stale action ids no longer inherit the first action's permission set;
+- the broker now returns ACTION_UNKNOWN before adapter dispatch;
+- the API reports the invalid action as a 400-class request error;
+- the Child Lab UI also rejects stale/unknown action ids instead of silently remapping them.
+
+### R9 — Owner Core could infer executor connectivity from historical attempts
+- current executor state is pinned to NOT_CONNECTED while no executor adapter exists;
+- historical task scope cannot make the current UI display CONNECTED/LIVE/IDLE;
+- approval rewrites stale executor_state to NOT_CONNECTED;
+- approval uses a phase compare-and-set guard so a stale OPEN read cannot resurrect a concurrently closed mission.
+
+### R10 — Child Candidate hash was volatile and evaluation did not bind it to content
+- the candidate SHA-256 now hashes semantic teaching content and excludes created_at;
+- evaluation recomputes the content hash;
+- tampered candidate content is rejected with CANDIDATE_HASH_MISMATCH;
+- no training, GPU request, Worker 03 access, production-weight write, or auto-promotion was added.
+
+### R11 — PWA service worker existed but was never registered
+- WorkspaceRoot now registers /api/status?sw=1 at scope /;
+- the sovereign cache-rotation test now also locks the registration path.
+
+### R12 — configured Child tool endpoints were labelled CONNECTED
+- tool status now reports CONFIGURED when an endpoint is merely configured;
+- execution may be attempted only when configured;
+- successful execution still requires a real adapter response with a receipt.
+
+### R13 — cancelled Work jobs could later flip back to done
+- browser-local cancellation is now terminal for local Workspace state;
+- a late AQLEVON response after cancellation cannot create an artifact or mark the job done;
+- this does not claim verified upstream model cancellation.
+
+### R14 — stale multi-provider exclusion remained in the sole AQLEVON provider
+- excludeProviders handling was removed from the AQLEVON engine;
+- regression coverage now locks both the chat route and provider layer against reintroducing the old multi-provider suppression path.
+
+### Validation evidence before documentation commit
+- reviewed code head: `391a4897095df23912207d0c521ffdd3c20e96da`
+- GitHub Actions: Workspace Sovereign Readiness CI run `#119` / `36132115693`
+- result: SUCCESS
+- all focused suites, Vercel parity command, and production build passed
+- training lane, main, paid GPU, RunPod, production model weights, and Production deployment were not modified
