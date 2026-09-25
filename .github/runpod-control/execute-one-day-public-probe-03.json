@@ -6,5 +6,14 @@
   "experiment_kind": "PUBLIC_VERIFIED_TRAJECTORY_PASSN_PROBE",
   "training_authorized": false,
   "orchestration_version": "auth03-clean-tree-stop-trap",
-  "requested_at_utc": "2026-09-25T14:00:00Z"
+  "requested_at_utc": "2026-09-25T14:01:30Z",
+  "retry_sequence": 2,
+  "failed_capacity_pairs": [
+    [
+      "NVIDIA A40",
+      "EU-SE-1"
+    ]
+  ],
+  "previous_run_id": 36144479057,
+  "previous_outcome": "NO_SPEND_MACHINE_RESOURCE_RACE"
 }
