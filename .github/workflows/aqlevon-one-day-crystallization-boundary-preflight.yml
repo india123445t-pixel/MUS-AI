@@ -1,0 +1,51 @@
+name: AQLEVON Crystallization Public-Boundary Preflight
+on:
+  push:
+    branches: [agent/03-one-day-crystallization-20260925]
+    paths: ["research/weight_factory/agent03/one_day_crystallization_boundary_trigger.json"]
+permissions:
+  contents: read
+jobs:
+  preflight:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/03-one-day-crystallization-20260925
+          fetch-depth: 0
+      - name: Build exact public-only synthetic material probe
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch -q origin abb94ef134e2e97036b6959dbc9db4278d3736b6
+          git show abb94ef134e2e97036b6959dbc9db4278d3736b6:research/weight_factory/agent02/gene1_training_visible_pack_v1.json > /tmp/public-pack.json
+          git show abb94ef134e2e97036b6959dbc9db4278d3736b6:research/weight_factory/agent02/gene1_data_verifier_pack_v1.py > /tmp/w02.py
+          python3 - <<'PY'
+          import json
+          p=json.load(open('/tmp/public-pack.json'))
+          tasks=[t for t in p['tasks'] if t.get('verifier_mode')=='hardened' and t.get('training_eligible') is True]
+          assert len(tasks)==56
+          records=[]
+          for t in sorted(tasks,key=lambda x:x['task_id']):
+              idx=int(t['task_id'].rsplit('-',2)[1])
+              split='discovery' if idx in (0,1) else 'shadow'
+              candidate=json.dumps(t['oracle_program'],ensure_ascii=False,separators=(',',':'))
+              records.append({'task_id':t['task_id'],'semantic_core_id':t['semantic_core_id'],
+                              'family':t['family'],'public_split':split,
+                              'candidates':[{'passed':True,'reason':'synthetic_public_preflight','text':candidate}],
+                              'repair':None})
+          probe={'result_kind':'AQLEVON_ONE_DAY_PUBLIC_VERIFIED_TRAJECTORY_PROBE_V1',
+                 'model_repo':'Qwen/Qwen3.5-4B-Base',
+                 'model_revision':'daa9c16f371249f9ad1c75a9ed6f956c08ea08f5',
+                 'training_pack_sha256':'35c7ebe6d5e82f42d7553fa28391f6d82c8800d6eced582d06881c8eb17d9d6b',
+                 'sealed_eval_consumed':False,'worker05_used_for_tuning':False,
+                 'decision':'MATERIAL_LATENT_CAPABILITY',
+                 'generation':{'temperature':0.7,'top_p':0.8,'top_k':20,'max_new_tokens':96},
+                 'records':records}
+          json.dump(probe,open('/tmp/material-probe.json','w'),ensure_ascii=False)
+          assert sum(r['public_split']=='discovery' for r in records)==28
+          assert sum(r['public_split']=='shadow' for r in records)==28
+          PY
+          python3 research/weight_factory/agent03/p4_one_day_crystallize.py             --probe-result /tmp/material-probe.json             --w02-module /tmp/w02.py             --training-pack /tmp/public-pack.json             --preflight-only | tee /tmp/preflight.log
+          grep -q 'train_verified=24 shadow=28' /tmp/preflight.log
+          echo AQLEVON_CRYSTALLIZATION_PUBLIC_BOUNDARY_PREFLIGHT_PASS
