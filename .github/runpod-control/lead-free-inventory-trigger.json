@@ -1,5 +1,5 @@
 {
-  "purpose": "monitor single authorized Recovery20A A100 Pod and balance without spending",
-  "requested_at_utc": "2026-09-25T10:40:29.240Z",
+  "purpose": "post-Recovery20A EXITED status and account balance without spending",
+  "requested_at_utc": "2026-09-25T11:21:00.628Z",
   "pod_id": "j17ed3nyyl5fyv"
 }
