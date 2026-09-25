@@ -1,0 +1,195 @@
+name: AQLEVON Auth16 Serverless Deploy
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/runpod-control/auth16-serverless-deploy-trigger.json"
+permissions:
+  contents: write
+  packages: write
+concurrency:
+  group: aqlevon-auth16-serverless-production
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    env:
+      IMAGE: ghcr.io/india123445t-pixel/aqlevon-auth16-serverless:auth16-20260925
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Free build disk
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc || true
+          docker system prune -af || true
+          df -h
+
+      - name: Recover exact frozen Auth16 adapter
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p runtime/serverless-auth16/adapter /tmp/auth16
+          gh api /repos/${GITHUB_REPOSITORY}/actions/artifacts/10883200678/zip > /tmp/auth16.zip
+          unzip -q /tmp/auth16.zip -d /tmp/auth16
+          model="$(find /tmp/auth16 -type f -name adapter_model.safetensors -print -quit)"
+          config="$(find /tmp/auth16 -type f -name adapter_config.json -print -quit)"
+          test -n "$model" && test -n "$config"
+          test "$(sha256sum "$model" | awk '{print $1}')" = "2d4f0c3528129e702dfa0af27fad467d411f355b9ea72e771942d0f6703e2b2a"
+          cp "$model" runtime/serverless-auth16/adapter/adapter_model.safetensors
+          cp "$config" runtime/serverless-auth16/adapter/adapter_config.json
+          python3 -m py_compile runtime/serverless-auth16/handler.py
+          echo "AQLEVON_AUTH16_ARTIFACT_RECOVERY_PASS"
+
+      - name: Login GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push frozen Auth16 image
+        uses: docker/build-push-action@v6
+        with:
+          context: runtime/serverless-auth16
+          file: runtime/serverless-auth16/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.IMAGE }}
+          provenance: false
+          sbom: false
+
+      - name: Verify anonymous image pullability
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker logout ghcr.io || true
+          docker manifest inspect "$IMAGE" >/tmp/manifest.json
+          test -s /tmp/manifest.json
+          echo "AQLEVON_AUTH16_IMAGE_PUBLIC_PASS"
+
+      - name: Provision two scale-to-zero endpoints and run smoke tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${RUNPOD_API_KEY:-}"
+          python3 -m pip install --quiet requests
+          python3 - <<'PY'
+          import json, os, time, requests, pathlib
+          key=os.environ["RUNPOD_API_KEY"]
+          image=os.environ["IMAGE"]
+          base="https://rest.runpod.io/v2"
+          h={"Authorization":f"Bearer {key}","Content-Type":"application/json"}
+          def req(method,path,**kw):
+              r=requests.request(method,base+path,headers=h,timeout=45,**kw)
+              if not r.ok:
+                  raise RuntimeError(f"{method} {path} -> {r.status_code}: {r.text[:1000]}")
+              return r.json() if r.text.strip() else {}
+          endpoints=req("GET","/serverless").get("endpoints",[])
+          by_name={e.get("name"):e for e in endpoints}
+          names=["aqlevon-auth16-public-v1","aqlevon-auth16-child-v1"]
+          # Never create duplicates. Reuse exact existing endpoints when present.
+          template_id=None
+          if any(n in by_name for n in names):
+              ids={n:by_name[n]["id"] for n in names if n in by_name}
+              if len(ids)!=2:
+                  raise RuntimeError(f"partial_existing_endpoint_set:{ids}")
+              template_id=next((by_name[n].get("templateId") for n in names if by_name[n].get("templateId")),None)
+          else:
+              tpl=req("POST","/templates",json={
+                  "name":"aqlevon-auth16-serverless-v1",
+                  "image":image,
+                  "disk":30,
+                  "serverless":True,
+              })
+              template_id=tpl["id"]
+              ids={}
+              for n in names:
+                  e=req("POST","/serverless",json={
+                      "name":n,
+                      "templateId":template_id,
+                      "type":"QUEUE",
+                      "gpu":{"pools":["AMPERE_24"],"count":1},
+                      "workers":{"min":0,"max":1,"idleTimeout":5},
+                      "scaling":{"type":"QUEUE_DELAY","queueDelay":2},
+                      "flashboot":"FLASHBOOT",
+                  })
+                  ids[n]=e["id"]
+          # Verify exact endpoint policy before triggering GPU work.
+          current=req("GET","/serverless").get("endpoints",[])
+          cur={e.get("name"):e for e in current}
+          for n in names:
+              e=cur.get(n)
+              if not e: raise RuntimeError(f"endpoint_missing:{n}")
+              workers=e.get("workers") or {}
+              if int(workers.get("min",-1))!=0 or int(workers.get("max",-1))!=1:
+                  raise RuntimeError(f"bad_worker_bounds:{n}:{workers}")
+          def infer(endpoint_id,prompt):
+              api=f"https://api.runpod.ai/v2/{endpoint_id}"
+              rr=requests.post(api+"/run",headers=h,json={"input":{
+                  "messages":[{"role":"user","content":prompt}],
+                  "temperature":0.0,"max_tokens":64
+              }},timeout=45)
+              if not rr.ok: raise RuntimeError(f"run_submit:{rr.status_code}:{rr.text[:1000]}")
+              job=rr.json(); jid=job["id"]
+              deadline=time.time()+900
+              last=None
+              while time.time()<deadline:
+                  s=requests.get(api+f"/status/{jid}",headers=h,timeout=45)
+                  if not s.ok: raise RuntimeError(f"run_status:{s.status_code}:{s.text[:1000]}")
+                  last=s.json(); st=last.get("status")
+                  if st=="COMPLETED":
+                      out=last.get("output") or {}
+                      if out.get("adapter_sha256")!="2d4f0c3528129e702dfa0af27fad467d411f355b9ea72e771942d0f6703e2b2a":
+                          raise RuntimeError(f"wrong_adapter:{out}")
+                      if not (out.get("choices") and out["choices"][0].get("message",{}).get("content")):
+                          raise RuntimeError(f"empty_completion:{out}")
+                      return {"job_id":jid,"status":st,"model":out.get("model"),"adapter_sha256":out.get("adapter_sha256"),"sample":out["choices"][0]["message"]["content"][:240]}
+                  if st in {"FAILED","CANCELLED","TIMED_OUT"}:
+                      raise RuntimeError(f"run_terminal:{last}")
+                  time.sleep(5)
+              raise RuntimeError(f"run_timeout:{last}")
+          public_test=infer(ids[names[0]],"Reply with exactly: AQLEVON PUBLIC READY")
+          child_test=infer(ids[names[1]],"Reply with exactly: AQLEVON CHILD READY")
+          receipt={
+              "kind":"AQLEVON_AUTH16_SERVERLESS_DEPLOYMENT_V1",
+              "image":image,
+              "template_id":template_id,
+              "gpu_pool":"AMPERE_24",
+              "workers_min":0,
+              "workers_max":1,
+              "idle_timeout_seconds":5,
+              "public_endpoint_id":ids[names[0]],
+              "child_endpoint_id":ids[names[1]],
+              "public_base_url":f"https://api.runpod.ai/v2/{ids[names[0]]}",
+              "child_base_url":f"https://api.runpod.ai/v2/{ids[names[1]]}",
+              "adapter_sha256":"2d4f0c3528129e702dfa0af27fad467d411f355b9ea72e771942d0f6703e2b2a",
+              "base_revision":"daa9c16f371249f9ad1c75a9ed6f956c08ea08f5",
+              "public_smoke":public_test,
+              "child_smoke":child_test,
+              "idle_gpu_policy":"SCALE_TO_ZERO",
+              "created_or_verified_at_utc":time.strftime("%Y-%m-%dT%H:%M:%SZ",time.gmtime()),
+          }
+          p=pathlib.Path(".github/runpod-control/auth16-serverless-runtime.json")
+          p.parent.mkdir(parents=True,exist_ok=True)
+          p.write_text(json.dumps(receipt,indent=2,sort_keys=True)+"\n")
+          print("AQLEVON_AUTH16_SERVERLESS_PASS",json.dumps(receipt,sort_keys=True))
+          PY
+
+      - name: Persist endpoint receipt
+        run: |
+          set -euo pipefail
+          git config user.name aqlevon-runtime-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/runpod-control/auth16-serverless-runtime.json
+          git commit -m "runtime: record Auth16 scale-to-zero endpoints [skip ci]"
+          git pull --rebase origin main
+          git push origin HEAD:main
