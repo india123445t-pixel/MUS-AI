@@ -1,0 +1,13 @@
+{
+  "kind": "AQLEVON_AUTH16_SERVERLESS_DEPLOY_TRIGGER_V1",
+  "requested_at_utc": "2026-09-25T22:10:00Z",
+  "branch": "release/aqlevon-unified-live-20260925",
+  "source_preview_head": "47836b89054474d99eb1ea233be29625221ba5cb",
+  "model": "AQLEVON-4B-Auth16",
+  "adapter_sha256": "2d4f0c3528129e702dfa0af27fad467d411f355b9ea72e771942d0f6703e2b2a",
+  "workers_min": 0,
+  "workers_max": 1,
+  "idle_timeout_seconds": 5,
+  "max_additional_owner_budget_usd": 5,
+  "purpose": "Deploy exact frozen Auth16 as request-only serverless inference endpoint and smoke-test it before app cutover."
+}
