@@ -61,6 +61,8 @@ import datetime,json
 from pathlib import Path
 a=json.loads(Path(".github/runpod-control/one-day-public-probe-manager-authorization-03-20260925.json").read_text())
 f=json.loads(Path(".github/runpod-control/one-day-public-probe-free-result-03.json").read_text())
+t=json.loads(Path(".github/runpod-control/execute-one-day-public-probe-03.json").read_text()) if Path(".github/runpod-control/execute-one-day-public-probe-03.json").exists() else {}
+excluded={tuple(x) for x in t.get("failed_capacity_pairs",[])}
 allowed=set(a["permitted_gpu_ids"]); choices=[]
 for g in json.load(open("/tmp/auth03-gpus.json")):
     gid=str(g.get("gpuId",""))
@@ -68,8 +70,9 @@ for g in json.load(open("/tmp/auth03-gpus.json")):
     price=float(g.get("securePricePerHr") or 999)
     if price>float(a["max_hourly_rate_usd"]): continue
     for d in (g.get("dataCenterAvailability") or []):
-        if str(d.get("stockStatus")).lower()!="none":
-            choices.append((price,gid,d.get("dataCenterId")))
+        dc=d.get("dataCenterId")
+        if str(d.get("stockStatus")).lower()!="none" and (gid,dc) not in excluded:
+            choices.append((price,gid,dc))
 assert choices,"no_permitted_gpu_stock_now"
 price,gpu,dc=sorted(choices)[0]
 dynamic=min(int(a["max_billed_seconds"]),int(float(a["max_total_cost_usd"])*3600/price))
