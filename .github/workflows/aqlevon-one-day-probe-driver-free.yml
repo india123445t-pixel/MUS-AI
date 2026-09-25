@@ -1,0 +1,29 @@
+name: AQLEVON One-Day Probe Driver Free Contract
+on:
+  push:
+    branches: [ops/one-day-verified-trajectory-20260925]
+    paths:
+      - ".github/runpod-control/run-one-day-public-probe-02.sh"
+      - ".github/runpod-control/remote-one-day-public-probe-02.sh"
+      - ".github/workflows/aqlevon-one-day-probe-driver-free.yml"
+permissions:
+  contents: read
+jobs:
+  contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/one-day-verified-trajectory-20260925
+      - name: Syntax and no-spend contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n .github/runpod-control/run-one-day-public-probe-02.sh
+          bash -n .github/runpod-control/remote-one-day-public-probe-02.sh
+          grep -q 'training_authorized.*False' .github/runpod-control/run-one-day-public-probe-02.sh
+          grep -q 'AQLEVON_ONE_DAY_SOURCE_STAGED_BEFORE_BILLING' .github/runpod-control/run-one-day-public-probe-02.sh
+          grep -q 'pod_deleted_after_durable_egress' .github/runpod-control/run-one-day-public-probe-02.sh
+          test ! -e .github/runpod-control/one-day-public-probe-consumed-02.json
+          echo AQLEVON_ONE_DAY_DRIVER_FREE_CONTRACT_PASS
