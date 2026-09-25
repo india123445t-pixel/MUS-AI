@@ -58,3 +58,14 @@ test('owner UI exposes permission toggles autonomy log and emergency stop',()=>{
   assert.match(page,/الصلاحيات المطلوبة/);
   assert.match(page,/CHILD_TOOL_ACTIONS/);
 });
+
+
+test('owner UI states adapter autonomy truthfully and remains mobile-safe',()=>{
+  assert.match(page,/سياسة Adapter: اقتراح فقط/);
+  assert.match(page,/سياسة Adapter: يتطلب أمرًا لكل فعل/);
+  assert.match(page,/سياسة Adapter: يسمح بالتتابع داخل الصلاحيات/);
+  assert.doesNotMatch(page,/ينفذ تلقائيًا داخل الصلاحيات المفعلة/);
+  assert.match(page,/لا توجد حاليًا حلقة Agent ذاتية مخفية/);
+  assert.match(page,/minmax\(min\(100%,340px\),1fr\)/);
+  assert.match(page,/calc\(100vw - 32px\)/);
+});
