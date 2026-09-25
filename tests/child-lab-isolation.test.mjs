@@ -50,6 +50,13 @@ test('child lab browser state is isolated and tools fail closed',()=>{
   assert.doesNotMatch(page,/aqlevon-workspace-web-v1/);
 });
 
+test('fresh child starts without an owner-defined personality or purpose',()=>{
+  assert.match(page,/purpose:''/);
+  assert.match(page,/persona:''/);
+  assert.match(page,/الطفل الجديد يبدأ بلا شخصية خاصة مكتوبة/);
+  assert.doesNotMatch(page,/persona:'أنت طفل AQLEVON تجريبي/);
+});
+
 test('child tool broker is isolated and receipt-gated',()=>{
   assert.match(tools,/AQLEVON_CHILD_WEB_ADAPTER_URL/);
   assert.match(tools,/AQLEVON_CHILD_BROWSER_ADAPTER_URL/);
