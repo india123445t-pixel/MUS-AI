@@ -1,6 +1,6 @@
 {
-  "pod_id": "de0xyagqodd2gw",
-  "source": "container",
-  "reason": "Retry19V live boot/readiness diagnostic",
-  "nonce": "19v-live-1"
+  "pod_id": "j17ed3nyyl5fyv",
+  "source": "system",
+  "reason": "Recovery20A A100 startup, desired RUNNING but no public IP/SSH port at 10:40",
+  "nonce": "2026-09-25T10:41:02.656Z"
 }
