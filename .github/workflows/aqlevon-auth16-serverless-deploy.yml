@@ -1,0 +1,246 @@
+name: AQLEVON Auth16 Serverless Deploy
+
+on:
+  push:
+    branches: [release/aqlevon-unified-auth16-20260925]
+    paths:
+      - ".github/runpod-control/auth16-serverless-deploy-trigger.json"
+
+permissions:
+  contents: write
+  packages: write
+  actions: read
+
+concurrency:
+  group: aqlevon-auth16-serverless-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      GH_TOKEN: ${{ github.token }}
+      IMAGE: ghcr.io/india123445t-pixel/mus-ai-auth16-serverless:${{ github.sha }}
+      ENDPOINT_NAME: aqlevon-auth16-prod
+      VERCEL_PROJECT_ID: prj_xV2PKJ2oSCriQdE2P4Gk2M75tNjj
+      VERCEL_TEAM_ID: team_cZEE6RYYaa2nNa1e2iSaBAAk
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/aqlevon-unified-auth16-20260925
+          fetch-depth: 0
+
+      - name: Preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${RUNPOD_API_KEY:-}"
+          python -m py_compile deploy/serverless-auth16/handler.py
+          python - <<'PY'
+          import json, os
+          out={
+            "runpod_api_key_configured": bool(os.environ.get("RUNPOD_API_KEY")),
+            "vercel_token_configured": bool(os.environ.get("VERCEL_TOKEN")),
+            "paid_gpu_created": False,
+          }
+          open("/tmp/secret-capabilities.json","w").write(json.dumps(out,indent=2)+"\n")
+          print("AQLEVON_SECRET_CAPABILITIES",json.dumps(out,sort_keys=True))
+          PY
+
+      - name: Download frozen Auth16 adapter
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/auth16 deploy/serverless-auth16/adapter
+          gh api repos/india123445t-pixel/MUS-AI/actions/artifacts/10883200678/zip > /tmp/auth16.zip
+          unzip -q /tmp/auth16.zip -d /tmp/auth16
+          tar -xzf /tmp/auth16/auth16-evidence.tgz -C /tmp/auth16
+          cp /tmp/auth16/candidate/candidate_artifact/adapter_model.safetensors deploy/serverless-auth16/adapter/
+          cp /tmp/auth16/candidate/candidate_artifact/adapter_config.json deploy/serverless-auth16/adapter/
+          got="$(sha256sum deploy/serverless-auth16/adapter/adapter_model.safetensors | awk '{print $1}')"
+          test "$got" = "2d4f0c3528129e702dfa0af27fad467d411f355b9ea72e771942d0f6703e2b2a"
+          echo "AQLEVON_AUTH16_ADAPTER_VERIFIED $got"
+
+      - name: Build and publish worker image
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "$GH_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          docker build -t "$IMAGE" deploy/serverless-auth16
+          docker push "$IMAGE"
+          pkg="mus-ai-auth16-serverless"
+          code="$(curl -sS -o /tmp/pkg.json -w '%{http_code}' -X PATCH             "https://api.github.com/user/packages/container/$pkg"             -H "Authorization: Bearer $GH_TOKEN"             -H "Accept: application/vnd.github+json"             -H "X-GitHub-Api-Version: 2022-11-28"             -d '{"visibility":"public"}' || true)"
+          echo "AQLEVON_GHCR_VISIBILITY_PATCH_HTTP=$code"
+          docker logout ghcr.io >/dev/null 2>&1 || true
+          docker manifest inspect "$IMAGE" >/tmp/manifest-public.json
+          echo "AQLEVON_GHCR_PUBLIC_PULL_PASS"
+
+      - name: Create zero-idle RunPod Serverless endpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install -q --upgrade 'git+https://github.com/runpod/runpod-python.git@main'
+          python - <<'PY'
+          import json, os, runpod
+          from runpod.api.ctl_commands import create_template, create_endpoint, get_endpoints, update_endpoint_template
+          runpod.api_key=os.environ["RUNPOD_API_KEY"]
+          image=os.environ["IMAGE"]
+          name=os.environ["ENDPOINT_NAME"]
+
+          template=create_template(
+              name="aqlevon-auth16-"+os.environ["GITHUB_SHA"][:10],
+              image_name=image,
+              container_disk_in_gb=24,
+              volume_in_gb=0,
+              env={
+                  "AQLEVON_MODEL_ID":"AQLEVON-4B-Auth16",
+                  "HF_HUB_DISABLE_TELEMETRY":"1",
+              },
+              is_serverless=True,
+          )
+          tid=template["id"]
+          existing=next((e for e in get_endpoints() if e.get("name")==name),None)
+          if existing:
+              eid=existing["id"]
+              update_endpoint_template(eid,tid)
+              endpoint=existing
+              action="updated"
+          else:
+              endpoint=create_endpoint(
+                  name=name,
+                  template_id=tid,
+                  gpu_ids="AMPERE_24",
+                  idle_timeout=5,
+                  scaler_type="QUEUE_DELAY",
+                  scaler_value=1,
+                  workers_min=0,
+                  workers_max=1,
+                  flashboot=True,
+                  gpu_count=1,
+              )
+              eid=endpoint["id"]
+              action="created"
+          out={
+              "kind":"AQLEVON_AUTH16_SERVERLESS_DEPLOY_V1",
+              "endpoint_id":eid,
+              "endpoint_name":name,
+              "template_id":tid,
+              "image":image,
+              "gpu_pool":"AMPERE_24",
+              "workers_min":0,
+              "workers_max":1,
+              "idle_timeout_seconds":5,
+              "flashboot":True,
+              "network_volume":False,
+              "adapter_sha256":"2d4f0c3528129e702dfa0af27fad467d411f355b9ea72e771942d0f6703e2b2a",
+              "base_repo":"Qwen/Qwen3.5-4B-Base",
+              "base_revision":"daa9c16f371249f9ad1c75a9ed6f956c08ea08f5",
+              "action":action,
+              "smoke_status":"PENDING",
+          }
+          open("/tmp/serverless.json","w").write(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("AQLEVON_SERVERLESS_ENDPOINT",json.dumps(out,sort_keys=True))
+          PY
+
+      - name: Smoke test exact Auth16 endpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          endpoint="$(python -c 'import json; print(json.load(open("/tmp/serverless.json"))["endpoint_id"])')"
+          body='{"input":{"messages":[{"role":"system","content":"You are AQLEVON Auth16. Answer briefly."},{"role":"user","content":"Reply with exactly: AQLEVON_AUTH16_READY"}],"temperature":0,"max_tokens":32}}'
+          curl -fsS -X POST "https://api.runpod.ai/v2/$endpoint/run"             -H "Authorization: Bearer $RUNPOD_API_KEY"             -H 'Content-Type: application/json'             -d "$body" > /tmp/job.json
+          job="$(python -c 'import json; print(json.load(open("/tmp/job.json"))["id"])')"
+          ok=0
+          for i in $(seq 1 90); do
+            sleep 10
+            curl -fsS "https://api.runpod.ai/v2/$endpoint/status/$job"               -H "Authorization: Bearer $RUNPOD_API_KEY" > /tmp/status.json
+            state="$(python -c 'import json; print(json.load(open("/tmp/status.json")).get("status",""))')"
+            echo "AQLEVON_SMOKE_POLL $i $state"
+            if [ "$state" = "COMPLETED" ]; then ok=1; break; fi
+            if [ "$state" = "FAILED" ] || [ "$state" = "CANCELLED" ] || [ "$state" = "TIMED_OUT" ]; then break; fi
+          done
+          test "$ok" = "1"
+          python - <<'PY'
+          import json
+          s=json.load(open("/tmp/status.json"))
+          out=s.get("output") or {}
+          text=((out.get("choices") or [{}])[0].get("message") or {}).get("content","")
+          assert "AQLEVON_AUTH16_READY" in text, (s,text)
+          meta=json.load(open("/tmp/serverless.json"))
+          meta["smoke_status"]="PASS"
+          meta["smoke_job_id"]=s.get("id")
+          meta["smoke_model"]=out.get("model")
+          meta["smoke_text"]=text
+          open("/tmp/serverless.json","w").write(json.dumps(meta,indent=2,sort_keys=True)+"\n")
+          print("AQLEVON_AUTH16_SERVERLESS_SMOKE_PASS")
+          PY
+
+      - name: Configure Vercel server-side runtime when token is available
+        shell: bash
+        run: |
+          set -euo pipefail
+          endpoint="$(python -c 'import json; print(json.load(open("/tmp/serverless.json"))["endpoint_id"])')"
+          if [ -z "${VERCEL_TOKEN:-}" ]; then
+            echo "AQLEVON_VERCEL_TOKEN_NOT_PRESENT"
+            python - <<'PY'
+          import json
+          p=json.load(open("/tmp/serverless.json")); p["vercel_env_configured"]=False
+          open("/tmp/serverless.json","w").write(json.dumps(p,indent=2,sort_keys=True)+"\n")
+          PY
+            exit 0
+          fi
+          upsert () {
+            key="$1"; val="$2"
+            # remove old values if present, then create encrypted preview+production value
+            ids="$(curl -fsS "https://api.vercel.com/v9/projects/$VERCEL_PROJECT_ID/env?teamId=$VERCEL_TEAM_ID"               -H "Authorization: Bearer $VERCEL_TOKEN" |               python -c "import sys,json; d=json.load(sys.stdin); print(' '.join(e['id'] for e in d.get('envs',[]) if e.get('key')=='$key'))")"
+            for id in $ids; do
+              curl -fsS -X DELETE "https://api.vercel.com/v9/projects/$VERCEL_PROJECT_ID/env/$id?teamId=$VERCEL_TEAM_ID"                 -H "Authorization: Bearer $VERCEL_TOKEN" >/dev/null
+            done
+            python - "$key" "$val" <<'PY' >/tmp/env-body.json
+          import json,sys
+          print(json.dumps({"key":sys.argv[1],"value":sys.argv[2],"type":"encrypted","target":["preview","production"]}))
+          PY
+            curl -fsS -X POST "https://api.vercel.com/v10/projects/$VERCEL_PROJECT_ID/env?teamId=$VERCEL_TEAM_ID"               -H "Authorization: Bearer $VERCEL_TOKEN"               -H 'Content-Type: application/json'               --data-binary @/tmp/env-body.json >/dev/null
+          }
+          upsert RUNPOD_API_KEY "$RUNPOD_API_KEY"
+          upsert AQLEVON_RUNPOD_ENDPOINT_ID "$endpoint"
+          upsert AQLEVON_CHILD_RUNPOD_ENDPOINT_ID "$endpoint"
+          upsert AQLEVON_MODEL_NAME "AQLEVON-4B-Auth16"
+          upsert AQLEVON_CHILD_MODEL_NAME "AQLEVON-4B-Auth16-CHILD"
+          python - <<'PY'
+          import json
+          p=json.load(open("/tmp/serverless.json")); p["vercel_env_configured"]=True
+          open("/tmp/serverless.json","w").write(json.dumps(p,indent=2,sort_keys=True)+"\n")
+          PY
+          echo "AQLEVON_VERCEL_ENV_CONFIGURED"
+
+      - name: Persist deployment receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp /tmp/serverless.json .github/runpod-control/auth16-serverless-deploy-result.json
+          cp /tmp/secret-capabilities.json .github/runpod-control/auth16-deploy-secret-capabilities.json
+          git config user.name aqlevon-release-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/runpod-control/auth16-serverless-deploy-result.json .github/runpod-control/auth16-deploy-secret-capabilities.json
+          git commit -m "runtime: record Auth16 Serverless deployment receipt [skip ci]" || true
+          git pull --rebase origin release/aqlevon-unified-auth16-20260925
+          git push origin HEAD:release/aqlevon-unified-auth16-20260925
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aqlevon-auth16-serverless-deploy
+          path: |
+            /tmp/serverless.json
+            /tmp/job.json
+            /tmp/status.json
+            /tmp/secret-capabilities.json
+            /tmp/pkg.json
+          if-no-files-found: warn
+          retention-days: 14
