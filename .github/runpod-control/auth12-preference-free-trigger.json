@@ -1,10 +1,12 @@
 {
   "kind": "AQLEVON_AUTH12_PREFERENCE_ZERO_COST_SEAL_TRIGGER_V1",
-  "requested_at_utc": "2026-09-25T18:10:00Z",
+  "requested_at_utc": "2026-09-25T19:09:00Z",
   "authorization_id": "P4-ONE-DAY-PREFERENCE-CRYSTALLIZATION-20260925-12",
   "authorization_sha256": "0cd44afc3982ba51cba594641e90f95fb7980be9f6c0bf8518327fbca0cf4eda",
   "expected_source_head": "a5521a0f4a00884de0470d7831023b8fafc09759",
   "candidate_source_blob": "733e375e44c4e5b505d5bd8f14e20c3ed01fa943",
   "required_datacenter": "US-MD-1",
-  "paid_resource_creation_forbidden": true
+  "paid_resource_creation_forbidden": true,
+  "retry_sequence": 2,
+  "previous_outcome": "ZERO_COST_IDENTITY_PATH_FIX"
 }
