@@ -1,0 +1,54 @@
+name: AQLEVON Recovery20A Live Runtime Probe
+on:
+  push:
+    branches: [ops/runpod-control-v1]
+    paths: [".github/runpod-control/recovery20a-live-trigger.json"]
+permissions:
+  contents: write
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/runpod-control-v1
+      - name: Observe exactly one authorized Pod without changing it
+        shell: bash
+        run: |
+          set -euo pipefail
+          id="$(jq -r '.pod_id' .github/runpod-control/recovery20a-live-trigger.json)"
+          test "$id" = "j17ed3nyyl5fyv"
+          test "$(jq -r '.pod_id' .github/runpod-control/recovery20a-consumed.json)" = "$id"
+          curl -fsS "https://rest.runpod.io/v1/pods/$id" -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/pod.json
+          curl -sSL https://cli.runpod.net | sudo bash
+          runpodctl pod get "$id" --output json >/tmp/pod-get.json
+          python3 - <<'PY'
+          import json,datetime
+          from pathlib import Path
+          p=json.loads(Path('/tmp/pod.json').read_text())
+          g=json.loads(Path('/tmp/pod-get.json').read_text())
+          runtime=g.get('runtime') or {}
+          out={'checked_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),
+               'pod_id':p.get('id'),'name':p.get('name'),'status':p.get('desiredStatus') or p.get('status'),
+               'rate_per_hour_usd':p.get('costPerHr'),
+               'runtime_status':g.get('runtimeStatus') or g.get('runtime_status'),
+               'uptime_seconds':runtime.get('uptimeInSeconds') or runtime.get('uptime_in_seconds'),
+               'gpus':[{'util_percent':v.get('gpuUtilPercent') or v.get('gpu_util_percent'),
+                        'memory_percent':v.get('memoryUtilPercent') or v.get('memory_util_percent')} for v in (runtime.get('gpus') or [])],
+               'container':{'cpu_percent':(runtime.get('container') or {}).get('cpuPercent'),
+                            'memory_percent':(runtime.get('container') or {}).get('memoryPercent')}}
+          Path('.github/runpod-control/recovery20a-live-result.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
+          print('AQLEVON_RECOVERY20A_RUNTIME_PROBE',json.dumps(out,sort_keys=True))
+          PY
+      - name: Persist sanitized observations
+        run: |
+          set -euo pipefail
+          git config user.name aqlevon-runpod-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/runpod-control/recovery20a-live-result.json
+          git commit -m "ops: record Recovery20A runtime metrics [skip ci]"
+          git pull --rebase origin ops/runpod-control-v1
+          git push origin HEAD:ops/runpod-control-v1
