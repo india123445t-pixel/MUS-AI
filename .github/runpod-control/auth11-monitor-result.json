@@ -1,11 +1,8 @@
 {
-  "checked_at_utc": "2026-09-25T17:38:52.723727+00:00",
-  "costPerHr": 1.59,
-  "desiredStatus": "RUNNING",
-  "http_code": "200",
+  "checked_at_utc": "2026-09-25T17:46:20.058353+00:00",
+  "http_code": "404",
   "kind": "AQLEVON_AUTH11_READ_ONLY_POD_MONITOR_V1",
   "mutated": false,
-  "pod_id": "oi79xmxp7oxgma",
-  "port22": 13659,
-  "publicIp_present": true
+  "not_found": true,
+  "pod_id": "oi79xmxp7oxgma"
 }
