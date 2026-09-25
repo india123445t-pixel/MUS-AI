@@ -1,0 +1,44 @@
+{
+  "kind": "AQLEVON_AUTH16_WORKER05_HANDOFF_LOCK_V1",
+  "locked_at_utc": "2026-09-25T19:36:00Z",
+  "source_head": "22b95b0fdfaf97c3ba3314a94c2413d45439cc6e",
+  "source_blob": "cb86e6494fada78328310dfe5900e75205862ee0",
+  "github_actions_run_id": 36176478432,
+  "github_artifact_id": 10883200678,
+  "artifact_zip_sha256": "5c60059e410b8af29022495830e32497650b36330e7303b8433fd47c2fea5c8e",
+  "candidate_status": "READY_FOR_WORKER05_EVALUATION",
+  "adapter_model_sha256": "2d4f0c3528129e702dfa0af27fad467d411f355b9ea72e771942d0f6703e2b2a",
+  "adapter_state_sha256": "7fa90e23ec0c08b8f992ca60756ad6cb6790b51914c8421706398442f35b17d3",
+  "candidate_manifest_self_sha256": "458dea2c41c6d1257d422990f0088642aae2634a4738749ecbfc6ae07690b5b3",
+  "training_receipt_file_sha256": "0b3e58b06cb9e6508a69eb4559719f10b605bcf9e35c0fe9101b7b7f58e20cc1",
+  "worker05_handoff_self_sha256": "2e947ff3366cb6d9b3a7eb6018632c71c63abd5c0abfe5c240202ce6fa823039",
+  "worker05_handoff_file_sha256": "95aea0488df896977eac3e82f731f77d63165e8729fa50d34f8ac8662816461b",
+  "public_dev": {
+    "pre_successes": 3,
+    "post_successes": 28,
+    "gain_tasks": 25,
+    "improvement": 0.8928571428571429,
+    "regressions": []
+  },
+  "public_shadow": {
+    "pre_successes": 3,
+    "post_successes": 28,
+    "gain_tasks": 25,
+    "improvement": 0.8928571428571429,
+    "regressions": []
+  },
+  "worker05_eval_consumed": false,
+  "worker05_used_for_tuning": false,
+  "sealed_plaintext_present_in_repo": false,
+  "sealed_secret_present_in_library": false,
+  "capability_gain_claim": false,
+  "next_valid_action": "CONTROLLED_INDEPENDENT_WORKER05_SEALED_EVALUATION_ONLY",
+  "prohibitions": [
+    "DO_NOT_RETRAIN_AUTH16",
+    "DO_NOT_MODIFY_WEIGHTS",
+    "DO_NOT_TUNE_ON_WORKER05",
+    "DO_NOT_RUN_27B_YET",
+    "DO_NOT_MERGE_MAIN",
+    "DO_NOT_CLAIM_FINAL_CAPABILITY_GAIN_YET"
+  ]
+}
