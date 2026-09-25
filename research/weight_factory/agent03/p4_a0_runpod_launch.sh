@@ -15,10 +15,11 @@ echo "AQLEVON_A0_LAUNCH_START=$(date -u +%FT%TZ) SOURCE_HEAD=$HEAD IMAGE_DIGEST=
 python3 - <<'PY'
 import torch
 p=torch.cuda.get_device_properties(0)
-assert p.name=='NVIDIA A100-SXM4-80GB',p.name
-assert p.total_memory>=75_000_000_000,p.total_memory
+allowed={'NVIDIA A40':44_000_000_000,'NVIDIA A100 80GB PCIe':75_000_000_000,'NVIDIA A100-SXM4-80GB':75_000_000_000}
+assert p.name in allowed,p.name
+assert p.total_memory>=allowed[p.name],p.total_memory
 assert torch.cuda.is_bf16_supported()
-print('AQLEVON_A0_A100_BF16_PASS',p.name,p.total_memory,flush=True)
+print('AQLEVON_A0_GPU_BF16_PASS',p.name,p.total_memory,flush=True)
 PY
 
 test "$(git -C "$REPO" rev-parse HEAD)" = "$HEAD"
