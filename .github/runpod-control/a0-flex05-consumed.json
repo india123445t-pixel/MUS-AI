@@ -1,0 +1,9 @@
+{
+  "authorization_id": "P4-A0-SFT-FLEX-GPU-20260925-05",
+  "authorization_sha256": "29e960888dd3993f0bbc4873e68c0e394009d3669438834b05579a155f06e058",
+  "created_at_utc": "2026-09-25T12:37:00.280767+00:00",
+  "image_digest": "sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec",
+  "pod_id": "qqgof13ou1fu01",
+  "single_use_consumed": true,
+  "source_head": "11f40e8cc7575d9094bae508a6a4d5cb84c306a4"
+}
