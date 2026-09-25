@@ -1,0 +1,15 @@
+{
+  "authorization_id": "P4-ONE-DAY-COVERAGE-CRYSTALLIZATION-20260925-08",
+  "authorization_sha256": "0555925a86bb3cc5d5d46bfc20896bc47f39de12f160376a39d52370c5e4fee3",
+  "created_at_utc": "2026-09-25T15:53:07.495729+00:00",
+  "dynamic_max_billed_seconds": 1800,
+  "image_digest": "sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec",
+  "paid_boundary_refresh_at_utc": "2026-09-25T15:53:04.619932+00:00",
+  "pod_id": "otef388zqy6lmg",
+  "selected_datacenter": "US-KS-2",
+  "selected_gpu_id": "NVIDIA A100-SXM4-80GB",
+  "selected_price_hr": 1.59,
+  "single_use_consumed": true,
+  "source_head": "529e665ea140c2f8d6b96c02a42c100e9075c037",
+  "training_authorized": true
+}
