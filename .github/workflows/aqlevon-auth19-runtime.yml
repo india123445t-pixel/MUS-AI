@@ -1,0 +1,243 @@
+name: AQLEVON Auth19 Pinned A100 Runtime
+on:
+  push:
+    branches: [ops/one-day-verified-trajectory-20260925]
+    paths: [".github/runpod-control/execute-auth19-runtime.json"]
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: aqlevon-runtime-auth19
+  cancel-in-progress: false
+jobs:
+  runtime:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/one-day-verified-trajectory-20260925
+          fetch-depth: 0
+
+      - name: Launch exact frozen Auth16 on A100
+        shell: bash
+        run: |
+          set -euo pipefail
+          AUTH=.github/runpod-control/auth19-runtime-authorization.json
+          CONSUMED=.github/runpod-control/auth19-runtime-consumed.json
+          LIVE=.github/runpod-control/auth19-runtime-live.json
+          test -n "${RUNPOD_API_KEY:-}"
+          test ! -e "$CONSUMED"
+          python3 - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          a=json.loads(Path(".github/runpod-control/auth19-runtime-authorization.json").read_text())
+          body={k:v for k,v in a.items() if k!="authorization_sha256"}
+          h=hashlib.sha256(json.dumps(body,sort_keys=True,separators=(",",":"),ensure_ascii=False,allow_nan=False).encode()).hexdigest()
+          assert h==a["authorization_sha256"]=="930e3591b0ee2b0a0fa3fc19a3625623deb695e34fd61100e959758107c7bc59"
+          assert a["authorization_id"]=="AQLEVON-AUTH19-RUNTIME-20260925"
+          assert a["single_use"] is True and a["runtime_authorized"] is True and a["training_authorized"] is False
+          assert a["permitted_gpu_id"]=="NVIDIA A100-SXM4-80GB" and a["required_datacenter"]=="US-KS-2"
+          assert a["adapter_model_sha256"]=="2d4f0c3528129e702dfa0af27fad467d411f355b9ea72e771942d0f6703e2b2a"
+          print("AQLEVON_AUTH19_CONTRACT_PASS")
+          PY
+
+          # Recover exact frozen Auth16 adapter.
+          curl -fsSL -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json"             https://api.github.com/repos/india123445t-pixel/MUS-AI/actions/artifacts/10883200678/zip -o /tmp/auth16.zip
+          rm -rf /tmp/auth16zip /tmp/evidence /tmp/adapterpkg
+          mkdir -p /tmp/auth16zip /tmp/evidence /tmp/adapterpkg
+          unzip -q /tmp/auth16.zip -d /tmp/auth16zip
+          EVIDENCE="$(find /tmp/auth16zip -name 'auth16-evidence.tgz' -o -name 'evidence.tgz' | head -n1)"
+          test -n "$EVIDENCE"
+          tar -xzf "$EVIDENCE" -C /tmp/evidence
+          ADAPTER="$(find /tmp/evidence -name adapter_model.safetensors | head -n1)"
+          CONFIG="$(find /tmp/evidence -name adapter_config.json | head -n1)"
+          test -n "$ADAPTER" -a -n "$CONFIG"
+          test "$(sha256sum "$ADAPTER" | awk '{print $1}')" = "2d4f0c3528129e702dfa0af27fad467d411f355b9ea72e771942d0f6703e2b2a"
+          cp "$ADAPTER" /tmp/adapterpkg/adapter_model.safetensors
+          cp "$CONFIG" /tmp/adapterpkg/adapter_config.json
+          tar -czf /tmp/auth19-adapter.tgz -C /tmp/adapterpkg .
+          echo AQLEVON_AUTH19_ADAPTER_PASS
+
+          # No overlap with any AQLEVON paid pod.
+          curl -fsS https://rest.runpod.io/v1/pods -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/pods18.json
+          python3 - <<'PY'
+          import json
+          p=json.load(open("/tmp/pods18.json")); xs=p if isinstance(p,list) else p.get("pods") or p.get("items") or []
+          active=[x for x in xs if str(x.get("name","")).startswith("AQLEVON-") and str(x.get("desiredStatus") or x.get("status"))!="EXITED"]
+          assert not active,active
+          print("AQLEVON_AUTH19_NO_ACTIVE_PODS_PASS")
+          PY
+
+          curl -sSL https://cli.runpod.net | sudo bash >/dev/null
+          runpodctl gpu list --output json >/tmp/gpus18.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          choices=[]
+          for g in json.load(open("/tmp/gpus18.json")):
+              gid=str(g.get("gpuId",""))
+              if gid!="NVIDIA A100-SXM4-80GB" or not g.get("secureCloud"): continue
+              price=float(g.get("securePricePerHr") or 999)
+              if price>1.60: continue
+              for d in g.get("dataCenterAvailability") or []:
+                  if d.get("dataCenterId") and str(d.get("dataCenterId"))=="US-KS-2" and str(d.get("stockStatus","")).lower()!="none":
+                      secs=min(3000,int(1.50*3600/price))
+                      if secs>=1800: choices.append((price,gid,str(d["dataCenterId"]),secs))
+          assert choices,"no_a100_sxm4_secure_stock_under_1_60"
+          price,gpu,dc,secs=sorted(choices)[0]
+          Path("/tmp/gpu18").write_text(gpu); Path("/tmp/price18").write_text(str(price))
+          Path("/tmp/dc18").write_text(dc); Path("/tmp/secs18").write_text(str(secs))
+          print("AQLEVON_AUTH19_LIVE_SELECTION",gpu,dc,price,secs)
+          PY
+
+          UPLOAD_TOKEN="$(python3 - <<'PY'
+          import secrets
+          print(secrets.token_hex(24))
+          PY
+          )"
+          echo "::add-mask::$UPLOAD_TOKEN"
+          SERVER_COMMIT=ac41999beda494b583c645949b1cb16b6e613a25
+          SERVER_URL="https://raw.githubusercontent.com/india123445t-pixel/MUS-AI/$SERVER_COMMIT/.github/runpod-control/auth17-runtime-server.py"
+          IMAGE_DIGEST=sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec
+          DOCKER_ARGS="bash -lc 'export AQLEVON_UPLOAD_TOKEN=$UPLOAD_TOKEN; curl -fsSL $SERVER_URL -o /tmp/runtime.py && exec python3 /tmp/runtime.py'"
+
+          cleanup_fail() {
+            status=$?
+            if [ -f /tmp/pod18 ]; then
+              pod="$(cat /tmp/pod18)"
+              curl -sS -X POST "https://rest.runpod.io/v1/pods/$pod/stop" -H "Authorization: Bearer $RUNPOD_API_KEY" -H 'Content-Type: application/json' -d '{}' >/tmp/auth19-fail-stop.json || true
+              sleep 2
+              curl -sS -X DELETE "https://rest.runpod.io/v1/pods/$pod" -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/auth19-fail-delete.json || true
+            fi
+            exit "$status"
+          }
+          trap cleanup_fail EXIT
+
+          runpodctl pod create --name AQLEVON-AUTH19-RUNTIME             --image "ghcr.io/india123445t-pixel/mus-ai@$IMAGE_DIGEST"             --gpu-id "$(cat /tmp/gpu18)" --gpu-count 1 --cloud-type SECURE             --container-disk-in-gb 40 --ports 8000/http --ssh=false             --docker-args "$DOCKER_ARGS" --output json >/tmp/create18.json
+
+          python3 - <<'PY'
+          import datetime,json,time
+          from pathlib import Path
+          p=json.load(open("/tmp/create18.json")); pod=p.get("id") or p.get("podId"); assert pod
+          Path("/tmp/pod18").write_text(str(pod)); Path("/tmp/start18").write_text(str(int(time.time())))
+          out={
+            "kind":"AQLEVON_AUTH19_RUNTIME_CONSUMED_V1","authorization_id":"AQLEVON-AUTH19-RUNTIME-20260925",
+            "pod_id":pod,"created_at_utc":datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "single_use_consumed":True,"runtime_only":True,
+            "source_head":"22b95b0fdfaf97c3ba3314a94c2413d45439cc6e",
+            "adapter_model_sha256":"2d4f0c3528129e702dfa0af27fad467d411f355b9ea72e771942d0f6703e2b2a",
+            "selected_gpu_id":Path("/tmp/gpu18").read_text(),"observed_capacity_datacenter":Path("/tmp/dc18").read_text(),
+            "selected_price_hr":float(Path("/tmp/price18").read_text()),"max_runtime_seconds":int(Path("/tmp/secs18").read_text())
+          }
+          Path(".github/runpod-control/auth19-runtime-consumed.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("AQLEVON_AUTH19_POD_CREATED",pod)
+          PY
+          pod="$(cat /tmp/pod18)"
+          git config user.name aqlevon-runpod-bot
+          git config user.email actions@users.noreply.github.com
+          git add "$CONSUMED"
+          git commit -m "runtime: consume Auth19 A100 runtime [skip ci]"
+          git fetch origin ops/one-day-verified-trajectory-20260925
+          git rebase origin/ops/one-day-verified-trajectory-20260925 || { git rebase --abort || true; exit 1; }
+          git push origin HEAD:ops/one-day-verified-trajectory-20260925
+
+          proxy="https://$pod-8000.proxy.runpod.net"
+          http_seen=0
+          for i in $(seq 1 225); do
+            if curl -fsS --connect-timeout 4 --max-time 8 "$proxy/health?t=$(date +%s)" -o /tmp/health18.json 2>/dev/null; then http_seen=1; break; fi
+            sleep 4
+          done
+          test "$http_seen" = 1
+          curl -fsS --connect-timeout 5 --max-time 60 -X POST "$proxy/internal/upload-adapter"             -H "X-Upload-Token: $UPLOAD_TOKEN" -H "Content-Type: application/gzip"             --data-binary @/tmp/auth19-adapter.tgz >/tmp/upload18.json
+          grep -q '"PASS"' /tmp/upload18.json
+
+          ready=0
+          for i in $(seq 1 180); do
+            curl -fsS --connect-timeout 4 --max-time 10 "$proxy/health?t=$(date +%s)" -o /tmp/health18.json 2>/dev/null || true
+            stage="$(python3 - <<'PY'
+          import json
+          try: print(json.load(open("/tmp/health18.json")).get("stage",""))
+          except Exception: print("")
+          PY
+          )"
+            echo "AQLEVON_AUTH19_HEALTH stage=$stage"
+            if [ "$stage" = READY ]; then ready=1; break; fi
+            if [ "$stage" = FAILED ]; then cat /tmp/health18.json; exit 1; fi
+            sleep 5
+          done
+          test "$ready" = 1
+
+          cat >/tmp/smoke18a.json <<'JSON'
+          {"model":"AQLEVON-4B-Auth16","messages":[{"role":"user","content":"Return only a JSON object with key status and value ready."}],"temperature":0,"max_tokens":80}
+          JSON
+          curl -fsS --connect-timeout 5 --max-time 90 -X POST "$proxy/v1/chat/completions" -H "Content-Type: application/json" --data-binary @/tmp/smoke18a.json >/tmp/smoke18a-out.json
+          cat >/tmp/smoke18b.json <<'JSON'
+          {"model":"AQLEVON-4B-Auth16","messages":[{"role":"user","content":"اكتب دالة Python اسمها add تعيد مجموع عددين. أجب بالكود فقط."}],"temperature":0,"max_tokens":120}
+          JSON
+          curl -fsS --connect-timeout 5 --max-time 90 -X POST "$proxy/v1/chat/completions" -H "Content-Type: application/json" --data-binary @/tmp/smoke18b.json >/tmp/smoke18b-out.json
+          python3 - <<'PY'
+          import json
+          a=json.load(open("/tmp/smoke18a-out.json"))["choices"][0]["message"]["content"]
+          b=json.load(open("/tmp/smoke18b-out.json"))["choices"][0]["message"]["content"]
+          assert a.strip() and b.strip()
+          print("AQLEVON_AUTH19_SMOKE_PASS_A",a[:160])
+          print("AQLEVON_AUTH19_SMOKE_PASS_B",b[:240])
+          PY
+
+          python3 - <<'PY'
+          import datetime,json,time
+          from pathlib import Path
+          pod=Path("/tmp/pod18").read_text().strip(); start=int(Path("/tmp/start18").read_text()); secs=int(Path("/tmp/secs18").read_text())
+          a=json.load(open("/tmp/smoke18a-out.json"))["choices"][0]["message"]["content"]
+          b=json.load(open("/tmp/smoke18b-out.json"))["choices"][0]["message"]["content"]
+          out={
+            "kind":"AQLEVON_AUTH19_RUNTIME_LIVE_V1","authorization_id":"AQLEVON-AUTH19-RUNTIME-20260925",
+            "status":"LIVE_AND_SMOKE_VERIFIED","model":"AQLEVON-4B-Auth16","experimental_candidate":True,
+            "final_worker05_gene_claim":False,"pod_id":pod,
+            "ui_url":f"https://{pod}-8000.proxy.runpod.net/",
+            "chat_completions_url":f"https://{pod}-8000.proxy.runpod.net/v1/chat/completions",
+            "health_url":f"https://{pod}-8000.proxy.runpod.net/health",
+            "adapter_model_sha256":"2d4f0c3528129e702dfa0af27fad467d411f355b9ea72e771942d0f6703e2b2a",
+            "gpu":Path("/tmp/gpu18").read_text(),"rate_per_hour_usd":float(Path("/tmp/price18").read_text()),
+            "runtime_window_seconds":secs,"launched_at_epoch":start,"planned_cleanup_epoch":start+secs,
+            "planned_cleanup_utc":datetime.datetime.fromtimestamp(start+secs,datetime.timezone.utc).isoformat(),
+            "smoke_general":a,"smoke_coding":b
+          }
+          Path(".github/runpod-control/auth19-runtime-live.json").write_text(json.dumps(out,indent=2,sort_keys=True,ensure_ascii=False)+"\n")
+          print("AQLEVON_AUTH19_RUNTIME_LIVE",out["ui_url"])
+          PY
+          git add "$LIVE"
+          git commit -m "runtime: record Auth19 live verified endpoint [skip ci]"
+          git fetch origin ops/one-day-verified-trajectory-20260925
+          git rebase origin/ops/one-day-verified-trajectory-20260925 || { git rebase --abort || true; exit 1; }
+          git push origin HEAD:ops/one-day-verified-trajectory-20260925
+          trap - EXIT
+
+      - name: Keep verified runtime live
+        shell: bash
+        run: |
+          set -euo pipefail
+          end=$(( $(cat /tmp/start18) + $(cat /tmp/secs18) ))
+          now=$(date +%s); remain=$((end-now))
+          if [ "$remain" -gt 0 ]; then sleep "$remain"; fi
+
+      - name: Stop and delete Auth19 runtime
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -f /tmp/pod18 ]; then exit 0; fi
+          pod="$(cat /tmp/pod18)"
+          curl -sS -X POST "https://rest.runpod.io/v1/pods/$pod/stop" -H "Authorization: Bearer $RUNPOD_API_KEY" -H 'Content-Type: application/json' -d '{}' >/tmp/stop18.json || true
+          sleep 2
+          curl -sS -X DELETE "https://rest.runpod.io/v1/pods/$pod" -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/delete18.json || true
+          for i in $(seq 1 30); do
+            code="$(curl -sS -o /tmp/probe18.json -w '%{http_code}' "https://rest.runpod.io/v1/pods/$pod" -H "Authorization: Bearer $RUNPOD_API_KEY" || true)"
+            if [ "$code" = 404 ]; then echo "AQLEVON_AUTH19_RUNTIME_CLEANUP_PASS pod=$pod"; exit 0; fi
+            sleep 2
+          done
+          exit 1
