@@ -1,0 +1,466 @@
+{
+  "kind": "AQLEVON_ONE_DAY_PUBLIC_PASSN_PROBE_RECOVERED_DECISION_V1",
+  "authorization_id": "P4-ONE-DAY-PUBLIC-PASSN-20260925-05",
+  "source_head": "c7b859f0a5459c1a79ea6fa96ca4adafe17599b6",
+  "w02_head": "abb94ef134e2e97036b6959dbc9db4278d3736b6",
+  "model_repo": "Qwen/Qwen3.5-4B-Base",
+  "model_revision": "daa9c16f371249f9ad1c75a9ed6f956c08ea08f5",
+  "training_pack_sha256": "35c7ebe6d5e82f42d7553fa28391f6d82c8800d6eced582d06881c8eb17d9d6b",
+  "artifact_id": 10871647898,
+  "artifact_zip_sha256": "7aa1949505d9e10c8e332f0a5cca288e16f975e93d6bff12b20531316f8454bd",
+  "probe_log_sha256": "047c1a06bb68ba7c8799eff3d569dd6639ed96d16deae1700c279ecb1449875d",
+  "recovery_basis": "all 56 terminal per-task status lines were durably egressed before summarize(records) crashed on repair=None; metrics reconstructed deterministically from those lines; no model rerun",
+  "original_failure": "post-56-task summary bug: item.get('repair', {}) returned None then .get('passed') raised AttributeError",
+  "full_task_execution_observed": true,
+  "summary_all": {
+    "tasks": 56,
+    "pass_at_1_successes": 3,
+    "pass_at_1": 0.05357142857142857,
+    "pass_at_8_successes": 10,
+    "pass_at_8": 0.17857142857142858,
+    "rescued_1_to_8": 7,
+    "gap_1_to_8": 0.125,
+    "repair_successes_after_all_8_failed": 0
+  },
+  "summary_discovery": {
+    "tasks": 28,
+    "pass_at_1_successes": 2,
+    "pass_at_1": 0.07142857142857142,
+    "pass_at_8_successes": 6,
+    "pass_at_8": 0.21428571428571427,
+    "rescued_1_to_8": 4,
+    "gap_1_to_8": 0.14285714285714285,
+    "repair_successes_after_all_8_failed": 0
+  },
+  "summary_shadow": {
+    "tasks": 28,
+    "pass_at_1_successes": 1,
+    "pass_at_1": 0.03571428571428571,
+    "pass_at_8_successes": 4,
+    "pass_at_8": 0.14285714285714285,
+    "rescued_1_to_8": 3,
+    "gap_1_to_8": 0.10714285714285714,
+    "repair_successes_after_all_8_failed": 0
+  },
+  "decision_rule": "full 56 tasks AND discovery gap>=0.10 AND shadow gap>=0.10 AND >=6 tasks rescued pass@1->pass@8",
+  "recovered_decision": "MATERIAL_LATENT_CAPABILITY",
+  "discovery_pass8_task_ids": [
+    "train-delete-01-hardened",
+    "train-rename-00-hardened",
+    "train-rename-01-hardened",
+    "train-slugify-00-hardened",
+    "train-sort_list-00-hardened",
+    "train-sort_list-01-hardened"
+  ],
+  "discovery_rescued_task_ids": [
+    "train-delete-01-hardened",
+    "train-rename-00-hardened",
+    "train-rename-01-hardened",
+    "train-slugify-00-hardened"
+  ],
+  "discovery_pass1_success_task_ids": [
+    "train-sort_list-00-hardened",
+    "train-sort_list-01-hardened"
+  ],
+  "shadow_pass1_successes": 1,
+  "shadow_pass8_successes": 4,
+  "sealed_eval_consumed": false,
+  "worker05_used_for_tuning": false,
+  "capability_gain_claim": false,
+  "training_performed": false,
+  "auth05_compute_cost_estimate_usd": 0.232758,
+  "task_status": [
+    {
+      "task_id": "train-append_unique-00-hardened",
+      "public_split": "discovery",
+      "pass_at_1": false,
+      "pass_at_8": false,
+      "rescued": false
+    },
+    {
+      "task_id": "train-append_unique-01-hardened",
+      "public_split": "discovery",
+      "pass_at_1": false,
+      "pass_at_8": false,
+      "rescued": false
+    },
+    {
+      "task_id": "train-append_unique-02-hardened",
+      "public_split": "shadow",
+      "pass_at_1": false,
+      "pass_at_8": false,
+      "rescued": false
+    },
+    {
+      "task_id": "train-append_unique-03-hardened",
+      "public_split": "shadow",
+      "pass_at_1": false,
+      "pass_at_8": false,
+      "rescued": false
+    },
+    {
+      "task_id": "train-dedupe_list-00-hardened",
+      "public_split": "discovery",
+      "pass_at_1": false,
+      "pass_at_8": false,
+      "rescued": false
+    },
+    {
+      "task_id": "train-dedupe_list-01-hardened",
+      "public_split": "discovery",
+      "pass_at_1": false,
+      "pass_at_8": false,
+      "rescued": false
+    },
+    {
+      "task_id": "train-dedupe_list-02-hardened",
+      "public_split": "shadow",
+      "pass_at_1": false,
+      "pass_at_8": false,
+      "rescued": false
+    },
+    {
+      "task_id": "train-dedupe_list-03-hardened",
+      "public_split": "shadow",
+      "pass_at_1": false,
+      "pass_at_8": false,
+      "rescued": false
+    },
+    {
+      "task_id": "train-delete-00-hardened",
+      "public_split": "discovery",
+      "pass_at_1": false,
+      "pass_at_8": false,
+      "rescued": false
+    },
+    {
+      "task_id": "train-delete-01-hardened",
+      "public_split": "discovery",
+      "pass_at_1": false,
+      "pass_at_8": true,
+      "rescued": true
+    },
+    {
+      "task_id": "train-delete-02-hardened",
+      "public_split": "shadow",
+      "pass_at_1": true,
+      "pass_at_8": true,
+      "rescued": false
+    },
+    {
+      "task_id": "train-delete-03-hardened",
+      "public_split": "shadow",
+      "pass_at_1": false,
+      "pass_at_8": true,
+      "rescued": true
+    },
+    {
+      "task_id": "train-dict_put-00-hardened",
+      "public_split": "discovery",
+      "pass_at_1": false,
+      "pass_at_8": false,
+      "rescued": false
+    },
+    {
+      "task_id": "train-dict_put-01-hardened",
+      "public_split": "discovery",
+      "pass_at_1": false,
+      "pass_at_8": false,
+      "rescued": false
+    },
+    {
+      "task_id": "train-dict_put-02-hardened",
+      "public_split": "shadow",
+      "pass_at_1": false,
+      "pass_at_8": false,
+      "rescued": false
+    },
+    {
+      "task_id": "train-dict_put-03-hardened",
+      "public_split": "shadow",
+      "pass_at_1": false,
+      "pass_at_8": false,
+      "rescued": false
+    },
+    {
+      "task_id": "train-filter_ge-00-hardened",
+      "public_split": "discovery",
+      "pass_at_1": false,
+      "pass_at_8": false,
+      "rescued": false
+    },
+    {
+      "task_id": "train-filter_ge-01-hardened",
+      "public_split": "discovery",
+      "pass_at_1": false,
+      "pass_at_8": false,
+      "rescued": false
+    },
+    {
+      "task_id": "train-filter_ge-02-hardened",
+      "public_split": "shadow",
+      "pass_at_1": false,
+      "pass_at_8": false,
+      "rescued": false
+    },
+    {
+      "task_id": "train-filter_ge-03-hardened",
+      "public_split": "shadow",
+      "pass_at_1": false,
+      "pass_at_8": false,
+      "rescued": false
+    },
+    {
+      "task_id": "train-increment-00-hardened",
+      "public_split": "discovery",
+      "pass_at_1": false,
+      "pass_at_8": false,
+      "rescued": false
+    },
+    {
+      "task_id": "train-increment-01-hardened",
+      "public_split": "discovery",
+      "pass_at_1": false,
+      "pass_at_8": false,
+      "rescued": false
+    },
+    {
+      "task_id": "train-increment-02-hardened",
+      "public_split": "shadow",
+      "pass_at_1": false,
+      "pass_at_8": false,
+      "rescued": false
+    },
+    {
+      "task_id": "train-increment-03-hardened",
+      "public_split": "shadow",
+      "pass_at_1": false,
+      "pass_at_8": false,
+      "rescued": false
+    },
+    {
+      "task_id": "train-map_add-00-hardened",
+      "public_split": "discovery",
+      "pass_at_1": false,
+      "pass_at_8": false,
+      "rescued": false
+    },
+    {
+      "task_id": "train-map_add-01-hardened",
+      "public_split": "discovery",
+      "pass_at_1": false,
+      "pass_at_8": false,
+      "rescued": false
+    },
+    {
+      "task_id": "train-map_add-02-hardened",
+      "public_split": "shadow",
+      "pass_at_1": false,
+      "pass_at_8": false,
+      "rescued": false
+    },
+    {
+      "task_id": "train-map_add-03-hardened",
+      "public_split": "shadow",
+      "pass_at_1": false,
+      "pass_at_8": false,
+      "rescued": false
+    },
+    {
+      "task_id": "train-move_item-00-hardened",
+      "public_split": "discovery",
+      "pass_at_1": false,
+      "pass_at_8": false,
+      "rescued": false
+    },
+    {
+      "task_id": "train-move_item-01-hardened",
+      "public_split": "discovery",
+      "pass_at_1": false,
+      "pass_at_8": false,
+      "rescued": false
+    },
+    {
+      "task_id": "train-move_item-02-hardened",
+      "public_split": "shadow",
+      "pass_at_1": false,
+      "pass_at_8": false,
+      "rescued": false
+    },
+    {
+      "task_id": "train-move_item-03-hardened",
+      "public_split": "shadow",
+      "pass_at_1": false,
+      "pass_at_8": false,
+      "rescued": false
+    },
+    {
+      "task_id": "train-normalize_ws-00-hardened",
+      "public_split": "discovery",
+      "pass_at_1": false,
+      "pass_at_8": false,
+      "rescued": false
+    },
+    {
+      "task_id": "train-normalize_ws-01-hardened",
+      "public_split": "discovery",
+      "pass_at_1": false,
+      "pass_at_8": false,
+      "rescued": false
+    },
+    {
+      "task_id": "train-normalize_ws-02-hardened",
+      "public_split": "shadow",
+      "pass_at_1": false,
+      "pass_at_8": false,
+      "rescued": false
+    },
+    {
+      "task_id": "train-normalize_ws-03-hardened",
+      "public_split": "shadow",
+      "pass_at_1": false,
+      "pass_at_8": false,
+      "rescued": false
+    },
+    {
+      "task_id": "train-rename-00-hardened",
+      "public_split": "discovery",
+      "pass_at_1": false,
+      "pass_at_8": true,
+      "rescued": true
+    },
+    {
+      "task_id": "train-rename-01-hardened",
+      "public_split": "discovery",
+      "pass_at_1": false,
+      "pass_at_8": true,
+      "rescued": true
+    },
+    {
+      "task_id": "train-rename-02-hardened",
+      "public_split": "shadow",
+      "pass_at_1": false,
+      "pass_at_8": false,
+      "rescued": false
+    },
+    {
+      "task_id": "train-rename-03-hardened",
+      "public_split": "shadow",
+      "pass_at_1": false,
+      "pass_at_8": false,
+      "rescued": false
+    },
+    {
+      "task_id": "train-replace_text-00-hardened",
+      "public_split": "discovery",
+      "pass_at_1": false,
+      "pass_at_8": false,
+      "rescued": false
+    },
+    {
+      "task_id": "train-replace_text-01-hardened",
+      "public_split": "discovery",
+      "pass_at_1": false,
+      "pass_at_8": false,
+      "rescued": false
+    },
+    {
+      "task_id": "train-replace_text-02-hardened",
+      "public_split": "shadow",
+      "pass_at_1": false,
+      "pass_at_8": false,
+      "rescued": false
+    },
+    {
+      "task_id": "train-replace_text-03-hardened",
+      "public_split": "shadow",
+      "pass_at_1": false,
+      "pass_at_8": false,
+      "rescued": false
+    },
+    {
+      "task_id": "train-slugify-00-hardened",
+      "public_split": "discovery",
+      "pass_at_1": false,
+      "pass_at_8": true,
+      "rescued": true
+    },
+    {
+      "task_id": "train-slugify-01-hardened",
+      "public_split": "discovery",
+      "pass_at_1": false,
+      "pass_at_8": false,
+      "rescued": false
+    },
+    {
+      "task_id": "train-slugify-02-hardened",
+      "public_split": "shadow",
+      "pass_at_1": false,
+      "pass_at_8": false,
+      "rescued": false
+    },
+    {
+      "task_id": "train-slugify-03-hardened",
+      "public_split": "shadow",
+      "pass_at_1": false,
+      "pass_at_8": false,
+      "rescued": false
+    },
+    {
+      "task_id": "train-sort_list-00-hardened",
+      "public_split": "discovery",
+      "pass_at_1": true,
+      "pass_at_8": true,
+      "rescued": false
+    },
+    {
+      "task_id": "train-sort_list-01-hardened",
+      "public_split": "discovery",
+      "pass_at_1": true,
+      "pass_at_8": true,
+      "rescued": false
+    },
+    {
+      "task_id": "train-sort_list-02-hardened",
+      "public_split": "shadow",
+      "pass_at_1": false,
+      "pass_at_8": true,
+      "rescued": true
+    },
+    {
+      "task_id": "train-sort_list-03-hardened",
+      "public_split": "shadow",
+      "pass_at_1": false,
+      "pass_at_8": true,
+      "rescued": true
+    },
+    {
+      "task_id": "train-toggle_bool-00-hardened",
+      "public_split": "discovery",
+      "pass_at_1": false,
+      "pass_at_8": false,
+      "rescued": false
+    },
+    {
+      "task_id": "train-toggle_bool-01-hardened",
+      "public_split": "discovery",
+      "pass_at_1": false,
+      "pass_at_8": false,
+      "rescued": false
+    },
+    {
+      "task_id": "train-toggle_bool-02-hardened",
+      "public_split": "shadow",
+      "pass_at_1": false,
+      "pass_at_8": false,
+      "rescued": false
+    },
+    {
+      "task_id": "train-toggle_bool-03-hardened",
+      "public_split": "shadow",
+      "pass_at_1": false,
+      "pass_at_8": false,
+      "rescued": false
+    }
+  ]
+}
