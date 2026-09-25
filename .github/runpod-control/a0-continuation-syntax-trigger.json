@@ -1,5 +1,6 @@
 {
   "authorization_id": "P4-A0-SFT-SAME-POD-RECOVERY-20260925-02",
   "free_only": true,
-  "at": "2026-09-25T11:56:08.849Z"
+  "at": "2026-09-25T11:56:53.492Z",
+  "reason": "nine actual embedded Python blocks all parsed"
 }
