@@ -32,6 +32,7 @@ p=p.replace(
     ': # auth05: no post-create rebase\n'
 )
 p=p.replace('REMOTE_SCRIPT=".github/runpod-control/remote-one-day-public-probe-02.sh"', 'REMOTE_SCRIPT=".github/runpod-control/remote-one-day-public-probe-v2.sh"', 1)
+p=p.replace('assert float(a["prior_mission_spend_usd"])+float(a["max_total_cost_usd"]) < float(a["mission_max_total_usd"])', 'assert float(a["fresh_authorization_spend_before_auth05_usd"])+float(a["max_total_cost_usd"]) <= float(a["owner_fresh_mission_authorization_usd"])', 1)
 p=p.replace('for i in $(seq 1 60); do', 'for i in $(seq 1 180); do', 1)
 p=p.replace('[ "$elapsed" -lt 300 ] || break', '[ "$elapsed" -lt 900 ] || break', 1)
 p=p.replace('rm -f /workspace/one_day_probe.rc; nohup setsid bash /tmp/run-one-day-probe.sh >/workspace/one_day_probe-supervisor.log 2>&1 < /dev/null &', 'mkdir -p /workspace; rm -f /workspace/one_day_probe.rc; nohup setsid bash /tmp/run-one-day-probe.sh >/workspace/one_day_probe-supervisor.log 2>&1 < /dev/null &', 1)
@@ -56,6 +57,7 @@ assert '-lt 900' in p
 assert 'min(1800,int(1.00*3600/rate))' in p
 assert 'consumed_rebase_failed' not in p
 assert 'remote-one-day-public-probe-v2.sh' in p
+assert 'prior_mission_spend_usd' not in p
 assert 'mkdir -p /workspace; rm -f /workspace/one_day_probe.rc' in p
 Path("/tmp/run-one-day-public-probe-05.sh").write_text(p)
 print("AQLEVON_AUTH05_DRIVER_GENERATED")
