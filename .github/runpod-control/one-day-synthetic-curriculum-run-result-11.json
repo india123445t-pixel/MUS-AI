@@ -1,0 +1,19 @@
+{
+  "artifact_parse_error": "KeyError(\"filename 'auth11/candidate/training_run_receipt.json' not found\")",
+  "authorization_id": "P4-ONE-DAY-SYNTHETIC-CURRICULUM-20260925-11",
+  "authorization_sha256": "8cea75f33b3bf9fbceeaf00b97b9a098704e61b1343bb39ab91a4a33802ee7af",
+  "billed_seconds_estimate": 318,
+  "capability_gain_claim": false,
+  "checked_at_utc": "2026-09-25T17:40:06.618656+00:00",
+  "compute_cost_estimate_usd": 0.14045,
+  "evidence_archive_present": true,
+  "kind": "AQLEVON_ONE_DAY_SYNTHETIC_CURRICULUM_RUN_RECEIPT_V1",
+  "pod_id": "oi79xmxp7oxgma",
+  "pod_stopped_and_deleted": true,
+  "rate_per_hour_usd": "1.59",
+  "sealed_eval_consumed": false,
+  "source_head": "3c5a38197a10a7aaa797f9735c0c7764f40e0dd7",
+  "training_log_sha256": "ad185143b7dc12cb8eba7f7c2171fed40eb4747c5916d5acdfae0963dec5bc04",
+  "true_exit_code": 1,
+  "worker05_used_for_tuning": false
+}
