@@ -1,10 +1,13 @@
 {
   "kind": "AQLEVON_AUTH13_SYNTHETIC_ZERO_COST_SEAL_TRIGGER_V1",
-  "requested_at_utc": "2026-09-25T18:20:00Z",
+  "requested_at_utc": "2026-09-25T18:22:00Z",
   "authorization_id": "P4-ONE-DAY-SYNTHETIC-CURRICULUM-20260925-13",
   "authorization_sha256": "ee0f1a81372148ef38e44da0e5ab819b114793a235c6f24c22e4d002ca1deae5",
   "expected_source_head": "22b95b0fdfaf97c3ba3314a94c2413d45439cc6e",
   "candidate_source_blob": "cb86e6494fada78328310dfe5900e75205862ee0",
   "required_datacenter": "US-MD-1",
-  "paid_resource_creation_forbidden": true
+  "paid_resource_creation_forbidden": true,
+  "no_spend_retry_sequence": 2,
+  "previous_attempt_run_id": 36172842475,
+  "previous_attempt_outcome": "NO_SPEND_FREE_SEAL_AUTH_FILE_IDENTITY_MISMATCH"
 }
