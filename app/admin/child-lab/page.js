@@ -513,9 +513,9 @@ export default function ChildLabPage(){
         </div>
         <label style={{...S.label,marginTop:14}}>وضع الاستقلالية
           <select style={S.input} value={permissions.autonomy} onChange={e=>setAutonomy(e.target.value)}>
-            <option value="observe_only">يشاهد ويقترح فقط</option>
-            <option value="ask_each_action">يطلب الإذن قبل كل فعل</option>
-            <option value="run_within_grants">ينفذ تلقائيًا داخل الصلاحيات المفعلة</option>
+            <option value="observe_only">سياسة Adapter: اقتراح فقط</option>
+            <option value="ask_each_action">سياسة Adapter: يتطلب أمرًا لكل فعل</option>
+            <option value="run_within_grants">سياسة Adapter: يسمح بالتتابع داخل الصلاحيات</option>
           </select>
         </label>
         <div style={S.list}>
@@ -524,7 +524,7 @@ export default function ChildLabPage(){
             <button style={permissions.grants?.[p.id]?S.good:S.small} onClick={()=>togglePermission(p.id)}>{permissions.grants?.[p.id]?'مسموح':'موقوف'}</button>
           </div>)}
         </div>
-        <p style={{...S.muted,marginTop:14}}>هذه اللوحة تتحكم في صلاحيات أدوات Child Lab. حدود الأمان الأساسية للمنصة تبقى مستقلة عن هذه الأزرار.</p>
+        <p style={{...S.muted,marginTop:14}}>هذه اللوحة تتحكم في صلاحيات أدوات Child Lab. وضع الاستقلالية يُرسل كسياسة إلى Adapter؛ لا توجد حاليًا حلقة Agent ذاتية مخفية تدّعي التنفيذ بدون Adapter وReceipt. حدود الأمان الأساسية للمنصة تبقى مستقلة عن هذه الأزرار.</p>
         <h3>سجل تغييرات الصلاحيات</h3>
         <div style={S.list}>{permissionLog.slice(0,12).map(x=><div key={x.id} style={S.item}><div><b>{x.action}</b><small style={{display:'block',opacity:.7}}>{x.detail}</small></div><small>{new Date(x.created_at).toLocaleString('ar-MA')}</small></div>)}</div>
       </section>
@@ -533,13 +533,13 @@ export default function ChildLabPage(){
 }
 
 const S={
-  shell:{minHeight:'100vh',background:'#090b10',color:'#f5f7fb',padding:'28px',fontFamily:'system-ui'},
-  center:{minHeight:'100vh',display:'grid',placeItems:'center',background:'#090b10',color:'#fff'},
-  login:{width:360,display:'grid',gap:12,padding:24,border:'1px solid #2a2f3a',borderRadius:16,background:'#11141b'},
-  header:{display:'flex',justifyContent:'space-between',alignItems:'center',gap:20,maxWidth:1500,margin:'0 auto 20px'},
-  kicker:{fontSize:12,letterSpacing:1.2,opacity:.65},muted:{opacity:.72,lineHeight:1.7},row:{display:'flex',gap:10,alignItems:'center'},
+  shell:{minHeight:'100vh',background:'#090b10',color:'#f5f7fb',padding:'clamp(12px,3vw,28px)',fontFamily:'system-ui',overflowX:'hidden'},
+  center:{minHeight:'100vh',display:'grid',placeItems:'center',background:'#090b10',color:'#fff',padding:16},
+  login:{width:'min(360px,calc(100vw - 32px))',display:'grid',gap:12,padding:24,border:'1px solid #2a2f3a',borderRadius:16,background:'#11141b',boxSizing:'border-box'},
+  header:{display:'flex',justifyContent:'space-between',alignItems:'center',gap:20,maxWidth:1500,margin:'0 auto 20px',flexWrap:'wrap'},
+  kicker:{fontSize:12,letterSpacing:1.2,opacity:.65},muted:{opacity:.72,lineHeight:1.7},row:{display:'flex',gap:10,alignItems:'center',flexWrap:'wrap'},
   guard:{maxWidth:1500,margin:'0 auto 18px',padding:'14px 16px',border:'1px solid #315b4d',background:'#0d1916',borderRadius:14,display:'flex',gap:14,flexWrap:'wrap'},
-  grid:{maxWidth:1500,margin:'0 auto',display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(340px,1fr))',gap:16},
+  grid:{maxWidth:1500,margin:'0 auto',display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(min(100%,340px),1fr))',gap:16},
   card:{border:'1px solid #242a34',background:'#10131a',borderRadius:16,padding:18,minHeight:220},
   input:{background:'#0a0d12',border:'1px solid #343b48',color:'#fff',borderRadius:10,padding:'11px 12px',width:'100%',boxSizing:'border-box'},
   textarea:{background:'#0a0d12',border:'1px solid #343b48',color:'#fff',borderRadius:10,padding:12,width:'100%',boxSizing:'border-box',resize:'vertical'},
