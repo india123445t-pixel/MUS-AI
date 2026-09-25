@@ -16,7 +16,7 @@ concurrency:
 jobs:
   execute:
     runs-on: ubuntu-24.04
-    timeout-minutes: 140
+    timeout-minutes: 165
     env:
       RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
       GPU_TYPE: NVIDIA A100-SXM4-80GB
