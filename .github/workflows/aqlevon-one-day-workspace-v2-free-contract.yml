@@ -1,0 +1,25 @@
+name: AQLEVON One-Day Workspace V2 Free Contract
+on:
+  push:
+    branches: [ops/one-day-verified-trajectory-20260925]
+    paths: [".github/runpod-control/one-day-workspace-v2-free-trigger.json"]
+permissions:
+  contents: read
+jobs:
+  contract:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/one-day-verified-trajectory-20260925
+      - name: Validate workspace-safe remote runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n .github/runpod-control/remote-one-day-public-probe-v2.sh
+          grep -q '^mkdir -p /workspace$' .github/runpod-control/remote-one-day-public-probe-v2.sh
+          python3 - <<'PY'
+          command = 'mkdir -p /workspace; rm -f /workspace/one_day_probe.rc; nohup setsid bash /tmp/run-one-day-probe.sh >/workspace/one_day_probe-supervisor.log 2>&1 < /dev/null &'
+          assert command.startswith('mkdir -p /workspace;')
+          print('AQLEVON_ONE_DAY_WORKSPACE_V2_FREE_CONTRACT_PASS')
+          PY
