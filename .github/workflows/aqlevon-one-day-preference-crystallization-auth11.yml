@@ -49,6 +49,8 @@ jobs:
           s=s.replace(old,new)
           s=s.replace("AQLEVON_RSFT_PUBLIC_PREFLIGHT_PASS train_verified=28 shadow=28 epochs=3 minimum_updates=84 probe_decision=MATERIAL_LATENT_CAPABILITY",
                       "AQLEVON_PREF_PUBLIC_PREFLIGHT_PASS discovery=28 shadow=28 families=14 epochs=3 updates=84 mining_n=8 probe_decision=MATERIAL_LATENT_CAPABILITY")
+          s=s.replace("grep -q 'train_verified=28 shadow=28 probe_decision=MATERIAL_LATENT_CAPABILITY' /tmp/preflight08.log",
+                      "grep -q 'AQLEVON_PREF_PUBLIC_PREFLIGHT_PASS discovery=28 shadow=28 families=14 epochs=3 updates=84 mining_n=8 probe_decision=MATERIAL_LATENT_CAPABILITY' /tmp/preflight08.log")
           s=s.replace('fresh_authorization_spend_before_auth11_usd','estimated_fresh_mission_spend_before_auth11_usd')
           s=s.replace('--volume-in-gb 40 --volume-mount-path /workspace ','')
           s=s.replace('[ "$elapsed" -lt 600 ] || break','[ "$elapsed" -lt 480 ] || break')
