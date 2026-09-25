@@ -1,0 +1,38 @@
+name: AQLEVON Auth06 Live Pod Readonly Check
+on:
+  push:
+    branches: [ops/auth06-crystallization-frozen-20260925]
+    paths: [".github/runpod-control/auth06-live-readonly-trigger.json"]
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      POD_ID: 92wrskgt3eg4az
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/auth06-crystallization-frozen-20260925
+      - name: Read exact Auth06 Pod only
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl -sS -o /tmp/pod.json -w '%{http_code}' "https://rest.runpod.io/v1/pods/$POD_ID" -H "Authorization: Bearer $RUNPOD_API_KEY")"
+          echo "HTTP=$code"
+          if [ "$code" = 200 ]; then
+            python3 - <<'PY'
+          import json
+          p=json.load(open('/tmp/pod.json'))
+          print('AQLEVON_AUTH06_LIVE_POD',json.dumps({
+            'id':p.get('id'),'name':p.get('name'),'desiredStatus':p.get('desiredStatus'),
+            'costPerHr':p.get('costPerHr'),'gpu':p.get('gpu'),'machine':p.get('machine'),
+            'publicIp_present':bool(p.get('publicIp')),'port22_present':bool((p.get('portMappings') or {}).get('22'))
+          },sort_keys=True))
+          PY
+          elif [ "$code" = 404 ]; then
+            echo AQLEVON_AUTH06_LIVE_POD_NOT_FOUND
+          else
+            exit 1
+          fi
