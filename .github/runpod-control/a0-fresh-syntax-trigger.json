@@ -2,5 +2,6 @@
   "authorization_id": "P4-A0-SFT-FRESH-A100-20260925-03",
   "source_head": "36e57c059729165b47eae2a0130589cccefc97d6",
   "free_only": true,
-  "at": "2026-09-25T12:01:26.378Z"
+  "at": "2026-09-25T12:03:23.114Z",
+  "reason": "verify both exact fresh trigger references before billing"
 }
