@@ -65,7 +65,7 @@ export async function GET(req){
   const providers={
     self_hosted:!!process.env.AQLEVON_MODEL_URL
   };
-  return NextResponse.json({database_configured:!!client,sovereign_runtime:true,inference_target:'aqlevon-engine',external_provider_routing:false,self_hosted_configured:providers.self_hosted,providers,settings},{headers:{'Cache-Control':'no-store'}});
+  return NextResponse.json({database_configured:!!client,sovereign_runtime:true,inference_target:'aqlevon-engine',external_provider_routing:false,self_hosted_configured:providers.self_hosted,runpod_key_configured:!!process.env.RUNPOD_API_KEY,providers,settings},{headers:{'Cache-Control':'no-store'}});
 }
 
 export async function POST(req){
