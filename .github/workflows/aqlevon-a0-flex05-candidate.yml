@@ -1,8 +1,8 @@
-name: AQLEVON A0 Dynamic GPU Corrected Hardware Candidate
+name: AQLEVON A0 Evidence First Candidate
 on:
   push:
     branches: [ops/runpod-control-v1]
-    paths: [".github/runpod-control/execute-a0-flex05-trigger.json"]
+    paths: [".github/runpod-control/execute-a0-flex06-trigger.json"]
 permissions:
   contents: write
 concurrency:
@@ -14,8 +14,8 @@ jobs:
     timeout-minutes: 100
     env:
       RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
-      AUTH_SHA: 29e960888dd3993f0bbc4873e68c0e394009d3669438834b05579a155f06e058
-      AUTH_ID: P4-A0-SFT-FLEX-GPU-20260925-05
+      AUTH_SHA: 3ca7997edf8a1bee3db50912fc6631be0db7644642c2963f882553b9fc996689
+      AUTH_ID: P4-A0-SFT-FLEX-GPU-20260925-06
       EXPECTED_HEAD: 11f40e8cc7575d9094bae508a6a4d5cb84c306a4
       IMAGE_DIGEST: sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec
     steps:
@@ -27,12 +27,12 @@ jobs:
         run: |
           set -euo pipefail
           test -n "$RUNPOD_API_KEY"
-          test ! -e .github/runpod-control/a0-flex05-consumed.json
+          test ! -e .github/runpod-control/a0-flex06-consumed.json
           python3 - <<'PY'
           import json,hashlib,os
           from pathlib import Path
-          a=json.loads(Path('.github/runpod-control/a0-flex05-manager-authorization-20260925.json').read_text())
-          t=json.loads(Path('.github/runpod-control/execute-a0-flex05-trigger.json').read_text())
+          a=json.loads(Path('.github/runpod-control/a0-flex06-manager-authorization-20260925.json').read_text())
+          t=json.loads(Path('.github/runpod-control/execute-a0-flex06-trigger.json').read_text())
           def sha(v):return hashlib.sha256(json.dumps(v,sort_keys=True,separators=(',',':'),ensure_ascii=False,allow_nan=False).encode()).hexdigest()
           assert a['authorization_sha256']==sha({k:v for k,v in a.items() if k!='authorization_sha256'})==os.environ['AUTH_SHA']
           assert a['authorization_id']==t['authorization_id']==os.environ['AUTH_ID']
@@ -140,7 +140,7 @@ jobs:
           print(json.dumps({'PUBLIC_KEY':os.environ['PUBKEY'],'AQLEVON_EXPECTED_A0_HEAD':os.environ['EXPECTED_HEAD'],'AQLEVON_EXPECTED_IMAGE_DIGEST':os.environ['IMAGE_DIGEST']},separators=(',',':')))
           PY
           )"
-          runpodctl pod create --name AQLEVON-P4-A0-SFT-FLEX05-20260925 --image "ghcr.io/india123445t-pixel/mus-ai@$IMAGE_DIGEST" --gpu-id "$(cat /tmp/selected_gpu_type)" --gpu-count 1 --cloud-type SECURE --data-center-ids "$(cat /tmp/selected_dc)" --container-disk-in-gb 40 --volume-in-gb 40 --volume-mount-path /workspace --ports 22/tcp --env "$env_json" --output json > /tmp/create.json
+          runpodctl pod create --name AQLEVON-P4-A0-SFT-FLEX06-20260925 --image "ghcr.io/india123445t-pixel/mus-ai@$IMAGE_DIGEST" --gpu-id "$(cat /tmp/selected_gpu_type)" --gpu-count 1 --cloud-type SECURE --data-center-ids "$(cat /tmp/selected_dc)" --container-disk-in-gb 40 --volume-in-gb 40 --volume-mount-path /workspace --ports 22/tcp --env "$env_json" --output json > /tmp/create.json
           python3 - <<'PY'
           import json,time
           p=json.load(open('/tmp/create.json'));pod=p.get('id') or p.get('podId')
@@ -153,11 +153,11 @@ jobs:
           import json,datetime,os
           from pathlib import Path
           out={'authorization_id':os.environ['AUTH_ID'],'authorization_sha256':os.environ['AUTH_SHA'],'source_head':os.environ['EXPECTED_HEAD'],'image_digest':os.environ['IMAGE_DIGEST'],'pod_id':Path('/tmp/pod_id').read_text().strip(),'created_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'single_use_consumed':True}
-          Path('.github/runpod-control/a0-flex05-consumed.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
+          Path('.github/runpod-control/a0-flex06-consumed.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
           PY
           git config user.name aqlevon-runpod-bot
           git config user.email actions@users.noreply.github.com
-          git add .github/runpod-control/a0-flex05-consumed.json
+          git add .github/runpod-control/a0-flex06-consumed.json
           git commit -m "ops: consume A0 SFT single-use authorization [skip ci]"
           git pull --rebase origin ops/runpod-control-v1
           git push origin HEAD:ops/runpod-control-v1
@@ -248,17 +248,46 @@ jobs:
           done
           [[ "$rc" =~ ^[0-9]+$ ]] || rc=255
           [ "$done_remote" = 1 ] || { echo FAIL_CLOSED_A0_REMOTE_NOT_FINISHED; rc=124; }
-          ssh -i /tmp/a0_key -p "$port" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@"$host" 'cd /workspace && tar -czf /tmp/aqlevon-a0-evidence.tgz aqlevon_a0 aqlevon_a0.log aqlevon_a0-supervisor.log aqlevon_a0-previous-supervisor.log aqlevon_a0.rc 2>/dev/null' || true
-          sizes="$(ssh -i /tmp/a0_key -p "$port" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@"$host" 'stat -c %s /workspace/aqlevon_a0.log /tmp/aqlevon-a0-evidence.tgz' 2>/dev/null || true)"
-          readarray -t parts <<< "$sizes"
-          cap=5368709120
-          if [ "${#parts[@]}" -eq 2 ] && [[ "${parts[0]}" =~ ^[0-9]+$ ]] && [[ "${parts[1]}" =~ ^[0-9]+$ ]] && [ $((parts[0]+parts[1])) -le "$cap" ]; then
-             ssh -i /tmp/a0_key -p "$port" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@"$host" 'cat /workspace/aqlevon_a0.log' > /tmp/a0.log
-             scp -q -i /tmp/a0_key -P "$port" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@"$host":/tmp/aqlevon-a0-evidence.tgz /tmp/aqlevon-a0-evidence.tgz
-             echo "AQLEVON_A0_EGRESS_PASS bytes=$((parts[0]+parts[1])) cap=$cap" >/tmp/a0-egress.log
+          remote_rc="$rc"
+          printf '%s\n' "$remote_rc" >/tmp/a0_remote_rc
+          log_ok=0
+          for attempt in 1 2 3; do
+            if ssh -i /tmp/a0_key -p "$port" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10 root@"$host" 'cat /workspace/aqlevon_a0.log' > /tmp/a0.log.tmp 2>/tmp/a0-log-copy.err; then
+              mv /tmp/a0.log.tmp /tmp/a0.log
+              log_ok=1
+              break
+            fi
+            sleep 2
+          done
+          rc="$remote_rc"
+          if [ "$log_ok" -ne 1 ] || [ ! -s /tmp/a0.log ]; then
+            echo "FAIL_CLOSED_A0_RAW_LOG_EGRESS" >/tmp/a0-egress.log
+            [ "$remote_rc" -ne 0 ] || rc=95
           else
-             echo "FAIL_CLOSED_A0_EGRESS_PROBE sizes=$sizes" >/tmp/a0-egress.log
-             rc=96
+            log_bytes="$(stat -c %s /tmp/a0.log)"
+            echo "AQLEVON_A0_RAW_LOG_EGRESS_PASS bytes=$log_bytes" >/tmp/a0-egress.log
+            archive_ok=0
+            for attempt in 1 2 3; do
+              if ssh -i /tmp/a0_key -p "$port" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10 root@"$host" 'cd /workspace && tar -czf /workspace/aqlevon-a0-evidence.tgz aqlevon_a0 aqlevon_a0.log aqlevon_a0-supervisor.log aqlevon_a0-previous-supervisor.log aqlevon_a0.rc'; then
+                archive_ok=1
+                break
+              fi
+              sleep 2
+            done
+            if [ "$archive_ok" -eq 1 ]; then
+              archive_bytes="$(ssh -i /tmp/a0_key -p "$port" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@"$host" 'stat -c %s /workspace/aqlevon-a0-evidence.tgz' 2>/dev/null || true)"
+              cap=5368709120
+              if [[ "$archive_bytes" =~ ^[0-9]+$ ]] && [ $((log_bytes+archive_bytes)) -le "$cap" ]; then
+                scp -q -i /tmp/a0_key -P "$port" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@"$host":/workspace/aqlevon-a0-evidence.tgz /tmp/aqlevon-a0-evidence.tgz
+                echo "AQLEVON_A0_EGRESS_PASS bytes=$((log_bytes+archive_bytes)) cap=$cap" >>/tmp/a0-egress.log
+              else
+                echo "FAIL_CLOSED_A0_ARCHIVE_SIZE bytes=$archive_bytes cap=$cap" >>/tmp/a0-egress.log
+                [ "$remote_rc" -ne 0 ] || rc=96
+              fi
+            else
+              echo "FAIL_CLOSED_A0_ARCHIVE_CREATE" >>/tmp/a0-egress.log
+              [ "$remote_rc" -ne 0 ] || rc=96
+            fi
           fi
           printf '%s\n' "$rc" >/tmp/a0_train_rc
           # The archive contains candidate bytes; actual training rc alone is insufficient.
@@ -360,13 +389,13 @@ jobs:
           elapsed=int(datetime.datetime.now(datetime.timezone.utc).timestamp())-int(start) if start else None
           rate=get('/tmp/live_rate')
           rc=get('/tmp/a0_train_rc')
-          out={'authorization_id':os.environ['AUTH_ID'],'pod_id':get('/tmp/pod_id'),'expected_head':os.environ['EXPECTED_HEAD'],'image_digest':os.environ['IMAGE_DIGEST'],'checked_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'true_exit_code':int(rc) if rc and rc.isdigit() else None,'pod_status':json.loads(Path('/tmp/stop-probe.json').read_text()).get('desiredStatus') if Path('/tmp/stop-probe.json').exists() else None,'gpu_type':get('/tmp/selected_gpu_type'),'rate_per_hour_usd':rate,'billed_seconds_estimate':elapsed,'compute_cost_estimate_usd':round(float(rate)*elapsed/3600,6) if rate and elapsed is not None else None,'candidate_package_marker':('AQLEVON_A0_CANDIDATE_PACKAGE_PASS' in log),'optimizer_update_markers':len(re.findall(r'AQLEVON_A0_OPTIMIZER_UPDATE=\d+/12',log)),'evidence_archive_present':Path('/tmp/aqlevon-a0-evidence.tgz').exists(),'egress_log':get('/tmp/a0-egress.log'),'max_authorized_total_usd':'2.30','max_authorized_billed_seconds':4800,'log_sha256':hashlib.sha256(log.encode()).hexdigest() if log else None}
-          Path('.github/runpod-control/a0-flex05-result.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
+          out={'authorization_id':os.environ['AUTH_ID'],'pod_id':get('/tmp/pod_id'),'expected_head':os.environ['EXPECTED_HEAD'],'image_digest':os.environ['IMAGE_DIGEST'],'checked_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'true_exit_code':int(rc) if rc and rc.isdigit() else None,'pod_status':json.loads(Path('/tmp/stop-probe.json').read_text()).get('desiredStatus') if Path('/tmp/stop-probe.json').exists() else None,'gpu_type':get('/tmp/selected_gpu_type'),'rate_per_hour_usd':rate,'billed_seconds_estimate':elapsed,'compute_cost_estimate_usd':round(float(rate)*elapsed/3600,6) if rate and elapsed is not None else None,'candidate_package_marker':('AQLEVON_A0_CANDIDATE_PACKAGE_PASS' in log),'optimizer_update_markers':len(re.findall(r'AQLEVON_A0_OPTIMIZER_UPDATE=\d+/12',log)),'evidence_archive_present':Path('/tmp/aqlevon-a0-evidence.tgz').exists(),'egress_log':get('/tmp/a0-egress.log'),'max_authorized_total_usd':'2.30','max_authorized_billed_seconds':4800,'remote_training_exit_code':int(get('/tmp/a0_remote_rc')) if get('/tmp/a0_remote_rc') and get('/tmp/a0_remote_rc').isdigit() else None,'raw_log_recovered':Path('/tmp/a0.log').is_file() and Path('/tmp/a0.log').stat().st_size>0,'log_sha256':hashlib.sha256(log.encode()).hexdigest() if log else None}
+          Path('.github/runpod-control/a0-flex06-result.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
           print('AQLEVON_A0_FRESH_RESULT',json.dumps(out,sort_keys=True))
           PY
           git config user.name aqlevon-runpod-bot
           git config user.email actions@users.noreply.github.com
-          git add .github/runpod-control/a0-flex05-result.json
+          git add .github/runpod-control/a0-flex06-result.json
           git commit -m "ops: record fresh A0 candidate attempt [skip ci]"
           git pull --rebase origin ops/runpod-control-v1
           git push origin HEAD:ops/runpod-control-v1
@@ -374,12 +403,14 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: aqlevon-a0-flex05-candidate-evidence
+          name: aqlevon-a0-flex06-candidate-evidence
           path: |
             /tmp/a0.log
             /tmp/a0-previous-supervisor.log
             /tmp/aqlevon-a0-evidence.tgz
             /tmp/a0_train_rc
+            /tmp/a0_remote_rc
+            /tmp/a0-log-copy.err
             /tmp/a0-egress.log
             /tmp/create.json
             /tmp/pod.json
