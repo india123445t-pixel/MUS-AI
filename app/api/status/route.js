@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { randomUUID } from 'crypto';
 
-const SUPABASE_URL=process.env.NEXT_PUBLIC_SUPABASE_URL||'';
-const SUPABASE_KEY=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||'';
+const SUPABASE_URL=process.env.NEXT_PUBLIC_SUPABASE_URL||'https://yaqjhcfitxhtzpaswuif.supabase.co';
+const SUPABASE_KEY=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||'sb_publishable_1uRtACKcyT2ZQH9ixdKQ-Q_ARbY6xET';
 
 function sb(){if(!SUPABASE_URL||!SUPABASE_KEY)return null;return createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:false}})}
 const defaultSettings={runtime_mode:'self_hosted_only',web_search_default:false,temperature:0.6,max_history:16,save_training_candidates:true,allow_paid_external:false,daily_budget_usd:0,public_chat_enabled:true,public_training_enabled:true,public_web_search_enabled:false,public_rate_limit_per_hour:30,public_daily_limit:120,install_enabled:true};
