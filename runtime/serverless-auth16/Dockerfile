@@ -15,8 +15,6 @@ RUN python3 -m pip install --no-cache-dir \
     transformers==5.17.0 \
     peft==0.21.0 \
     accelerate==1.15.0 \
-    huggingface_hub==1.5.0 \
-    safetensors==0.6.2 \
     runpod==1.12.0
 
 RUN mkdir -p /models/qwen35-4b /models/auth16 /app && \
