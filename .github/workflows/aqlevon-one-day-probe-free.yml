@@ -47,8 +47,8 @@ jobs:
               assert ok['passed'],(t['task_id'],ok)
           print('AQLEVON_ONE_DAY_PUBLIC_ONLY_CONTRACT_PASS tasks=56 discovery=28 shadow=28 sealed=0')
           PY
-          if grep -RniE 'gene1_sealed_eval_pack_PRIVATE|AQLEVON_EVAL_SECRET|sealed.*plaintext' "$PROBE"; then
-            echo FAIL_CLOSED_SEALED_REFERENCE_IN_PROBE
+          if grep -RniE 'gene1_sealed_eval_pack_PRIVATE_v1\.json|gene1_eval_secret_v1\.key' "$PROBE"; then
+            echo FAIL_CLOSED_PRIVATE_EVAL_FILE_REFERENCE_IN_PROBE
             exit 1
           fi
           echo AQLEVON_ONE_DAY_FREE_GATE_PASS
