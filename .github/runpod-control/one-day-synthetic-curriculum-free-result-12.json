@@ -1,0 +1,15 @@
+{
+  "active_aqlevon_pods": [],
+  "authorization_id": "P4-ONE-DAY-SYNTHETIC-CURRICULUM-20260925-12",
+  "authorization_sha256": "19a58511a11250d95a59b5c65af195b14f759c39640cf22372b3f78b10e41f95",
+  "candidate_source_blob": "cb86e6494fada78328310dfe5900e75205862ee0",
+  "checked_at_utc": "2026-09-25T17:46:49.240841+00:00",
+  "dynamic_max_billed_seconds": 1450,
+  "kind": "AQLEVON_ONE_DAY_SYNTHETIC_AUTH12_FREE_SEAL_V1",
+  "paid_resource_created": false,
+  "selected_datacenter": "US-MD-1",
+  "selected_gpu_id": "NVIDIA A100-SXM4-80GB",
+  "selected_price_hr": 1.59,
+  "source_head": "22b95b0fdfaf97c3ba3314a94c2413d45439cc6e",
+  "stock_status": "Low"
+}
