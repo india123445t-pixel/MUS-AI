@@ -1,0 +1,40 @@
+name: AQLEVON Auth06 Driver V2 Free Contract
+on:
+  push:
+    branches: [ops/one-day-verified-trajectory-20260925]
+    paths: [".github/runpod-control/auth06-driver-v2-free-trigger.json"]
+permissions:
+  contents: read
+jobs:
+  contract:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/one-day-verified-trajectory-20260925
+          fetch-depth: 0
+      - name: Validate archived-source driver V2 without spend
+        shell: bash
+        run: |
+          set -euo pipefail
+          DRIVER=.github/runpod-control/run-one-day-crystallization-06-v2.sh
+          REMOTE=.github/runpod-control/auth06-crystallization-remote-v2.sh
+          SOURCE_HEAD=f3a2ca4c894e81cf9dffa1dd9935a3774b854cdb
+          bash -n "$DRIVER"
+          bash -n "$REMOTE"
+          grep -q '.aqlevon_source_head' "$DRIVER"
+          grep -q '.aqlevon_source_head' "$REMOTE"
+          ! grep -q 'git -C /workspace/MUS-AI rev-parse HEAD' "$REMOTE"
+          git fetch -q origin "$SOURCE_HEAD"
+          rm -rf /tmp/contract-src /tmp/contract-unpack
+          mkdir -p /tmp/contract-src /tmp/contract-unpack
+          git archive "$SOURCE_HEAD" | tar -x -C /tmp/contract-src
+          printf '%s\n' "$SOURCE_HEAD" >/tmp/contract-src/.aqlevon_source_head
+          test ! -e /tmp/contract-src/.git
+          tar -czf /tmp/contract-src.tgz -C /tmp/contract-src .
+          tar -xzf /tmp/contract-src.tgz -C /tmp/contract-unpack
+          test "$(cat /tmp/contract-unpack/.aqlevon_source_head)" = "$SOURCE_HEAD"
+          python3 -m py_compile /tmp/contract-unpack/research/weight_factory/agent03/p4_one_day_crystallize.py
+          python3 -m py_compile /tmp/contract-unpack/research/weight_factory/agent03/p4_one_day_recovered_materializer.py
+          test ! -e .github/runpod-control/one-day-crystallization-consumed-06.json
+          echo AQLEVON_AUTH06_DRIVER_V2_FREE_CONTRACT_PASS
