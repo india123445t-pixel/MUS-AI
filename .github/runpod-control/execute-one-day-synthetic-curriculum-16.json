@@ -1,0 +1,16 @@
+{
+  "authorization_id": "P4-ONE-DAY-SYNTHETIC-CURRICULUM-20260925-16",
+  "authorization_sha256": "2fe1047c9660f1fb8fc4cd9115b93764e81dbec36ccc13935286a5d176758cb9",
+  "expected_source_head": "22b95b0fdfaf97c3ba3314a94c2413d45439cc6e",
+  "candidate_source_blob": "cb86e6494fada78328310dfe5900e75205862ee0",
+  "bootstrap_commit": "0ccf145cd1a9ce7c52387c63f671a0d17d0b4fb6",
+  "experiment_kind": "PUBLIC_SYNTHETIC_CURRICULUM_QKVO_LORA_HTTP_BOOTSTRAP",
+  "transport": "HTTP_PROXY_BOOTSTRAP",
+  "training_authorized": true,
+  "owner_single_use_cap_usd": "0.70",
+  "retry_sequence": 16,
+  "previous_paid_authorization_id": "P4-ONE-DAY-SYNTHETIC-CURRICULUM-20260925-15",
+  "previous_paid_outcome": "PROVISIONING_READINESS_TIMEOUT_NO_SCIENTIFIC_RUN",
+  "authorization_consumed": false,
+  "requested_at_utc": "2026-09-25T18:54:00Z"
+}
