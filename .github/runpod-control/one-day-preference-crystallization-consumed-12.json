@@ -1,0 +1,15 @@
+{
+  "authorization_id": "P4-ONE-DAY-PREFERENCE-CRYSTALLIZATION-20260925-12",
+  "authorization_sha256": "0cd44afc3982ba51cba594641e90f95fb7980be9f6c0bf8518327fbca0cf4eda",
+  "created_at_utc": "2026-09-25T19:11:40.495077+00:00",
+  "dynamic_max_billed_seconds": 1500,
+  "image_digest": "sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec",
+  "paid_boundary_refresh_at_utc": "2026-09-25T19:11:38.221453+00:00",
+  "pod_id": "petwekr1w4ugmx",
+  "selected_datacenter": "US-MD-1",
+  "selected_gpu_id": "NVIDIA A100-SXM4-80GB",
+  "selected_price_hr": 1.59,
+  "single_use_consumed": true,
+  "source_head": "a5521a0f4a00884de0470d7831023b8fafc09759",
+  "training_authorized": true
+}
