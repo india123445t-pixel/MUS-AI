@@ -6,8 +6,10 @@
   "experiment_kind": "PUBLIC_VERIFIED_TRAJECTORY_PASSN_PROBE",
   "training_authorized": false,
   "workspace_v2_required": true,
-  "requested_at_utc": "2026-09-25T14:55:00Z",
+  "requested_at_utc": "2026-09-25T14:56:00Z",
   "retry_sequence": 5,
   "previous_authorization_id": "P4-ONE-DAY-PUBLIC-PASSN-20260925-04",
-  "previous_outcome": "CONSUMED_WORKSPACE_PATH_FAILURE_POD_DELETED_NO_SCIENTIFIC_RESULT"
+  "previous_outcome": "CONSUMED_WORKSPACE_PATH_FAILURE_POD_DELETED_NO_SCIENTIFIC_RESULT",
+  "retry_attempt": 2,
+  "previous_attempt_outcome": "NO_POD_PRESPEND_BUDGET_GUARD_COMPATIBILITY_FAILURE"
 }
