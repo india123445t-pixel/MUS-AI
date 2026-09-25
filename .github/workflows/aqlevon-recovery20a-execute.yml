@@ -1,0 +1,749 @@
+name: AQLEVON Recovery20A A100 v019 Smoke Then Train
+
+on:
+  push:
+    branches: [ops/runpod-control-v1]
+    paths:
+      - ".github/runpod-control/execute-recovery20a-trigger.json"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aqlevon-p4-a1-paid-single-use
+  cancel-in-progress: false
+
+jobs:
+  execute:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 140
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      GPU_TYPE: NVIDIA A100-SXM4-80GB
+      AUTH_ID: P4-A1-RUNPOD-A100-20260925-20A-RECOVERY
+      AUTH_SHA: 8af0cfa954ea802d5faf7cf9c083d46b5b71d4554361572e3070cb4eecf0da93
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/runpod-control-v1
+
+      - name: Validate Recovery20A trigger and secret
+        id: gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${RUNPOD_API_KEY:-}"
+          trigger=.github/runpod-control/execute-recovery20a-trigger.json
+          test -f "$trigger"
+          test ! -f .github/runpod-control/recovery20a-consumed.json || { echo "::error::Recovery20A paid authorization already consumed"; exit 90; }
+          jq -e --arg aid "$AUTH_ID" --arg asha "$AUTH_SHA" '
+            .authorization_id==$aid and
+            .authorization_sha256==$asha and
+            .max_total_cost_usd=="4.00" and
+            .max_hourly_rate_usd=="1.60" and
+            .gpu_type==env.GPU_TYPE and
+            .min_memory_gb==80 and
+            .selection_mode=="dynamic_datacenter" and
+            .request_schema=="runpodctl_graphql_dynamic_dc" and
+            .max_billed_seconds==8400 and
+            .single_use==true and
+            .max_artifact_egress_bytes==5368709120 and
+            (.expected_head|test("^[0-9a-f]{40}$")) and
+            (.image_digest|test("^sha256:[0-9a-f]{64}$"))
+          ' "$trigger" >/dev/null
+          expected_head="$(jq -r '.expected_head' "$trigger")"
+          image_digest="$(jq -r '.image_digest' "$trigger")"
+          echo "expected_head=$expected_head" >> "$GITHUB_OUTPUT"
+          echo "image_digest=$image_digest" >> "$GITHUB_OUTPUT"
+          echo "image=ghcr.io/india123445t-pixel/mus-ai@$image_digest" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository }}
+          ref: ${{ steps.gate.outputs.expected_head }}
+          fetch-depth: 0
+          path: w03-source
+
+      - name: Validate live source, immutable binding, and authorization before spend
+        id: source_auth
+        shell: bash
+        env:
+          EXPECTED_HEAD: ${{ steps.gate.outputs.expected_head }}
+          IMAGE_DIGEST: ${{ steps.gate.outputs.image_digest }}
+        run: |
+          set -euo pipefail
+          source_repo="https://github.com/${GITHUB_REPOSITORY}.git"
+          live_head="$(git ls-remote "$source_repo" refs/heads/agent/03-p4-gene1-physical-trainer | awk '{print $1}')"
+          test "$live_head" = "$EXPECTED_HEAD" || { echo "::error::PR #30 head changed; refusing stale paid trigger"; exit 91; }
+          checkout_head="$(git -C w03-source rev-parse HEAD)"
+          test "$checkout_head" = "$EXPECTED_HEAD" || { echo "::error::source checkout SHA mismatch"; exit 92; }
+          cd w03-source/research/weight_factory/agent03
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          import p4_gene1_trainer as c
+
+          agent = Path.cwd()
+          repo = Path(os.environ["GITHUB_WORKSPACE"]) / "w03-source"
+          run = c.load_json(agent / "p4_a1_seed1701_run_manifest_v1.json")
+          lock = c.load_json(agent / "p4_a1_seed1701_command_lock_v1.json")
+          assert c.verify_self_digest(run, "manifest_sha256"), "invalid run manifest"
+          assert c.verify_self_digest(lock, "lock_sha256"), "invalid command lock"
+          assert run["manifest_sha256"] == "b277b41d3d67be1180b4d0600ab6f533f6dbf7b69163980ef5ecc6f0677195b7"
+          assert lock["lock_sha256"] == "10f333cf453f5896402066d7c483ae170688909ca82a08a0adb1e90766213fcb"
+          assert lock["run_manifest_sha256"] == run["manifest_sha256"]
+          auth_name, binding_name = c.resolve_runtime_launch_files(
+              agent_dir=agent,
+              repo_dir=repo,
+              actual_head=os.environ["EXPECTED_HEAD"],
+              expected_image_digest=os.environ["IMAGE_DIGEST"],
+              run_manifest_sha256=run["manifest_sha256"],
+              command_lock_sha256=lock["lock_sha256"],
+          )
+          auth = c.load_json(agent / auth_name)
+          assert auth["authorization_id"] == os.environ["AUTH_ID"]
+          assert auth["authorization_sha256"] == os.environ["AUTH_SHA"]
+          errors = c.validate_manager_authorization(
+              auth, lock=lock, run_manifest_sha256=run["manifest_sha256"]
+          )
+          assert not errors, errors
+          cap = auth.get("max_artifact_egress_bytes")
+          assert type(cap) is int and cap > 0, "invalid artifact egress limit"
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write(f"max_artifact_egress_bytes={cap}\n")
+          print("AQLEVON_RECOVERY20A_PREPOD_BINDING_AUTH_PASS", binding_name, auth_name)
+          PY
+
+      - name: Assert authorized egress cap before spend
+        shell: bash
+        env:
+          MAX_ARTIFACT_EGRESS_BYTES: ${{ steps.source_auth.outputs.max_artifact_egress_bytes }}
+        run: |
+          set -euo pipefail
+          test "$MAX_ARTIFACT_EGRESS_BYTES" = "5368709120"
+          echo "AQLEVON_RECOVERY20A_EGRESS_CAP_PREPOD_PASS bytes=$MAX_ARTIFACT_EGRESS_BYTES"
+
+      - name: Confirm no active AQLEVON P4 A1 Pod before spend
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -sS -f "https://rest.runpod.io/v1/pods" -H "Authorization: Bearer $RUNPOD_API_KEY" > /tmp/pods-preflight.json
+          python - <<'PY'
+          import json,sys
+          p=json.load(open('/tmp/pods-preflight.json'))
+          pods=p if isinstance(p,list) else p.get('pods') or p.get('items') or []
+          active=[]
+          for x in pods:
+              name=str(x.get('name') or '')
+              status=str(x.get('desiredStatus') or x.get('status') or 'UNKNOWN')
+              if name.startswith('AQLEVON-P4-A1-') and status!='EXITED':
+                  active.append({'id':x.get('id'),'name':name,'status':status})
+          if active:
+              print('FAIL_CLOSED_ACTIVE_AQLEVON_P4_A1_PODS',json.dumps(active,sort_keys=True))
+              sys.exit(95)
+          print('AQLEVON_NO_ACTIVE_P4_A1_PODS_PASS')
+          PY
+
+      - name: Generate ephemeral SSH key
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh-keygen -q -t ed25519 -N '' -f /tmp/aqlevon_key
+          echo "PUBKEY=$(cat /tmp/aqlevon_key.pub)" >> "$GITHUB_ENV"
+
+      - name: Select live A100 capacity inside authorization ceiling
+        id: capacity
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -sSL https://cli.runpod.net | sudo bash
+          runpodctl gpu list --output json > /tmp/gpus.json
+          python - <<'PY'
+          import json,sys,os
+          g=json.load(open('/tmp/gpus.json'))
+          target=os.environ['GPU_TYPE']
+          candidates=[]
+          for x in g:
+              try:
+                  secure=bool(x.get('secureCloud'))
+                  avail=bool(x.get('available'))
+                  mem=float(x.get('memoryInGb') or 0)
+                  price=float(x.get('securePricePerHr') or 999)
+              except Exception:
+                  continue
+              if x.get('gpuId') != target or not secure or not avail or mem < 80 or price > 1.60:
+                  continue
+              for dc in x.get('dataCenterAvailability') or []:
+                  if str(dc.get('stockStatus') or '').lower() == 'none':
+                      continue
+                  candidates.append({'dc':dc.get('dataCenterId'),'memory':mem,'price':price,'stock':dc.get('stockStatus')})
+          if not candidates:
+              print('FAIL_CLOSED_NO_A100_CAPACITY_UNDER_AUTH_CEILING')
+              sys.exit(94)
+          candidates.sort(key=lambda z:(z['price'],z['dc'] or ''))
+          c=candidates[0]
+          open('/tmp/selected_dc','w').write(str(c['dc']))
+          open('/tmp/selected_rate','w').write(str(c['price']))
+          print('SELECTED_A100_CAPACITY',json.dumps(c,sort_keys=True))
+          PY
+          echo "dc=$(cat /tmp/selected_dc)" >> "$GITHUB_OUTPUT"
+          echo "rate=$(cat /tmp/selected_rate)" >> "$GITHUB_OUTPUT"
+
+      - name: Create exactly one authorized A100 Pod
+        id: create
+        shell: bash
+        env:
+          EXPECTED_HEAD: ${{ steps.gate.outputs.expected_head }}
+          IMAGE: ${{ steps.gate.outputs.image }}
+          DC: ${{ steps.capacity.outputs.dc }}
+          SELECTED_RATE: ${{ steps.capacity.outputs.rate }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import os,sys
+          rate=float(os.environ['SELECTED_RATE'])
+          if rate > 1.60:
+              print('FAIL_CLOSED_SELECTED_RATE',rate)
+              sys.exit(96)
+          print('SELECTED_RATE_PASS',rate)
+          PY
+          env_json="$(python - <<'PY'
+          import json,os
+          print(json.dumps({
+            "PUBLIC_KEY":os.environ["PUBKEY"],
+            "AQLEVON_EXPECTED_W03_HEAD":os.environ["EXPECTED_HEAD"]
+          },separators=(',',':')))
+          PY
+          )"
+          set +e
+          runpodctl pod create \
+            --name AQLEVON-P4-A1-Recovery20A \
+            --image "$IMAGE" \
+            --gpu-id "$GPU_TYPE" \
+            --gpu-count 1 \
+            --cloud-type SECURE \
+            --data-center-ids "$DC" \
+            --container-disk-in-gb 60 \
+            --volume-in-gb 80 \
+            --volume-mount-path /workspace \
+            --ports 22/tcp \
+            --env "$env_json" \
+            --output json > /tmp/create-response.json 2>/tmp/create-stderr.txt
+          create_rc=$?
+          set -e
+          if [ "$create_rc" -ne 0 ]; then
+            cat /tmp/create-stderr.txt >&2 || true
+            exit "$create_rc"
+          fi
+          python - <<'PY'
+          import json,sys
+          p=json.load(open('/tmp/create-response.json'))
+          pod_id=p.get('id') or p.get('podId')
+          if not pod_id:
+              print('FAIL_CLOSED_CREATE_NO_POD_ID',p)
+              sys.exit(2)
+          open('/tmp/pod_id','w').write(pod_id)
+          import time
+          open('/tmp/pod_created_epoch','w').write(str(int(time.time())))
+          print('CREATE_PASS',pod_id)
+          PY
+          echo "pod_id=$(cat /tmp/pod_id)" >> "$GITHUB_OUTPUT"
+          python - <<'PY'
+          import json,os,datetime
+          out={
+            'authorization_id':os.environ['AUTH_ID'],
+            'pod_id':open('/tmp/pod_id').read().strip(),
+            'created_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            'single_use_consumed':True
+          }
+          open('.github/runpod-control/recovery20a-consumed.json','w').write(json.dumps(out,indent=2,sort_keys=True)+'\n')
+          PY
+          git config user.name aqlevon-runpod-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/runpod-control/recovery20a-consumed.json
+          git commit -m "ops: consume Recovery20A paid authorization [skip ci]"
+          git push origin HEAD:ops/runpod-control-v1
+
+      - name: Verify created Pod contract and wait for SSH
+        id: ssh
+        shell: bash
+        run: |
+          set -euo pipefail
+          pod="${{ steps.create.outputs.pod_id }}"
+          for i in $(seq 1 120); do
+            curl -sS -f "https://rest.runpod.io/v1/pods/$pod" -H "Authorization: Bearer $RUNPOD_API_KEY" > /tmp/pod.json || true
+            if python - <<'PY'
+          import json,sys,os
+          try: p=json.load(open('/tmp/pod.json'))
+          except Exception: sys.exit(1)
+          rate=float(p.get('costPerHr') or 999)
+          if rate>1.60:
+              print('FAIL_CLOSED_LIVE_RATE',rate); sys.exit(2)
+          ip=p.get('publicIp'); m=p.get('portMappings') or {}; port=m.get('22') or m.get(22)
+          if p.get('desiredStatus')=='RUNNING' and ip and port:
+              open('/tmp/ssh_target','w').write(f"{ip}|{port}")
+              open('/tmp/live_rate','w').write(str(rate))
+              sys.exit(0)
+          sys.exit(1)
+          PY
+            then break
+            else rc=$?; if [ "$rc" -eq 2 ]; then exit 96; fi
+            fi
+            sleep 5
+          done
+          test -s /tmp/ssh_target
+          echo "host=$(cut -d'|' -f1 /tmp/ssh_target)" >> "$GITHUB_OUTPUT"
+          echo "port=$(cut -d'|' -f2 /tmp/ssh_target)" >> "$GITHUB_OUTPUT"
+
+      - name: Post-create hardware safety gate
+        shell: bash
+        env:
+          HOST: ${{ steps.ssh.outputs.host }}
+          PORT: ${{ steps.ssh.outputs.port }}
+        run: |
+          set -euo pipefail
+          cat > /tmp/aqlevon_hw_gate.py <<'PY'
+          import subprocess
+
+          name = subprocess.check_output(
+              ["nvidia-smi", "--query-gpu=name", "--format=csv,noheader"],
+              text=True,
+          ).splitlines()[0].strip()
+          mem = float(subprocess.check_output(
+              ["nvidia-smi", "--query-gpu=memory.free", "--format=csv,noheader,nounits"],
+              text=True,
+          ).splitlines()[0])
+          available_kib = 0
+          for line in open("/proc/meminfo"):
+              if line.startswith("MemAvailable:"):
+                  available_kib = int(line.split()[1])
+                  break
+          available_gib = available_kib / 1024 / 1024
+          print("AQLEVON_POST_CREATE_HW", {
+              "gpu": name,
+              "free_vram_mib": mem,
+              "host_mem_available_gib": round(available_gib, 2),
+          })
+          if name != "NVIDIA A100-SXM4-80GB":
+              raise SystemExit("FAIL_CLOSED_GPU_IDENTITY:" + name)
+          if mem < 70000:
+              raise SystemExit("FAIL_CLOSED_GPU_FREE_MEMORY:" + str(mem))
+          if available_gib < 75:
+              raise SystemExit("FAIL_CLOSED_HOST_RAM:" + str(available_gib))
+          # Ray sees the Pod cgroup, so require its actual RAM limit too.
+          import pathlib
+          limits = [pathlib.Path("/sys/fs/cgroup/memory.max"),
+                    pathlib.Path("/sys/fs/cgroup/memory/memory.limit_in_bytes")]
+          cap = next((int(p.read_text()) for p in limits
+                      if p.exists() and p.read_text().strip().isdigit()), 0)
+          if cap < 100_000_000_000:
+              raise SystemExit("FAIL_CLOSED_CGROUP_RAM:" + str(cap))
+          print("AQLEVON_POST_CREATE_CGROUP_RAM_PASS", cap)
+          print("AQLEVON_POST_CREATE_HW_PASS")
+          PY
+          ssh_opts=(-i /tmp/aqlevon_key -p "$PORT" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10)
+          scp_opts=(-i /tmp/aqlevon_key -P "$PORT" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10)
+          scp -q "${scp_opts[@]}" /tmp/aqlevon_hw_gate.py root@"$HOST":/tmp/aqlevon_hw_gate.py
+          ssh "${ssh_opts[@]}" root@"$HOST" python3 /tmp/aqlevon_hw_gate.py
+
+      - name: Execute durable v019 smoke then frozen training and retrieve full evidence
+        id: train
+        continue-on-error: true
+        shell: bash
+        env:
+          EXPECTED_HEAD: ${{ steps.gate.outputs.expected_head }}
+          IMAGE_DIGEST: ${{ steps.gate.outputs.image_digest }}
+          MAX_ARTIFACT_EGRESS_BYTES: ${{ steps.source_auth.outputs.max_artifact_egress_bytes }}
+        run: |
+          set +e
+          host="${{ steps.ssh.outputs.host }}"
+          port="${{ steps.ssh.outputs.port }}"
+          ssh_opts=(-i /tmp/aqlevon_key -p "$port" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10)
+          scp_opts=(-i /tmp/aqlevon_key -P "$port" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10)
+
+          ready=0
+          for i in $(seq 1 60); do
+            ssh "${ssh_opts[@]}" root@$host "actual=\$(nvidia-smi --query-gpu=name --format=csv,noheader | head -n1); test \"\$actual\" = \"$GPU_TYPE\"" && { ready=1; break; }
+            sleep 5
+          done
+          if [ "$ready" -ne 1 ]; then
+            rc=91
+            echo "FAIL_CLOSED_GPU_SSH_READINESS" | tee /tmp/recovery20a.log
+            printf '%s\n' "$rc" > /tmp/train_rc
+            echo "rc=$rc" >> "$GITHUB_OUTPUT"
+            exit "$rc"
+          fi
+
+          cat > /tmp/recovery20a-bootstrap.sh <<'REMOTE'
+          #!/usr/bin/env bash
+          set -uo pipefail
+          rc=255
+          finish() {
+            printf '%s\n' "$rc" > /workspace/aqlevon_recovery20a.rc
+          }
+          trap finish EXIT
+          rm -f /workspace/aqlevon_recovery20a.rc
+          rm -rf /workspace/MUS-AI
+          git clone -q https://github.com/india123445t-pixel/MUS-AI.git /workspace/MUS-AI || { rc=81; exit "$rc"; }
+          git -C /workspace/MUS-AI fetch -q origin "$AQLEVON_EXPECTED_W03_HEAD" || { rc=82; exit "$rc"; }
+          git -C /workspace/MUS-AI checkout -q --detach "$AQLEVON_EXPECTED_W03_HEAD" || { rc=83; exit "$rc"; }
+          set +e
+          bash /workspace/MUS-AI/research/weight_factory/agent03/p4_runpod_appliance_launch_v019.sh > /workspace/aqlevon_recovery20a.log 2>&1
+          rc=$?
+          set -e
+          exit "$rc"
+          REMOTE
+          chmod +x /tmp/recovery20a-bootstrap.sh
+          scp -q "${scp_opts[@]}" /tmp/recovery20a-bootstrap.sh root@$host:/tmp/recovery20a-bootstrap.sh
+
+          ssh "${ssh_opts[@]}" root@$host "export AQLEVON_EXPECTED_W03_HEAD='$EXPECTED_HEAD' AQLEVON_EXPECTED_IMAGE_DIGEST='$IMAGE_DIGEST'; nohup setsid bash /tmp/recovery20a-bootstrap.sh >/workspace/aqlevon_recovery20a-supervisor.log 2>&1 < /dev/null & echo \$! >/workspace/aqlevon_recovery20a-supervisor.pid"
+          echo "AQLEVON_RECOVERY20A_DURABLE_REMOTE_START_PASS"
+
+          # Poll for at most 45 minutes. Transient SSH failures do not kill or duplicate the remote job.
+          finished=0
+          for i in $(seq 1 360); do
+            if ssh "${ssh_opts[@]}" root@$host 'test -s /workspace/aqlevon_recovery20a.rc' >/dev/null 2>&1; then
+              finished=1
+              break
+            fi
+            # Fail-fast only on proven cgroup OOM. Do not infer OOM from memory pressure alone.
+            oom_line="$(ssh "${ssh_opts[@]}" root@$host "tail -n 1 /workspace/aqlevon_p4/runtime_resource_diag.tsv 2>/dev/null | cut -f4" 2>/dev/null || true)"
+            if printf '%s' "$oom_line" | grep -Eq 'oom [1-9][0-9]*|oom_kill [1-9][0-9]*|oom_group_kill [1-9][0-9]*'; then
+              echo "FAIL_CLOSED_CGROUP_OOM_EVENT $oom_line"
+              rc=98
+              finished=1
+              break
+            fi
+            # Billing hard stop is relative to actual Pod creation, never to Actions start.
+            billed_seconds=$(( $(date +%s) - $(cat /tmp/pod_created_epoch) ))
+            if [ "$billed_seconds" -ge 7950 ]; then
+              echo "FAIL_CLOSED_RECOVERY20A_BILLING_WATCHDOG seconds=$billed_seconds"
+              rc=125
+              finished=1
+              break
+            fi
+            sleep 15
+          done
+
+          if [ "$finished" -ne 1 ]; then
+            echo "FAIL_CLOSED_RECOVERY20A_RUNTIME_CEILING"
+            rc=124
+          elif [ -z "${rc:-}" ]; then
+            rc="$(ssh "${ssh_opts[@]}" root@$host 'cat /workspace/aqlevon_recovery20a.rc' 2>/dev/null | tail -n1)"
+            [[ "$rc" =~ ^[0-9]+$ ]] || rc=255
+          fi
+
+          # Transfer only the Worker05 adapter package and bounded evidence. Exclude
+          # full FSDP/optimizer recovery checkpoints from aqlevon_p4/runs.
+          ssh "${ssh_opts[@]}" root@$host 'mkdir -p /workspace/aqlevon_p4/ray_logs; cp -a /tmp/ray/session_latest/logs/. /workspace/aqlevon_p4/ray_logs/ 2>/dev/null || true; cd /workspace && tar --exclude=aqlevon_p4/runs -czf /tmp/aqlevon-recovery20a-evidence.tgz aqlevon_p4 aqlevon_recovery20a.log aqlevon_recovery20a-supervisor.log aqlevon_recovery20a.rc 2>/dev/null' || true
+          remote_sizes="$(ssh "${ssh_opts[@]}" root@$host 'stat -c %s /workspace/aqlevon_recovery20a.log /workspace/aqlevon_p4/runtime_resource_diag.tsv /tmp/aqlevon-recovery20a-evidence.tgz' 2>/dev/null || true)"
+          readarray -t sizes <<< "$remote_sizes"
+          cap="${MAX_ARTIFACT_EGRESS_BYTES:-0}"
+          if [[ "$cap" =~ ^[0-9]+$ && "$cap" -gt 0 && ${#sizes[@]} -ge 2 && "${sizes[0]}" =~ ^[0-9]+$ && "${sizes[1]}" =~ ^[0-9]+$ ]]; then
+            base_bytes=$((sizes[0] + sizes[1]))
+            if [ "$base_bytes" -le "$cap" ]; then
+              ssh "${ssh_opts[@]}" root@$host 'cat /workspace/aqlevon_recovery20a.log' > /tmp/recovery20a.log || true
+              scp -q "${scp_opts[@]}" root@$host:/workspace/aqlevon_p4/runtime_resource_diag.tsv /tmp/recovery20a-runtime-resource-diag.tsv || true
+              if [[ ${#sizes[@]} -eq 3 && "${sizes[2]}" =~ ^[0-9]+$ ]]; then
+                total_bytes=$((base_bytes + sizes[2]))
+                if [ "$total_bytes" -le "$cap" ]; then
+                  scp -q "${scp_opts[@]}" root@$host:/tmp/aqlevon-recovery20a-evidence.tgz /tmp/aqlevon-recovery20a-evidence.tgz || true
+                  echo "AQLEVON_RECOVERY20A_EGRESS_GATE_PASS bytes=$total_bytes cap=$cap" | tee /tmp/recovery20a-egress-gate.log
+                else
+                  echo "FAIL_CLOSED_RECOVERY20A_EGRESS_LIMIT bytes=$total_bytes cap=$cap; transferred logs/resource only" | tee /tmp/recovery20a-egress-gate.log
+                fi
+              else
+                echo "FAIL_CLOSED_RECOVERY20A_ARCHIVE_SIZE_PROBE; transferred logs/resource only" | tee /tmp/recovery20a-egress-gate.log
+              fi
+            else
+              echo "FAIL_CLOSED_RECOVERY20A_EGRESS_LIMIT logs_and_resource_bytes=$base_bytes cap=$cap; remote payload not copied" | tee /tmp/recovery20a-egress-gate.log
+            fi
+          else
+            echo "FAIL_CLOSED_RECOVERY20A_EGRESS_SIZE_PROBE cap=$cap sizes=$remote_sizes" | tee /tmp/recovery20a-egress-gate.log
+          fi
+
+          # Evidence contract for this authorized run.
+          RECOVERY20A_TRAINING_RC="$rc" python - <<'PY'
+          from pathlib import Path
+          import re,sys,os
+          log=Path('/tmp/recovery20a.log').read_text(errors='replace') if Path('/tmp/recovery20a.log').exists() else ''
+          diag=Path('/tmp/recovery20a-runtime-resource-diag.tsv')
+          required=[
+            'AQLEVON_SDPO_FIRST_WAKE_BASE_SNAPSHOT_REUSED',
+            'AQLEVON_SDPO_FIRST_WAKE_DUPLICATE_BASE_LOAD_SKIPPED',
+            'AQLEVON_SDPO_LORA_STATE_EXTRACTED count=32 A=16 B=16',
+            'AQLEVON_TENSOR_LORA_SYNC_PASS count=32 A=16 B=16',
+            'AQLEVON_SDPO_LORA_TARGET_MODULES_PRESERVED type=regex',
+            'AQLEVON_P4_A1_CANDIDATE_PACKAGE_PASS',
+            'AQLEVON_TRAINING_UPDATES_VERIFIED=12',
+          ]
+          missing=[m for m in required if m not in log]
+          if missing:
+              print('FAIL_CLOSED_FIRST_WAKE_MARKERS_MISSING',missing)
+              sys.exit(97)
+          if not diag.exists() or len(diag.read_text(errors='replace').splitlines()) < 3:
+              print('FAIL_CLOSED_RESOURCE_TSV_MISSING_OR_SHORT')
+              sys.exit(96)
+          bad=[]
+          unknown=[]
+          for line in diag.read_text(errors='replace').splitlines()[1:]:
+              cols=line.split('\t')
+              if len(cols)<4:
+                  continue
+              ev=cols[3]
+              if ev.startswith('cgroup_v2,'):
+                  for key in ('oom','oom_kill','oom_group_kill'):
+                      m=re.search(r'(?:^|,)'+re.escape(key)+r'\s+([0-9]+)(?:,|$)',ev)
+                      if m and int(m.group(1)) != 0:
+                          bad.append((key,int(m.group(1)),line[:300]))
+              elif ev.startswith('cgroup_v1,'):
+                  m=re.search(r'(?:^|,)failcnt\s+([0-9]+)(?:,|$)',ev)
+                  if m and int(m.group(1)) != 0:
+                      bad.append(('failcnt',int(m.group(1)),line[:300]))
+                  m=re.search(r'(?:^|,)under_oom\s+([0-9]+)(?:,|$)',ev)
+                  if m and int(m.group(1)) != 0:
+                      bad.append(('under_oom',int(m.group(1)),line[:300]))
+              else:
+                  unknown.append(line[:300])
+          if unknown:
+              print('FAIL_CLOSED_CGROUP_MODE_UNKNOWN',unknown[:3])
+              sys.exit(94)
+          if bad:
+              print('FAIL_CLOSED_CGROUP_OOM_NONZERO',bad)
+              sys.exit(95)
+          if int(os.environ.get('RECOVERY20A_TRAINING_RC','255')) != 0:
+              print('FAIL_CLOSED_A1_TRAINING_EXIT_CODE_NONZERO',os.environ.get('RECOVERY20A_TRAINING_RC'))
+              sys.exit(93)
+          import hashlib,json,tarfile
+          archive=Path('/tmp/aqlevon-recovery20a-evidence.tgz')
+          if not archive.is_file():
+              print('FAIL_CLOSED_CANDIDATE_ARCHIVE_MISSING')
+              sys.exit(92)
+          root='aqlevon_p4/candidate/P4_A1_seed1701_Worker05/'
+          required_files=[
+              root+'candidate_artifact_manifest.json',
+              root+'training_run_receipt.json',
+              root+'worker05_handoff_index.json',
+              root+'candidate_artifact/adapter_config.json',
+              root+'candidate_artifact/adapter_model.safetensors',
+              root+'run_manifest.json',
+              root+'training_plan.json',
+              root+'command_lock.json',
+          ]
+          try:
+              with tarfile.open(archive,'r:gz') as tf:
+                  names={m.name for m in tf.getmembers()}
+                  if any(name.startswith('aqlevon_p4/runs/') for name in names):
+                      raise ValueError('unbounded_recovery_checkpoint_in_candidate_transfer')
+                  cap=int(os.environ.get('MAX_ARTIFACT_EGRESS_BYTES','0'))
+                  transfer_bytes=sum(Path(p).stat().st_size for p in (
+                      '/tmp/recovery20a.log',
+                      '/tmp/recovery20a-runtime-resource-diag.tsv',
+                      str(archive),
+                  ) if Path(p).is_file())
+                  if cap <= 0 or transfer_bytes > cap:
+                      raise ValueError('artifact_egress_limit_exceeded:'+str(transfer_bytes)+'>'+str(cap))
+                  missing_files=[name for name in required_files if name not in names]
+                  if missing_files:
+                      raise ValueError('candidate_files_missing:'+','.join(missing_files))
+                  def read_member(name):
+                      f=tf.extractfile(name)
+                      if f is None: raise ValueError('candidate_member_unreadable:'+name)
+                      return f.read()
+                  def read_json_member(name):
+                      return json.loads(read_member(name).decode('utf-8'))
+                  manifest=read_json_member(root+'candidate_artifact_manifest.json')
+                  receipt_bytes=read_member(root+'training_run_receipt.json')
+                  receipt=json.loads(receipt_bytes.decode('utf-8'))
+                  index=read_json_member(root+'worker05_handoff_index.json')
+                  config=read_json_member(root+'candidate_artifact/adapter_config.json')
+          except Exception as e:
+              print('FAIL_CLOSED_CANDIDATE_ARCHIVE_INVALID',str(e))
+              sys.exit(91)
+          expected={
+              'handoff_kind':'AQLEVON_P4_A1_WORKER05_CANDIDATE_HANDOFF_V1',
+              'run_manifest_sha256':'b277b41d3d67be1180b4d0600ab6f533f6dbf7b69163980ef5ecc6f0677195b7',
+              'training_plan_sha256':'3cd6e0bada2535a80f83f400f45f5d0fdc5ad8d938f42757785335959f331095',
+              'command_lock_sha256':'10f333cf453f5896402066d7c483ae170688909ca82a08a0adb1e90766213fcb',
+              'arm_id':'P4_A1_RLVR_CONTROL','seed':1701,'optimizer_updates':12,
+              'w03_execution_head':os.environ.get('EXPECTED_HEAD'),
+              'candidate_status':'ARTIFACT_READY_FOR_WORKER05_EVALUATION',
+              'capability_gain_claim':False,'sealed_eval_consumed':False,
+          }
+          for key,wanted in expected.items():
+              if index.get(key)!=wanted:
+                  print('FAIL_CLOSED_CANDIDATE_INDEX_BINDING',key,index.get(key),wanted)
+                  sys.exit(90)
+          if index.get('candidate_artifact_manifest_sha256')!=manifest.get('manifest_sha256'):
+              print('FAIL_CLOSED_CANDIDATE_MANIFEST_SHA_BINDING')
+              sys.exit(89)
+          if hashlib.sha256(receipt_bytes).hexdigest()!=index.get('training_run_receipt_sha256'):
+              print('FAIL_CLOSED_TRAINING_RECEIPT_SHA_BINDING')
+              sys.exit(88)
+          training=receipt.get('training',{})
+          artifact=receipt.get('artifact',{})
+          runtime=receipt.get('runtime',{})
+          if (receipt.get('run_manifest_sha256')!=expected['run_manifest_sha256']
+              or receipt.get('training_plan_sha256')!=expected['training_plan_sha256']
+              or receipt.get('arm_id')!='P4_A1_RLVR_CONTROL' or receipt.get('seed')!=1701
+              or receipt.get('sealed_eval_consumed') is not False
+              or receipt.get('capability_gain_claim') is not False
+              or training.get('optimizer_updates')!=12 or training.get('global_step')!=12
+              or training.get('checkpoint_latest_iteration')!=12
+              or not isinstance(training.get('changed_elements'),int) or training.get('changed_elements')<=0
+              or artifact.get('reload_hash_match') is not True
+              or artifact.get('saved_adapter_state_sha256')!=artifact.get('reloaded_adapter_state_sha256')
+              or runtime.get('w03_execution_head')!=expected['w03_execution_head']
+              or runtime.get('runtime_appliance_digest')!=os.environ.get('IMAGE_DIGEST')):
+              print('FAIL_CLOSED_TRAINING_RECEIPT_CONTRACT')
+              sys.exit(87)
+          if (manifest.get('artifact_type')!='adapter' or manifest.get('artifact_stage')!='reproducible_gene'
+              or manifest.get('base',{}).get('repo')!='Qwen/Qwen3.5-4B-Base'
+              or manifest.get('base',{}).get('revision')!='daa9c16f371249f9ad1c75a9ed6f956c08ea08f5'
+              or manifest.get('training_shard_manifest_sha256')!='f7499362fdd7e6fd4bc91682a5f1c03767c98685c045ad50a712711c6c4ad55f'
+              or manifest.get('training_run_receipt_sha256')!=index.get('training_run_receipt_sha256')):
+              print('FAIL_CLOSED_CANDIDATE_MANIFEST_CONTRACT')
+              sys.exit(86)
+          expected_target=r'.*\.self_attn\.(q_proj|v_proj)'+chr(36)
+          if (config.get('peft_type')!='LORA' or config.get('task_type')!='CAUSAL_LM'
+              or config.get('r')!=4 or config.get('lora_alpha')!=4
+              or config.get('target_modules')!=expected_target):
+              print('FAIL_CLOSED_CANDIDATE_ADAPTER_CONFIG')
+              sys.exit(85)
+          print('AQLEVON_RECOVERY20A_CANDIDATE_PACKAGE_EVIDENCE_PASS')
+          print('AQLEVON_RECOVERY20A_SECOND_WAKE_EVIDENCE_PASS')
+          PY
+          evidence_rc=$?
+          if [ "$evidence_rc" -ne 0 ] && [ "$rc" -eq 0 ]; then rc="$evidence_rc"; fi
+
+          printf '%s\n' "$rc" > /tmp/train_rc
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          exit "$rc"
+
+      - name: Stop Pod immediately and verify EXITED
+        if: always()
+        id: stop
+        shell: bash
+        run: |
+          set -euo pipefail
+          pod="${{ steps.create.outputs.pod_id }}"
+          if [ -z "$pod" ] && [ -s /tmp/pod_id ]; then pod="$(cat /tmp/pod_id)"; fi
+          if [ -z "$pod" ]; then echo "verified=no_pod_created" >> "$GITHUB_OUTPUT"; exit 0; fi
+          stopped=0
+          for i in $(seq 1 10); do
+            curl -sS -f -X POST "https://rest.runpod.io/v1/pods/$pod/stop" -H "Authorization: Bearer $RUNPOD_API_KEY" -H 'Content-Type: application/json' -d '{}' >/tmp/stop.json || true
+            sleep 3
+            curl -sS -f "https://rest.runpod.io/v1/pods/$pod" -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/stop-probe.json || true
+            if python - <<'PY'
+          import json,sys
+          try:p=json.load(open('/tmp/stop-probe.json'))
+          except Exception:sys.exit(1)
+          sys.exit(0 if p.get('desiredStatus')=='EXITED' else 1)
+          PY
+            then stopped=1; break; fi
+          done
+          test "$stopped" -eq 1 || { echo "::error::RunPod stop could not be verified EXITED"; exit 93; }
+          echo "verified=exited" >> "$GITHUB_OUTPUT"
+          date -u +%FT%TZ > /tmp/pod_stopped_at_utc
+
+      - name: Write sanitized Recovery20A result
+        if: always()
+        shell: bash
+        env:
+          STEP_RC: ${{ steps.train.outputs.rc }}
+          EXPECTED_HEAD: ${{ steps.gate.outputs.expected_head }}
+          IMAGE_DIGEST: ${{ steps.gate.outputs.image_digest }}
+          STOP_STATUS: ${{ steps.stop.outputs.verified }}
+        run: |
+          mkdir -p .github/runpod-control
+          python - <<'PY'
+          import json,os,re,hashlib,datetime
+          log=open('/tmp/recovery20a.log',errors='replace').read() if os.path.exists('/tmp/recovery20a.log') else ''
+          egress_log=open('/tmp/recovery20a-egress-gate.log',errors='replace').read() if os.path.exists('/tmp/recovery20a-egress-gate.log') else ''
+          rc=None
+          for v in [os.environ.get('STEP_RC',''), open('/tmp/train_rc').read().strip() if os.path.exists('/tmp/train_rc') else '']:
+              try: rc=int(v); break
+              except Exception: pass
+          if rc is None: rc=255
+          actual_training_match=re.search(r'AQLEVON_A1_EXIT_CODE=(\d+)',log)
+          actual_training_rc=int(actual_training_match.group(1)) if actual_training_match else rc
+          payload_paths=['/tmp/recovery20a.log','/tmp/recovery20a-runtime-resource-diag.tsv','/tmp/aqlevon-recovery20a-evidence.tgz']
+          payload_bytes=sum(os.path.getsize(p) for p in payload_paths if os.path.isfile(p))
+          egress_pass='AQLEVON_RECOVERY20A_EGRESS_GATE_PASS' in egress_log
+          markers={k:(k in log) for k in [
+            'AQLEVON_V019_NATIVE_LORA_FUNCTIONAL_SMOKE_PASS',
+            'AQLEVON_V019_LORA_SMOKE_PASS',
+            'APPLIANCE_NATIVE_QWEN35_VLLM019_PASS',
+            'APPLIANCE_BINDING_PASS',
+            'APPLIANCE_SOURCE_DELTA_PASS',
+            'APPLIANCE_SEED1701_BINDING_PASS',
+            'APPLIANCE_EXACT_AUTHORIZATION_PASS',
+            'MODEL_STAGE_PASS',
+            'A1_LOCKED_TRAINING_START',
+            'AQLEVON_SDPO_FIRST_WAKE_BASE_SNAPSHOT_REUSED',
+            'AQLEVON_SDPO_FIRST_WAKE_DUPLICATE_BASE_LOAD_SKIPPED',
+            'AQLEVON_SDPO_LORA_STATE_EXTRACTED count=32 A=16 B=16',
+            'AQLEVON_TENSOR_LORA_SYNC_PASS count=32 A=16 B=16',
+            'AQLEVON_SDPO_LORA_TARGET_MODULES_PRESERVED type=regex',
+            'AQLEVON_P4_A1_CANDIDATE_PACKAGE_PASS',
+            'AQLEVON_TRAINING_UPDATES_VERIFIED=12',
+            'AQLEVON_A1_EXIT_CODE'
+          ]}
+          out={
+            'authorization_id':os.environ['AUTH_ID'],
+            'expected_head':os.environ.get('EXPECTED_HEAD'),
+            'image_digest':os.environ.get('IMAGE_DIGEST'),
+            'checked_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            'training_exit_code':actual_training_rc,
+            'workflow_evidence_exit_code':rc,
+            'markers':markers,
+            'log_sha256':hashlib.sha256(log.encode()).hexdigest() if log else None,
+            'evidence_archive_present':os.path.exists('/tmp/aqlevon-recovery20a-evidence.tgz'),
+            'resource_diag_present':os.path.exists('/tmp/recovery20a-runtime-resource-diag.tsv'),
+            'pod_to_runner_payload_bytes':payload_bytes,
+            'pod_to_runner_egress_gate_pass':egress_pass,
+            'candidate_package_gate_pass':rc==0,
+            'candidate_artifact_manifest_sha256':next((m.split('=',1)[1] for m in re.findall(r'AQLEVON_CANDIDATE_ARTIFACT_MANIFEST_SHA256=[0-9a-f]{64}',log)),None),
+            'stop_status':os.environ.get('STOP_STATUS')
+          }
+          open('.github/runpod-control/recovery20a-result.json','w').write(json.dumps(out,indent=2,sort_keys=True)+'\n')
+          PY
+          git pull --rebase origin ops/runpod-control-v1
+          git config user.name aqlevon-runpod-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/runpod-control/recovery20a-result.json
+          git commit -m "ops: record Recovery20A sanitized result [skip ci]" || true
+          git push origin HEAD:ops/runpod-control-v1 || true
+
+      - name: Upload Recovery20A evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aqlevon-recovery20a-evidence
+          path: |
+            /tmp/recovery20a.log
+            /tmp/train_rc
+            /tmp/aqlevon-recovery20a-evidence.tgz
+            /tmp/recovery20a-runtime-resource-diag.tsv
+            /tmp/recovery20a-egress-gate.log
+            /tmp/create-response.json
+            /tmp/pod.json
+            /tmp/stop.json
+            /tmp/stop-probe.json
+            /tmp/pod_created_epoch
+            /tmp/pod_stopped_at_utc
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Fail job on true training exit code
+        if: always()
+        shell: bash
+        env:
+          STEP_RC: ${{ steps.train.outputs.rc }}
+        run: |
+          set -euo pipefail
+          rc="${STEP_RC:-}"
+          if ! [[ "$rc" =~ ^[0-9]+$ ]] && [ -s /tmp/train_rc ]; then rc="$(cat /tmp/train_rc)"; fi
+          if ! [[ "$rc" =~ ^[0-9]+$ ]]; then echo "::error::Recovery20A training exit code missing"; exit 255; fi
+          echo "AQLEVON_RECOVERY20A_TRUE_EXIT_CODE=$rc"
+          test "$rc" -eq 0 || exit "$rc"
