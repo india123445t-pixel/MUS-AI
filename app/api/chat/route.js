@@ -68,16 +68,16 @@ async function getQuota(sb,sessionId,hash){
 }
 
 async function runAdvisoryVerifier({contract,candidates,settings,webSearch}){
-  const excluded=[...new Set(candidates.map(c=>c?.provider).filter(Boolean))];
   const prompt=buildVerifierPrompt({contract,candidates});
   const result=await generateModelResponse([
     {role:'system',content:prompt.system},
     {role:'user',content:JSON.stringify(prompt.payload)},
-  ],webSearch,settings,{temperature:0.05,excludeProviders:excluded});
-  if(!result)return {relation:'INCONCLUSIVE',confidence:0,issues:['No independent advisory verifier was available'],preferred:null,corrected_answer:'',independent:false};
+  ],webSearch,settings,{temperature:0.05});
+  if(!result)return {relation:'INCONCLUSIVE',confidence:0,issues:['No advisory verifier pass was available'],preferred:null,corrected_answer:'',independent:false};
   return {
     ...normalizeAdvisoryVerifier(safeJson(result.text)),
-    independent:!excluded.includes(result.provider),
+    independent:false,
+    same_runtime:true,
     verifier_provider:result.provider,
     verifier_model:result.model,
   };
@@ -85,12 +85,11 @@ async function runAdvisoryVerifier({contract,candidates,settings,webSearch}){
 
 async function maybeAdjudicateRepair({contract,selected,advisory,candidates,settings,webSearch,maxCalls,modelCalls}){
   if(!advisory?.corrected_answer||advisory.relation!=='REPAIR'||modelCalls>=maxCalls)return {selected,modelCalls,adjudication:null};
-  const excluded=[...new Set([...candidates.map(c=>c.provider),advisory.verifier_provider].filter(Boolean))];
-  const system=`You are an independent AQLEVON response adjudicator. Choose between ORIGINAL and REPAIR for the frozen task contract. Do not treat agreement, confidence, or style as truth. Never invent tool execution. Return STRICT JSON only: {"choice":"original|repair|uncertain","reason":"short reason"}.`;
+  const system=`You are an AQLEVON response adjudication pass on the same sovereign runtime. Choose between ORIGINAL and REPAIR for the frozen task contract. Do not treat agreement, confidence, or style as truth. Never invent tool execution. Return STRICT JSON only: {"choice":"original|repair|uncertain","reason":"short reason"}.`;
   const result=await generateModelResponse([
     {role:'system',content:system},
     {role:'user',content:JSON.stringify({task_contract:contract,original:selected.text,repair:advisory.corrected_answer})},
-  ],webSearch,settings,{temperature:0.05,excludeProviders:excluded});
+  ],webSearch,settings,{temperature:0.05});
   if(!result)return {selected,modelCalls:modelCalls+1,adjudication:null};
   const parsed=safeJson(result.text)||{};
   const adjudication={choice:['original','repair','uncertain'].includes(parsed.choice)?parsed.choice:'uncertain',reason:String(parsed.reason||''),provider:result.provider,model:result.model};
@@ -180,7 +179,7 @@ export async function POST(req){
         {role:'system',content:`${messages[0].content}\n\nINDEPENDENT SOLUTION PATH: solve from scratch. Do not assume another candidate is correct. Return the user-facing answer only.`},
         ...messages.slice(1),
       ];
-      const second=await generateModelResponse(independent,route.web_search,settings,{temperature:0.25,excludeProviders:[first.provider]});
+      const second=await generateModelResponse(independent,route.web_search,settings,{temperature:0.25});
       modelCalls++;
       if(second)candidates.push(second);
     }
@@ -208,6 +207,7 @@ export async function POST(req){
         confidence:advisory.confidence,
         issues:advisory.issues||[],
         independent:!!advisory.independent,
+        same_runtime:advisory.same_runtime===true,
         verifier_provider:advisory.verifier_provider||null,
         verifier_model:advisory.verifier_model||null,
         adjudication:advisory.adjudication||null,
