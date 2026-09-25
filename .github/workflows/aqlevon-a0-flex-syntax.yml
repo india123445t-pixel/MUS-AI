@@ -1,0 +1,63 @@
+name: AQLEVON A0 Flexible GPU Syntax Contract
+on:
+  push:
+    branches: [ops/runpod-control-v1]
+    paths: [".github/runpod-control/a0-flex-syntax-trigger.json"]
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/runpod-control-v1
+      - name: Parse every shell and embedded Python and verify exact bindings
+        run: |
+          set -euo pipefail
+          python3 -m pip install --quiet pyyaml
+          python3 - <<'PY'
+          import ast,hashlib,json,pathlib,re,subprocess,tempfile,yaml
+          p=pathlib.Path('.github/workflows/aqlevon-a0-flex-source-staged.yml')
+          raw=p.read_text()
+          d=yaml.safe_load(raw)
+          assert len(d['jobs']['execute']['steps'])>=11
+          auth=json.loads(pathlib.Path('.github/runpod-control/a0-flex-manager-authorization-20260925.json').read_text())
+          canonical=json.dumps({k:v for k,v in auth.items() if k!='authorization_sha256'},sort_keys=True,separators=(',',':'),ensure_ascii=False,allow_nan=False)
+          assert hashlib.sha256(canonical.encode()).hexdigest()==auth['authorization_sha256']
+          assert auth['authorization_sha256'] in raw and auth['expected_source_head'] in raw
+          assert auth['image_digest'] in raw
+          assert auth['max_artifact_egress_bytes']==5368709120 and float(auth['prior_mission_spend_usd'])+float(auth['max_total_cost_usd'])<5
+          assert not pathlib.Path('.github/runpod-control/a0-flex-consumed.json').exists()
+          assert 'execute-a0-resume-trigger.json' not in raw
+          assert raw.count('execute-a0-flex-trigger.json')==2
+          for gpu in auth['permitted_gpu_ids']: assert gpu in raw,gpu
+          assert 'selected_gpu_type' in raw
+          assert 'runpodctl pod create' in raw
+          assert 'Stage exact source and public data on runner before billing' in raw
+          assert 'aqlevon_a0-previous-supervisor.log' in raw
+          assert "test -s /tmp/aqlevon-a0-evidence.tgz" in raw
+          checks=0
+          for step in d['jobs']['execute']['steps']:
+              if 'run' not in step:continue
+              content=step['run']
+              with tempfile.NamedTemporaryFile('w',suffix='.sh') as f:
+                  f.write(content);f.flush()
+                  subprocess.run(['bash','-n',f.name],check=True)
+              for m in re.finditer(r"python3? - <<'PY'\n(.*?)\nPY",content,re.S):
+                  ast.parse(m.group(1));checks+=1
+          assert checks>=9,checks
+          print('AQLEVON_A0_FLEX_SYNTAX_AUTH_PASS python_blocks='+str(checks))
+          PY
+          curl -fsS https://rest.runpod.io/v1/pods -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/pods.json
+          python3 - <<'PY'
+          import json
+          p=json.load(open('/tmp/pods.json'));p=p if isinstance(p,list) else p.get('pods') or p.get('items') or []
+          t=[x for x in p if x.get('id')=='n2di6l60loo70j']
+          assert len(t)==1 and t[0]['desiredStatus']=='EXITED',t
+          assert not [x for x in p if str(x.get('name','')).startswith('AQLEVON-P4-') and x.get('desiredStatus')!='EXITED']
+          print('AQLEVON_A0_FRESH_NO_ACTIVE_POD_PASS')
+          PY
