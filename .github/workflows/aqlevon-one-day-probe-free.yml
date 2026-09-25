@@ -1,0 +1,54 @@
+name: AQLEVON One-Day Verified Trajectory Free Gate
+on:
+  push:
+    branches: [agent/03-one-day-verified-trajectory-20260925]
+    paths:
+      - "research/weight_factory/agent03/p4_one_day_verified_trajectory_probe.py"
+      - ".github/workflows/aqlevon-one-day-probe-free.yml"
+permissions:
+  contents: read
+jobs:
+  gate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/03-one-day-verified-trajectory-20260925
+          fetch-depth: 0
+      - name: Verify public-only probe contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          PROBE=research/weight_factory/agent03/p4_one_day_verified_trajectory_probe.py
+          python3 -m py_compile "$PROBE"
+          python3 "$PROBE" --self-test
+          git fetch -q origin abb94ef134e2e97036b6959dbc9db4278d3736b6
+          git show abb94ef134e2e97036b6959dbc9db4278d3736b6:research/weight_factory/agent02/gene1_data_verifier_pack_v1.py >/tmp/w02.py
+          git show abb94ef134e2e97036b6959dbc9db4278d3736b6:research/weight_factory/agent02/gene1_training_visible_pack_v1.json >/tmp/public-pack.json
+          python3 - <<'PY'
+          import importlib.util,json,pathlib,sys
+          p='research/weight_factory/agent03/p4_one_day_verified_trajectory_probe.py'
+          spec=importlib.util.spec_from_file_location('probe',p)
+          m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
+          wspec=importlib.util.spec_from_file_location('w02','/tmp/w02.py')
+          w=importlib.util.module_from_spec(wspec);wspec.loader.exec_module(w)
+          pack=json.load(open('/tmp/public-pack.json'))
+          assert pack['pack_kind']=='AQLEVON_GENE1_TRAINING_VISIBLE_PACK_V1'
+          assert pack['pack_sha256']==m.W02_TRAINING_PACK_SHA
+          tasks=sorted([t for t in pack['tasks'] if t.get('verifier_mode')=='hardened' and t.get('training_eligible') is True],key=lambda x:x['task_id'])
+          assert len(tasks)==56
+          assert sum(m.split_name(t)=='discovery' for t in tasks)==28
+          assert sum(m.split_name(t)=='shadow' for t in tasks)==28
+          assert all('eval' not in t['semantic_core_id'].lower() for t in tasks)
+          for t in tasks:
+              core=m.build_core(w,t)
+              ok=w.verify(t,core,core['oracle_program'])
+              assert ok['passed'],(t['task_id'],ok)
+          print('AQLEVON_ONE_DAY_PUBLIC_ONLY_CONTRACT_PASS tasks=56 discovery=28 shadow=28 sealed=0')
+          PY
+          if grep -RniE 'gene1_sealed_eval_pack_PRIVATE|AQLEVON_EVAL_SECRET|sealed.*plaintext' "$PROBE"; then
+            echo FAIL_CLOSED_SEALED_REFERENCE_IN_PROBE
+            exit 1
+          fi
+          echo AQLEVON_ONE_DAY_FREE_GATE_PASS
