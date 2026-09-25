@@ -40,7 +40,7 @@ jobs:
           assert float(a['fresh_authorization_spend_before_auth06_usd'])+float(a['max_total_cost_usd']) <= float(a['mission_max_total_usd'])
           print('AQLEVON_AUTH06_CONTRACT_PASS',sha)
           PY
-          test "$(git ls-remote https://github.com/$GITHUB_REPOSITORY.git refs/heads/agent/03-one-day-crystallization-20260925 | cut -f1)" = "$SOURCE_HEAD"
+          test "$(git ls-remote https://github.com/$GITHUB_REPOSITORY.git refs/heads/agent/03-one-day-crystallization-auth06-frozen-20260925 | cut -f1)" = "$SOURCE_HEAD"
           curl -fsS https://rest.runpod.io/v1/pods -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/pods.json
           curl -sSL https://cli.runpod.net | sudo bash >/dev/null
           runpodctl user >/tmp/user.json
