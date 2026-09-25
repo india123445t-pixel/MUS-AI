@@ -1,0 +1,6 @@
+{
+  "kind": "AQLEVON_ONE_DAY_WORKSPACE_V2_FREE_CONTRACT_TRIGGER",
+  "reason": "verify workspace initialization repair after auth04 orchestration failure",
+  "paid_resource_created": false,
+  "requested_at_utc": "2026-09-25T14:46:00Z"
+}
