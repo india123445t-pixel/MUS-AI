@@ -1,0 +1,68 @@
+name: Verify Auth16 Serverless Auth
+on:
+  push:
+    branches: [release/aqlevon-unified-production-20260925]
+    paths: [".github/runpod-control/verify-auth16-serverless-auth-trigger.json"]
+permissions:
+  contents: write
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      ENDPOINT_ID: tawpsv5oxepmo4
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/aqlevon-unified-production-20260925
+          fetch-depth: 0
+      - name: Probe auth modes and run exact model
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$RUNPOD_API_KEY"
+          sleep 15
+          base="https://api.runpod.ai/v2/$ENDPOINT_ID"
+          bh="$(curl -sS -o /tmp/health-bearer.json -w '%{http_code}' "$base/health" -H "Authorization: Bearer $RUNPOD_API_KEY" || true)"
+          qh="$(curl -sS -o /tmp/health-query.json -w '%{http_code}' "$base/health?api_key=$RUNPOD_API_KEY" || true)"
+          printf 'health_bearer=%s health_query=%s\n' "$bh" "$qh"
+          mode=""
+          if [ "$bh" = "200" ]; then mode="bearer"; fi
+          if [ -z "$mode" ] && [ "$qh" = "200" ]; then mode="query"; fi
+          test -n "$mode" || { echo "No inference auth mode accepted"; cat /tmp/health-bearer.json; cat /tmp/health-query.json; exit 51; }
+          cat >/tmp/test.json <<'JSON'
+          {"input":{"model":"AQLEVON-4B-Auth16","messages":[{"role":"user","content":"Reply briefly with: AQLEVON_AUTH16_RUNTIME_OK"}],"temperature":0,"max_tokens":32}}
+          JSON
+          if [ "$mode" = "bearer" ]; then
+            code="$(curl -sS --max-time 900 -o /tmp/test-result.json -w '%{http_code}' -X POST "$base/runsync?wait=600000" -H "Authorization: Bearer $RUNPOD_API_KEY" -H "Content-Type: application/json" --data-binary @/tmp/test.json || true)"
+          else
+            code="$(curl -sS --max-time 900 -o /tmp/test-result.json -w '%{http_code}' -X POST "$base/runsync?wait=600000&api_key=$RUNPOD_API_KEY" -H "Content-Type: application/json" --data-binary @/tmp/test.json || true)"
+          fi
+          echo "runsync_http=$code auth_mode=$mode"
+          test "$code" = "200" || { cat /tmp/test-result.json; exit 52; }
+          python3 - "$mode" <<'PY'
+          import json,sys,datetime
+          d=json.load(open('/tmp/test-result.json')); out=d.get('output') or {}
+          assert out.get('adapter_sha256')=='2d4f0c3528129e702dfa0af27fad467d411f355b9ea72e771942d0f6703e2b2a',d
+          text=((out.get('choices') or [{}])[0].get('message') or {}).get('content','').strip()
+          assert text,d
+          receipt={
+            "kind":"AQLEVON_AUTH16_SERVERLESS_AUTH_VERIFICATION_V1",
+            "status":"PASS","endpoint_id":"tawpsv5oxepmo4","auth_mode":sys.argv[1],
+            "model":out.get("model"),"adapter_model_sha256":out.get("adapter_sha256"),
+            "response_excerpt":text[:200],"verified_at_utc":datetime.datetime.now(datetime.timezone.utc).isoformat()
+          }
+          open('.github/runpod-control/auth16-serverless-auth-result.json','w').write(json.dumps(receipt,indent=2,sort_keys=True)+'\n')
+          print(json.dumps(receipt,sort_keys=True))
+          PY
+      - name: Persist verification receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name aqlevon-runpod-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/runpod-control/auth16-serverless-auth-result.json
+          git commit -m "runtime: verify Auth16 serverless inference auth [skip ci]" || true
+          git pull --rebase origin release/aqlevon-unified-production-20260925
+          git push origin HEAD:release/aqlevon-unified-production-20260925
