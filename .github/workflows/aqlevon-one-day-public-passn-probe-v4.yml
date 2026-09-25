@@ -1,0 +1,41 @@
+name: AQLEVON One-Day Public PassN Probe Auth04
+on:
+  push:
+    branches: [ops/one-day-verified-trajectory-20260925]
+    paths: [".github/runpod-control/execute-one-day-public-probe-04.json"]
+permissions:
+  contents: write
+concurrency:
+  group: aqlevon-p4-paid-single-use
+  cancel-in-progress: false
+jobs:
+  execute:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/one-day-verified-trajectory-20260925
+          fetch-depth: 0
+      - name: Execute bounded auth04 public probe
+        shell: bash
+        run: bash .github/runpod-control/run-one-day-public-probe-04-refresh.sh
+      - name: Upload auth04 probe evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aqlevon-one-day-public-passn-probe-04
+          path: |
+            /tmp/probe-result.json
+            /tmp/probe.log
+            /tmp/probe_remote_rc
+            /tmp/probe_final_rc
+            /tmp/create.json
+            /tmp/pod.json
+            /tmp/stop-probe.json
+            /tmp/probe-payload-sha256.txt
+            /tmp/auth04-exit-trap-stop.json
+          if-no-files-found: warn
+          retention-days: 14
