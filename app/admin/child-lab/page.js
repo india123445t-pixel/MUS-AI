@@ -212,13 +212,13 @@ export default function ChildLabPage(){
 
   function saveSnapshot(){
     const pkg=childPackage();
-    setLab(x=>({...x,snapshots:[{id:pkg.package_id,created_at:pkg.created_at,persona:pkg.persona,lessons:pkg.lessons,trials:pkg.trials,examples:pkg.examples},...(x.snapshots||[])].slice(0,30)}));
+    setLab(x=>({...x,snapshots:[{id:pkg.package_id,created_at:pkg.created_at,identity:pkg.identity,persona:pkg.persona,lessons:pkg.lessons,trials:pkg.trials,examples:pkg.examples},...(x.snapshots||[])].slice(0,30)}));
     setNotice('تم حفظ Snapshot داخل مختبر الطفل فقط.');
   }
 
   function restoreSnapshot(id){
     const snap=(lab.snapshots||[]).find(x=>x.id===id);if(!snap)return;
-    setLab(x=>({...x,persona:snap.persona,lessons:snap.lessons,trials:snap.trials,examples:snap.examples||[]}));
+    setLab(x=>({...x,identity:{...x.identity,...(snap.identity||{})},persona:snap.persona,lessons:snap.lessons,trials:snap.trials,examples:snap.examples||[]}));
     setNotice('تمت استعادة الشخصية والدروس والتجارب داخل المختبر.');
   }
 
@@ -377,10 +377,14 @@ export default function ChildLabPage(){
   }
 
   async function resetChild(){
-    if(!confirm('مسح شخصية الطفل ودروسه وذاكرته الطويلة داخل المختبر فقط؟ لن يتأثر نموذج المستخدمين أو التدريب.'))return;
+    if(!confirm('إعادة الطفل إلى بداية جديدة؟ سيتم مسح شخصيته ودروسه وذاكرته وCandidate الحالية وسحب صلاحيات الأدوات. لن يتأثر نموذج المستخدمين أو التدريب.'))return;
     await clearChildMemories().catch(()=>{});
     setMemoryItems([]);setMemoryInfo({count:0,by_kind:{}});
-    setLab(blank);
+    setCandidate(null);setCandidateEval(null);
+    setPermissions(defaultChildPermissions());
+    recordPermissionChange('CHILD_RESET','تم سحب جميع صلاحيات الطفل أثناء إعادة الضبط');
+    setLab({...blank,identity:{...blank.identity},currentTrial:{...blank.currentTrial},messages:[...blank.messages]});
+    setNotice('عاد الطفل إلى بداية جديدة داخل المختبر فقط وتم سحب صلاحيات الأدوات.');
   }
 
   if(!URL||!KEY)return <div style={S.center}>إعداد Supabase غير مكتمل.</div>;
@@ -456,7 +460,7 @@ export default function ChildLabPage(){
         {candidate&&<div style={S.list}><div style={S.item}><span>القرار</span><b>{candidate.evaluation?.recommendation||'—'}</b></div><div style={S.item}><span>الأمثلة</span><b>{candidate.evaluation?.example_count||0}</b></div><div style={S.item}><span>التدريب</span><b>{candidate.training_started?'بدأ':'لم يبدأ'}</b></div><div style={S.item}><span>GPU</span><b>{candidate.gpu_requested?'مطلوب':'غير مطلوب'}</b></div></div>}{candidateEval&&<div style={S.list}><div style={S.item}><span>نتيجة التقييم</span><b>{candidateEval.evaluation?.verdict||'—'}</b></div><div style={S.item}><span>Quality</span><b>{candidateEval.evaluation?.metrics?.quality_score??'—'}</b></div><div style={S.item}><span>تحذيرات</span><b>{candidateEval.evaluation?.warnings?.length||0}</b></div><div style={S.item}><span>السماح بالتدريب</span><b>{candidateEval.evaluation?.training_allowed?'نعم':'لا'}</b></div></div>}
         <h3>Snapshots / الحزم</h3>
         <div style={S.row}><button style={S.primary} onClick={saveSnapshot}>حفظ Snapshot</button><button style={S.small} onClick={exportPackage}>تصدير الشخصية</button><button style={S.small} onClick={exportTrainingPack}>تصدير Training Pack</button><label style={S.small}>استيراد<input type="file" accept="application/json,.json" hidden onChange={e=>{const file=e.target.files?.[0];e.target.value='';importPackage(file)}}/></label></div>
-        <div style={S.list}>{(lab.snapshots||[]).slice(0,8).map(x=><div key={x.id} style={S.item}><div><b>{new Date(x.created_at).toLocaleString('ar-MA')}</b><small style={{display:'block',opacity:.7}}>{x.lessons?.length||0} دروس · {x.trials?.length||0} تجارب · {x.examples?.length||0} أمثلة</small></div><button style={S.small} onClick={()=>restoreSnapshot(x.id)}>استعادة</button></div>)}</div>
+        <div style={S.list}>{(lab.snapshots||[]).slice(0,8).map(x=><div key={x.id} style={S.item}><div><b>{new Date(x.created_at).toLocaleString('ar-MA')}</b><small style={{display:'block',opacity:.7}}>{x.identity?.name||'طفل AQLEVON'} · {x.lessons?.length||0} دروس · {x.trials?.length||0} تجارب · {x.examples?.length||0} أمثلة</small></div><button style={S.small} onClick={()=>restoreSnapshot(x.id)}>استعادة</button></div>)}</div>
         <h3>إيصالات الأدوات</h3>
         <div style={S.list}>{(lab.toolRuns||[]).slice(0,6).map(x=><div key={x.id} style={S.item}><div><b>{x.tool}{x.action?` / ${x.action}`:''} · Receipt</b><small style={{display:'block',opacity:.7}}>{String(x.receipt?.id||x.receipt?.receipt_id||x.id)}</small></div></div>)}</div>
         <button style={S.bad} onClick={resetChild}>مسح الطفل التجريبي</button>
