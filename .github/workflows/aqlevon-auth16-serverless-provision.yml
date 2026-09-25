@@ -28,7 +28,13 @@ jobs:
           python3 - <<'PY'
           import json
           d=json.load(open('/tmp/templates.json'))
-          xs=d if isinstance(d,list) else d.get('templates') or d.get('items') or []
+          def dicts(x):
+              if isinstance(x,dict):
+                  yield x
+                  for v in x.values(): yield from dicts(v)
+              elif isinstance(x,list):
+                  for v in x: yield from dicts(v)
+          xs=list(dicts(d))
           found=next((x for x in xs if x.get('name')=='aqlevon-auth16-serverless-v1-cli'),None)
           if found:
               i=found.get('id') or found.get('templateId')
@@ -48,7 +54,13 @@ jobs:
           python3 - <<'PY'
           import json
           d=json.load(open('/tmp/endpoints-before.json'))
-          xs=d if isinstance(d,list) else d.get('endpoints') or d.get('items') or []
+          def dicts(x):
+              if isinstance(x,dict):
+                  yield x
+                  for v in x.values(): yield from dicts(v)
+              elif isinstance(x,list):
+                  for v in x: yield from dicts(v)
+          xs=list(dicts(d))
           names=['aqlevon-auth16-public-v1','aqlevon-auth16-child-v1']
           for n in names:
               x=next((e for e in xs if e.get('name')==n),None)
