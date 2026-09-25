@@ -1,0 +1,229 @@
+{
+  "balances": [
+    15.0
+  ],
+  "checked_at_utc": "2026-09-25T10:27:45.195007+00:00",
+  "gpu_catalog": [
+    {
+      "datacenters": [
+        {
+          "id": "US-MD-1",
+          "stock": "Low"
+        },
+        {
+          "id": "US-WA-1",
+          "stock": "Low"
+        }
+      ],
+      "gpu_id": "NVIDIA A100-SXM4-80GB",
+      "price_hr": 1.59,
+      "stock": "Low",
+      "vram_gb": 80
+    },
+    {
+      "datacenters": [
+        {
+          "id": "CA-MTL-1",
+          "stock": "Low"
+        },
+        {
+          "id": "EU-SE-1",
+          "stock": "Low"
+        }
+      ],
+      "gpu_id": "NVIDIA A40",
+      "price_hr": 0.49,
+      "stock": "Low",
+      "vram_gb": 48
+    },
+    {
+      "datacenters": [
+        {
+          "id": "CA-MTL-1",
+          "stock": "Low"
+        },
+        {
+          "id": "EU-NL-1",
+          "stock": "Low"
+        },
+        {
+          "id": "EUR-IS-3",
+          "stock": "Low"
+        },
+        {
+          "id": "US-CA-2",
+          "stock": "Low"
+        },
+        {
+          "id": "US-GA-2",
+          "stock": "Low"
+        },
+        {
+          "id": "US-NE-1",
+          "stock": "Low"
+        }
+      ],
+      "gpu_id": "NVIDIA H100 80GB HBM3",
+      "price_hr": 3.49,
+      "stock": "Low",
+      "vram_gb": 80
+    },
+    {
+      "datacenters": [
+        {
+          "id": "US-CA-2",
+          "stock": "Low"
+        },
+        {
+          "id": "US-GA-2",
+          "stock": "Low"
+        },
+        {
+          "id": "US-KS-2",
+          "stock": "Low"
+        }
+      ],
+      "gpu_id": "NVIDIA H100 NVL",
+      "price_hr": 3.19,
+      "stock": "Low",
+      "vram_gb": 94
+    },
+    {
+      "datacenters": [
+        {
+          "id": "US-KS-2",
+          "stock": "Low"
+        }
+      ],
+      "gpu_id": "NVIDIA L40",
+      "price_hr": 0.82,
+      "stock": "Low",
+      "vram_gb": 48
+    },
+    {
+      "datacenters": [
+        {
+          "id": "EUR-IS-2",
+          "stock": "Low"
+        },
+        {
+          "id": "US-TX-4",
+          "stock": "Low"
+        }
+      ],
+      "gpu_id": "NVIDIA L40S",
+      "price_hr": 1.09,
+      "stock": "Low",
+      "vram_gb": 48
+    },
+    {
+      "datacenters": [
+        {
+          "id": "US-IL-1",
+          "stock": "Low"
+        }
+      ],
+      "gpu_id": "NVIDIA RTX 6000 Ada Generation",
+      "price_hr": 0.84,
+      "stock": "Low",
+      "vram_gb": 48
+    },
+    {
+      "datacenters": [
+        {
+          "id": "EU-SE-1",
+          "stock": "Low"
+        },
+        {
+          "id": "US-TX-1",
+          "stock": "Low"
+        }
+      ],
+      "gpu_id": "NVIDIA RTX A6000",
+      "price_hr": 0.53,
+      "stock": "Low",
+      "vram_gb": 48
+    },
+    {
+      "datacenters": [
+        {
+          "id": "EU-CZ-1",
+          "stock": "Low"
+        },
+        {
+          "id": "EU-NL-1",
+          "stock": "Low"
+        },
+        {
+          "id": "EUR-IS-1",
+          "stock": "Low"
+        },
+        {
+          "id": "EUR-IS-2",
+          "stock": "Low"
+        },
+        {
+          "id": "US-CO-1",
+          "stock": "Low"
+        },
+        {
+          "id": "US-MO-2",
+          "stock": "Low"
+        },
+        {
+          "id": "US-NC-2",
+          "stock": "Low"
+        },
+        {
+          "id": "US-NE-1",
+          "stock": "Low"
+        },
+        {
+          "id": "US-PA-1",
+          "stock": "Low"
+        }
+      ],
+      "gpu_id": "NVIDIA RTX PRO 6000 Blackwell Server Edition",
+      "price_hr": 2.09,
+      "stock": "Low",
+      "vram_gb": 96
+    },
+    {
+      "datacenters": [
+        {
+          "id": "EUR-IS-2",
+          "stock": "Low"
+        },
+        {
+          "id": "US-NE-1",
+          "stock": "Low"
+        },
+        {
+          "id": "US-PA-1",
+          "stock": "Low"
+        }
+      ],
+      "gpu_id": "NVIDIA RTX PRO 6000 Blackwell Server Edition MIG 1g.24gb",
+      "price_hr": 0.59,
+      "stock": "Low",
+      "vram_gb": 24
+    },
+    {
+      "datacenters": [
+        {
+          "id": "US-NE-1",
+          "stock": "Low"
+        },
+        {
+          "id": "US-PA-1",
+          "stock": "Low"
+        }
+      ],
+      "gpu_id": "NVIDIA RTX PRO 6000 Blackwell Server Edition MIG 2g.48gb",
+      "price_hr": 1.09,
+      "stock": "Low",
+      "vram_gb": 48
+    }
+  ],
+  "pods": []
+}
