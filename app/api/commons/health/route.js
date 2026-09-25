@@ -10,7 +10,7 @@ export async function GET(){
     available:!!h.available,
     active_workers:Number(h.active_workers||0),
     transport:'supabase-edge-pull-queue',
-    inference_protocol:'openai-compatible',
+    inference_protocol:'AQLEVON_CHAT_RUNTIME_V1',
     cost_policy:'worker-supplied-compute',
     edge_reachable:!!h.ok
   },{status:h.ok?200:503,headers:{'Cache-Control':'no-store'}});

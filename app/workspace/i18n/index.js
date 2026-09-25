@@ -8,10 +8,10 @@ export const LANGS = [
   { id: 'ar', label: 'Arabic', native: 'العربية' }
 ];
 
-const I18nCtx = createContext({ t: k => k, lang: 'en', setLang: () => {} });
+const I18nCtx = createContext({ t: k => k, lang: 'ar', setLang: () => {} });
 
 export function I18nProvider({ children }) {
-  const [lang, setLang] = useState(() => typeof window !== 'undefined' ? (localStorage.getItem('aqlevon-lang') || localStorage.getItem('kite-lang') || 'en') : 'en');
+  const [lang, setLang] = useState(() => typeof window !== 'undefined' ? (localStorage.getItem('aqlevon-lang') || localStorage.getItem('kite-lang') || 'ar') : 'ar');
 
   useEffect(() => {
     localStorage.setItem('aqlevon-lang', lang);

@@ -1,14 +1,18 @@
 #!/usr/bin/env node
 const COMMONS_URL=process.env.AQLEVON_COMMONS_URL||'https://qkoscgdegnqcypkjrefn.supabase.co/functions/v1/aqlevon-commons';
 const WORKER_TOKEN=process.env.AQLEVON_COMMONS_WORKER_TOKEN||'';
-const MODEL_URL=(process.env.AQLEVON_MODEL_URL||process.env.LOCAL_MODEL_URL||'http://127.0.0.1:8080').replace(/\/$/,'');
-const MODEL_KEY=process.env.AQLEVON_MODEL_KEY||process.env.LOCAL_MODEL_KEY||'';
+const MODEL_URL=String(process.env.AQLEVON_MODEL_URL||'').replace(/\/$/,'');
+const MODEL_KEY=process.env.AQLEVON_MODEL_KEY||'';
 const MODEL_NAME=process.env.AQLEVON_MODEL_NAME||'AQLEVON-27B';
 const POLL_MS=Math.max(500,Number(process.env.AQLEVON_COMMONS_POLL_MS||1500));
 const ONCE=process.env.AQLEVON_COMMONS_ONCE==='1';
 
 if(!WORKER_TOKEN){
   console.error('AQLEVON_COMMONS_WORKER_TOKEN is required.');
+  process.exit(2);
+}
+if(!MODEL_URL){
+  console.error('AQLEVON_MODEL_URL is required.');
   process.exit(2);
 }
 
@@ -40,7 +44,7 @@ async function infer(job){
     method:'POST',
     headers,
     body:JSON.stringify({
-      model:req.model||MODEL_NAME,
+      model:MODEL_NAME,
       messages,
       temperature:Number.isFinite(Number(req.temperature))?Number(req.temperature):0.4,
       stream:false
@@ -51,7 +55,7 @@ async function infer(job){
   if(!r.ok)throw new Error(`model_http_${r.status}`);
   const text=String(data?.choices?.[0]?.message?.content||'').trim();
   if(!text)throw new Error('empty_model_response');
-  return {text,model:data?.model||MODEL_NAME,provider:'aqlevon-commons',citations:[]};
+  return {text,model:MODEL_NAME,provider:'aqlevon-commons',citations:[]};
 }
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 let stopping=false;
@@ -65,7 +69,7 @@ do{
     const claimed=await commons({
       op:'claim',
       worker_token:WORKER_TOKEN,
-      capabilities:{protocol:'openai-compatible',model:MODEL_NAME,engine:'local'}
+      capabilities:{protocol:'AQLEVON_CHAT_RUNTIME_V1',model:MODEL_NAME,engine:'aqlevon'}
     });
     job=claimed.job||null;
     if(job){

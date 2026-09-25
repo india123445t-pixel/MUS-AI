@@ -18,7 +18,6 @@ export default function ChatPage({ onChatsChanged, newChat, onMenu }) {
   const [chat, setChat] = useState(null);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
-  const [thinkLonger, setThinkLonger] = useState(false);
   const [webSearch, setWebSearch] = useState(false);
   const [deepResearch, setDeepResearch] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -26,10 +25,10 @@ export default function ChatPage({ onChatsChanged, newChat, onMenu }) {
   const [addMenu, setAddMenu] = useState(false);
   const [codeSheet, setCodeSheet] = useState(false);
   const [lastError, setLastError] = useState(null);
+  const [runtime, setRuntime] = useState(null);
   const [titleEdit, setTitleEdit] = useState(null);
   const scrollRef = useRef();
   const fileRef = useRef();
-  const imgRef = useRef();
   const taRef = useRef();
   const recRef = useRef(null);
   const abortRef = useRef(null);
@@ -37,6 +36,11 @@ export default function ChatPage({ onChatsChanged, newChat, onMenu }) {
   const streamChatIdRef = useRef(null);
 
   const isTemp = params.get('temp') === '1' || chat?.temporary === 1;
+  const speechAvailable = typeof window !== 'undefined' && !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+
+  useEffect(() => {
+    api.get('/bootstrap').then(setRuntime).catch(() => setRuntime({ inferenceReady:false, inferenceError:'HEALTH_CHECK_FAILED', webSearchAvailable:false }));
+  }, []);
 
   useEffect(() => {
     setEditing(null); setLastError(null); setTitleEdit(null);
@@ -62,6 +66,11 @@ export default function ChatPage({ onChatsChanged, newChat, onMenu }) {
   const send = async (text, extra = {}) => {
     const content = (text ?? input).trim();
     if (!content && !extra.regenerate && !extra.editMessageId) return;
+    if (!runtime) { setLastError(t('chat.runtimeChecking')); return; }
+    if (runtime.inferenceReady !== true) {
+      setLastError(runtime.inferenceError === 'AUTH_ERROR' ? t('chat.runtimeAuthError') : t('chat.runtimeUnavailable'));
+      return;
+    }
     setBusy(true); busyRef.current = true;
     setInput(''); setEditing(null); setLastError(null);
     if (taRef.current) taRef.current.style.height = 'auto';
@@ -83,7 +92,6 @@ export default function ChatPage({ onChatsChanged, newChat, onMenu }) {
     try {
       const resp = await api.streamChat(chatId, {
         content: content || undefined,
-        reasoning: thinkLonger ? 'extended' : 'standard',
         useWebSearch: webSearch || deepResearch,
         ...extra
       }, controller.signal);
@@ -117,15 +125,12 @@ export default function ChatPage({ onChatsChanged, newChat, onMenu }) {
       if (hadError) setLastError(hadError);
     } catch (e) {
       if (e.name === 'AbortError') {
-        // Deterministic stop path: stop() asks the SERVER to abort (see below)
-        // and the stream stays open until the server has persisted the partial
-        // and sent its final `done` event — handled above, so we normally never
-        // land here on Stop. This branch only fires if the fetch itself was
-        // aborted (e.g. component unmount / connection torn down); refetch
-        // best-effort so nothing visible is lost.
+        // Browser-local stop: the client request/stream was cancelled.
+        // The current runtime does not provide a verified external generation-cancel adapter,
+        // so we never claim that upstream model work was cancelled.
         try { const fresh = await api.get('/chats/' + chatId); setChat(fresh); onChatsChanged(); } catch { /* offline */ }
       } else {
-        setLastError(e.message);
+        setLastError(e.errorClass ? `${e.message} (${e.errorClass})` : e.message);
         try { const fresh = await api.get('/chats/' + chatId); setChat(fresh); } catch { /* offline */ }
       }
     } finally {
@@ -136,16 +141,9 @@ export default function ChatPage({ onChatsChanged, newChat, onMenu }) {
     }
   };
 
-  // Deterministic Stop: tell the server to abort generation, then KEEP READING
-  // the open stream. The server persists the partial reply first and only then
-  // emits the final `done` event, which triggers the normal refetch above — the
-  // stopped partial is guaranteed to be in that refetch (no timing assumptions).
-  // Client-side fetch abort is only a fallback if the stop request itself fails.
-  const stop = () => {
-    const chatId = streamChatIdRef.current;
-    if (!chatId) { abortRef.current?.abort(); return; }
-    api.post(`/chats/${chatId}/stream/stop`, {}).catch(() => abortRef.current?.abort());
-  };
+  // Browser-local stop only. Cancels the current client request/stream.
+  // No external generation-cancel adapter is connected in this edition.
+  const stop = () => abortRef.current?.abort();
   const regenerate = () => send('', { regenerate: true });
   const saveEdit = (msgId, newText) => send(newText, { editMessageId: msgId });
 
@@ -173,14 +171,21 @@ export default function ChatPage({ onChatsChanged, newChat, onMenu }) {
   };
 
   const uploadFile = async (f, thenSummarize = false) => {
-    const fd = new FormData();
-    fd.append('file', f);
-    const file = await api.upload('/files', fd);
-    if (thenSummarize) {
-      send(`${t('chat.starter.summarize')}: [${t('chat.attached')}: ${file.name}]`);
-    } else {
-      setInput(v => v + (v ? '\n' : '') + `[${t('chat.attached')}: ${file.name}]`);
-      taRef.current?.focus();
+    const textLike = /^(text\/|application\/(json|xml|javascript))/.test(f.type || '') || /\.(md|txt|json|csv|js|jsx|ts|tsx|css|html|xml|yaml|yml)$/i.test(f.name || '');
+    if (!textLike) { setLastError(t('chat.fileUnsupported')); return; }
+    if (f.size > 32 * 1024) { setLastError(t('chat.fileTooLarge')); return; }
+    try {
+      const text = await f.text();
+      if (!text.trim()) { setLastError(t('chat.fileEmpty')); return; }
+      if (text.length > 12000) { setLastError(t('chat.fileTooLarge')); return; }
+      const payload = `${thenSummarize ? t('chat.starter.summarize') : t('chat.fileContext')}\n\n--- ${f.name} ---\n${text}\n--- ${t('chat.fileEnd')} ---`;
+      if (thenSummarize) send(payload);
+      else {
+        setInput(v => v + (v ? '\n\n' : '') + payload);
+        taRef.current?.focus();
+      }
+    } catch {
+      setLastError(t('chat.fileReadError'));
     }
   };
 
@@ -240,7 +245,7 @@ export default function ChatPage({ onChatsChanged, newChat, onMenu }) {
             <p className="sub">{t('chat.hint')}</p>
             <div className="starters">
               {starters.map(s => (
-                <button key={s.key} className="starter" onClick={() => {
+                <button key={s.key} className="starter" disabled={s.mode === 'file' && runtime?.inferenceReady !== true} onClick={() => {
                   if (s.mode === 'file') { summarizeRef.current = true; fileRef.current?.click(); }
                   else s.run();
                 }}>
@@ -292,7 +297,7 @@ export default function ChatPage({ onChatsChanged, newChat, onMenu }) {
             {lastError && (
               <div className="error-strip">
                 <Icon name="warn" size={16} />
-                <span style={{ flex: 1 }}>{t('chat.errorStrip')}</span>
+                <span style={{ flex: 1 }}>{lastError || t('chat.errorStrip')}</span>
                 <button className="btn sm ghost" onClick={regenerate}>{t('chat.retry')}</button>
               </div>
             )}
@@ -304,6 +309,12 @@ export default function ChatPage({ onChatsChanged, newChat, onMenu }) {
       )}
 
       <div className="composer-wrap">
+        {runtime?.inferenceReady === false && (
+          <div className="error-strip" style={{ marginBottom: 8 }}>
+            <Icon name="warn" size={16} />
+            <span>{runtime?.inferenceError === 'AUTH_ERROR' ? t('chat.runtimeAuthError') : t('chat.runtimeUnavailable')}</span>
+          </div>
+        )}
         <div className="composer">
           <textarea
             ref={taRef}
@@ -322,42 +333,41 @@ export default function ChatPage({ onChatsChanged, newChat, onMenu }) {
               {addMenu && <>
                 <div className="menu-backdrop" onClick={() => setAddMenu(false)} />
                 <div className="menu" style={{ bottom: 40, insetInlineStart: 0 }}>
-                  <button onClick={() => { setAddMenu(false); fileRef.current?.click(); }}><Icon name="clip" size={15} /> {t('chat.attachFile')}</button>
-                  <button onClick={() => { setAddMenu(false); imgRef.current?.click(); }}><Icon name="image" size={15} /> {t('chat.addImage')}</button>
+                  <button disabled={runtime?.inferenceReady !== true} onClick={() => { setAddMenu(false); fileRef.current?.click(); }}><Icon name="clip" size={15} /> {t('chat.attachFile')}</button>
+                  <button disabled title={t('chat.imageUnavailable')}><Icon name="image" size={15} /> {t('chat.addImage')}</button>
                   <button onClick={() => { setAddMenu(false); setCodeSheet(true); }}><Icon name="code" size={15} /> {t('chat.pasteCode')}</button>
                 </div>
               </>}
             </div>
-            <input type="file" hidden ref={fileRef} onChange={e => {
+            <input type="file" accept=".md,.txt,.json,.csv,.js,.jsx,.ts,.tsx,.css,.html,.xml,.yaml,.yml,text/*,application/json,application/xml" hidden ref={fileRef} onChange={e => {
               const f = e.target.files[0]; e.target.value = '';
-              if (f) { const s = summarizeRef.current; summarizeRef.current = false; uploadFile(f, s); }
+              if (f) { const summarize = summarizeRef.current; summarizeRef.current = false; uploadFile(f, summarize); }
             }} />
-            <input type="file" accept="image/*" hidden ref={imgRef} onChange={e => { const f = e.target.files[0]; e.target.value = ''; if (f) uploadFile(f); }} />
 
-            <button className={'chip' + (webSearch ? ' on' : '')} onClick={() => setWebSearch(v => !v)}>
+            <button className={'chip' + (webSearch ? ' on' : '')} disabled={runtime?.webSearchAvailable !== true} title={runtime?.webSearchAvailable !== true ? t('chat.webUnavailable') : undefined} onClick={() => setWebSearch(v => !v)}>
               <Icon name="globe" size={15} /><span className="chip-label">{t('chat.webSearch')}</span>
             </button>
-            <button className={'chip' + (deepResearch ? ' on' : '')} title={t('chat.researchHint')} onClick={() => setDeepResearch(v => !v)}>
+            <button className={'chip' + (deepResearch ? ' on' : '')} disabled={runtime?.webSearchAvailable !== true} title={runtime?.webSearchAvailable !== true ? t('chat.webUnavailable') : t('chat.researchHint')} onClick={() => setDeepResearch(v => !v)}>
               <Icon name="flask" size={15} /><span className="chip-label">{t('chat.deepResearch')}</span>
             </button>
 
             <div className="spacer" />
 
             <button
-              className={'chip' + (thinkLonger ? ' on' : '')}
-              aria-pressed={thinkLonger}
-              title={t('chat.thinkLongerHint')}
-              onClick={() => setThinkLonger(v => !v)}
+              className="chip"
+              disabled
+              aria-pressed={false}
+              title={t('chat.thinkLongerAutomatic')}
             >
               <Icon name="spark" size={14} /><span className="chip-label">{t('chat.thinkLonger')}</span>
             </button>
 
-            <button className={'iconbtn' + (listening ? ' on' : '')} title={t('chat.dictate')} onClick={dictate} style={listening ? { color: 'var(--bad)' } : undefined}>
+            <button className={'iconbtn' + (listening ? ' on' : '')} disabled={!speechAvailable} title={speechAvailable ? t('chat.dictate') : t('chat.dictateUnavailable')} onClick={dictate} style={listening ? { color: 'var(--bad)' } : undefined}>
               <Icon name="mic" size={17} />
             </button>
             {busy
               ? <button className="send-btn stop" onClick={stop} title={t('chat.stop')}><Icon name="stop" size={15} /></button>
-              : <button className="send-btn" onClick={() => send()} disabled={!input.trim()} title={t('chat.send')}><Icon name="send" size={16} flip /></button>}
+              : <button className="send-btn" onClick={() => send()} disabled={!input.trim() || runtime?.inferenceReady !== true} title={t('chat.send')}><Icon name="send" size={16} flip /></button>}
           </div>
         </div>
       </div>

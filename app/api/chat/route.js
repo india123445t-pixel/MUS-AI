@@ -18,8 +18,8 @@ import { redactSecrets } from '../../../lib/aqlevon/security.js';
 import { AQLEVON_BOS_VERSION } from '../../../lib/aqlevon/constants.js';
 import { governResponse } from '../../../lib/aqlevon/response-governor.js';
 
-const SUPABASE_URL=process.env.NEXT_PUBLIC_SUPABASE_URL||'https://qkoscgdegnqcypkjrefn.supabase.co';
-const SUPABASE_KEY=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||'sb_publishable_wGDAyv5bwOrGjNX6QK0KzQ_K_xWI6w8';
+const SUPABASE_URL=process.env.NEXT_PUBLIC_SUPABASE_URL||'';
+const SUPABASE_KEY=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||'';
 
 function client(){
   if(!SUPABASE_URL||!SUPABASE_KEY)throw new Error('Supabase environment is not configured.');
@@ -41,6 +41,7 @@ async function loadRuntime(sb){
       max_model_calls_per_request:3,
       max_history:16,
       temperature:0.4,
+      runtime_mode:'self_hosted_only',
       allow_paid_external:false,
       public_web_search_enabled:false,
     },
@@ -52,7 +53,7 @@ async function loadRuntime(sb){
       sb.rpc('get_aqlevon_runtime_lessons',{p_limit:18}),
     ]);
     return {
-      settings:cfg.error?fallback.settings:{...fallback.settings,...(cfg.data||{})},
+      settings:cfg.error?fallback.settings:{...fallback.settings,...(cfg.data||{}),runtime_mode:'self_hosted_only',allow_paid_external:false,public_web_search_enabled:false},
       lessons:lessons.error?[]:(lessons.data||[]),
     };
   }catch{return fallback}
@@ -67,16 +68,16 @@ async function getQuota(sb,sessionId,hash){
 }
 
 async function runAdvisoryVerifier({contract,candidates,settings,webSearch}){
-  const excluded=[...new Set(candidates.map(c=>c?.provider).filter(Boolean))];
   const prompt=buildVerifierPrompt({contract,candidates});
   const result=await generateModelResponse([
     {role:'system',content:prompt.system},
     {role:'user',content:JSON.stringify(prompt.payload)},
-  ],webSearch,settings,{temperature:0.05,excludeProviders:excluded});
-  if(!result)return {relation:'INCONCLUSIVE',confidence:0,issues:['No independent advisory verifier was available'],preferred:null,corrected_answer:'',independent:false};
+  ],webSearch,settings,{temperature:0.05});
+  if(!result)return {relation:'INCONCLUSIVE',confidence:0,issues:['No advisory verifier pass was available'],preferred:null,corrected_answer:'',independent:false};
   return {
     ...normalizeAdvisoryVerifier(safeJson(result.text)),
-    independent:!excluded.includes(result.provider),
+    independent:false,
+    same_runtime:true,
     verifier_provider:result.provider,
     verifier_model:result.model,
   };
@@ -84,12 +85,11 @@ async function runAdvisoryVerifier({contract,candidates,settings,webSearch}){
 
 async function maybeAdjudicateRepair({contract,selected,advisory,candidates,settings,webSearch,maxCalls,modelCalls}){
   if(!advisory?.corrected_answer||advisory.relation!=='REPAIR'||modelCalls>=maxCalls)return {selected,modelCalls,adjudication:null};
-  const excluded=[...new Set([...candidates.map(c=>c.provider),advisory.verifier_provider].filter(Boolean))];
-  const system=`You are an independent AQLEVON response adjudicator. Choose between ORIGINAL and REPAIR for the frozen task contract. Do not treat agreement, confidence, or style as truth. Never invent tool execution. Return STRICT JSON only: {"choice":"original|repair|uncertain","reason":"short reason"}.`;
+  const system=`You are an AQLEVON response adjudication pass on the same sovereign runtime. Choose between ORIGINAL and REPAIR for the frozen task contract. Do not treat agreement, confidence, or style as truth. Never invent tool execution. Return STRICT JSON only: {"choice":"original|repair|uncertain","reason":"short reason"}.`;
   const result=await generateModelResponse([
     {role:'system',content:system},
     {role:'user',content:JSON.stringify({task_contract:contract,original:selected.text,repair:advisory.corrected_answer})},
-  ],webSearch,settings,{temperature:0.05,excludeProviders:excluded});
+  ],webSearch,settings,{temperature:0.05});
   if(!result)return {selected,modelCalls:modelCalls+1,adjudication:null};
   const parsed=safeJson(result.text)||{};
   const adjudication={choice:['original','repair','uncertain'].includes(parsed.choice)?parsed.choice:'uncertain',reason:String(parsed.reason||''),provider:result.provider,model:result.model};
@@ -133,6 +133,9 @@ export async function POST(req){
     if(rawInput.length>20000)return NextResponse.json({message:'الرسالة طويلة جدًا.'},{status:413});
 
     const redactedInput=redactSecrets(rawInput);
+    if(!SUPABASE_URL||!SUPABASE_KEY){
+      return NextResponse.json({message:'قاعدة بيانات AQLEVON غير مهيأة.',error_class:'ENV_MISSING'},{status:503});
+    }
     const sb=client();
     const {settings,lessons}=await loadRuntime(sb);
     if(settings.public_chat_enabled===false)return NextResponse.json({message:'AQLEVON AI في وضع صيانة مؤقتًا.'},{status:503});
@@ -153,6 +156,8 @@ export async function POST(req){
       history:body.history,
       contract,
       lessons,
+      personalization:String(body.personalization||'').slice(0,4000),
+      memories:Array.isArray(body.memories)?body.memories.slice(0,16):[],
       maxHistory:Math.max(4,Math.min(64,Number(settings?.max_history||16))),
     });
 
@@ -166,7 +171,7 @@ export async function POST(req){
     modelCalls++;
     if(!first||first.unavailable){
       const errorClass=first?.error_class||'UNKNOWN_PROVIDER_ERROR';
-      console.warn('AQLEVON_INFERENCE_UNAVAILABLE',{error_class:errorClass,route:settings?.runtime_mode||'openrouter_primary'});
+      console.warn('AQLEVON_INFERENCE_UNAVAILABLE',{error_class:errorClass,route:settings?.runtime_mode||'self_hosted_only'});
       return NextResponse.json({message:'لا يوجد محرك استدلال متاح الآن.',error_class:errorClass},{status:503});
     }
     candidates.push(first);
@@ -176,7 +181,7 @@ export async function POST(req){
         {role:'system',content:`${messages[0].content}\n\nINDEPENDENT SOLUTION PATH: solve from scratch. Do not assume another candidate is correct. Return the user-facing answer only.`},
         ...messages.slice(1),
       ];
-      const second=await generateModelResponse(independent,route.web_search,settings,{temperature:0.25,excludeProviders:[first.provider]});
+      const second=await generateModelResponse(independent,route.web_search,settings,{temperature:0.25});
       modelCalls++;
       if(second)candidates.push(second);
     }
@@ -204,6 +209,7 @@ export async function POST(req){
         confidence:advisory.confidence,
         issues:advisory.issues||[],
         independent:!!advisory.independent,
+        same_runtime:advisory.same_runtime===true,
         verifier_provider:advisory.verifier_provider||null,
         verifier_model:advisory.verifier_model||null,
         adjudication:advisory.adjudication||null,
