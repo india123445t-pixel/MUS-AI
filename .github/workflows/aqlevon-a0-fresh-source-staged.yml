@@ -33,7 +33,7 @@ jobs:
           import json,hashlib,os
           from pathlib import Path
           a=json.loads(Path('.github/runpod-control/a0-fresh-manager-authorization-20260925.json').read_text())
-          t=json.loads(Path('.github/runpod-control/execute-a0-resume-trigger.json').read_text())
+          t=json.loads(Path('.github/runpod-control/execute-a0-fresh-trigger.json').read_text())
           def sha(v):return hashlib.sha256(json.dumps(v,sort_keys=True,separators=(',',':'),ensure_ascii=False,allow_nan=False).encode()).hexdigest()
           assert a['authorization_sha256']==sha({k:v for k,v in a.items() if k!='authorization_sha256'})==os.environ['AUTH_SHA']
           assert a['authorization_id']==t['authorization_id']==os.environ['AUTH_ID']
