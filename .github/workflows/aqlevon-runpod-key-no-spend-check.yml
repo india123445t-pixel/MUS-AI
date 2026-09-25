@@ -1,0 +1,46 @@
+name: AQLEVON RunPod Key No-Spend Check
+
+on:
+  push:
+    branches: [ops/runpod-key-check-20260925]
+    paths:
+      - ".github/runpod-control/runpod-key-check-trigger.txt"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - name: Validate secret is present
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${RUNPOD_API_KEY:-}" || { echo "::error::RUNPOD_API_KEY is empty"; exit 10; }
+
+      - name: Authenticate to RunPod without creating resources
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl -sS -o /tmp/pods.json -w '%{http_code}'             "https://rest.runpod.io/v1/pods"             -H "Authorization: Bearer $RUNPOD_API_KEY")"
+          test "$code" = "200" || { echo "::error::RunPod authentication failed HTTP $code"; exit 11; }
+          python3 - <<'PY'
+          import json
+          data=json.load(open('/tmp/pods.json'))
+          pods=data if isinstance(data,list) else data.get('pods') or data.get('items') or []
+          active=[]
+          for p in pods:
+              name=str(p.get('name') or '')
+              status=str(p.get('desiredStatus') or p.get('status') or 'UNKNOWN')
+              if name.startswith('AQLEVON-') and status != 'EXITED':
+                  active.append((name,status))
+          print(f"AQLEVON_RUNPOD_KEY_AUTH_OK pods_visible={len(pods)} active_aqlevon={len(active)}")
+          if active:
+              print("AQLEVON_ACTIVE_PODS_PRESENT", active)
+          else:
+              print("AQLEVON_NO_ACTIVE_PODS_PASS")
+          PY
