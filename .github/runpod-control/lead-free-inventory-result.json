@@ -1,8 +1,8 @@
 {
   "balances": [
-    13.891060589
+    13.7587792705
   ],
-  "checked_at_utc": "2026-09-25T11:21:13.601938+00:00",
+  "checked_at_utc": "2026-09-25T11:50:07.462411+00:00",
   "gpu_catalog": [
     {
       "datacenters": [
@@ -21,14 +21,6 @@
         {
           "id": "CA-MTL-1",
           "stock": "Low"
-        },
-        {
-          "id": "EU-SE-1",
-          "stock": "Low"
-        },
-        {
-          "id": "US-MO-1",
-          "stock": "Low"
         }
       ],
       "gpu_id": "NVIDIA A40",
@@ -39,7 +31,19 @@
     {
       "datacenters": [
         {
+          "id": "AP-IN-1",
+          "stock": "Low"
+        },
+        {
           "id": "CA-MTL-1",
+          "stock": "Low"
+        },
+        {
+          "id": "US-CA-2",
+          "stock": "Low"
+        },
+        {
+          "id": "US-GA-2",
           "stock": "Low"
         }
       ],
@@ -51,58 +55,6 @@
     {
       "datacenters": [
         {
-          "id": "US-GA-2",
-          "stock": "Low"
-        },
-        {
-          "id": "US-KS-2",
-          "stock": "Low"
-        }
-      ],
-      "gpu_id": "NVIDIA H100 NVL",
-      "price_hr": 3.19,
-      "stock": "Low",
-      "vram_gb": 94
-    },
-    {
-      "datacenters": [
-        {
-          "id": "US-TX-3",
-          "stock": "Low"
-        },
-        {
-          "id": "US-TX-4",
-          "stock": "Low"
-        }
-      ],
-      "gpu_id": "NVIDIA L40S",
-      "price_hr": 1.09,
-      "stock": "Low",
-      "vram_gb": 48
-    },
-    {
-      "datacenters": [
-        {
-          "id": "EU-SE-1",
-          "stock": "Low"
-        }
-      ],
-      "gpu_id": "NVIDIA RTX A6000",
-      "price_hr": 0.53,
-      "stock": "Low",
-      "vram_gb": 48
-    },
-    {
-      "datacenters": [
-        {
-          "id": "EU-CZ-1",
-          "stock": "Low"
-        },
-        {
-          "id": "EU-NL-1",
-          "stock": "Low"
-        },
-        {
           "id": "EUR-IS-1",
           "stock": "Low"
         },
@@ -111,23 +63,11 @@
           "stock": "Low"
         },
         {
-          "id": "US-CO-1",
-          "stock": "Low"
-        },
-        {
           "id": "US-KS-2",
           "stock": "Low"
         },
         {
-          "id": "US-MD-1",
-          "stock": "Low"
-        },
-        {
           "id": "US-MO-2",
-          "stock": "Low"
-        },
-        {
-          "id": "US-NC-1",
           "stock": "Low"
         },
         {
@@ -136,10 +76,6 @@
         },
         {
           "id": "US-NE-1",
-          "stock": "Low"
-        },
-        {
-          "id": "US-PA-1",
           "stock": "Low"
         }
       ],
@@ -175,10 +111,6 @@
           "stock": "Low"
         },
         {
-          "id": "US-NE-1",
-          "stock": "Low"
-        },
-        {
           "id": "US-PA-1",
           "stock": "Low"
         }
@@ -187,29 +119,13 @@
       "price_hr": 1.09,
       "stock": "Low",
       "vram_gb": 48
-    },
-    {
-      "datacenters": [
-        {
-          "id": "EU-CZ-1",
-          "stock": "Low"
-        },
-        {
-          "id": "EU-RO-1",
-          "stock": "Low"
-        }
-      ],
-      "gpu_id": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
-      "price_hr": 2.19,
-      "stock": "Low",
-      "vram_gb": 96
     }
   ],
   "pods": [
     {
-      "id": "j17ed3nyyl5fyv",
-      "machine_id": "ad3iqg9z3mgj",
-      "name": "AQLEVON-P4-A1-Recovery20A",
+      "id": "n2di6l60loo70j",
+      "machine_id": "mrii00nzhxlp",
+      "name": "AQLEVON-P4-A0-SFT-20260925",
       "public_ip_present": false,
       "rate": 1.59,
       "runtime_status": null,
