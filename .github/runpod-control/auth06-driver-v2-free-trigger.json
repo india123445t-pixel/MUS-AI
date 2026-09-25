@@ -1,0 +1,8 @@
+{
+  "kind": "AQLEVON_AUTH06_DRIVER_V2_FREE_CONTRACT_TRIGGER_V1",
+  "authorization_id": "P4-ONE-DAY-CRYSTALLIZATION-20260925-06",
+  "source_head": "f3a2ca4c894e81cf9dffa1dd9935a3774b854cdb",
+  "paid_resource_created": false,
+  "requested_at_utc": "2026-09-25T15:22:00Z",
+  "reason": "prove archived-source provenance repair before any Auth06 spend"
+}
