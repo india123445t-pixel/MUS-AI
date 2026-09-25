@@ -188,8 +188,11 @@ def load_inputs(args):
                 if program is None:
                     raise RuntimeError(f"verified_candidate_not_json:{tid}")
                 canonical = json.dumps(program, ensure_ascii=False, separators=(",", ":"))
+                source_label = rec.get("recovered_source") if probe.get("recovered_materialization") else chosen_kind
+                if not source_label:
+                    source_label = chosen_kind
                 train.append({"task_id": tid, "prompt": task["prompt"], "target": canonical,
-                              "source": chosen_kind, "priority": priority, "family": task["family"]})
+                              "source": source_label, "priority": priority, "family": task["family"]})
         elif rec["public_split"] == "shadow":
             shadow.append(task)
         else:
@@ -369,6 +372,10 @@ def run(args):
         "shadow_pre_successes":pre["successes"],"shadow_pre_pass_at_1":pre["pass_at_1"],
         "shadow_post_successes":post["successes"],"shadow_post_pass_at_1":post["pass_at_1"],
         "shadow_gain_tasks":gain_tasks,"shadow_improvement":improvement,"public_shadow_gate_pass":public_gate,
+        "recovered_materialization":bool(probe.get("recovered_materialization", False)),
+        "target_provenance":probe.get("target_provenance"),
+        "recovered_decision_sha256":probe.get("recovered_decision_sha256"),
+        "auth05_probe_log_sha256":probe.get("auth05_probe_log_sha256"),
         "sealed_eval_consumed":False,"worker05_used_for_tuning":False,"capability_gain_claim":False
     },"receipt_sha256")
     write_json(outdir/"training_run_receipt.json",receipt)
@@ -386,7 +393,12 @@ def run(args):
         "adapter_model_sha256":sha_file(artifact/"adapter_model.safetensors"),
         "adapter_state_sha256":saved_hash,"reloaded_adapter_state_sha256":reloaded_hash,
         "save_reload_hash_match":True,"tensor_layout":layout,
-        "public_shadow_gate_pass":public_gate,"sealed_eval_consumed":False,
+        "public_shadow_gate_pass":public_gate,
+        "recovered_materialization":bool(probe.get("recovered_materialization", False)),
+        "target_provenance":probe.get("target_provenance"),
+        "recovered_decision_sha256":probe.get("recovered_decision_sha256"),
+        "auth05_probe_log_sha256":probe.get("auth05_probe_log_sha256"),
+        "sealed_eval_consumed":False,
         "worker05_used_for_tuning":False,"capability_gain_claim":False
     },"manifest_sha256")
     write_json(outdir/"candidate_artifact_manifest.json",manifest)
