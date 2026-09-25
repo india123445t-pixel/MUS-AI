@@ -124,7 +124,7 @@ def tensor_layout(weights: dict) -> dict:
                 raise RuntimeError(f"adapter_A_shape_mismatch:{projection}:{parts['A']}")
             expected_b = (8192, 8) if projection == "q_proj" else (1024, 8)
         else:
-            if parts["A"] != (8, 8192):
+            if parts["A"] != (8, 4096):
                 raise RuntimeError(f"adapter_A_shape_mismatch:{projection}:{parts['A']}")
             expected_b = (2560, 8)
         if parts["B"] != expected_b:
@@ -340,7 +340,7 @@ def run(args):
         raise RuntimeError(f"lora_target_topology_mismatch:{len(targets)}")
     params=[p for p in model.parameters() if p.requires_grad]
     trainable=sum(p.numel() for p in params)
-    if trainable != 1835008:
+    if trainable != 1572864:
         raise RuntimeError(f"trainable_parameter_count_mismatch:{trainable}")
 
     optimizer=torch.optim.AdamW(params,lr=LR,weight_decay=0.05)
