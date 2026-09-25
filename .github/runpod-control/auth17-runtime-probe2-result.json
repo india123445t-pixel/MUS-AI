@@ -1,0 +1,36 @@
+{
+  "checked_at_utc": "2026-09-25T19:50:50.311602+00:00",
+  "costPerHr": 0.25,
+  "desiredStatus": "RUNNING",
+  "http_code": 200,
+  "kind": "AQLEVON_AUTH17_RUNTIME_PROBE_V2",
+  "pod_id": "ok0ftr5dsnls1z",
+  "portMappings": null,
+  "publicIp": "",
+  "raw": {
+    "consumerUserId": "user_3JfQ4J6Zh7viKb02erS0wc0LRKh",
+    "containerDiskInGb": 40,
+    "costPerHr": 0.25,
+    "createdAt": "2026-09-25 19:46:51.013 +0000 UTC",
+    "desiredStatus": "RUNNING",
+    "gpuCount": 1,
+    "id": "ok0ftr5dsnls1z",
+    "imageName": "ghcr.io/india123445t-pixel/mus-ai@sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec",
+    "lastStartedAt": "2026-09-25 19:46:51.008 +0000 UTC",
+    "lastStatusChange": "Rented by User: Fri Sep 25 2026 19:46:51 GMT+0000 (Coordinated Universal Time)",
+    "machine": {},
+    "machineId": "pqs05337eor4",
+    "memoryInGb": 62,
+    "name": "AQLEVON-AUTH17-RUNTIME",
+    "ports": [
+      "8000/http"
+    ],
+    "publicIp": "",
+    "templateId": "",
+    "vcpuCount": 16,
+    "volumeInGb": 0,
+    "volumeMountPath": "/workspace"
+  },
+  "runtime": null,
+  "status": null
+}
