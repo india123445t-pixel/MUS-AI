@@ -21,6 +21,27 @@ repls={
 }
 for a,b in repls.items():
     p=p.replace(a,b)
+import re
+p=re.sub(
+    r'# Fresh live no-duplicate check\. Bind to the free-sealed GPU/DC; if stock vanished, fail with no Pod\.[\s\S]*?# ---- paid boundary ----',
+    '''# Fresh live no-duplicate check. Persisted selection was committed by auth03 wrapper before this driver.
+curl -fsS https://rest.runpod.io/v1/pods -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/pre-pods.json || die pod_inventory_failed
+python3 - <<'PYSEL' || exit 1
+import json
+pods=json.load(open("/tmp/pre-pods.json")); pods=pods if isinstance(pods,list) else pods.get("pods") or pods.get("items") or []
+active=[p for p in pods if str(p.get("name","")).startswith("AQLEVON-") and str(p.get("desiredStatus") or p.get("status"))!="EXITED"]
+assert not active,active
+f=json.load(open(".github/runpod-control/one-day-public-probe-free-result-03.json"))
+open("/tmp/selected_gpu","w").write(str(f["selected_gpu_id"]))
+open("/tmp/selected_dc","w").write(str(f["selected_datacenter"]))
+open("/tmp/selected_rate","w").write(str(f["selected_price_hr"]))
+print("AQLEVON_ONE_DAY_PERSISTED_CAPACITY_SELECTION",f["selected_gpu_id"],f["selected_datacenter"],f["selected_price_hr"])
+PYSEL
+
+# ---- paid boundary ----''',
+    p,
+    count=1,
+)
 p=p.replace(
     'git pull --rebase origin ops/one-day-verified-trajectory-20260925 || die consumed_rebase_failed\n',
     ': # auth03: no post-create rebase\n'
