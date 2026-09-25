@@ -1,0 +1,9 @@
+{
+  "kind": "AQLEVON_AUTH11_PREFERENCE_ZERO_COST_SEAL_TRIGGER_V1",
+  "requested_at_utc": "2026-09-25T17:49:00Z",
+  "authorization_id": "P4-ONE-DAY-PREFERENCE-CRYSTALLIZATION-20260925-11",
+  "authorization_sha256": "b570a9d7e485ec2bed08dac491ccb35f2f52cd739481dae23ded0697caeb0854",
+  "expected_source_head": "a5521a0f4a00884de0470d7831023b8fafc09759",
+  "candidate_source_blob": "733e375e44c4e5b505d5bd8f14e20c3ed01fa943",
+  "paid_resource_creation_forbidden": true
+}
