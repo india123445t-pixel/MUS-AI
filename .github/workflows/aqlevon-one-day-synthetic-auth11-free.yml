@@ -1,8 +1,8 @@
-name: AQLEVON Candidate D Auth11 Zero-Cost Seal
+name: AQLEVON Candidate D Auth12 Zero-Cost Seal
 on:
   push:
     branches: [ops/one-day-verified-trajectory-20260925]
-    paths: [".github/runpod-control/auth11-free-seal-trigger.json"]
+    paths: [".github/runpod-control/auth12-free-seal-trigger.json"]
 permissions:
   contents: write
 jobs:
@@ -16,23 +16,23 @@ jobs:
         with:
           ref: ops/one-day-verified-trajectory-20260925
           fetch-depth: 0
-      - name: Validate Auth11 contract
+      - name: Validate Auth12 contract
         shell: bash
         run: |
           set -euo pipefail
           python3 - <<'PY'
           import hashlib,json
           from pathlib import Path
-          a=json.loads(Path(".github/runpod-control/one-day-synthetic-curriculum-manager-authorization-11-20260925.json").read_text())
+          a=json.loads(Path(".github/runpod-control/one-day-synthetic-curriculum-manager-authorization-12-20260925.json").read_text())
           sha=hashlib.sha256(json.dumps({k:v for k,v in a.items() if k!="authorization_sha256"},sort_keys=True,separators=(",",":"),ensure_ascii=False,allow_nan=False).encode()).hexdigest()
-          assert sha==a["authorization_sha256"]=="8cea75f33b3bf9fbceeaf00b97b9a098704e61b1343bb39ab91a4a33802ee7af"
+          assert sha==a["authorization_sha256"]=="19a58511a11250d95a59b5c65af195b14f759c39640cf22372b3f78b10e41f95"
           assert a["single_use"] is True and a["training_authorized"] is True
-          assert a["synthetic_examples"]==672 and a["minimum_optimizer_updates"]==672 and a["epochs"]==1
+          assert a["synthetic_examples"]==672 and a["minimum_optimizer_updates"]==672 and a["epochs"]==1 and a["runtime_proven_trainable_parameters"]==1572864
           assert a["lora_rank"]==8 and a["lora_alpha"]==16
           assert a["lora_targets"]==["q_proj","k_proj","v_proj","o_proj"]
           assert a["permitted_gpu_ids"]==["NVIDIA A100-SXM4-80GB"]
           assert a["max_total_cost_usd"]=="0.65" and a["max_hourly_rate_usd"]=="1.60" and a["max_billed_seconds"]==1450
-          print("AQLEVON_AUTH11_CONTRACT_PASS")
+          print("AQLEVON_AUTH12_CONTRACT_PASS")
           PY
       - name: Seal provider state without spend
         shell: bash
@@ -45,7 +45,7 @@ jobs:
           python3 - <<'PY'
           import json,datetime
           from pathlib import Path
-          a=json.loads(Path(".github/runpod-control/one-day-synthetic-curriculum-manager-authorization-11-20260925.json").read_text())
+          a=json.loads(Path(".github/runpod-control/one-day-synthetic-curriculum-manager-authorization-12-20260925.json").read_text())
           p=json.load(open("/tmp/pods.json")); xs=p if isinstance(p,list) else p.get("pods") or p.get("items") or []
           active=[x for x in xs if str(x.get("name","")).startswith("AQLEVON-") and str(x.get("desiredStatus") or x.get("status"))!="EXITED"]
           assert not active,active
@@ -60,24 +60,24 @@ jobs:
                   if dc and stock!="none":
                       secs=min(int(a["max_billed_seconds"]),int(float(a["max_total_cost_usd"])*3600/price))
                       if secs>=1200: choices.append((0 if str(dc)==str(a["preferred_datacenter"]) else 1,price,gid,str(dc),secs,d.get("stockStatus")))
-          assert choices,"no_auth11_gpu_stock"
+          assert choices,"no_auth12_gpu_stock"
           _,price,gpu,dc,secs,stock=sorted(choices)[0]
-          out={"kind":"AQLEVON_ONE_DAY_SYNTHETIC_AUTH11_FREE_SEAL_V1","authorization_id":a["authorization_id"],
+          out={"kind":"AQLEVON_ONE_DAY_SYNTHETIC_AUTH12_FREE_SEAL_V1","authorization_id":a["authorization_id"],
                "authorization_sha256":a["authorization_sha256"],"source_head":a["expected_source_head"],
                "candidate_source_blob":a["candidate_source_blob"],"checked_at_utc":datetime.datetime.now(datetime.timezone.utc).isoformat(),
                "active_aqlevon_pods":[],"paid_resource_created":False,"selected_gpu_id":gpu,"selected_datacenter":dc,
                "selected_price_hr":price,"stock_status":stock,"dynamic_max_billed_seconds":secs}
-          Path(".github/runpod-control/one-day-synthetic-curriculum-free-result-11.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
-          print("AQLEVON_AUTH11_FREE_SEAL_PASS",json.dumps(out,sort_keys=True))
+          Path(".github/runpod-control/one-day-synthetic-curriculum-free-result-12.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("AQLEVON_AUTH12_FREE_SEAL_PASS",json.dumps(out,sort_keys=True))
           PY
-      - name: Persist Auth11 free seal
+      - name: Persist Auth12 free seal
         shell: bash
         run: |
           set -euo pipefail
           git config user.name aqlevon-runpod-bot
           git config user.email actions@users.noreply.github.com
-          git add .github/runpod-control/one-day-synthetic-curriculum-free-result-11.json
-          git commit -m "ops: record Auth11 free seal [skip ci]" || true
+          git add .github/runpod-control/one-day-synthetic-curriculum-free-result-12.json
+          git commit -m "ops: record Auth12 free seal [skip ci]" || true
           git fetch origin ops/one-day-verified-trajectory-20260925
           git rebase origin/ops/one-day-verified-trajectory-20260925 || { git rebase --abort || true; exit 1; }
           git push origin HEAD:ops/one-day-verified-trajectory-20260925
