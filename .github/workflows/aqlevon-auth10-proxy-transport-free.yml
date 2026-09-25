@@ -1,0 +1,45 @@
+name: AQLEVON Auth10 Proxy Transport Zero-Cost Preflight
+on:
+  push:
+    branches: [ops/one-day-verified-trajectory-20260925]
+    paths: [".github/runpod-control/auth10-proxy-transport-free-trigger.json"]
+permissions:
+  contents: read
+jobs:
+  preflight:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/one-day-verified-trajectory-20260925
+          fetch-depth: 0
+      - name: Static transport safety seal
+        shell: bash
+        run: |
+          set -euo pipefail
+          f=.github/runpod-control/auth10-proxy-transport-prototype.sh
+          bash -n "$f"
+          grep -q 'runpodctl" ssh info' "$f"
+          grep -q '@ssh\\.runpod\\.io' "$f"
+          grep -q 'SSH session' "$f"
+          grep -q 'sha256sum' "$f"
+          ! grep -qE 'pod create|/pods/.*/start|POST .*pods' "$f"
+          bash "$f" | grep -q AQLEVON_AUTH10_PROXY_TRANSPORT_STATIC_ONLY
+          echo AQLEVON_AUTH10_PROXY_STATIC_PASS
+      - name: Confirm no active AQLEVON Pods
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS https://rest.runpod.io/v1/pods -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/pods.json
+          python3 - <<'PY'
+          import json
+          p=json.load(open('/tmp/pods.json')); xs=p if isinstance(p,list) else p.get('pods') or p.get('items') or []
+          active=[x for x in xs if str(x.get('name','')).startswith('AQLEVON-') and str(x.get('desiredStatus') or x.get('status'))!='EXITED']
+          assert not active, active
+          print('AQLEVON_AUTH10_PROXY_NO_ACTIVE_PODS_PASS')
+          PY
+      - name: Final free seal
+        run: echo AQLEVON_AUTH10_PROXY_TRANSPORT_ZERO_COST_PREFLIGHT_PASS
