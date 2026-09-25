@@ -1,0 +1,18 @@
+{
+  "authorization_kind": "AQLEVON_MANAGER_DIAGNOSTIC_EXISTING_POD_V1",
+  "authorization_id": "P4-A0-DIAG-LOG-RECOVERY-20260925-01",
+  "candidate_arm": "P4_A0_SFT_LORA_CONTROL",
+  "exact_existing_pod_id": "qqgof13ou1fu01",
+  "expected_source_head": "11f40e8cc7575d9094bae508a6a4d5cb84c306a4",
+  "image_digest": "sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec",
+  "max_hourly_rate_usd": "1.60",
+  "max_total_cost_usd": "0.20",
+  "max_billed_seconds": 300,
+  "max_artifact_egress_bytes": 10485760,
+  "single_use": true,
+  "mission_max_total_usd": "5.00",
+  "prior_mission_spend_usd": "1.462183",
+  "prior_authorization_id": "P4-A0-SFT-FLEX-GPU-20260925-05",
+  "purpose": "resume exact stopped Pod only to retrieve bounded A0 failure logs; do not train",
+  "authorization_sha256": "132111fe7c30d606489d095ac952fbc3e2cd0d8ccbb93469346bbba69cf7450d"
+}
