@@ -1,0 +1,25 @@
+name: AQLEVON Auth04 Driver Free Contract
+on:
+  push:
+    branches: [ops/one-day-verified-trajectory-20260925]
+    paths:
+      - ".github/runpod-control/run-one-day-public-probe-04-refresh.sh"
+permissions:
+  contents: read
+jobs:
+  contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/one-day-verified-trajectory-20260925
+      - name: Generate auth04 driver without spend
+        shell: bash
+        env:
+          AQLEVON_FREE_CONTRACT_ONLY: "1"
+        run: |
+          set -euo pipefail
+          bash -n .github/runpod-control/run-one-day-public-probe-04-refresh.sh
+          bash .github/runpod-control/run-one-day-public-probe-04-refresh.sh
+          echo AQLEVON_AUTH04_DRIVER_FREE_WORKFLOW_PASS
