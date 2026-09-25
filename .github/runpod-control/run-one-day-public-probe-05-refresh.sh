@@ -11,7 +11,7 @@ from pathlib import Path
 p=Path(".github/runpod-control/run-one-day-public-probe-02.sh").read_text()
 repls={
 "P4-ONE-DAY-PUBLIC-PASSN-20260925-02":"P4-ONE-DAY-PUBLIC-PASSN-20260925-05",
-"430ae3149249d9522aa027a852bde786f5ef4a97d252781fea15080483e467c6":"a5c3f859c3277cb1d11780a4aa6c34aac0bbab498b5f0a761fed70f67df8f323",
+"430ae3149249d9522aa027a852bde786f5ef4a97d252781fea15080483e467c6":"187f4b4d17086e3352d873263787e717ac24e32096350a07e87c5816674bd859",
 "one-day-public-probe-manager-authorization-02-20260925.json":"one-day-public-probe-manager-authorization-05-20260925.json",
 "one-day-public-probe-free-result-02.json":"one-day-public-probe-free-result-05.json",
 "execute-one-day-public-probe-02.json":"execute-one-day-public-probe-05.json",
