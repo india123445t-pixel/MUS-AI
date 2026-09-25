@@ -40,6 +40,8 @@ export async function POST(req){
     history:body.history,
     contract,
     lessons:[],
+    personalization:String(body.personalization||'').slice(0,4000),
+    memories:Array.isArray(body.memories)?body.memories.slice(0,16):[],
     maxHistory:16
   });
 

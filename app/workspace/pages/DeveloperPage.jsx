@@ -3,7 +3,7 @@ import { api } from '../api.js';
 import { useI18n } from '../i18n/index.js';
 import Icon from '../components/Icon.jsx';
 
-// Developer workspace over REAL git repositories (server-side).
+// Browser-local developer sandbox. Real Git/terminal adapters are intentionally not claimed here.
 export default function DeveloperPage({ onMenu }) {
   const { t } = useI18n();
   const [repos, setRepos] = useState([]);
@@ -121,6 +121,10 @@ export default function DeveloperPage({ onMenu }) {
         </div>
         <div className="content narrow" style={{ maxWidth: 760 }}>
           <div className="card" style={{ marginBottom: 14 }}>
+            <b>{t('dev.browserSandboxTitle')}</b>
+            <p className="muted small" style={{ margin: '6px 0 0' }}>{t('dev.browserSandboxNotice')}</p>
+          </div>
+          <div className="card" style={{ marginBottom: 14 }}>
             <b>{t('dev.createOrClone')}</b>
             <div className="row" style={{ marginTop: 10 }}>
               <input className="input" placeholder="new-repo-name" value={newRepo} onChange={e => setNewRepo(e.target.value)}
@@ -173,6 +177,7 @@ export default function DeveloperPage({ onMenu }) {
         <button className="iconbtn hamburger" aria-label="Menu" onClick={onMenu}><Icon name="menu" /></button>
         <button className="iconbtn" onClick={() => setRepo(null)}><Icon name="chevR" size={16} flip /></button>
         <h1 style={{ direction: 'ltr' }}>{repo}</h1>
+        <span className="tag warn">{t('dev.localOnly')}</span>
         {status && <span className="tag"><Icon name="branch" size={11} /> {status.branch}</span>}
         <div className="spacer" />
         <button className="btn sm ghost" onClick={showDiff}>{t('dev.diff')}</button>
