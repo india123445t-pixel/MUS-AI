@@ -1,7 +1,7 @@
 {
   "authorization_id": "P4-ONE-DAY-PUBLIC-PASSN-20260925-05",
   "authorization_kind": "AQLEVON_MANAGER_COMPUTE_ONE_DAY_PUBLIC_PROBE_V5",
-  "authorization_sha256": "a5c3f859c3277cb1d11780a4aa6c34aac0bbab498b5f0a761fed70f67df8f323",
+  "authorization_sha256": "187f4b4d17086e3352d873263787e717ac24e32096350a07e87c5816674bd859",
   "base_repo": "Qwen/Qwen3.5-4B-Base",
   "base_revision": "daa9c16f371249f9ad1c75a9ed6f956c08ea08f5",
   "evidence_policy": "retrieve result/log before deletion; always stop exact Pod; delete after durable result/log egress; inference-only probe",
