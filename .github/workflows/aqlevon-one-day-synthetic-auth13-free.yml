@@ -1,0 +1,83 @@
+name: AQLEVON Candidate D Auth13 Zero-Cost Seal
+on:
+  push:
+    branches: [ops/one-day-verified-trajectory-20260925]
+    paths: [".github/runpod-control/auth13-free-seal-trigger.json"]
+permissions:
+  contents: write
+jobs:
+  seal:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/one-day-verified-trajectory-20260925
+          fetch-depth: 0
+      - name: Validate Auth13 contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          a=json.loads(Path(".github/runpod-control/one-day-synthetic-curriculum-manager-authorization-12-20260925.json").read_text())
+          sha=hashlib.sha256(json.dumps({k:v for k,v in a.items() if k!="authorization_sha256"},sort_keys=True,separators=(",",":"),ensure_ascii=False,allow_nan=False).encode()).hexdigest()
+          assert sha==a["authorization_sha256"]=="ee0f1a81372148ef38e44da0e5ab819b114793a235c6f24c22e4d002ca1deae5"
+          assert a["single_use"] is True and a["training_authorized"] is True
+          assert a["synthetic_examples"]==672 and a["minimum_optimizer_updates"]==672 and a["epochs"]==1 and a["runtime_proven_trainable_parameters"]==1572864
+          assert a["lora_rank"]==8 and a["lora_alpha"]==16
+          assert a["lora_targets"]==["q_proj","k_proj","v_proj","o_proj"]
+          assert a["permitted_gpu_ids"]==["NVIDIA A100-SXM4-80GB"]
+          assert a["max_total_cost_usd"]=="0.65" and a["max_hourly_rate_usd"]=="1.60" and a["max_billed_seconds"]==1450
+          print("AQLEVON_AUTH13_CONTRACT_PASS")
+          PY
+      - name: Seal provider state without spend
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${RUNPOD_API_KEY:-}"
+          curl -fsS https://rest.runpod.io/v1/pods -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/pods.json
+          curl -sSL https://cli.runpod.net | sudo bash >/dev/null
+          runpodctl gpu list --output json >/tmp/gpus.json
+          python3 - <<'PY'
+          import json,datetime
+          from pathlib import Path
+          a=json.loads(Path(".github/runpod-control/one-day-synthetic-curriculum-manager-authorization-12-20260925.json").read_text())
+          p=json.load(open("/tmp/pods.json")); xs=p if isinstance(p,list) else p.get("pods") or p.get("items") or []
+          active=[x for x in xs if str(x.get("name","")).startswith("AQLEVON-") and str(x.get("desiredStatus") or x.get("status"))!="EXITED"]
+          assert not active,active
+          choices=[]
+          for g in json.load(open("/tmp/gpus.json")):
+              gid=str(g.get("gpuId",""))
+              if gid not in set(a["permitted_gpu_ids"]) or not g.get("secureCloud"): continue
+              price=float(g.get("securePricePerHr") or 999)
+              if price>float(a["max_hourly_rate_usd"]): continue
+              for d in g.get("dataCenterAvailability") or []:
+                  dc=d.get("dataCenterId"); stock=str(d.get("stockStatus","")).lower()
+                  if str(dc) in set(a.get("permitted_datacenters") or []) and stock!="none":
+                      secs=min(int(a["max_billed_seconds"]),int(float(a["max_total_cost_usd"])*3600/price))
+                      if secs>=1200: choices.append((0 if str(dc)==str(a["preferred_datacenter"]) else 1,price,gid,str(dc),secs,d.get("stockStatus")))
+          assert choices,"no_auth13_gpu_stock"
+          _,price,gpu,dc,secs,stock=sorted(choices)[0]
+          out={"kind":"AQLEVON_ONE_DAY_SYNTHETIC_AUTH13_FREE_SEAL_V1","authorization_id":a["authorization_id"],
+               "authorization_sha256":a["authorization_sha256"],"source_head":a["expected_source_head"],
+               "candidate_source_blob":a["candidate_source_blob"],"checked_at_utc":datetime.datetime.now(datetime.timezone.utc).isoformat(),
+               "active_aqlevon_pods":[],"paid_resource_created":False,"selected_gpu_id":gpu,"selected_datacenter":dc,
+               "selected_price_hr":price,"stock_status":stock,"dynamic_max_billed_seconds":secs}
+          Path(".github/runpod-control/one-day-synthetic-curriculum-free-result-12.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("AQLEVON_AUTH13_FREE_SEAL_PASS",json.dumps(out,sort_keys=True))
+          PY
+      - name: Persist Auth13 free seal
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name aqlevon-runpod-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/runpod-control/one-day-synthetic-curriculum-free-result-12.json
+          git commit -m "ops: record Auth13 free seal [skip ci]" || true
+          git fetch origin ops/one-day-verified-trajectory-20260925
+          git rebase origin/ops/one-day-verified-trajectory-20260925 || { git rebase --abort || true; exit 1; }
+          git push origin HEAD:ops/one-day-verified-trajectory-20260925
