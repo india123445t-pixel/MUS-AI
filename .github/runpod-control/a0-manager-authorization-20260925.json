@@ -16,5 +16,5 @@
   "mission_max_total_usd": "5.00",
   "prior_mission_spend_usd": "1.108939411",
   "prior_authorization_id": "P4-A1-RUNPOD-A100-20260925-20A-RECOVERY",
-  "authorization_sha256": "Traceback (most recent call last):\n  File \"<stdin>\", line 2, in <module>\nNameError: name 'true' is not defined. Did you mean: 'True'?"
+  "authorization_sha256": "dc854cd9a903ce6b97b2f556fe827db05c308ef54e0b4ae87dbb626247d45397"
 }
