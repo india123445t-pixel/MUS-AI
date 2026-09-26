@@ -1,0 +1,11 @@
+{
+  "account_balance_before_create": 8.634713373,
+  "dynamic_max_billed_seconds": 14400,
+  "mission_max_new_spend_usd": "8.00",
+  "observed_capacity_datacenter": "US-KS-2",
+  "paid_boundary_refresh_at_utc": "2026-09-26T07:30:26.956534+00:00",
+  "selected_gpu_id": "NVIDIA A100-SXM4-80GB",
+  "selected_price_hr": 1.59,
+  "this_attempt_max_compute_usd": "6.40",
+  "transport": "HTTP_PROXY_BOOTSTRAP"
+}
