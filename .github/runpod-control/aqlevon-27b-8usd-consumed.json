@@ -1,0 +1,13 @@
+{
+  "authorization_id": "AQLEVON-27B-8USD-20260926-01",
+  "consumed_at_utc": "2026-09-26T10:27:12.378907+00:00",
+  "dynamic_max_billed_seconds": 14400,
+  "kind": "AQLEVON_27B_8USD_LIVE_SELECTION_V1",
+  "observed_capacity_datacenter": "EU-RO-1",
+  "paid_boundary_refresh_at_utc": "2026-09-26T10:27:12.351512+00:00",
+  "paid_resource_created": false,
+  "selected_datacenter": "UNPINNED_ANY_AVAILABLE",
+  "selected_gpu_id": "NVIDIA A100 80GB PCIe",
+  "selected_price_hr": 1.59,
+  "single_use_consumed": true
+}
