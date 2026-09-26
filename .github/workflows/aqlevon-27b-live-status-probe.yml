@@ -1,0 +1,31 @@
+name: AQLEVON 27B Live Status Probe
+on:
+  push:
+    branches: [ops/aqlevon-27b-r0-20260926]
+    paths: [".github/workflows/aqlevon-27b-live-status-probe.yml"]
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      POD_ID: z8xdb23kcxgltg
+    steps:
+      - name: Read pod and training status
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl -sS -o /tmp/pod.json -w '%{http_code}' "https://rest.runpod.io/v1/pods/$POD_ID" -H "Authorization: Bearer $RUNPOD_API_KEY" || true)"
+          echo "POD_HTTP=$code"
+          if [ "$code" = 200 ]; then
+            python3 - <<'PY'
+          import json
+          p=json.load(open("/tmp/pod.json"))
+          keep=("id","name","desiredStatus","status","costPerHr","lastStartedAt","machineId","gpu")
+          print("POD_SAFE",json.dumps({k:p.get(k) for k in keep if k in p},sort_keys=True))
+          PY
+          fi
+          proxy="https://$POD_ID-8000.proxy.runpod.net/status.json"
+          scode="$(curl -sS --connect-timeout 10 --max-time 30 -o /tmp/status.json -w '%{http_code}' "$proxy?t=$(date +%s)" || true)"
+          echo "STATUS_HTTP=$scode"
+          if [ "$scode" = 200 ]; then cat /tmp/status.json; echo; fi
