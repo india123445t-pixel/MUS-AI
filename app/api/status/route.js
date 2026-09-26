@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { randomUUID } from 'crypto';
+import { isWebSearchConfigured } from '../../../lib/aqlevon/web-research.js';
 
 const SUPABASE_URL=process.env.NEXT_PUBLIC_SUPABASE_URL||'https://yaqjhcfitxhtzpaswuif.supabase.co';
 const SUPABASE_KEY=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||'sb_publishable_1uRtACKcyT2ZQH9ixdKQ-Q_ARbY6xET';
@@ -58,14 +59,15 @@ export async function GET(req){
       if(r.data){
         const allowed=['temperature','max_history','save_training_candidates','public_chat_enabled','public_training_enabled','public_rate_limit_per_hour','public_daily_limit','install_enabled','verification_enabled','deep_reasoning_enabled','intelligence_router_enabled','max_model_calls_per_request','learning_gate_min_confidence'];
         const runtimeData=Object.fromEntries(allowed.filter(k=>Object.prototype.hasOwnProperty.call(r.data,k)).map(k=>[k,r.data[k]]));
-        settings={...defaultSettings,...runtimeData,runtime_mode:'self_hosted_only',allow_paid_external:false,public_web_search_enabled:false};
+        settings={...defaultSettings,...runtimeData,runtime_mode:'self_hosted_only',allow_paid_external:false,public_web_search_enabled:isWebSearchConfigured()};
       }
     }
   }catch{}
+  settings={...settings,public_web_search_enabled:isWebSearchConfigured()};
   const providers={
     self_hosted:!!(process.env.AQLEVON_MODEL_URL||process.env.AQLEVON_MODEL_RUNPOD_KEY||process.env.AQLEVON_MODEL_KEY)
   };
-  return NextResponse.json({database_configured:!!client,sovereign_runtime:true,inference_target:'aqlevon-engine',external_provider_routing:false,self_hosted_configured:providers.self_hosted,providers,settings},{headers:{'Cache-Control':'no-store'}});
+  return NextResponse.json({database_configured:!!client,sovereign_runtime:true,inference_target:'aqlevon-engine',external_provider_routing:false,self_hosted_configured:providers.self_hosted,web_search_configured:isWebSearchConfigured(),providers,settings},{headers:{'Cache-Control':'no-store'}});
 }
 
 export async function POST(req){
