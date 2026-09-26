@@ -1,0 +1,22 @@
+{
+  "authorization_id": "AQLEVON-27B-R0-GENE1-RUNPOD-20260926-01",
+  "authorization_sha256": "469dca1993c7d5c04a91f98f05688642067bc52c895eae7a36630b2f62d81b8a",
+  "authorized_compute_cap_usd": 7.2,
+  "billed_seconds_estimate": 609,
+  "capability_gain_claim": false,
+  "checked_at_utc": "2026-09-26T12:40:05.291713+00:00",
+  "compute_cost_estimate_usd": 0.268975,
+  "evidence_archive_present": false,
+  "evidence_archive_sha256": null,
+  "final_transport_stage": "HTTP_READINESS_TIMEOUT",
+  "http_status": {},
+  "kind": "AQLEVON_27B_R0_RUN_RECEIPT_V1",
+  "mission_budget_usd": 8.0,
+  "pod_id": "z8xdb23kcxgltg",
+  "pod_stopped_and_deleted": true,
+  "rate_per_hour_usd": 1.59,
+  "sealed_eval_consumed": false,
+  "single_use_consumed": true,
+  "source_sha": "13966843eb03218316d39504ee7ee6c20e702eb2",
+  "worker05_used_for_tuning": false
+}
