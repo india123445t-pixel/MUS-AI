@@ -1,0 +1,85 @@
+name: Salvage AQLEVON 27B A1 Artifact
+on:
+  push:
+    branches: [artifacts/aqlevon27b-a1-20260926]
+    paths: [".github/aqlevon27b-salvage-trigger.json"]
+permissions:
+  contents: write
+  actions: read
+jobs:
+  salvage:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: artifacts/aqlevon27b-a1-20260926
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          name: aqlevon-27b-auth16-transfer-01
+          run-id: 36226973223
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: /tmp/a1
+      - name: Validate and persist trained adapter
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/evidence artifacts/aqlevon27b/a1
+          tar -xzf /tmp/a1/27b-evidence.tgz -C /tmp/evidence
+          cp /tmp/evidence/candidate/candidate_artifact/adapter_model.safetensors artifacts/aqlevon27b/a1/
+          cp /tmp/evidence/candidate/candidate_artifact/adapter_config.json artifacts/aqlevon27b/a1/
+          cp /tmp/evidence/train.log artifacts/aqlevon27b/a1/train.log
+          cp /tmp/evidence/hardware.txt artifacts/aqlevon27b/a1/hardware.txt
+          python3 -m pip install -q safetensors
+          python3 - <<'PY'
+          import hashlib,json,torch
+          from pathlib import Path
+          from safetensors.torch import load_file
+          p=Path("artifacts/aqlevon27b/a1/adapter_model.safetensors")
+          file_sha=hashlib.sha256(p.read_bytes()).hexdigest()
+          assert file_sha=="6ca3cfe6bdd9261bbbb630dbb12c0ace71753a8e4d1e80dd9b685674613dc2f0",file_sha
+          w=load_file(str(p),device="cpu")
+          assert len(w)==128,len(w)
+          h=hashlib.sha256(); changed=0; total=0
+          for name in sorted(w):
+              v=w[name].detach().cpu().contiguous().float()
+              h.update(name.encode()); h.update(str(tuple(v.shape)).encode()); h.update(v.numpy().tobytes(order="C"))
+              total += v.numel()
+              if ".lora_B." in name: changed += int(torch.count_nonzero(v).item())
+          state=h.hexdigest()
+          assert state=="bdf25250c3ebed8c7a9364d33f8461f5842399e751d20a5c1cd66bb80d2281ad",state
+          assert total==5242880,total
+          assert changed==2490368,changed
+          log=Path("artifacts/aqlevon27b/a1/train.log").read_text(errors="replace")
+          assert "AQLEVON_SYNTH_UPDATE=672/672" in log
+          assert "AQLEVON_SYNTH_DEV_PRE" in log
+          out={
+            "kind":"AQLEVON_27B_TRAINED_ARTIFACT_RECOVERY_V1",
+            "status":"TRAINING_COMPLETE_ARTIFACT_RECOVERED_PENDING_EVAL",
+            "base_repo":"Qwen/Qwen3.8-27B",
+            "base_revision":"1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0",
+            "source_paid_run_id":36226973223,
+            "source_pod_id":"xrc46y1bfwuzum",
+            "source_training_cost_estimate_usd":0.325508,
+            "optimizer_updates":672,
+            "trainable_parameters":5242880,
+            "adapter_tensor_count":128,
+            "adapter_file_sha256":file_sha,
+            "adapter_state_sha256":state,
+            "changed_lora_B_elements":changed,
+            "public_dev_pre_successes":2,
+            "public_dev_pre_total":28,
+            "sealed_eval_consumed":False,
+            "worker05_used_for_tuning":False,
+            "capability_gain_claim":False,
+            "next_gate":"save_reload_and_public_dev_shadow_evaluation"
+          }
+          Path("artifacts/aqlevon27b/a1/recovery_manifest.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("AQLEVON_27B_A1_SALVAGE_PASS",json.dumps(out,sort_keys=True))
+          PY
+          git config user.name aqlevon-artifact-bot
+          git config user.email actions@users.noreply.github.com
+          git add artifacts/aqlevon27b/a1
+          git commit -m "artifacts: preserve trained AQLEVON 27B A1 adapter [skip ci]"
+          git push origin HEAD:artifacts/aqlevon27b-a1-20260926
