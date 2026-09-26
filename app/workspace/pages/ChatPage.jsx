@@ -344,7 +344,7 @@ export default function ChatPage({ onChatsChanged, newChat, onMenu }) {
                 <div className="menu-backdrop" onClick={() => setAddMenu(false)} />
                 <div className="menu" style={{ bottom: 40, insetInlineStart: 0 }}>
                   <button disabled={runtime?.inferenceReady !== true} onClick={() => { setAddMenu(false); fileRef.current?.click(); }}><Icon name="clip" size={15} /> {t('chat.attachFile')}</button>
-                  <button disabled title={t('chat.imageUnavailable')}><Icon name="image" size={15} /> {t('chat.addImage')}</button>
+                  <div className="muted small" title={t('chat.imageUnavailable')} style={{padding:'8px 10px',display:'flex',gap:8,alignItems:'center'}}><Icon name="image" size={15} /> {t('chat.imageUnavailable')}</div>
                   <button onClick={() => { setAddMenu(false); setCodeSheet(true); }}><Icon name="code" size={15} /> {t('chat.pasteCode')}</button>
                 </div>
               </>}
