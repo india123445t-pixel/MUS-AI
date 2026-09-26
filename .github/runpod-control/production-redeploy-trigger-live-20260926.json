@@ -1,0 +1,6 @@
+{
+  "kind": "AQLEVON_PRODUCTION_REDEPLOY_LIVE_TRIGGER_V1",
+  "requested_at_utc": "2026-09-26T01:02:00Z",
+  "source_head": "597331e06301abf5a5be7a9183456f3d8dd7bce4",
+  "purpose": "force live Vercel production rebuild of canonical AQLEVON main"
+}
