@@ -51,13 +51,55 @@ def normalize_messages(items):
         raise ValueError("messages_required")
     return clean
 
+def _trim_text_tokens(text,max_tokens,keep_tail=False):
+    ids=TOKENIZER(str(text),add_special_tokens=False).get("input_ids") or []
+    if len(ids)<=max_tokens:
+        return str(text)
+    ids=ids[-max_tokens:] if keep_tail else ids[:max_tokens]
+    return TOKENIZER.decode(ids,skip_special_tokens=True)
+
+def compact_messages(items,input_budget=3328):
+    messages=normalize_messages(items)
+    systems=[m for m in messages if m["role"]=="system"]
+    dialogue=[m for m in messages if m["role"]!="system"]
+
+    compact=[]
+    remaining_system_budget=1300
+    for i,m in enumerate(systems[:2]):
+        share=max(250,remaining_system_budget//max(1,len(systems[:2])-i))
+        compact.append({"role":"system","content":_trim_text_tokens(m["content"],share,False)})
+        remaining_system_budget-=share
+
+    selected=[]
+    for m in reversed(dialogue):
+        candidate={"role":m["role"],"content":_trim_text_tokens(m["content"],900,True)}
+        trial=compact+[candidate]+selected
+        token_ids=TOKENIZER.apply_chat_template(
+            trial,tokenize=True,add_generation_prompt=True,enable_thinking=False
+        )
+        if len(token_ids)<=input_budget:
+            selected.insert(0,candidate)
+        elif not selected:
+            candidate={"role":m["role"],"content":_trim_text_tokens(m["content"],500,True)}
+            selected.insert(0,candidate)
+            break
+        else:
+            break
+
+    final=compact+selected
+    if not any(m["role"]=="user" for m in final):
+        latest=next((m for m in reversed(dialogue) if m["role"]=="user"),None)
+        if latest:
+            final.append({"role":"user","content":_trim_text_tokens(latest["content"],500,True)})
+    return final
+
 def handler(job):
     req=job.get("input") or {}
-    messages=normalize_messages(req.get("messages"))
     temperature=float(req.get("temperature",0.25))
     temperature=max(0.0,min(1.2,temperature))
     max_tokens=int(req.get("max_tokens",512))
     max_tokens=max(1,min(768,max_tokens))
+    messages=compact_messages(req.get("messages"),max(2048,4096-max_tokens))
     top_p=float(req.get("top_p",0.8))
     top_p=max(0.1,min(1.0,top_p))
     top_k=int(req.get("top_k",20))
@@ -73,8 +115,7 @@ def handler(job):
         prompt,
         return_tensors="pt",
         add_special_tokens=False,
-        truncation=True,
-        max_length=4096,
+        truncation=False,
     ).to("cuda")
 
     kwargs=dict(
