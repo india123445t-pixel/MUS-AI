@@ -1,6 +1,6 @@
 {
   "action": "scan_secure_gpu_capacity",
   "reason": "AQLEVON $8 mission pre-spend capacity refresh for final-model path",
-  "nonce": "20260926-budget8-finalmodel",
-  "requested_at_utc": "2026-09-26T07:30:00Z"
+  "nonce": "20260926-budget8-finalmodel-live2",
+  "requested_at_utc": "2026-09-26T07:25:00Z"
 }
