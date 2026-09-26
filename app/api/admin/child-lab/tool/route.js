@@ -30,13 +30,11 @@ export async function POST(req){
     const result=await executeChildTool(tool,{
       action,input,
       permissions:body.permissions,
+      ownerPolicy:body.owner_policy,
       constraints:{
         ...(body.constraints&&typeof body.constraints==='object'?body.constraints:{}),
         owner_only:true,
-        scope:'child-lab-only',
-        public_model_access:false,
-        production_weight_write:false,
-        training_lane_write:false,
+        scope:'owner-controlled-child-lab',
       }
     });
     if(!result.ok){
@@ -47,6 +45,7 @@ export async function POST(req){
         required_permissions:result.required_permissions||[],
         missing_permissions:result.missing_permissions||[],
         isolated:true,
+        owner_policy:body.owner_policy||null,
         execution_state:'NOT_EXECUTED'
       },{status});
     }
@@ -54,8 +53,7 @@ export async function POST(req){
       ...result,
       isolated:true,
       execution_state:'EXECUTED_WITH_RECEIPT',
-      production_weight_write:false,
-      training_lane_write:false,
+      owner_policy:result.owner_policy||body.owner_policy||null,
     });
   }catch(e){return NextResponse.json({message:e?.message||'CHILD_TOOL_FAILED'},{status:500})}
 }
