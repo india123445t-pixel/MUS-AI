@@ -68,7 +68,7 @@ async function runJob(id){
   const prompt=input.prompt||input.question||input.goal||j0.title;
   try{
     const userState=load();
-    const r=await fetch('/api/commons/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+    const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
       input:prompt,
       history:[],
       webSearch:userState.settings?.search_default==='on',
