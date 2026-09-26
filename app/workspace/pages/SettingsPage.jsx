@@ -172,17 +172,26 @@ function Memory({ t }) {
 
 function WebResearch({ t, s, save }) {
   const depth = s.research_depth || 'standard';
+  const [available,setAvailable]=useState(null);
+  useEffect(()=>{api.get('/bootstrap').then(r=>setAvailable(r?.webSearchAvailable===true)).catch(()=>setAvailable(false))},[]);
   return (
     <div className="set-card">
       <h2>{t('set.web')}</h2>
-      <p className="muted small">{t('set.webUnavailable')}</p>
+      {available===false && <p className="muted small">{t('set.webUnavailable')}</p>}
+      {available===true && <p className="good-text small">✓ Web Search · Jina connected</p>}
       <Row label={t('set.searchDefault')}>
-        <button className={'switch' + (s.search_default === 'on' ? ' on' : '')} role="switch" aria-checked={false} disabled />
+        <button
+          className={'switch' + (s.search_default === 'on' ? ' on' : '')}
+          role="switch"
+          aria-checked={s.search_default === 'on'}
+          disabled={available!==true}
+          onClick={()=>available===true&&save({search_default:s.search_default==='on'?'':'on'})}
+        />
       </Row>
       <Row label={t('set.researchDepth')}>
         <div className="seg">
           {['quick', 'standard', 'thorough'].map(d => (
-            <button key={d} className={depth === d ? 'on' : ''} disabled>{t('set.depth.' + d)}</button>
+            <button key={d} className={depth === d ? 'on' : ''} onClick={()=>save({research_depth:d})}>{t('set.depth.' + d)}</button>
           ))}
         </div>
       </Row>
