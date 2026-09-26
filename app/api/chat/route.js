@@ -17,6 +17,7 @@ import {
 import { redactSecrets } from '../../../lib/aqlevon/security.js';
 import { AQLEVON_BOS_VERSION } from '../../../lib/aqlevon/constants.js';
 import { governResponse } from '../../../lib/aqlevon/response-governor.js';
+import { extractFormatConstraints, collapseDuplicatePrefixes, enforceFormatConstraints, fixMixedScriptWords } from '../../../lib/aqlevon/constraints-checker.js';
 
 const SUPABASE_URL=process.env.NEXT_PUBLIC_SUPABASE_URL||'https://yaqjhcfitxhtzpaswuif.supabase.co';
 const SUPABASE_KEY=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||'sb_publishable_1uRtACKcyT2ZQH9ixdKQ-Q_ARbY6xET';
@@ -165,6 +166,7 @@ export async function POST(req){
     const candidates=[];
     const first=await generateModelResponse(messages,route.web_search,settings,{
       temperature:Number(settings?.temperature??0.4),
+      max_tokens:Number(settings?.max_output_tokens??1024),
       includeDiagnostics:true,
       logDiagnostics:true,
     });
@@ -218,6 +220,10 @@ export async function POST(req){
 
     const governed=governResponse({text:selected.text,contract,verification,deterministic});
     selected={...selected,text:governed.text};
+    const formatConstraints=extractFormatConstraints(redactedInput);
+    const collapsed=collapseDuplicatePrefixes(selected.text);
+    const formatted=enforceFormatConstraints({text:collapsed.text,constraints:formatConstraints});
+    const mixed=fixMixedScriptWords(formatted.text); selected={...selected,text:mixed.text};
     const latency=Date.now()-started;
     const evidenceReady=!contract.external_evidence_required||(route.external_evidence_available&&(selected.citations||[]).length>0);
     const learningEligible=verification.result==='VERIFIED'&&evidenceReady&&!contract.high_consequence&&selected.text.length>=40;
