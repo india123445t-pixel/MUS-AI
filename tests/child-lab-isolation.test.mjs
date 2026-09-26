@@ -175,3 +175,13 @@ test('owner policy defaults closed but can explicitly open project-level control
   assert.match(page,/openAllOwnerControls/);
   assert.match(page,/run_within_grants/);
 });
+
+
+test('child owner status degrades safely when runtime/tool probes throw',()=>{
+  assert.match(status,/status_degraded/);
+  assert.match(status,/CHILD_HEALTH_STATUS_FAILED/);
+  assert.match(status,/CHILD_TOOL_STATUS_FAILED/);
+  assert.match(status,/diagnostics:\{health_error,tools_error\}/);
+  assert.match(status,/try\{health=await childHealth\(\)\}/);
+  assert.match(status,/try\{tools=childToolStatus\(\)\}/);
+});
