@@ -3,6 +3,6 @@
   "artifact_id": 10900953911,
   "expected_adapter_sha256": "6ca3cfe6bdd9261bbbb630dbb12c0ace71753a8e4d1e80dd9b685674613dc2f0",
   "requested_at_utc": "2026-09-26T07:44:00Z",
-  "retry": 2,
-  "validator_commit": "ae3f5d637363ca1b7fde95b9d545b4043f17d861"
+  "retry": 3,
+  "validator_commit": "69b5eaef15b43afb3da988dcd2d1b9693cda757b"
 }
