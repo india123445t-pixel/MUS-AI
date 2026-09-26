@@ -1,6 +1,6 @@
 {
   "kind": "AQLEVON_PRODUCTION_REDEPLOY_LIVE_TRIGGER_V1",
-  "requested_at_utc": "2026-09-26T01:31:00Z",
-  "source_head": "dbb507137882ccf89b5e4a0bd4b7c25de0de38e1",
-  "purpose": "force live Vercel production rebuild from latest CI-green canonical AQLEVON main"
+  "requested_at_utc": "2026-09-26T01:56:00Z",
+  "source_head": "e312c9268588ade2f760e424036a752c8c1ab735",
+  "purpose": "redeploy canonical production after live chat Supabase alignment and green readiness CI"
 }
