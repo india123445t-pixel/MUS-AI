@@ -11,9 +11,12 @@ export default function PluginsPage({ onMenu }) {
   const { t } = useI18n();
   const [plugins, setPlugins] = useState([]);
   const [q, setQ] = useState('');
+  const [runtime,setRuntime]=useState(null);
+  const [settings,setSettings]=useState(null);
 
-  const load = () => api.get('/plugins').then(setPlugins).catch(() => {});
+  const load = () => Promise.all([api.get('/plugins'),api.get('/bootstrap'),api.get('/settings')]).then(([p,b,s])=>{setPlugins(p);setRuntime(b);setSettings(s)}).catch(() => {});
   useEffect(() => { load(); }, []);
+  const toggleWebDefault=async()=>{if(runtime?.webSearchAvailable!==true||!settings)return;await api.post('/settings',{search_default:settings.search_default==='on'?'':'on'});load()};
   const match = p => !q || (p.name + ' ' + p.description).toLowerCase().includes(q.toLowerCase());
   const tools = plugins.filter(p => BUILT_IN[p.id] && match(p));
   const apps = plugins.filter(p => !BUILT_IN[p.id] && match(p));
@@ -40,7 +43,11 @@ export default function PluginsPage({ onMenu }) {
                   <span className="tname">{t('apps.n.' + p.id)}</span>
                   <span className="tdesc">{t(descKey(p))}</span>
                 </span>
-                <button className={'switch' + (p.enabled ? ' on' : '')} role="switch" aria-checked={false} disabled title={t('apps.adapterRequired')} />
+                {p.id==='web-search' ? (
+                  <button className={'switch' + (settings?.search_default==='on' ? ' on' : '')} role="switch" aria-checked={settings?.search_default==='on'} disabled={runtime?.webSearchAvailable!==true} title={runtime?.webSearchAvailable===true?undefined:t('apps.adapterRequired')} onClick={toggleWebDefault} />
+                ) : (
+                  <span className="tag warn">{t('apps.adapterRequired')}</span>
+                )}
               </div>
             ))}
           </div>
@@ -68,7 +75,7 @@ export default function PluginsPage({ onMenu }) {
                     </div>
                   )}
                   <div className="row">
-                    <button className="btn sm" disabled title={t('apps.browserNotice')}>{t('apps.adapterRequired')}</button>
+                    <span className="tag warn">{t('apps.adapterRequired')}</span>
                   </div>
                 </div>
               );
