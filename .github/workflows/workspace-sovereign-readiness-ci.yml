@@ -40,6 +40,9 @@ jobs:
       - name: Child Lab isolation tests
         run: node --test tests/child-lab-isolation.test.mjs
 
+      - name: Child runtime tests
+        run: node --test tests/child-runtime.test.mjs
+
       - name: Child teaching candidate tests
         run: node --test tests/child-candidate.test.mjs
 
