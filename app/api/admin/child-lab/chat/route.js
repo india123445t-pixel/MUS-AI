@@ -41,7 +41,7 @@ export async function POST(req){
     }:null;
     const result=await generateChildResponse({
       messages:[...history,{role:'user',content:input}],
-      persona,lessons,memories,trial,temperature:0.5
+      persona,lessons,memories,trial,ownerPolicy:body.owner_policy,temperature:0.5
     });
     if(!result||result.unavailable)return NextResponse.json({
       message:'Runtime الطفل غير متصل بعد.',
@@ -53,8 +53,7 @@ export async function POST(req){
       model:result.model,
       runtime:'AQLEVON_CHILD_RUNTIME_V1',
       isolated:true,
-      production_weight_write:false,
-      training_lane_write:false,
+      owner_policy:body.owner_policy||null,
       execution_state:'LAB_ONLY'
     });
   }catch(e){return NextResponse.json({message:e?.message||'CHILD_LAB_FAILED'},{status:500})}
