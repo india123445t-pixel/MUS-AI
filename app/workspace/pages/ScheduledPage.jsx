@@ -107,7 +107,7 @@ export default function ScheduledPage({ onMenu }) {
                     {!s.enabled ? ' · ' + t('auto.paused') : ''}
                   </div>
                 </div>
-                <button className={'switch' + (s.enabled ? ' on' : '')} role="switch" aria-checked={false} disabled title={t('auto.adapterRequired')} />
+                <span className="tag warn" title={t('auto.adapterRequired')}>{t('auto.adapterRequired')}</span>
                 <button className="iconbtn" title={t('auto.history')} onClick={() => setExpanded(expanded === s.id ? null : s.id)}><Icon name="history" size={15} /></button>
                 <button className="iconbtn" title={t('common.delete')} onClick={() => del(s)}><Icon name="trash" size={15} /></button>
               </div>
