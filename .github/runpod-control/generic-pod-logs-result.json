@@ -1,583 +1,538 @@
 {
-  "checked_at_utc": "2026-09-25T20:13:08.667532+00:00",
+  "checked_at_utc": "2026-09-26T07:31:38.675502+00:00",
   "kind": "AQLEVON_GENERIC_POD_LOGS_V1",
   "lines": [
     {
-      "line": "f5c3e8a5cab3 Extracting",
+      "line": "d945d3510ebe Extracting",
       "source": "system",
-      "ts": "2026-09-25T20:12:11Z"
-    },
-    {
-      "line": "f5c3e8a5cab3 Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:11Z"
-    },
-    {
-      "line": "f5c3e8a5cab3 Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:11Z"
-    },
-    {
-      "line": "f5c3e8a5cab3 Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:11Z"
-    },
-    {
-      "line": "f5c3e8a5cab3 Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:11Z"
-    },
-    {
-      "line": "f5c3e8a5cab3 Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:11Z"
-    },
-    {
-      "line": "f5c3e8a5cab3 Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:12Z"
-    },
-    {
-      "line": "f5c3e8a5cab3 Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:12Z"
-    },
-    {
-      "line": "f5c3e8a5cab3 Pull complete",
-      "source": "system",
-      "ts": "2026-09-25T20:12:12Z"
+      "ts": "2026-09-26T07:30:50Z"
     },
     {
       "line": "d945d3510ebe Extracting",
       "source": "system",
-      "ts": "2026-09-25T20:12:12Z"
+      "ts": "2026-09-26T07:30:50Z"
     },
     {
       "line": "d945d3510ebe Extracting",
       "source": "system",
-      "ts": "2026-09-25T20:12:12Z"
+      "ts": "2026-09-26T07:30:51Z"
     },
     {
       "line": "d945d3510ebe Extracting",
       "source": "system",
-      "ts": "2026-09-25T20:12:12Z"
+      "ts": "2026-09-26T07:30:51Z"
     },
     {
       "line": "d945d3510ebe Extracting",
       "source": "system",
-      "ts": "2026-09-25T20:12:12Z"
+      "ts": "2026-09-26T07:30:51Z"
     },
     {
       "line": "d945d3510ebe Extracting",
       "source": "system",
-      "ts": "2026-09-25T20:12:12Z"
+      "ts": "2026-09-26T07:30:51Z"
     },
     {
       "line": "d945d3510ebe Extracting",
       "source": "system",
-      "ts": "2026-09-25T20:12:12Z"
+      "ts": "2026-09-26T07:30:51Z"
     },
     {
       "line": "d945d3510ebe Extracting",
       "source": "system",
-      "ts": "2026-09-25T20:12:13Z"
+      "ts": "2026-09-26T07:30:51Z"
     },
     {
       "line": "d945d3510ebe Extracting",
       "source": "system",
-      "ts": "2026-09-25T20:12:13Z"
+      "ts": "2026-09-26T07:30:51Z"
     },
     {
       "line": "d945d3510ebe Extracting",
       "source": "system",
-      "ts": "2026-09-25T20:12:13Z"
+      "ts": "2026-09-26T07:30:51Z"
     },
     {
       "line": "d945d3510ebe Extracting",
       "source": "system",
-      "ts": "2026-09-25T20:12:13Z"
+      "ts": "2026-09-26T07:30:51Z"
     },
     {
       "line": "d945d3510ebe Extracting",
       "source": "system",
-      "ts": "2026-09-25T20:12:13Z"
+      "ts": "2026-09-26T07:30:51Z"
     },
     {
       "line": "d945d3510ebe Extracting",
       "source": "system",
-      "ts": "2026-09-25T20:12:13Z"
+      "ts": "2026-09-26T07:30:52Z"
     },
     {
       "line": "d945d3510ebe Extracting",
       "source": "system",
-      "ts": "2026-09-25T20:12:13Z"
+      "ts": "2026-09-26T07:30:52Z"
     },
     {
       "line": "d945d3510ebe Extracting",
       "source": "system",
-      "ts": "2026-09-25T20:12:13Z"
+      "ts": "2026-09-26T07:30:52Z"
     },
     {
       "line": "d945d3510ebe Extracting",
       "source": "system",
-      "ts": "2026-09-25T20:12:13Z"
+      "ts": "2026-09-26T07:30:52Z"
     },
     {
       "line": "d945d3510ebe Extracting",
       "source": "system",
-      "ts": "2026-09-25T20:12:13Z"
-    },
-    {
-      "line": "d945d3510ebe Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:14Z"
-    },
-    {
-      "line": "d945d3510ebe Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:14Z"
-    },
-    {
-      "line": "d945d3510ebe Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:14Z"
-    },
-    {
-      "line": "d945d3510ebe Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:14Z"
-    },
-    {
-      "line": "d945d3510ebe Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:14Z"
-    },
-    {
-      "line": "d945d3510ebe Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:14Z"
-    },
-    {
-      "line": "d945d3510ebe Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:14Z"
-    },
-    {
-      "line": "d945d3510ebe Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:14Z"
-    },
-    {
-      "line": "d945d3510ebe Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:14Z"
-    },
-    {
-      "line": "d945d3510ebe Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:14Z"
-    },
-    {
-      "line": "d945d3510ebe Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:15Z"
-    },
-    {
-      "line": "d945d3510ebe Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:15Z"
-    },
-    {
-      "line": "d945d3510ebe Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:15Z"
-    },
-    {
-      "line": "d945d3510ebe Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:15Z"
-    },
-    {
-      "line": "d945d3510ebe Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:15Z"
-    },
-    {
-      "line": "d945d3510ebe Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:15Z"
-    },
-    {
-      "line": "d945d3510ebe Pull complete",
-      "source": "system",
-      "ts": "2026-09-25T20:12:15Z"
-    },
-    {
-      "line": "5ff3fc5c8d2d Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:15Z"
-    },
-    {
-      "line": "5ff3fc5c8d2d Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:15Z"
-    },
-    {
-      "line": "5ff3fc5c8d2d Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:15Z"
-    },
-    {
-      "line": "5ff3fc5c8d2d Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:15Z"
-    },
-    {
-      "line": "5ff3fc5c8d2d Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:16Z"
-    },
-    {
-      "line": "5ff3fc5c8d2d Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:16Z"
-    },
-    {
-      "line": "5ff3fc5c8d2d Pull complete",
-      "source": "system",
-      "ts": "2026-09-25T20:12:16Z"
-    },
-    {
-      "line": "fce55a325978 Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:16Z"
-    },
-    {
-      "line": "fce55a325978 Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:16Z"
-    },
-    {
-      "line": "fce55a325978 Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:16Z"
-    },
-    {
-      "line": "fce55a325978 Pull complete",
-      "source": "system",
-      "ts": "2026-09-25T20:12:16Z"
-    },
-    {
-      "line": "49a971a3b5be Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:16Z"
-    },
-    {
-      "line": "49a971a3b5be Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:16Z"
-    },
-    {
-      "line": "49a971a3b5be Pull complete",
-      "source": "system",
-      "ts": "2026-09-25T20:12:16Z"
-    },
-    {
-      "line": "71736cd84108 Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:16Z"
-    },
-    {
-      "line": "71736cd84108 Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:16Z"
-    },
-    {
-      "line": "71736cd84108 Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:16Z"
-    },
-    {
-      "line": "71736cd84108 Pull complete",
-      "source": "system",
-      "ts": "2026-09-25T20:12:16Z"
-    },
-    {
-      "line": "25a98379cf8a Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:16Z"
-    },
-    {
-      "line": "25a98379cf8a Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:16Z"
-    },
-    {
-      "line": "25a98379cf8a Pull complete",
-      "source": "system",
-      "ts": "2026-09-25T20:12:16Z"
-    },
-    {
-      "line": "ef0607faf4a5 Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:16Z"
-    },
-    {
-      "line": "ef0607faf4a5 Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:16Z"
-    },
-    {
-      "line": "ef0607faf4a5 Pull complete",
-      "source": "system",
-      "ts": "2026-09-25T20:12:16Z"
-    },
-    {
-      "line": "68f9fc4c4cd6 Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:16Z"
-    },
-    {
-      "line": "68f9fc4c4cd6 Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:16Z"
-    },
-    {
-      "line": "68f9fc4c4cd6 Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:16Z"
-    },
-    {
-      "line": "68f9fc4c4cd6 Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:16Z"
-    },
-    {
-      "line": "68f9fc4c4cd6 Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:16Z"
-    },
-    {
-      "line": "68f9fc4c4cd6 Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:16Z"
-    },
-    {
-      "line": "68f9fc4c4cd6 Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:17Z"
-    },
-    {
-      "line": "68f9fc4c4cd6 Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:17Z"
-    },
-    {
-      "line": "68f9fc4c4cd6 Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:17Z"
-    },
-    {
-      "line": "68f9fc4c4cd6 Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:17Z"
-    },
-    {
-      "line": "68f9fc4c4cd6 Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:17Z"
-    },
-    {
-      "line": "68f9fc4c4cd6 Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:17Z"
-    },
-    {
-      "line": "68f9fc4c4cd6 Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:17Z"
-    },
-    {
-      "line": "68f9fc4c4cd6 Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:17Z"
-    },
-    {
-      "line": "68f9fc4c4cd6 Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:17Z"
-    },
-    {
-      "line": "68f9fc4c4cd6 Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:18Z"
-    },
-    {
-      "line": "68f9fc4c4cd6 Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:18Z"
-    },
-    {
-      "line": "68f9fc4c4cd6 Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:18Z"
-    },
-    {
-      "line": "68f9fc4c4cd6 Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:18Z"
-    },
-    {
-      "line": "68f9fc4c4cd6 Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:18Z"
-    },
-    {
-      "line": "68f9fc4c4cd6 Pull complete",
-      "source": "system",
-      "ts": "2026-09-25T20:12:18Z"
-    },
-    {
-      "line": "f3897fb8753a Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:18Z"
-    },
-    {
-      "line": "f3897fb8753a Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:18Z"
-    },
-    {
-      "line": "f3897fb8753a Pull complete",
-      "source": "system",
-      "ts": "2026-09-25T20:12:18Z"
-    },
-    {
-      "line": "227fdd183f53 Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:18Z"
-    },
-    {
-      "line": "227fdd183f53 Extracting",
-      "source": "system",
-      "ts": "2026-09-25T20:12:18Z"
-    },
-    {
-      "line": "227fdd183f53 Pull complete",
-      "source": "system",
-      "ts": "2026-09-25T20:12:18Z"
-    },
-    {
-      "line": "Digest: sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec",
-      "source": "system",
-      "ts": "2026-09-25T20:12:18Z"
-    },
-    {
-      "line": "Status: Downloaded newer image for ghcr.io/india123445t-pixel/mus-ai@sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec",
-      "source": "system",
-      "ts": "2026-09-25T20:12:18Z"
+      "ts": "2026-09-26T07:30:52Z"
     },
     {
       "line": "create container ghcr.io/india123445t-pixel/mus-ai@sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec",
       "source": "system",
-      "ts": "2026-09-25T20:12:19Z"
+      "ts": "2026-09-26T07:30:52Z"
     },
     {
-      "line": "ghcr.io/india123445t-pixel/mus-ai@sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec Pulling from india123445t-pixel/mus-ai",
+      "line": "create container: still fetching image ghcr.io/india123445t-pixel/mus-ai@sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec",
       "source": "system",
-      "ts": "2026-09-25T20:12:19Z"
+      "ts": "2026-09-26T07:30:52Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:52Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:52Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:52Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:52Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:53Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:53Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:53Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:53Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:53Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:53Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:53Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:53Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:53Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:53Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:54Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:54Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:54Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:54Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:54Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:54Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:54Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:54Z"
+    },
+    {
+      "line": "d945d3510ebe Pull complete",
+      "source": "system",
+      "ts": "2026-09-26T07:30:54Z"
+    },
+    {
+      "line": "5ff3fc5c8d2d Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:54Z"
+    },
+    {
+      "line": "5ff3fc5c8d2d Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:54Z"
+    },
+    {
+      "line": "5ff3fc5c8d2d Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:55Z"
+    },
+    {
+      "line": "5ff3fc5c8d2d Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:55Z"
+    },
+    {
+      "line": "5ff3fc5c8d2d Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:55Z"
+    },
+    {
+      "line": "5ff3fc5c8d2d Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:55Z"
+    },
+    {
+      "line": "5ff3fc5c8d2d Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:55Z"
+    },
+    {
+      "line": "5ff3fc5c8d2d Pull complete",
+      "source": "system",
+      "ts": "2026-09-26T07:30:55Z"
+    },
+    {
+      "line": "fce55a325978 Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:55Z"
+    },
+    {
+      "line": "fce55a325978 Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:55Z"
+    },
+    {
+      "line": "fce55a325978 Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:55Z"
+    },
+    {
+      "line": "fce55a325978 Pull complete",
+      "source": "system",
+      "ts": "2026-09-26T07:30:55Z"
+    },
+    {
+      "line": "49a971a3b5be Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:55Z"
+    },
+    {
+      "line": "49a971a3b5be Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:55Z"
+    },
+    {
+      "line": "49a971a3b5be Pull complete",
+      "source": "system",
+      "ts": "2026-09-26T07:30:55Z"
+    },
+    {
+      "line": "71736cd84108 Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:55Z"
+    },
+    {
+      "line": "71736cd84108 Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:55Z"
+    },
+    {
+      "line": "71736cd84108 Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:55Z"
+    },
+    {
+      "line": "71736cd84108 Pull complete",
+      "source": "system",
+      "ts": "2026-09-26T07:30:55Z"
+    },
+    {
+      "line": "25a98379cf8a Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:55Z"
+    },
+    {
+      "line": "25a98379cf8a Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:55Z"
+    },
+    {
+      "line": "25a98379cf8a Pull complete",
+      "source": "system",
+      "ts": "2026-09-26T07:30:55Z"
+    },
+    {
+      "line": "ef0607faf4a5 Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:55Z"
+    },
+    {
+      "line": "ef0607faf4a5 Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:55Z"
+    },
+    {
+      "line": "ef0607faf4a5 Pull complete",
+      "source": "system",
+      "ts": "2026-09-26T07:30:55Z"
+    },
+    {
+      "line": "68f9fc4c4cd6 Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:55Z"
+    },
+    {
+      "line": "68f9fc4c4cd6 Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:55Z"
+    },
+    {
+      "line": "68f9fc4c4cd6 Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:55Z"
+    },
+    {
+      "line": "68f9fc4c4cd6 Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:55Z"
+    },
+    {
+      "line": "68f9fc4c4cd6 Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:56Z"
+    },
+    {
+      "line": "68f9fc4c4cd6 Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:56Z"
+    },
+    {
+      "line": "68f9fc4c4cd6 Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:56Z"
+    },
+    {
+      "line": "68f9fc4c4cd6 Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:56Z"
+    },
+    {
+      "line": "68f9fc4c4cd6 Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:56Z"
+    },
+    {
+      "line": "68f9fc4c4cd6 Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:56Z"
+    },
+    {
+      "line": "68f9fc4c4cd6 Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:56Z"
+    },
+    {
+      "line": "68f9fc4c4cd6 Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:56Z"
+    },
+    {
+      "line": "68f9fc4c4cd6 Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:57Z"
+    },
+    {
+      "line": "68f9fc4c4cd6 Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:57Z"
+    },
+    {
+      "line": "68f9fc4c4cd6 Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:57Z"
+    },
+    {
+      "line": "68f9fc4c4cd6 Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:57Z"
+    },
+    {
+      "line": "68f9fc4c4cd6 Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:57Z"
+    },
+    {
+      "line": "68f9fc4c4cd6 Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:57Z"
+    },
+    {
+      "line": "68f9fc4c4cd6 Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:57Z"
+    },
+    {
+      "line": "68f9fc4c4cd6 Pull complete",
+      "source": "system",
+      "ts": "2026-09-26T07:30:57Z"
+    },
+    {
+      "line": "f3897fb8753a Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:57Z"
+    },
+    {
+      "line": "f3897fb8753a Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:57Z"
+    },
+    {
+      "line": "f3897fb8753a Pull complete",
+      "source": "system",
+      "ts": "2026-09-26T07:30:57Z"
+    },
+    {
+      "line": "227fdd183f53 Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:57Z"
+    },
+    {
+      "line": "227fdd183f53 Extracting",
+      "source": "system",
+      "ts": "2026-09-26T07:30:57Z"
+    },
+    {
+      "line": "227fdd183f53 Pull complete",
+      "source": "system",
+      "ts": "2026-09-26T07:30:57Z"
     },
     {
       "line": "Digest: sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec",
       "source": "system",
-      "ts": "2026-09-25T20:12:19Z"
+      "ts": "2026-09-26T07:30:57Z"
+    },
+    {
+      "line": "Status: Downloaded newer image for ghcr.io/india123445t-pixel/mus-ai@sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec",
+      "source": "system",
+      "ts": "2026-09-26T07:30:57Z"
+    },
+    {
+      "line": "create container ghcr.io/india123445t-pixel/mus-ai@sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec",
+      "source": "system",
+      "ts": "2026-09-26T07:30:58Z"
+    },
+    {
+      "line": "ghcr.io/india123445t-pixel/mus-ai@sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec Pulling from india123445t-pixel/mus-ai",
+      "source": "system",
+      "ts": "2026-09-26T07:30:58Z"
+    },
+    {
+      "line": "Digest: sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec",
+      "source": "system",
+      "ts": "2026-09-26T07:30:58Z"
     },
     {
       "line": "Status: Image is up to date for ghcr.io/india123445t-pixel/mus-ai@sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec",
       "source": "system",
-      "ts": "2026-09-25T20:12:19Z"
+      "ts": "2026-09-26T07:30:58Z"
     },
     {
       "line": "start container for ghcr.io/india123445t-pixel/mus-ai@sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec: begin",
       "source": "system",
-      "ts": "2026-09-25T20:12:20Z"
+      "ts": "2026-09-26T07:31:00Z"
     },
     {
-      "line": "AQLEVON_RUNTIME_STATEAQLEVON_RUNTIME_STATE  {\"adapter_sha256\": \"2d4f0c3528129e702dfa0af27fad467d411f355b9ea72e771942d0f6703e2b2a\", \"detail\": \"waiting for base and adapter\", \"model\": \"AQLEVON-4B-Auth16\", \"ready\": false, \"stage\": \"HTTP_READY\", \"updated_at_epoch\": 1790367141}",
+      "line": "AQLEVON_27B_HARDWARE_PASS 81920.0 81153.0",
       "source": "container",
-      "ts": "2026-09-25T20:12:21.420030812Z"
+      "ts": "2026-09-26T07:31:04.499556857Z"
     },
     {
-      "line": "{\"adapter_sha256\": \"2d4f0c3528129e702dfa0af27fad467d411f355b9ea72e771942d0f6703e2b2a\", \"detail\": \"downloading pinned Qwen3.5-4B-Base\", \"model\": \"AQLEVON-4B-Auth16\", \"ready\": false, \"stage\": \"MODEL_DOWNLOAD\", \"updated_at_epoch\": 1790367141}",
+      "line": "AQLEVON_27B_SOURCE_BLOB_PASS 107dd7caa736470aff53a1421c9e328a39cd1470",
       "source": "container",
-      "ts": "2026-09-25T20:12:21.420089704Z"
+      "ts": "2026-09-26T07:31:13.882789309Z"
     },
     {
-      "line": "\rFetching 12 files:   0%|          | 0/12 [00:00<?, ?it/s]Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.",
+      "line": "AQLEVON_27B_PROBE_REBOUND_PUBLIC_ONLY",
       "source": "container",
-      "ts": "2026-09-25T20:12:21.780282963Z"
+      "ts": "2026-09-26T07:31:13.990870006Z"
     },
     {
-      "line": "\rFetching 12 files:   8%|\u258a         | 1/12 [00:00<00:01,  7.45it/s]/tmp/runtime.py:90: DeprecationWarning: Python 3.14 will, by default, filter extracted tar archives and reject files or modify their metadata. Use the filter argument to control this behavior.",
+      "line": "\rFetching 32 files:   0%|          | 0/32 [00:00<?, ?it/s]Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.",
       "source": "container",
-      "ts": "2026-09-25T20:12:29.804197265Z"
+      "ts": "2026-09-26T07:31:14.560324588Z"
     },
     {
-      "line": "  t.extractall(tmp)",
+      "line": "\rFetching 32 files:   3%|\u258e         | 1/32 [00:00<00:05,  6.17it/s]\rFetching 32 files:  28%|\u2588\u2588\u258a       | 9/32 [00:10<00:27,  1.22s/it]\rFetching 32 files:  38%|\u2588\u2588\u2588\u258a      | 12/32 [00:11<00:17,  1.15it/s]\rFetching 32 files:  56%|\u2588\u2588\u2588\u2588\u2588\u258b    | 18/32 [00:11<00:06,  2.06it/s]\rFetching 32 files:  59%|\u2588\u2588\u2588\u2588\u2588\u2589    | 19/32 [00:14<00:10,  1.28it/s]\rFetching 32 files:  62%|\u2588\u2588\u2588\u2588\u2588\u2588\u258e   | 20/32 [00:15<00:09,  1.33it/s]\rFetching 32 files:  78%|\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u258a  | 25/32 [00:15<00:02,  2.46it/s]\rFetching 32 files:  84%|\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u258d | 27/32 [00:15<00:01,  2.89it/s]\rFetching 32 files: 100%|\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588| 32/32 [00:15<00:00,  2.01it/s]",
       "source": "container",
-      "ts": "2026-09-25T20:12:29.804227663Z"
+      "ts": "2026-09-26T07:31:30.397029676Z"
     },
     {
-      "line": "AQLEVON_RUNTIME_STATE {\"adapter_sha256\": \"2d4f0c3528129e702dfa0af27fad467d411f355b9ea72e771942d0f6703e2b2a\", \"detail\": \"2d4f0c3528129e702dfa0af27fad467d411f355b9ea72e771942d0f6703e2b2a\", \"model\": \"AQLEVON-4B-Auth16\", \"ready\": false, \"stage\": \"ADAPTER_VERIFIED\", \"updated_at_epoch\": 1790367149}",
+      "line": "AQLEVON_27B_MODEL_STAGED",
       "source": "container",
-      "ts": "2026-09-25T20:12:29.850706621Z"
-    },
-    {
-      "line": "\rFetching 12 files:  42%|\u2588\u2588\u2588\u2588\u258f     | 5/12 [00:24<00:36,  5.20s/it]\rFetching 12 files: 100%|\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588| 12/12 [00:24<00:00,  2.04s/it]",
-      "source": "container",
-      "ts": "2026-09-25T20:12:46.238248409Z"
-    },
-    {
-      "line": "AQLEVON_RUNTIME_STATE {\"adapter_sha256\": \"2d4f0c3528129e702dfa0af27fad467d411f355b9ea72e771942d0f6703e2b2a\", \"detail\": \"base ready; waiting for frozen Auth16 adapter\", \"model\": \"AQLEVON-4B-Auth16\", \"ready\": false, \"stage\": \"WAITING_ADAPTER\", \"updated_at_epoch\": 1790367166}",
-      "source": "container",
-      "ts": "2026-09-25T20:12:46.239763105Z"
-    },
-    {
-      "line": "AQLEVON_RUNTIME_STATE {\"adapter_sha256\": \"2d4f0c3528129e702dfa0af27fad467d411f355b9ea72e771942d0f6703e2b2a\", \"detail\": \"loading base + Auth16 LoRA\", \"model\": \"AQLEVON-4B-Auth16\", \"ready\": false, \"stage\": \"MODEL_LOAD\", \"updated_at_epoch\": 1790367172}",
-      "source": "container",
-      "ts": "2026-09-25T20:12:52.632815423Z"
-    },
-    {
-      "line": "\rLoading weights:   0%|          | 0/723 [00:00<?, ?it/s]\rLoading weights:   6%|\u258c         | 45/723 [00:00<00:01, 436.14it/s]\rLoading weights:  16%|\u2588\u258b        | 118/723 [00:00<00:01, 603.87it/s]\rLoading weights:  26%|\u2588\u2588\u258c       | 187/723 [00:00<00:00, 631.04it/s]\rLoading weights:  36%|\u2588\u2588\u2588\u258c      | 258/723 [00:00<00:00, 643.17it/s]\rLoading weights:  46%|\u2588\u2588\u2588\u2588\u258c     | 332/723 [00:00<00:00, 673.10it/s]\rLoading weights:  56%|\u2588\u2588\u2588\u2588\u2588\u258c    | 406/723 [00:00<00:00, 690.84it/s]\rLoading weights:  98%|\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u258a| 708/723 [00:00<00:00, 1435.42it/s]\rLoading weights: 100%|\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588| 723/723 [00:00<00:00, 994.96it/s]",
-      "source": "container",
-      "ts": "2026-09-25T20:12:54.420463092Z"
-    },
-    {
-      "line": "AQLEVON_RUNTIME_STATE {\"adapter_sha256\": \"2d4f0c3528129e702dfa0af27fad467d411f355b9ea72e771942d0f6703e2b2a\", \"detail\": \"AQLEVON Auth16 candidate loaded\", \"model\": \"AQLEVON-4B-Auth16\", \"ready\": true, \"stage\": \"READY\", \"updated_at_epoch\": 1790367175}",
-      "source": "container",
-      "ts": "2026-09-25T20:12:55.728535023Z"
-    },
-    {
-      "line": "[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.",
-      "source": "container",
-      "ts": "2026-09-25T20:12:58.204653343Z"
-    },
-    {
-      "line": "[transformers] `chunk_gated_delta_rule` is falling back to its reference PyTorch implementation because `flash-linear-attention` is not installed. This is correct but much slower; install `flash-linear-attention` for the optimized kernel.",
-      "source": "container",
-      "ts": "2026-09-25T20:12:58.229287025Z"
-    },
-    {
-      "line": "[transformers] `causal_conv1d_update` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.",
-      "source": "container",
-      "ts": "2026-09-25T20:12:58.359989566Z"
-    },
-    {
-      "line": "[transformers] `fused_recurrent_gated_delta_rule` is falling back to its reference PyTorch implementation because `flash-linear-attention` is not installed. This is correct but much slower; install `flash-linear-attention` for the optimized kernel.",
-      "source": "container",
-      "ts": "2026-09-25T20:12:58.360433409Z"
+      "ts": "2026-09-26T07:31:30.398782440Z"
     }
   ],
-  "pod_id": "0kj4jtnesaycbu",
+  "pod_id": "xrc46y1bfwuzum",
   "stderr": ""
 }
