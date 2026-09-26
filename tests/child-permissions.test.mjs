@@ -71,8 +71,10 @@ test('owner UI states adapter autonomy truthfully and remains mobile-safe',()=>{
   assert.match(page,/سياسة Adapter: يتطلب أمرًا لكل فعل/);
   assert.match(page,/سياسة Adapter: يسمح بالتتابع داخل الصلاحيات/);
   assert.doesNotMatch(page,/ينفذ تلقائيًا داخل الصلاحيات المفعلة/);
-  assert.match(page,/لا توجد حاليًا حلقة Agent ذاتية مخفية/);
-  assert.match(page,/محفوظة محليًا في هذا المتصفح\/الجهاز وليست مزامنة خادمية/);
+  assert.match(page,/القدرة غير الموصولة تبقى «غير متاحة» وليست «ممنوعة»/);
+  assert.match(page,/هذه الصلاحيات وسياسة المالك محفوظة محليًا في هذا المتصفح\/الجهاز/);
+  assert.match(page,/افتح كل ما يمكن التحكم به/);
+  assert.match(page,/OWNER_POLICY_STORAGE/);
   assert.match(page,/minmax\(min\(100%,340px\),1fr\)/);
   assert.match(page,/calc\(100vw - 32px\)/);
 });
