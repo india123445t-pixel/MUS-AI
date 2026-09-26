@@ -2,8 +2,9 @@
 
 This branch is the single deployment source for the current AQLEVON product surface.
 
-Canonical branch:
-- `release/aqlevon-unified-auth16-20260925`
+Canonical source:
+- `main` (production)
+- RunPod endpoint ID `qyb4is6cl1hn22` is non-secret and has a code fallback; only the server-side inference key remains secret.
 
 Included current surfaces:
 - Public Workspace: `/`, `/chat`, projects, work, developer, scheduled, library, plugins, settings.

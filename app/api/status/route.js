@@ -63,7 +63,7 @@ export async function GET(req){
     }
   }catch{}
   const providers={
-    self_hosted:!!(process.env.AQLEVON_MODEL_URL||process.env.AQLEVON_MODEL_RUNPOD_ENDPOINT_ID)
+    self_hosted:!!(process.env.AQLEVON_MODEL_URL||process.env.AQLEVON_MODEL_RUNPOD_KEY||process.env.AQLEVON_MODEL_KEY)
   };
   return NextResponse.json({database_configured:!!client,sovereign_runtime:true,inference_target:'aqlevon-engine',external_provider_routing:false,self_hosted_configured:providers.self_hosted,providers,settings},{headers:{'Cache-Control':'no-store'}});
 }
