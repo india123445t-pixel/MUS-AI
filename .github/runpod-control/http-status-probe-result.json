@@ -1,0 +1,14 @@
+{
+  "probe_checked_at_utc": "2026-09-26T07:33:13.409887+00:00",
+  "status": {
+    "capability_gain_claim": false,
+    "checked_at_utc": "2026-09-26T07:31:30.596463+00:00",
+    "detail": "auth16_recipe_transfer_672",
+    "kind": "AQLEVON_27B_AUTH16_TRANSFER_STATUS_V1",
+    "lane": "AQLEVON_27B_AUTH16_TRANSFER_V1",
+    "rc": 0,
+    "sealed_eval_consumed": false,
+    "stage": "TRAINING",
+    "worker05_used_for_tuning": false
+  }
+}
