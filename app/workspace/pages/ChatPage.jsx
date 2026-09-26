@@ -39,6 +39,7 @@ export default function ChatPage({ onChatsChanged, newChat, onMenu }) {
 
   const isTemp = params.get('temp') === '1' || chat?.temporary === 1;
   const speechAvailable = typeof window !== 'undefined' && !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+  const speechSynthesisAvailable = typeof window !== 'undefined' && !!window.speechSynthesis && typeof window.SpeechSynthesisUtterance === 'function';
 
   useEffect(() => {
     api.get('/bootstrap').then(r => { setRuntime(r); if (r?.searchDefault && r?.webSearchAvailable) setWebSearch(true); }).catch(() => setRuntime({ inferenceReady:false, inferenceError:'HEALTH_CHECK_FAILED', webSearchAvailable:false }));
@@ -158,8 +159,18 @@ export default function ChatPage({ onChatsChanged, newChat, onMenu }) {
   };
 
   const readAloud = (text) => {
-    speechSynthesis.cancel();
-    speechSynthesis.speak(new SpeechSynthesisUtterance(text.replace(/[#*`>|]/g, '')));
+    if(!speechSynthesisAvailable){setLastError(t('chat.readAloudUnavailable'));return}
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(new window.SpeechSynthesisUtterance(text.replace(/[#*`>|]/g, '')));
+  };
+
+  const copyText = async (text) => {
+    try{
+      if(!navigator?.clipboard?.writeText)throw new Error('CLIPBOARD_UNAVAILABLE');
+      await navigator.clipboard.writeText(text);
+    }catch{
+      setLastError(t('chat.copyUnavailable'));
+    }
   };
 
   const rateMessage = async (m, rating) => {
@@ -291,10 +302,10 @@ export default function ChatPage({ onChatsChanged, newChat, onMenu }) {
                 )}
                 {!m.streaming && (
                   <div className="msg-actions">
-                    <button className="iconbtn" title={t('chat.copy')} onClick={() => navigator.clipboard.writeText(m.content)}><Icon name="copy" size={15} /></button>
+                    <button className="iconbtn" title={t('chat.copy')} onClick={() => copyText(m.content)}><Icon name="copy" size={15} /></button>
                     {m.role === 'user' && <button className="iconbtn" title={t('chat.edit')} onClick={() => setEditing(m.id)}><Icon name="pencil" size={15} /></button>}
                     {m.role === 'assistant' && <>
-                      <button className="iconbtn" title={t('chat.readAloud')} onClick={() => readAloud(m.content)}><Icon name="volume" size={15} /></button>
+                      <button className="iconbtn" title={speechSynthesisAvailable?t('chat.readAloud'):t('chat.readAloudUnavailable')} disabled={!speechSynthesisAvailable} onClick={() => readAloud(m.content)}><Icon name="volume" size={15} /></button>
                       <button className={'iconbtn' + (feedback[m.id] === 'good' ? ' on' : '')} title={t('chat.good')} onClick={() => rateMessage(m,'good')}><Icon name="thumbUp" size={15} /></button>
                       <button className={'iconbtn' + (feedback[m.id] === 'bad' ? ' on' : '')} title={t('chat.bad')} onClick={() => rateMessage(m,'bad')}><Icon name="thumbDown" size={15} /></button>
                       {i === messages.length - 1 && <button className="iconbtn" title={t('chat.retry')} onClick={regenerate} disabled={busy}><Icon name="retry" size={15} /> {t('chat.retry')}</button>}
