@@ -247,7 +247,14 @@ async function streamChat(chatId,payload,signal){
     history=c.messages.slice(0,-1).slice(-20).map(({role,content})=>({role,content}));c.updated_at=now();return s});
   if(!prompt)throw Error('No user message to send');
   const userState=load();
-  const personalization=String(userState.settings?.personalization||'').slice(0,4000);
+  const activeChat=userState.chats.find(c=>c.id===id);
+  const project=activeChat?.project_id?userState.projects.find(p=>p.id===activeChat.project_id):null;
+  const globalPersonalization=String(userState.settings?.personalization||'').slice(0,3000);
+  const projectInstructions=String(project?.instructions||'').slice(0,3000);
+  const personalization=[
+    globalPersonalization,
+    projectInstructions?`PROJECT INSTRUCTIONS (${String(project?.name||'project').slice(0,120)}):\n${projectInstructions}`:''
+  ].filter(Boolean).join('\n\n').slice(0,6000);
   const memories=(userState.memory||[]).slice(0,16).map(x=>({content:String(x.content||'').slice(0,1000)})).filter(x=>x.content);
   const r=await fetch('/api/commons/chat',{method:'POST',headers:{'Content-Type':'application/json'},signal,body:JSON.stringify({input:prompt,history,webSearch:!!payload.useWebSearch,reasoning:payload.reasoning,researchDepth:payload.researchDepth||userState.settings?.research_depth||'standard',personalization,memories,sessionId:ensureSession(),conversationId:id})});
   const d=await r.json().catch(()=>({}));if(!r.ok){const err=new Error(d.message||'AQLEVON runtime unavailable');err.errorClass=d.error_class||null;throw err}
