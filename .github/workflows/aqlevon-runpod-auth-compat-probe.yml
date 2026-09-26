@@ -1,0 +1,66 @@
+name: AQLEVON RunPod Auth Compatibility Probe
+
+on:
+  push:
+    branches: [release/aqlevon-unified-auth16-20260925]
+    paths:
+      - ".github/runpod-control/runpod-auth-compat-probe-trigger.json"
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      ENDPOINT_ID: qyb4is6cl1hn22
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/aqlevon-unified-auth16-20260925
+          fetch-depth: 0
+
+      - name: Probe auth forms against health only
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${RUNPOD_API_KEY:-}"
+          python - <<'PY'
+          import json, os, subprocess, urllib.parse
+          key=os.environ["RUNPOD_API_KEY"]; ep=os.environ["ENDPOINT_ID"]
+          base=f"https://api.runpod.ai/v2/{ep}/health"
+          cases=[
+            ("bearer", ["-H",f"Authorization: Bearer {key}"], base),
+            ("raw_authorization", ["-H",f"Authorization: {key}"], base),
+            ("x_api_key", ["-H",f"X-API-Key: {key}"], base),
+            ("query_api_key", [], base+"?api_key="+urllib.parse.quote(key,safe="")),
+          ]
+          out={"kind":"AQLEVON_RUNPOD_AUTH_COMPAT_PROBE_V1","endpoint_id":ep,"cases":{}}
+          for name,args,url in cases:
+            p=subprocess.run(["curl","-sS","-o","/tmp/body","-w","%{http_code}",*args,url],text=True,capture_output=True)
+            code=(p.stdout or "").strip()
+            body=open("/tmp/body","r",errors="replace").read()[:1000] if os.path.exists("/tmp/body") else ""
+            # Never persist anything that could echo credentials.
+            body=body.replace(key,"***REDACTED***")
+            out["cases"][name]={"http_code":code,"body":body}
+          # Control-plane REST v2, same bearer, to establish that the key itself is usable.
+          p=subprocess.run(["curl","-sS","-o","/tmp/control","-w","%{http_code}",
+             "-H",f"Authorization: Bearer {key}","https://api.runpod.io/v2/serverless"],text=True,capture_output=True)
+          body=open("/tmp/control","r",errors="replace").read()[:500] if os.path.exists("/tmp/control") else ""
+          out["control_plane_bearer"]={"http_code":(p.stdout or "").strip(),"body":body.replace(key,"***REDACTED***")}
+          open(".github/runpod-control/runpod-auth-compat-probe-result.json","w").write(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("AQLEVON_RUNPOD_AUTH_COMPAT_PROBE",json.dumps(out,sort_keys=True))
+          PY
+
+      - name: Persist result
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name aqlevon-release-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/runpod-control/runpod-auth-compat-probe-result.json
+          git commit -m "ops: record RunPod auth compatibility probe [skip ci]" || true
+          git pull --rebase origin release/aqlevon-unified-auth16-20260925
+          git push origin HEAD:release/aqlevon-unified-auth16-20260925
