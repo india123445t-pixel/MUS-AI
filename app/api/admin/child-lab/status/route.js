@@ -27,9 +27,8 @@ export async function GET(req){
       child_model_configured:health.configured===true,
       child_model_ready:health.ok===true,
       health,
-      public_model_access:false,
-      production_weight_write:false,
-      training_lane_write:false,
+      policy_mode:'owner-controlled',
+      owner_policy_source:'client-owner-session',
       memory_scope:'child-lab-only',
       tools:childToolStatus()
     },{headers:{'Cache-Control':'no-store'}});
