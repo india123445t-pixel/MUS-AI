@@ -1,0 +1,35 @@
+name: AQLEVON 27B Runtime Detail Probe
+on:
+  push:
+    branches: [ops/aqlevon-27b-r0-20260926]
+    paths: [".github/workflows/aqlevon-27b-runtime-detail-probe.yml"]
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      POD_ID: z8xdb23kcxgltg
+    steps:
+      - name: Safe runtime detail
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS "https://rest.runpod.io/v1/pods/$POD_ID" -H "Authorization: Bearer $RUNPOD_API_KEY" -o /tmp/pod.json
+          python3 - <<'PY'
+          import json
+          p=json.load(open("/tmp/pod.json"))
+          safe={}
+          for k in ("id","name","desiredStatus","costPerHr","lastStartedAt","lastStatusChange","imageName","containerDiskInGb","memoryInGb","vcpuCount","volumeInGb","machineId","gpu"):
+              if k in p: safe[k]=p[k]
+          rt=p.get("runtime")
+          if isinstance(rt,dict):
+              safe["runtime"]={k:rt.get(k) for k in ("uptimeInSeconds","ports","gpus") if k in rt}
+          print(json.dumps(safe,sort_keys=True))
+          print("TOP_KEYS",sorted(k for k in p.keys() if k not in {"env","ports"}))
+          PY
+          for u in / /status.json; do
+            code="$(curl -sS --connect-timeout 10 --max-time 20 -o "/tmp/out" -w '%{http_code}' "https://$POD_ID-8000.proxy.runpod.net$u?t=$(date +%s)" || true)"
+            echo "PROXY $u HTTP=$code"
+            if [ "$code" = 200 ]; then head -c 1200 /tmp/out; echo; fi
+          done
