@@ -29,6 +29,8 @@ const providers=read('lib/aqlevon/providers.js');
 const kernel=read('lib/aqlevon/kernel.js');
 const commonsChat=read('app/api/commons/chat/route.js');
 const webResearch=read('lib/aqlevon/web-research.js');
+const nextConfig=read('next.config.mjs');
+const packageJson=read('package.json');
 
 test('browser workspace fails closed for unavailable adapters',()=>{
   assert.match(api,/adapter_state:'NOT_CONNECTED'/);
@@ -203,4 +205,23 @@ test('browser personalization and local memory are real bounded AQLEVON context,
   assert.match(kernel,/redactSecrets\(String\(personalization/);
   assert.match(ar,/تُرسل أحدث الذكريات كسياق محدود إلى AQLEVON/);
   assert.match(en,/recent memories are sent as bounded context to AQLEVON/);
+});
+
+
+test('project instructions reach AQLEVON chats instead of remaining cosmetic',()=>{
+  assert.match(api,/PROJECT INSTRUCTIONS/);
+  assert.match(api,/activeChat\?\.project_id/);
+  assert.match(api,/project\?\.instructions/);
+});
+
+test('browser capability controls fail gracefully instead of throwing on unsupported APIs',()=>{
+  assert.match(chat,/speechSynthesisAvailable/);
+  assert.match(chat,/chat\.readAloudUnavailable/);
+  assert.match(chat,/copyText/);
+  assert.match(chat,/chat\.copyUnavailable/);
+});
+
+test('production build config contains no legacy Gemini model injection and declares Node 22',()=>{
+  assert.doesNotMatch(nextConfig,/GEMINI|googleapis|openrouter|OPENAI/i);
+  assert.match(packageJson,/"node": "\>=22\.0\.0"/);
 });
