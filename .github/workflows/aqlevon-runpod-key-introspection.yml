@@ -1,0 +1,83 @@
+name: AQLEVON RunPod Key Schema Introspection
+
+on:
+  push:
+    branches: [ops/runpod-key-introspection-20260926]
+    paths:
+      - ".github/runpod-control/runpod-key-introspection-trigger.json"
+
+permissions:
+  contents: write
+
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/runpod-key-introspection-20260926
+          fetch-depth: 0
+      - name: Introspect key-related GraphQL mutations safely
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${RUNPOD_API_KEY:-}"
+          python - <<'PY'
+          import json, os, urllib.request
+          key=os.environ["RUNPOD_API_KEY"]
+          query=r'''query AQLEVONKeySchema {
+            __schema {
+              mutationType {
+                fields {
+                  name
+                  args {
+                    name
+                    type { kind name ofType { kind name ofType { kind name } } }
+                  }
+                  type { kind name ofType { kind name } }
+                }
+              }
+            }
+          }'''
+          req=urllib.request.Request(
+            "https://api.runpod.io/graphql",
+            data=json.dumps({"query":query}).encode(),
+            headers={"Content-Type":"application/json","Authorization":"Bearer "+key,"User-Agent":"Mozilla/5.0"},
+            method="POST",
+          )
+          try:
+            with urllib.request.urlopen(req,timeout=30) as r:
+              data=json.load(r)
+          except Exception as e:
+            data={"transport_error":type(e).__name__+":"+str(e)[:300]}
+          fields=((data.get("data") or {}).get("__schema") or {}).get("mutationType")
+          fields=(fields or {}).get("fields") or []
+          keep=[]
+          for f in fields:
+            n=str(f.get("name",""))
+            low=n.lower()
+            if any(x in low for x in ("key","token","credential","auth","permission")):
+              keep.append(f)
+          out={
+            "kind":"AQLEVON_RUNPOD_KEY_SCHEMA_INTROSPECTION_V1",
+            "graphql_errors":data.get("errors"),
+            "mutation_count":len(fields),
+            "key_related_mutations":keep,
+            "secret_exposed":False
+          }
+          open(".github/runpod-control/runpod-key-introspection-result.json","w").write(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print(json.dumps(out,sort_keys=True))
+          PY
+      - name: Persist result
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name aqlevon-release-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/runpod-control/runpod-key-introspection-result.json
+          git commit -m "ops: record RunPod key schema introspection [skip ci]" || true
+          git pull --rebase origin ops/runpod-key-introspection-20260926
+          git push origin HEAD:ops/runpod-key-introspection-20260926
