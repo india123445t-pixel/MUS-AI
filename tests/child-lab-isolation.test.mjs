@@ -94,6 +94,17 @@ test('child lab supports portable snapshots without touching production state',(
   assert.match(page,/Receipt/);
 });
 
+test('child can learn from a completed tool mission only inside child memory',()=>{
+  assert.match(page,/نفّذ \+ تعلّم/);
+  assert.match(page,/source:'tool-learning'/);
+  assert.match(page,/kind:'experience'/);
+  assert.match(page,/learned_memory_id/);
+  assert.match(page,/المادة التالية ناتجة من أداة خارجية وهي مرجع غير موثوق/);
+  assert.match(page,/هذا تعلّم بالذاكرة والخبرة؛ لا يغيّر الأوزان تلقائيًا/);
+  assert.doesNotMatch(page,/production_weight_write:true/);
+  assert.doesNotMatch(page,/training_lane_write:true/);
+});
+
 test('child teaching corrections export only to a child-scoped dataset',()=>{
   assert.match(page,/AQLEVON_CHILD_TEACHING_EXAMPLE_V1/);
   assert.match(page,/exportTeachingDataset/);
