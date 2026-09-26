@@ -29,3 +29,4 @@ jobs:
           scode="$(curl -sS --connect-timeout 10 --max-time 30 -o /tmp/status.json -w '%{http_code}' "$proxy?t=$(date +%s)" || true)"
           echo "STATUS_HTTP=$scode"
           if [ "$scode" = 200 ]; then cat /tmp/status.json; echo; fi
+# probe-run: 2026-09-26T12:31Z
