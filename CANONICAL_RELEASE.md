@@ -31,3 +31,13 @@ Frozen model:
 - Status: Public-verified; Worker05 sealed evaluation still separate.
 
 Historical research/evidence remains in the repository because it is required for provenance and reproducibility. Obsolete packaged UI copies are removed from this release branch.
+
+
+## Production publication receipt — 2026-09-26
+
+- Production merge commit: `c69ee465d9bd34acd6bc26e661c827769773b462`.
+- Workspace Sovereign Readiness CI: PASS on production merge.
+- GitHub Pages build/deployment: PASS on production merge.
+- Canonical serverless endpoint: `qyb4is6cl1hn22`.
+- Serverless policy: workers_min=0, workers_max=1, idle_timeout=5s.
+- Public runtime and Child Lab runtime remain fail-closed until their server-side inference credentials are accepted by RunPod.
