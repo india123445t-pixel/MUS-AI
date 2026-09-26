@@ -58,7 +58,7 @@ export default {
   'dev.tokenNote': 'يُخزَّن على الخادم فقط.', 'dev.newFile': 'ملف جديد', 'dev.selectRepo': 'اختر مستودعًا للبدء.',
   // projects
   'proj.title': 'المشاريع', 'proj.new': 'مشروع جديد', 'proj.name': 'اسم المشروع',
-  'proj.instructions': 'التعليمات', 'proj.instructionsHint': 'تُحفظ تعليمات المشروع محليًا؛ لم تُربط بعد تلقائيًا بكل طلب محادثة.',
+  'proj.instructions': 'التعليمات', 'proj.instructionsHint': 'تُحفظ تعليمات المشروع محليًا وتُرسل تلقائيًا كسياق محدود لكل محادثة داخل هذا المشروع.',
   'proj.conversations': 'المحادثات', 'proj.files': 'الملفات', 'proj.activity': 'النشاط',
   'proj.newChatIn': 'محادثة جديدة في المشروع', 'proj.empty': 'لا مشاريع بعد. تجمع المشاريع المحادثات والملفات والتعليمات المرتبطة.',
   'proj.chats': 'محادثات', 'proj.filesCount': 'ملفات', 'proj.deleteConfirm': 'حذف هذا المشروع؟ تُحفظ محادثاته وتُنقل خارج المشروع.',
@@ -144,7 +144,7 @@ export default {
   'apps.n.calendar': 'التقويم', 'apps.d.calendar': 'غير متصل في نسخة المتصفح؛ يحتاج Calendar Adapter موثوقًا.',
   'apps.n.drive': 'التخزين السحابي', 'apps.d.drive': 'غير متصل في نسخة المتصفح؛ يحتاج Cloud Drive Adapter موثوقًا.',
   // settings (extra)
-  'set.generalNote': 'المنطقة الزمنية محفوظة كتفضيل محلي. لن تتحكم في تنفيذ المهام المجدولة حتى يتم ربط Scheduler حقيقي.',
+  'set.generalNote': 'بيانات Workspace المحلية تُحفظ على هذا الجهاز. المنطقة الزمنية محفوظة كتفضيل محلي، ولن تتحكم في تنفيذ المهام المجدولة حتى يتم ربط Scheduler حقيقي.',
   'set.langNote': 'اختيار العربية يحوّل الواجهة كاملة إلى اليمين.',
   'set.memoryHint': 'ذاكرة محلية على هذا الجهاز فقط؛ تُرسل أحدث الذكريات كسياق محدود إلى AQLEVON، وليست ذاكرة خادمية أو تعديلًا للأوزان.',
   'set.addMemory': 'أضف شيئًا ليتذكره…', 'set.add': 'إضافة', 'set.noMemories': 'لا شيء محفوظ بعد.',
