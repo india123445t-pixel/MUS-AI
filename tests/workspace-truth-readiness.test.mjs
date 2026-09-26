@@ -68,7 +68,9 @@ test('apps never solicit browser secrets or claim disconnected capabilities are 
   assert.doesNotMatch(plugins,/type="password"/);
   assert.doesNotMatch(plugins,/token\.trim\(\)/);
   assert.doesNotMatch(plugins,/setConnecting/);
-  assert.match(plugins,/disabled title=\{t\('apps\.browserNotice'\)\}/);
+  assert.match(plugins,/toggleWebDefault/);
+  assert.match(plugins,/tag warn/);
+  assert.doesNotMatch(plugins,/disabled title=\{t\('apps\.browserNotice'\)\}/);
   assert.match(en,/code-interpreter': 'Not connected in the browser edition/);
   assert.match(en,/image-gen': 'Not connected in the browser edition/);
   assert.match(en,/github': 'Not connected in the browser edition/);
