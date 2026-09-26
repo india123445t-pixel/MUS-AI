@@ -1,0 +1,22 @@
+name: AQLEVON 27B Pod Log Probe
+on:
+  push:
+    branches: [ops/aqlevon-27b-r0-20260926]
+    paths: [".github/workflows/aqlevon-27b-pod-log-probe.yml"]
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      POD_ID: z8xdb23kcxgltg
+    steps:
+      - name: Read recent pod logs
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -sSL https://cli.runpod.net | sudo bash >/dev/null
+          echo "=== SYSTEM ==="
+          timeout 25s runpodctl pod logs "$POD_ID" --tail 80 --source system || true
+          echo "=== CONTAINER ==="
+          timeout 25s runpodctl pod logs "$POD_ID" --tail 120 --source container || true
