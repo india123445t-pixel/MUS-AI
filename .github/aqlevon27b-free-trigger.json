@@ -2,5 +2,8 @@
   "lane": "AQLEVON_27B_AUTH16_TRANSFER_V1",
   "paid": false,
   "requested": "2026-09-26",
-  "owner_budget_usd": 8
+  "owner_budget_usd": 8,
+  "nonce": "shape-safe-final-2",
+  "trainer_commit": "b69b52b2d6241fc3f49476f81d06713a1c639aa4",
+  "bootstrap_commit": "e4d0c30fc91118a28ebeb78b51c5adbb16c8701a"
 }
