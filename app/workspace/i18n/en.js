@@ -17,7 +17,7 @@ export default {
   'chat.you': 'You', 'chat.assistant': 'AQLEVON',
   'chat.copy': 'Copy', 'chat.copied': 'Copied', 'chat.edit': 'Edit', 'chat.retry': 'Retry',
   'chat.branch': 'Branch from here', 'chat.readAloud': 'Read aloud',
-  'chat.good': 'Good response', 'chat.bad': 'Bad response',
+  'chat.good': 'Good response', 'chat.bad': 'Bad response', 'chat.copyUnavailable': 'Copy is unavailable or clipboard permission was denied.', 'chat.readAloudUnavailable': 'Read aloud is not supported by this browser.',
   'chat.saveResend': 'Save & resend', 'chat.cancel': 'Cancel',
   'chat.sources': 'Sources', 'chat.stop': 'Stop request locally', 'chat.send': 'Send',
   'chat.add': 'Add', 'chat.attachFile': 'Attach text file', 'chat.addImage': 'Add image', 'chat.pasteCode': 'Paste code',
