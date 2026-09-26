@@ -25,6 +25,7 @@ export async function POST(req){
       lessons:Array.isArray(body.lessons)?body.lessons:[],
       examples:Array.isArray(body.examples)?body.examples:[],
       trials:Array.isArray(body.trials)?body.trials:[],
+      ownerPolicy:body.owner_policy,
     });
     const evaluation=evaluateChildCandidate(candidate);
     return NextResponse.json({
