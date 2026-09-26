@@ -31,7 +31,7 @@ jobs:
           cp /tmp/evidence/candidate/candidate_artifact/adapter_config.json artifacts/aqlevon27b/a1/
           cp /tmp/evidence/train.log artifacts/aqlevon27b/a1/train.log
           cp /tmp/evidence/hardware.txt artifacts/aqlevon27b/a1/hardware.txt
-          python3 -m pip install -q safetensors
+          python3 -m pip install -q safetensors numpy
           python3 - <<'PY'
           import hashlib,json,numpy as np
           from pathlib import Path
