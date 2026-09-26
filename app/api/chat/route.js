@@ -18,8 +18,8 @@ import { redactSecrets } from '../../../lib/aqlevon/security.js';
 import { AQLEVON_BOS_VERSION } from '../../../lib/aqlevon/constants.js';
 import { governResponse } from '../../../lib/aqlevon/response-governor.js';
 
-const SUPABASE_URL=process.env.NEXT_PUBLIC_SUPABASE_URL||'';
-const SUPABASE_KEY=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||'';
+const SUPABASE_URL=process.env.NEXT_PUBLIC_SUPABASE_URL||'https://yaqjhcfitxhtzpaswuif.supabase.co';
+const SUPABASE_KEY=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||'sb_publishable_1uRtACKcyT2ZQH9ixdKQ-Q_ARbY6xET';
 
 function client(){
   if(!SUPABASE_URL||!SUPABASE_KEY)throw new Error('Supabase environment is not configured.');
