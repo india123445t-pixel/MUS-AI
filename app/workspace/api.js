@@ -71,7 +71,9 @@ async function runJob(id){
     const r=await fetch('/api/commons/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
       input:prompt,
       history:[],
-      webSearch:false,
+      webSearch:userState.settings?.search_default==='on',
+      reasoning:userState.settings?.research_depth==='thorough'?'deep':undefined,
+      researchDepth:userState.settings?.research_depth||'standard',
       personalization:String(userState.settings?.personalization||'').slice(0,4000),
       memories:(userState.memory||[]).slice(0,16).map(x=>({content:String(x.content||'').slice(0,1000)})).filter(x=>x.content),
       sessionId:ensureSession(),
@@ -117,7 +119,8 @@ async function get(path){
     }catch{}
     const selfHostedConfigured=status?.self_hosted_configured===true;
     const inferenceReady=health?.inference_ready===true||commons?.available===true;
-    return {mode:'public-browser',workspace:{id:'local',name:'AQLEVON Workspace',created_at:now()},aiConfigured:selfHostedConfigured||commons?.available===true,inferenceReady,inferenceError:inferenceReady?null:(health?.primary_error_class||'ENV_MISSING'),webSearchAvailable:false,runtime:{provider:'AQLEVON',browserStorage:true,commonsAvailable:!!commons?.available,activeWorkers:Number(commons?.active_workers||0),runtimeMode:'self_hosted_only',sovereignRuntime:true,inferenceTarget:'aqlevon-engine',externalProviderRouting:false,providerHealth:health}};
+    const webSearchAvailable=status?.web_search_configured===true||status?.settings?.public_web_search_enabled===true;
+    return {mode:'public-browser',workspace:{id:'local',name:'AQLEVON Workspace',created_at:now()},aiConfigured:selfHostedConfigured||commons?.available===true,inferenceReady,inferenceError:inferenceReady?null:(health?.primary_error_class||'ENV_MISSING'),webSearchAvailable,searchDefault:s.settings?.search_default==='on',researchDepth:s.settings?.research_depth||'standard',runtime:{provider:'AQLEVON',browserStorage:true,commonsAvailable:!!commons?.available,activeWorkers:Number(commons?.active_workers||0),runtimeMode:'self_hosted_only',sovereignRuntime:true,inferenceTarget:'aqlevon-engine',externalProviderRouting:false,providerHealth:health}};
   }
   if(p==='/chats'){
     const q=(u.searchParams.get('q')||'').toLowerCase();
@@ -246,14 +249,15 @@ async function streamChat(chatId,payload,signal){
   const userState=load();
   const personalization=String(userState.settings?.personalization||'').slice(0,4000);
   const memories=(userState.memory||[]).slice(0,16).map(x=>({content:String(x.content||'').slice(0,1000)})).filter(x=>x.content);
-  const r=await fetch('/api/commons/chat',{method:'POST',headers:{'Content-Type':'application/json'},signal,body:JSON.stringify({input:prompt,history,webSearch:!!payload.useWebSearch,reasoning:payload.reasoning,personalization,memories,sessionId:ensureSession(),conversationId:id})});
+  const r=await fetch('/api/commons/chat',{method:'POST',headers:{'Content-Type':'application/json'},signal,body:JSON.stringify({input:prompt,history,webSearch:!!payload.useWebSearch,reasoning:payload.reasoning,researchDepth:payload.researchDepth||userState.settings?.research_depth||'standard',personalization,memories,sessionId:ensureSession(),conversationId:id})});
   const d=await r.json().catch(()=>({}));if(!r.ok){const err=new Error(d.message||'AQLEVON runtime unavailable');err.errorClass=d.error_class||null;throw err}
   const text=String(d.text||'');
-  update(s=>{const c=findChat(s,id);if(!c)return s;c.messages.push({id:uid(),role:'assistant',content:text,created_at:now(),chatLogId:d.chat_log_id||null});if(!c.title||c.title==='New chat')c.title=prompt.slice(0,70)||'Chat';c.updated_at=now();return s});
+  update(s=>{const c=findChat(s,id);if(!c)return s;c.messages.push({id:uid(),role:'assistant',content:text,created_at:now(),chatLogId:d.chat_log_id||null});c.sources=Array.isArray(d.sources)?d.sources:[];if(!c.title||c.title==='New chat')c.title=prompt.slice(0,70)||'Chat';c.updated_at=now();return s});
   const enc=new TextEncoder();
   return new Response(new ReadableStream({start(controller){
     let i=0;const step=Math.max(12,Math.ceil(text.length/24));
-    const pump=()=>{if(signal?.aborted){controller.error(new DOMException('Aborted','AbortError'));return}if(i<text.length){const chunk=text.slice(i,i+step);i+=step;controller.enqueue(enc.encode(`event: delta\ndata: ${JSON.stringify({t:chunk})}\n\n`));setTimeout(pump,8);return}controller.enqueue(enc.encode(`event: done\ndata: ${JSON.stringify({ok:true})}\n\n`));controller.close()};pump();
+    let sentSources=false;
+    const pump=()=>{if(signal?.aborted){controller.error(new DOMException('Aborted','AbortError'));return}if(i<text.length){const chunk=text.slice(i,i+step);i+=step;controller.enqueue(enc.encode(`event: delta\ndata: ${JSON.stringify({t:chunk})}\n\n`));setTimeout(pump,8);return}if(!sentSources&&Array.isArray(d.sources)&&d.sources.length){sentSources=true;controller.enqueue(enc.encode(`event: sources\ndata: ${JSON.stringify({sources:d.sources})}\n\n`));setTimeout(pump,0);return}controller.enqueue(enc.encode(`event: done\ndata: ${JSON.stringify({ok:true,web_search:!!d.web_search,reasoning:d.reasoning||'standard'})}\n\n`));controller.close()};pump();
   }}),{status:200,headers:{'Content-Type':'text/event-stream'}});
 }
 
@@ -263,4 +267,12 @@ function downloadExport(){
   const s=load();const clean={...s,files:s.files.map(({dataUrl,...f})=>f)};const blob=new Blob([JSON.stringify(clean,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='aqlevon-export.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 
-export const api={get,post,patch,del,put,upload,streamChat,fileUrl,fileText,downloadExport};
+async function feedback(chatLogId,rating,note=''){
+  if(!chatLogId)return {ok:false,localOnly:true};
+  const r=await fetch('/api/status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'feedback',chatLogId,sessionId:ensureSession(),rating,note})});
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok)throw new Error(d.message||'Feedback failed');
+  return d;
+}
+
+export const api={get,post,patch,del,put,upload,streamChat,fileUrl,fileText,downloadExport,feedback};
