@@ -1,0 +1,25 @@
+name: AQLEVON 27B Remaining Artifact Check
+on:
+  push:
+    branches: [ops/aqlevon-27b-r0-20260926]
+    paths: [".github/workflows/aqlevon-27b-remaining-artifact-check.yml"]
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/aqlevon-27b-r0-20260926
+      - name: Verify trainer and driver only
+        shell: bash
+        run: |
+          set -euo pipefail
+          gzip -t research/weight_factory/agent03/aqlevon_27b_r0_gene1.py.gz
+          gzip -t .github/runpod-control/aqlevon-27b-r0-driver.sh.gz
+          gzip -dc research/weight_factory/agent03/aqlevon_27b_r0_gene1.py.gz >/tmp/trainer.py
+          gzip -dc .github/runpod-control/aqlevon-27b-r0-driver.sh.gz >/tmp/driver.sh
+          python3 -m py_compile /tmp/trainer.py
+          bash -n /tmp/driver.sh
+          sha256sum /tmp/trainer.py /tmp/driver.sh
+          echo AQLEVON_REMAINING_ARTIFACTS_PASS
