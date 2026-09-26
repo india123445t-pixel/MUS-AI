@@ -144,7 +144,7 @@ export default {
   'apps.n.calendar': 'Calendar', 'apps.d.calendar': 'Not connected in the browser edition; requires a trusted Calendar Adapter.',
   'apps.n.drive': 'Cloud Drive', 'apps.d.drive': 'Not connected in the browser edition; requires a trusted Cloud Drive Adapter.',
   // settings (extra)
-  'set.generalNote': 'The browser edition works without an account; local Workspace data is stored on this device unless a feature explicitly says it is server-backed.',
+  'set.generalNote': 'Timezone is saved as a local preference. It will not control scheduled execution until a real Scheduler is connected.',
   'set.langNote': 'Arabic switches the whole interface to right-to-left.',
   'set.memoryHint': 'Local memory on this device only; recent memories are sent as bounded context to AQLEVON and are not server-side memory or weight updates.',
   'set.addMemory': 'Add something to remember…', 'set.add': 'Add', 'set.noMemories': 'Nothing remembered yet.',
