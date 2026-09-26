@@ -193,7 +193,8 @@ test('public runtime never silently falls back to the legacy Supabase project',(
 
 
 test('browser personalization and local memory are real bounded AQLEVON context, not cosmetic settings',()=>{
-  assert.match(api,/personalization=String\(userState\.settings\?\.personalization/);
+  assert.match(api,/globalPersonalization=String\(userState\.settings\?\.personalization/);
+  assert.match(api,/PROJECT INSTRUCTIONS/);
   assert.match(api,/\(userState\.memory\|\|\[\]\)\.slice\(0,16\)/);
   assert.match(api,/personalization,memories,sessionId/);
   assert.match(chatRoute,/personalization:String\(body\.personalization/);
