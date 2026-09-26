@@ -5,6 +5,7 @@ on:
     branches:
       - fix/workspace-readiness-truth-20260922
       - main
+      - fix/public-workspace-audit-20260926
   workflow_dispatch:
 
 permissions:
@@ -32,6 +33,9 @@ jobs:
 
       - name: Workspace truth/readiness tests
         run: node --test tests/workspace-truth-readiness.test.mjs
+
+      - name: Public web research tests
+        run: node --test tests/web-research.test.mjs
 
       - name: Child Lab isolation tests
         run: node --test tests/child-lab-isolation.test.mjs
