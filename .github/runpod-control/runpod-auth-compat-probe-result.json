@@ -1,0 +1,26 @@
+{
+  "cases": {
+    "bearer": {
+      "body": "{\"status\":403,\"title\":\"Forbidden\",\"detail\":\"you do not have permission to perform this action\"}",
+      "http_code": "403"
+    },
+    "query_api_key": {
+      "body": "{\"status\":401,\"title\":\"Unauthorized\",\"detail\":\"no token provided\"}",
+      "http_code": "401"
+    },
+    "raw_authorization": {
+      "body": "{\"status\":403,\"title\":\"Forbidden\",\"detail\":\"you do not have permission to perform this action\"}",
+      "http_code": "403"
+    },
+    "x_api_key": {
+      "body": "{\"status\":401,\"title\":\"Unauthorized\",\"detail\":\"no token provided\"}",
+      "http_code": "401"
+    }
+  },
+  "control_plane_bearer": {
+    "body": "{\"endpoints\":[{\"args\":\"\",\"createdAt\":\"2026-09-25T23:13:54.129Z\",\"dataCenterIds\":[],\"disk\":24,\"env\":{\"AQLEVON_MODEL_ID\":\"AQLEVON-4B-Auth16\",\"HF_HUB_DISABLE_TELEMETRY\":\"1\"},\"flashboot\":\"FLASHBOOT\",\"gpu\":{\"allowedCudaVersions\":[],\"count\":1,\"minCudaVersion\":\"12.0\",\"pools\":[\"AMPERE_24\"]},\"id\":\"qyb4is6cl1hn22\",\"image\":\"ghcr.io/india123445t-pixel/mus-ai-auth16-serverless:6fac68344534502e50b132e3cd830613ca37ad01\",\"name\":\"aqlevon-auth16-prod\",\"networkVolumes\":[],\"requestUrls\":{\"cancel\":\"https://api.runpo",
+    "http_code": "200"
+  },
+  "endpoint_id": "qyb4is6cl1hn22",
+  "kind": "AQLEVON_RUNPOD_AUTH_COMPAT_PROBE_V1"
+}
