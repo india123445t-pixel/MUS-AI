@@ -62,5 +62,5 @@
   "promotion_boundary": "Independent experimental 27B candidate; does not satisfy or replace frozen P4 Worker05 sealed evaluation.",
   "cleanup_policy": "stop and delete exact Pod on success, failure, timeout, or workflow exit",
   "capability_claim_policy": "No frontier/superiority/final promotion claim. Public-gate result only.",
-  "authorization_sha256": "acef684cf7cd573c1a675c5e6e74fa5700ecc445e9199336a904827f9fbb7473"
+  "authorization_sha256": "3df3a9227cdf7826ec98e765cb35138cc04476100b3a6a9f1080198aa26a786d"
 }
