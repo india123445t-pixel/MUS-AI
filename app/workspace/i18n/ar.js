@@ -17,7 +17,7 @@ export default {
   'chat.you': 'أنت', 'chat.assistant': 'AQLEVON',
   'chat.copy': 'نسخ', 'chat.copied': 'نُسخ', 'chat.edit': 'تعديل', 'chat.retry': 'إعادة المحاولة',
   'chat.branch': 'تفريع من هنا', 'chat.readAloud': 'قراءة بصوت',
-  'chat.good': 'إجابة جيدة', 'chat.bad': 'إجابة سيئة',
+  'chat.good': 'إجابة جيدة', 'chat.bad': 'إجابة سيئة', 'chat.copyUnavailable': 'تعذر النسخ في هذا المتصفح أو لم تُمنح صلاحية الحافظة.', 'chat.readAloudUnavailable': 'القراءة الصوتية غير مدعومة في هذا المتصفح.',
   'chat.saveResend': 'حفظ وإعادة إرسال', 'chat.cancel': 'إلغاء',
   'chat.sources': 'المصادر', 'chat.stop': 'إيقاف الطلب محليًا', 'chat.send': 'إرسال',
   'chat.add': 'إضافة', 'chat.attachFile': 'إرفاق ملف نصي', 'chat.addImage': 'إضافة صورة', 'chat.pasteCode': 'لصق كود',
