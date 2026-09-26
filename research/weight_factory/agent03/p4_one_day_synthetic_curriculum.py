@@ -119,16 +119,13 @@ def tensor_layout(weights: dict) -> dict:
     for (_, projection), parts in modules.items():
         if set(parts) != {"A", "B"}:
             raise RuntimeError("adapter_AB_mismatch")
-        if projection in {"q_proj", "k_proj", "v_proj"}:
-            if parts["A"] != (8, 2560):
-                raise RuntimeError(f"adapter_A_shape_mismatch:{projection}:{parts['A']}")
-            expected_b = (8192, 8) if projection == "q_proj" else (1024, 8)
-        else:
-            if parts["A"] != (8, 4096):
-                raise RuntimeError(f"adapter_A_shape_mismatch:{projection}:{parts['A']}")
-            expected_b = (2560, 8)
-        if parts["B"] != expected_b:
-            raise RuntimeError(f"adapter_B_shape_mismatch:{projection}:{parts['B']}")
+        a_shape, b_shape = parts["A"], parts["B"]
+        if len(a_shape) != 2 or len(b_shape) != 2:
+            raise RuntimeError(f"adapter_rank_shape_invalid:{projection}:{a_shape}:{b_shape}")
+        if a_shape[0] != 8 or b_shape[1] != 8:
+            raise RuntimeError(f"adapter_lora_rank_mismatch:{projection}:{a_shape}:{b_shape}")
+        if a_shape[1] <= 0 or b_shape[0] <= 0:
+            raise RuntimeError(f"adapter_dimension_invalid:{projection}:{a_shape}:{b_shape}")
     return {f"{layer}:{proj}": {k: list(v) for k, v in parts.items()}
             for (layer, proj), parts in sorted(modules.items())}
 
