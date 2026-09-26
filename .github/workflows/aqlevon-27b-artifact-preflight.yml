@@ -1,0 +1,27 @@
+name: AQLEVON 27B Artifact Transport Preflight
+on:
+  push:
+    branches: [ops/aqlevon-27b-r0-20260926]
+    paths: [".github/workflows/aqlevon-27b-artifact-preflight.yml"]
+jobs:
+  preflight:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/aqlevon-27b-r0-20260926
+      - name: Verify staged compressed sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          ls -l .github/runpod-control/aqlevon-27b-r0-bootstrap.sh.gz research/weight_factory/agent03/aqlevon_27b_r0_gene1.py.gz .github/runpod-control/aqlevon-27b-r0-driver.sh.gz
+          gzip -t .github/runpod-control/aqlevon-27b-r0-bootstrap.sh.gz
+          gzip -t research/weight_factory/agent03/aqlevon_27b_r0_gene1.py.gz
+          gzip -t .github/runpod-control/aqlevon-27b-r0-driver.sh.gz
+          gzip -dc .github/runpod-control/aqlevon-27b-r0-bootstrap.sh.gz >/tmp/bootstrap.sh
+          gzip -dc research/weight_factory/agent03/aqlevon_27b_r0_gene1.py.gz >/tmp/trainer.py
+          bash -n /tmp/bootstrap.sh
+          python3 -m py_compile /tmp/trainer.py
+          sha256sum /tmp/bootstrap.sh /tmp/trainer.py
+          echo AQLEVON_27B_TRANSPORT_PREFLIGHT_PASS
