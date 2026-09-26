@@ -12,10 +12,10 @@
   "training_authorized": true,
   "experiment_kind": "AQLEVON_27B_AUTH16_RECIPE_TRANSFER_PUBLIC_SYNTHETIC",
   "source_branch": "agent/03-aqlevon27b-auth16-transfer-20260926",
-  "trainer_commit": "372d049efb8f60ef8bd5b5c86d540abab9a8f77d",
-  "trainer_blob": "33c51c1e43aa834f41753b7067aaf4b8e19e7835",
-  "bootstrap_commit": "efa726f15dda903cf27d7b869d31033cffbcac2e",
-  "bootstrap_blob": "846a82db8d48112a6b692c33f9401f27e630c851",
+  "trainer_commit": "b69b52b2d6241fc3f49476f81d06713a1c639aa4",
+  "trainer_blob": "107dd7caa736470aff53a1421c9e328a39cd1470",
+  "bootstrap_commit": "e4d0c30fc91118a28ebeb78b51c5adbb16c8701a",
+  "bootstrap_blob": "3dbd6792ee861b82ef3f0ddd3258e9104c6347b3",
   "base_repo": "Qwen/Qwen3.8-27B",
   "base_revision": "1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0",
   "precision": "bf16",
@@ -62,5 +62,5 @@
   "promotion_boundary": "Independent experimental 27B candidate; does not satisfy or replace frozen P4 Worker05 sealed evaluation.",
   "cleanup_policy": "stop and delete exact Pod on success, failure, timeout, or workflow exit",
   "capability_claim_policy": "No frontier/superiority/final promotion claim. Public-gate result only.",
-  "authorization_sha256": "3df3a9227cdf7826ec98e765cb35138cc04476100b3a6a9f1080198aa26a786d"
+  "authorization_sha256": "de90251b9db4c4ec0f30e4e5db4b0c95c57647184793eec7ba61b21b57f2e2cd"
 }
