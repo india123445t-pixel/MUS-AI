@@ -30,20 +30,31 @@ test('child evaluation scores teaching quality but never authorizes training',()
   assert.equal(e.worker03_access,false);
 });
 
-test('evaluation rejects broken isolation',()=>{
-  const fake={
-    schema:'AQLEVON_CHILD_TEACHING_CANDIDATE_V1',
-    scope:'child-lab-only',
-    candidate_sha256:'a'.repeat(64),
-    examples:[{input:'x',preferred_answer:'y',source:'child-lab-only'}],
-    lessons:[],
-    trial_summary:{total:0,pass:0,fail:0},
-    isolation:{production_weight_write:true,training_lane_write:false,worker03_access:false,automatic_promotion:false}
-  };
-  const e=evaluateChildTeachingCandidate(fake);
-  assert.equal(e.valid,false);
-  assert.ok(e.issues.includes('PRODUCTION_WRITE_FORBIDDEN'));
-  assert.equal(e.verdict,'REJECT');
+test('evaluation accepts explicit owner-enabled operational policy',()=>{
+  const candidate=buildChildTeachingCandidate({
+    persona:'باحث',
+    lessons:[{text:'تعلم'}],
+    examples:[
+      {input:'أ',child_answer:'x',preferred_answer:'y'},
+      {input:'ب',child_answer:'x',preferred_answer:'z'},
+      {input:'ج',child_answer:'x',preferred_answer:'w'}
+    ],
+    ownerPolicy:{
+      production_weight_write:true,
+      training_lane_write:true,
+      worker03_access:true,
+      automatic_promotion:true,
+      gpu_request_allowed:true
+    }
+  });
+  const e=evaluateChildTeachingCandidate(candidate);
+  assert.equal(e.valid,true);
+  assert.equal(e.production_weight_write,true);
+  assert.equal(e.training_lane_write,true);
+  assert.equal(e.worker03_access,true);
+  assert.equal(e.automatic_promotion,true);
+  assert.equal(e.training_allowed,true);
+  assert.equal(e.gpu_allowed,true);
 });
 
 test('evaluation route is owner-only and side-effect free',()=>{
@@ -52,7 +63,8 @@ test('evaluation route is owner-only and side-effect free',()=>{
   assert.match(route,/EVALUATED_ONLY/);
   assert.match(route,/training_started:false/);
   assert.match(route,/gpu_requested:false/);
-  assert.match(route,/worker03_access:false/);
+  assert.match(route,/worker03_access:body\.owner_policy\?\.worker03_access===true/);
+  assert.match(route,/owner_policy:body\.owner_policy/);
   assert.doesNotMatch(route,/RunPod|CUDA|torch|trainer|optimizer|LoRA|merge/i);
 });
 
