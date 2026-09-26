@@ -1,0 +1,218 @@
+name: AQLEVON 8USD 27B Gene1
+
+on:
+  push:
+    branches: [manager/aqlevon-8usd-27b-20260926]
+    paths: [".github/runpod-control/execute-aqlevon-27b-8usd.json"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aqlevon-8usd-27b-single-use
+  cancel-in-progress: false
+
+jobs:
+  train:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 255
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      BRANCH: manager/aqlevon-8usd-27b-20260926
+      IMAGE_DIGEST: sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: manager/aqlevon-8usd-27b-20260926
+          fetch-depth: 0
+
+      - name: Execute bounded 27B training
+        shell: bash
+        run: |
+          set -euo pipefail
+          TRIGGER=.github/runpod-control/execute-aqlevon-27b-8usd.json
+          LIVE=.github/runpod-control/aqlevon-27b-8usd-live-selection.json
+          CONSUMED=.github/runpod-control/aqlevon-27b-8usd-consumed.json
+          RESULT=.github/runpod-control/aqlevon-27b-8usd-result.json
+          pod=""
+          cleaned=0
+
+          cleanup() {
+            rc=$?
+            if [ -n "$pod" ] && [ "$cleaned" != 1 ]; then
+              curl -sS -X POST "https://rest.runpod.io/v1/pods/$pod/stop" -H "Authorization: Bearer $RUNPOD_API_KEY" -H 'Content-Type: application/json' -d '{}' >/tmp/exit-stop.json || true
+              sleep 2
+              curl -sS -X DELETE "https://rest.runpod.io/v1/pods/$pod" -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/exit-delete.json || true
+            fi
+            exit "$rc"
+          }
+          trap cleanup EXIT
+
+          test -n "${RUNPOD_API_KEY:-}"
+          test ! -e "$CONSUMED"
+          python3 - <<'PY'
+          import json
+          t=json.load(open(".github/runpod-control/execute-aqlevon-27b-8usd.json"))
+          assert t["kind"]=="AQLEVON_27B_8USD_SINGLE_USE_V1"
+          assert t["single_use"] is True and t["training_authorized"] is True
+          assert float(t["owner_budget_usd"])<=8.0
+          assert float(t["max_gpu_compute_usd"])<=6.5
+          assert float(t["max_hourly_rate_usd"])<=1.6
+          assert int(t["max_billed_seconds"])<=14400
+          assert t["base_repo"]=="Qwen/Qwen3.8-27B"
+          assert t["base_revision"]=="1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0"
+          assert t["sealed_eval_consumed"] is False
+          print("AQLEVON_27B_AUTH_CONTRACT_PASS")
+          PY
+
+          curl -fsS https://rest.runpod.io/v1/pods -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/pods.json
+          python3 - <<'PY'
+          import json
+          p=json.load(open("/tmp/pods.json")); xs=p if isinstance(p,list) else p.get("pods") or p.get("items") or []
+          active=[x for x in xs if str(x.get("name","")).startswith("AQLEVON-") and str(x.get("desiredStatus") or x.get("status"))!="EXITED"]
+          assert not active,active
+          print("AQLEVON_27B_NO_ACTIVE_PODS_PASS")
+          PY
+
+          curl -sSL https://cli.runpod.net | sudo bash >/dev/null
+          runpodctl gpu list --output json >/tmp/gpus.json
+          python3 - <<'PY'
+          import datetime,json
+          from pathlib import Path
+          t=json.load(open(".github/runpod-control/execute-aqlevon-27b-8usd.json"))
+          permitted={"NVIDIA A100 80GB PCIe","NVIDIA A100-SXM4-80GB"}
+          choices=[]
+          for g in json.load(open("/tmp/gpus.json")):
+              gid=str(g.get("gpuId",""))
+              if gid not in permitted or not g.get("secureCloud"): continue
+              price=float(g.get("securePricePerHr") or 999)
+              if price>float(t["max_hourly_rate_usd"]): continue
+              dcs=[str(d.get("dataCenterId")) for d in g.get("dataCenterAvailability") or [] if d.get("dataCenterId") and str(d.get("stockStatus")).lower()!="none"]
+              if not dcs: continue
+              secs=min(int(t["max_billed_seconds"]),int(float(t["max_gpu_compute_usd"])*3600/price))
+              if secs>=3600: choices.append((price,gid,dcs[0],secs))
+          assert choices,"no_permitted_a100_80gb_stock_under_rate_cap"
+          price,gpu,dc,secs=sorted(choices)[0]
+          out={"kind":"AQLEVON_27B_8USD_LIVE_SELECTION_V1","selected_gpu_id":gpu,"observed_capacity_datacenter":dc,"selected_datacenter":"UNPINNED_ANY_AVAILABLE","selected_price_hr":price,"dynamic_max_billed_seconds":secs,"paid_boundary_refresh_at_utc":datetime.datetime.now(datetime.timezone.utc).isoformat()}
+          Path(".github/runpod-control/aqlevon-27b-8usd-live-selection.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          Path("/tmp/gpu").write_text(gpu); Path("/tmp/maxsecs").write_text(str(secs))
+          print("AQLEVON_27B_LIVE_SELECTION",gpu,dc,price,secs)
+          PY
+
+          # Consume the single-use authorization before the paid boundary.
+          python3 - <<'PY'
+          import datetime,json
+          from pathlib import Path
+          t=json.load(open(".github/runpod-control/execute-aqlevon-27b-8usd.json"))
+          s=json.load(open(".github/runpod-control/aqlevon-27b-8usd-live-selection.json"))
+          out={"kind":"AQLEVON_27B_8USD_CONSUMED_V1","authorization_id":t["authorization_id"],"single_use_consumed":True,"paid_resource_created":False,"consumed_at_utc":datetime.datetime.now(datetime.timezone.utc).isoformat(),**s}
+          Path(".github/runpod-control/aqlevon-27b-8usd-consumed.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          PY
+          git config user.name aqlevon-runpod-bot
+          git config user.email actions@users.noreply.github.com
+          git add "$LIVE" "$CONSUMED"
+          git commit -m "ops: consume single-use 27B authorization [skip ci]"
+          git pull --rebase origin "$BRANCH"
+          git push origin HEAD:"$BRANCH"
+
+          BOOT_URL="https://raw.githubusercontent.com/india123445t-pixel/MUS-AI/$GITHUB_SHA/.github/runpod-control/aqlevon-27b-auth16-recipe-bootstrap.sh"
+          DOCKER_ARGS="bash -lc 'curl -fsSL $BOOT_URL -o /tmp/aq27-bootstrap.sh && chmod +x /tmp/aq27-bootstrap.sh && exec bash /tmp/aq27-bootstrap.sh'"
+          runpodctl pod create --name AQLEVON-27B-R0A-8USD             --image "ghcr.io/india123445t-pixel/mus-ai@$IMAGE_DIGEST"             --gpu-id "$(cat /tmp/gpu)" --gpu-count 1 --cloud-type SECURE             --container-disk-in-gb 120 --ports 8000/http --ssh=false             --docker-args "$DOCKER_ARGS" --output json >/tmp/create.json
+
+          python3 - <<'PY'
+          import json,time
+          from pathlib import Path
+          p=json.load(open("/tmp/create.json")); pod=p.get("id") or p.get("podId"); assert pod,p
+          Path("/tmp/pod").write_text(str(pod)); Path("/tmp/start").write_text(str(int(time.time())))
+          print("AQLEVON_27B_POD_CREATED",pod)
+          PY
+          pod="$(cat /tmp/pod)"
+
+          proxy="https://$pod-8000.proxy.runpod.net"
+          final_stage=""
+          maxsecs="$(cat /tmp/maxsecs)"
+          deadline=$(( maxsecs - 120 ))
+          [ "$deadline" -gt 600 ] || deadline=600
+          last_status=""
+          for i in $(seq 1 1600); do
+            now="$(date +%s)"; elapsed=$((now-$(cat /tmp/start)))
+            if curl -fsS --connect-timeout 5 --max-time 12 "$proxy/status.json?t=$now" -o /tmp/status.json 2>/dev/null; then
+              stage="$(python3 - <<'PY'
+          import json
+          try: print(json.load(open("/tmp/status.json")).get("stage",""))
+          except Exception: print("")
+          PY
+          )"
+              if [ "$stage" != "$last_status" ]; then echo "AQLEVON_27B_STATUS elapsed=$elapsed stage=$stage"; last_status="$stage"; fi
+              case "$stage" in DONE|FAILED) final_stage="$stage"; break;; esac
+            fi
+            if [ "$elapsed" -ge "$deadline" ]; then final_stage="HARD_BUDGET_TIMEOUT"; break; fi
+            sleep 10
+          done
+          printf '%s\n' "$final_stage" >/tmp/final_stage
+
+          if [ "$final_stage" = DONE ] || [ "$final_stage" = FAILED ]; then
+            curl -fsS --connect-timeout 10 --max-time 240 "$proxy/evidence.tgz" -o /tmp/evidence.tgz || true
+          fi
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path("/tmp/evidence.tgz")
+          if p.exists():
+              assert 0<p.stat().st_size<=1073741824,p.stat().st_size
+              print("AQLEVON_27B_EGRESS_PASS",p.stat().st_size)
+          PY
+
+          curl -sS -X POST "https://rest.runpod.io/v1/pods/$pod/stop" -H "Authorization: Bearer $RUNPOD_API_KEY" -H 'Content-Type: application/json' -d '{}' >/tmp/stop.json || true
+          sleep 3
+          curl -sS -X DELETE "https://rest.runpod.io/v1/pods/$pod" -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/delete.json || true
+          for i in $(seq 1 45); do
+            code="$(curl -sS -o /tmp/final.json -w '%{http_code}' "https://rest.runpod.io/v1/pods/$pod" -H "Authorization: Bearer $RUNPOD_API_KEY" || true)"
+            if [ "$code" = 404 ]; then cleaned=1; break; fi
+            sleep 2
+          done
+          test "$cleaned" = 1
+
+          python3 - <<'PY'
+          import datetime,hashlib,json,tarfile
+          from pathlib import Path
+          def txt(p): return Path(p).read_text().strip() if Path(p).exists() else None
+          sel=json.load(open(".github/runpod-control/aqlevon-27b-8usd-live-selection.json"))
+          start=int(txt("/tmp/start")); elapsed=int(datetime.datetime.now(datetime.timezone.utc).timestamp())-start
+          stage=txt("/tmp/final_stage"); stat={}
+          if Path("/tmp/status.json").exists():
+              try: stat=json.loads(Path("/tmp/status.json").read_text())
+              except Exception: pass
+          out={"kind":"AQLEVON_27B_8USD_RUN_RESULT_V1","authorization_id":"AQLEVON-27B-8USD-20260926-01","pod_id":txt("/tmp/pod"),"final_stage":stage,"http_status":stat,"selected_gpu_id":sel["selected_gpu_id"],"rate_per_hour_usd":sel["selected_price_hr"],"billed_seconds_estimate":elapsed,"gpu_compute_cost_estimate_usd":round(float(sel["selected_price_hr"])*elapsed/3600,6),"evidence_archive_present":Path("/tmp/evidence.tgz").exists(),"evidence_archive_sha256":hashlib.sha256(Path("/tmp/evidence.tgz").read_bytes()).hexdigest() if Path("/tmp/evidence.tgz").exists() else None,"pod_stopped_and_deleted":True,"sealed_eval_consumed":False,"worker05_used_for_tuning":False,"capability_gain_claim":False,"checked_at_utc":datetime.datetime.now(datetime.timezone.utc).isoformat()}
+          if Path("/tmp/evidence.tgz").exists():
+              try:
+                  with tarfile.open("/tmp/evidence.tgz","r:gz") as t:
+                      rec=json.loads(t.extractfile("candidate/training_run_receipt.json").read())
+                      man=json.loads(t.extractfile("candidate/candidate_artifact_manifest.json").read())
+                  out.update({"candidate_status":man.get("candidate_status"),"base_repo":man.get("base_repo"),"base_revision":man.get("base_revision"),"adapter_model_sha256":man.get("adapter_model_sha256"),"manifest_sha256":man.get("manifest_sha256"),"optimizer_updates":rec.get("optimizer_updates"),"dev_pre_successes":rec.get("dev_pre_successes"),"dev_post_successes":rec.get("dev_post_successes"),"dev_gain_tasks":rec.get("dev_gain_tasks"),"public_shadow_gate_pass":man.get("public_shadow_gate_pass"),"shadow_pre_successes":rec.get("shadow_pre_successes"),"shadow_post_successes":rec.get("shadow_post_successes"),"shadow_gain_tasks":rec.get("shadow_gain_tasks")})
+              except Exception as e: out["artifact_parse_error"]=repr(e)
+          Path(".github/runpod-control/aqlevon-27b-8usd-result.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("AQLEVON_27B_RESULT",json.dumps(out,sort_keys=True))
+          PY
+          git add "$RESULT"
+          git commit -m "ops: record bounded AQLEVON 27B result [skip ci]" || true
+          git pull --rebase origin "$BRANCH" || true
+          git push origin HEAD:"$BRANCH" || true
+          trap - EXIT
+          [ "$final_stage" = DONE ]
+
+      - name: Upload 27B evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aqlevon-27b-r0a-8usd-evidence
+          path: |
+            /tmp/evidence.tgz
+            /tmp/status.json
+            /tmp/final_stage
+            /tmp/create.json
+            /tmp/stop.json
+            /tmp/delete.json
+            /tmp/exit-stop.json
+            /tmp/exit-delete.json
+          if-no-files-found: warn
+          retention-days: 14
