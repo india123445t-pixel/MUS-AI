@@ -117,3 +117,13 @@ test('user personalization and memory are bounded redacted context and not autho
   assert.doesNotMatch(system,/sk-abcdefghijklmnopqrstuvwxyz012345/);
   assert.match(system,/\[REDACTED_SECRET\]/);
 });
+
+
+test('configured no-paid web search can be explicitly requested and deep reasoning can be user-selected',()=>{
+  const contract=buildTaskContract('What changed today in this topic?');
+  const route=buildRouteDecision(contract,{...settings,public_web_search_enabled:true,allow_paid_external:false},{webSearch:true,reasoning:'deep'});
+  assert.equal(route.web_search,true);
+  assert.equal(route.external_evidence_available,true);
+  assert.equal(route.reasoning,'deep');
+  assert.equal(route.zero_cost_policy,true);
+});
