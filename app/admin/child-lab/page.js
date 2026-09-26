@@ -4,11 +4,13 @@ import {useEffect,useMemo,useState} from 'react';
 import {createClient} from '@supabase/supabase-js';
 import {putChildMemory,searchChildMemories,listChildMemories,deleteChildMemory,clearChildMemories,childMemoryStats,exportChildMemories,importChildMemories,markChildMemoriesUsed} from './memory-db.js';
 import {CHILD_PERMISSION_CATALOG,CHILD_TOOL_ACTIONS,defaultChildPermissions,normalizeChildPermissions,requiredChildPermissions} from '../../../lib/aqlevon/child-permissions.js';
+import {CHILD_OWNER_POLICY_CATALOG,defaultChildOwnerPolicy,normalizeChildOwnerPolicy,enableAllOwnerControllablePolicy} from '../../../lib/aqlevon/child-owner-policy.js';
 
 const URL=process.env.NEXT_PUBLIC_SUPABASE_URL||'https://yaqjhcfitxhtzpaswuif.supabase.co';
 const KEY=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||'sb_publishable_1uRtACKcyT2ZQH9ixdKQ-Q_ARbY6xET';
 const STORAGE='aqlevon-child-lab-v1';
 const PERMISSION_STORAGE='aqlevon-child-permissions-v1';
+const OWNER_POLICY_STORAGE='aqlevon-child-owner-policy-v1';
 
 const blank={
   identity:{name:'طفل AQLEVON',specialty:'عام',purpose:''},
@@ -44,17 +46,20 @@ export default function ChildLabPage(){
   const [memoryDraft,setMemoryDraft]=useState({text:'',kind:'lesson',topic:'general',tags:'',importance:0.8});
   const [memoryQuery,setMemoryQuery]=useState(''),[memoryKind,setMemoryKind]=useState('all'),[memoryItems,setMemoryItems]=useState([]),[memoryInfo,setMemoryInfo]=useState({count:0,by_kind:{}});
   const [permissions,setPermissions]=useState(defaultChildPermissions()),[permissionLog,setPermissionLog]=useState([]);
+  const [ownerPolicy,setOwnerPolicy]=useState(defaultChildOwnerPolicy());
 
   useEffect(()=>{
     setLab(loadState());
     if(typeof window!=='undefined'){
       try{setPermissions(normalizeChildPermissions(JSON.parse(localStorage.getItem(PERMISSION_STORAGE)||'{}')))}catch{}
       try{setPermissionLog(JSON.parse(localStorage.getItem(PERMISSION_STORAGE+'-log')||'[]'))}catch{}
+      try{setOwnerPolicy(normalizeChildOwnerPolicy(JSON.parse(localStorage.getItem(OWNER_POLICY_STORAGE)||'{}')))}catch{}
     }
   },[]);
   useEffect(()=>{if(typeof window!=='undefined')localStorage.setItem(STORAGE,JSON.stringify(lab))},[lab]);
   useEffect(()=>{if(typeof window!=='undefined')localStorage.setItem(PERMISSION_STORAGE,JSON.stringify(permissions))},[permissions]);
   useEffect(()=>{if(typeof window!=='undefined')localStorage.setItem(PERMISSION_STORAGE+'-log',JSON.stringify(permissionLog.slice(0,200)))},[permissionLog]);
+  useEffect(()=>{if(typeof window!=='undefined')localStorage.setItem(OWNER_POLICY_STORAGE,JSON.stringify(ownerPolicy))},[ownerPolicy]);
 
   useEffect(()=>{
     if(!sb){setReady(true);return}
@@ -101,8 +106,24 @@ export default function ChildLabPage(){
     });
   }
 
+  function toggleOwnerPolicy(id){
+    setOwnerPolicy(x=>{
+      const next=normalizeChildOwnerPolicy({...x,[id]:!x[id],updated_at:new Date().toISOString()});
+      recordPermissionChange(next[id]?'OWNER_POLICY_ON':'OWNER_POLICY_OFF',id);
+      return next;
+    });
+  }
+
+  function openAllOwnerControls(){
+    setOwnerPolicy(enableAllOwnerControllablePolicy());
+    setPermissions(x=>normalizeChildPermissions({...x,execution_enabled:true,autonomy:'run_within_grants',grants:Object.fromEntries(Object.keys(x.grants||{}).map(k=>[k,true])),updated_at:new Date().toISOString()}));
+    recordPermissionChange('OWNER_OPEN_ALL','تم فتح كل الصلاحيات التشغيلية القابلة للتحكم من لوحة المالك');
+    setNotice('تم فتح كل الصلاحيات التشغيلية القابلة للتحكم من داخل AQLEVON Child Lab.');
+  }
+
   function emergencyStop(){
     setPermissions(x=>normalizeChildPermissions({...x,execution_enabled:false,grants:Object.fromEntries(Object.keys(x.grants||{}).map(k=>[k,false])),updated_at:new Date().toISOString()}));
+    setOwnerPolicy(defaultChildOwnerPolicy());
     recordPermissionChange('EMERGENCY_STOP','تم إيقاف التنفيذ وسحب جميع الصلاحيات التشغيلية');
     setNotice('تم إيقاف تنفيذ الطفل وسحب جميع الصلاحيات التشغيلية.');
   }
@@ -175,6 +196,7 @@ export default function ChildLabPage(){
           lessons:lab.lessons.map(x=>x.text),
           memories,
           trial:lab.currentTrial,
+          owner_policy:ownerPolicy,
         })
       });
       const d=await r.json();
@@ -254,7 +276,7 @@ export default function ChildLabPage(){
       const r=await fetch('/api/admin/child-lab/candidate',{
         method:'POST',
         headers:{'Content-Type':'application/json',Authorization:`Bearer ${session.access_token}`},
-        body:JSON.stringify({persona:lab.persona,lessons:lab.lessons,examples:lab.examples,trials:lab.trials})
+        body:JSON.stringify({persona:lab.persona,lessons:lab.lessons,examples:lab.examples,trials:lab.trials,owner_policy:ownerPolicy})
       });
       const d=await r.json();if(!r.ok)throw new Error(d.message||'تعذر تجهيز Candidate.');
       setCandidate(d);
@@ -268,7 +290,7 @@ export default function ChildLabPage(){
       const r=await fetch('/api/admin/child-lab/evaluate',{
         method:'POST',
         headers:{'Content-Type':'application/json',Authorization:`Bearer ${session.access_token}`},
-        body:JSON.stringify({candidate:candidate.candidate})
+        body:JSON.stringify({candidate:candidate.candidate,owner_policy:ownerPolicy})
       });
       const d=await r.json();if(!r.ok)throw new Error(d.message||'تعذر تقييم Candidate.');
       setCandidateEval(d);
@@ -294,6 +316,7 @@ export default function ChildLabPage(){
           action,
           input:goal,
           permissions,
+          owner_policy:ownerPolicy,
           constraints:{success_criteria:lab.currentTrial.success_criteria||'',mode:'sandbox',autonomy:permissions.autonomy,multi_step:multiStep}
         })
       });
@@ -330,7 +353,8 @@ export default function ChildLabPage(){
           persona:lab.persona,
           lessons:lab.lessons.map(x=>x.text),
           memories:[],
-          trial:lab.currentTrial
+          trial:lab.currentTrial,
+          owner_policy:ownerPolicy
         })
       });
       const learned=await lr.json();
@@ -497,12 +521,21 @@ export default function ChildLabPage(){
       </section>
 
       <section style={S.card}>
-        <h2>4) حالة العزل</h2>
+        <h2>4) سياسة المالك</h2>
+        <p style={S.muted}>القيود التشغيلية الخاصة بالمشروع لم تعد مخفية داخل الكود. أنت تتحكم بها من هنا. تفعيل خيار لا يخلق Adapter غير موجود؛ هو يمنح الإذن عندما تكون القدرة موصولة فعليًا.</p>
+        <div style={S.row}>
+          <button style={S.good} onClick={openAllOwnerControls}>افتح كل ما يمكن التحكم به</button>
+          <button style={S.bad} onClick={emergencyStop}>STOP · أغلق التنفيذ والصلاحيات</button>
+        </div>
+        <div style={S.list}>
+          {CHILD_OWNER_POLICY_CATALOG.map(p=><div key={p.id} style={S.item}>
+            <div><b>{p.label}</b><small style={{display:'block',opacity:.7}}>{p.description}</small><code style={{fontSize:11,opacity:.55}}>{p.id}</code></div>
+            <button style={ownerPolicy[p.id]?S.good:S.small} onClick={()=>toggleOwnerPolicy(p.id)}>{ownerPolicy[p.id]?'مسموح':'موقوف'}</button>
+          </div>)}
+        </div>
         <div style={S.kv}><span>Runtime</span><b>AQLEVON_CHILD_RUNTIME_V1</b></div>
-        <div style={S.kv}><span>نموذج المستخدمين</span><b>لا وصول</b></div>
-        <div style={S.kv}><span>أوزان الإنتاج</span><b>قراءة/كتابة: لا</b></div>
-        <div style={S.kv}><span>مسار التدريب الحالي</span><b>كتابة: لا</b></div>
-        <div style={S.kv}><span>الذاكرة</span><b>Child Lab فقط</b></div>
+        <div style={S.kv}><span>الذاكرة الحالية</span><b>Child Lab / هذا الجهاز</b></div>
+        <small style={{display:'block',opacity:.65,marginTop:10}}>المصادقة الخاصة بالمالك وسلامة المنصة ليستا صلاحيات تشغيلية للطفل، لذلك لا تظهران كمفاتيح تعطيل.</small>
         <h3>Candidate التعليمية</h3>
         <p style={S.muted}>تغليف للدروس والتصحيحات كي تُقيّم لاحقًا. لا يبدأ تدريبًا ولا يطلب GPU ولا يلمس Worker 03.</p>
         <div style={S.row}><button style={S.primary} disabled={!(lab.examples||[]).length} onClick={packageCandidate}>جهّز Candidate</button><button style={S.small} disabled={!candidate?.candidate} onClick={evaluateCandidate}>قيّم Candidate</button>{candidate?.candidate?.candidate_sha256&&<span style={S.tool}>SHA: {candidate.candidate.candidate_sha256.slice(0,12)}…</span>}</div>
@@ -577,7 +610,7 @@ export default function ChildLabPage(){
             <button style={permissions.grants?.[p.id]?S.good:S.small} onClick={()=>togglePermission(p.id)}>{permissions.grants?.[p.id]?'مسموح':'موقوف'}</button>
           </div>)}
         </div>
-        <p style={{...S.muted,marginTop:14}}>هذه الصلاحيات محفوظة محليًا في هذا المتصفح/الجهاز وليست مزامنة خادمية. وضع الاستقلالية يُرسل كسياسة إلى Adapter؛ لا توجد حاليًا حلقة Agent ذاتية مخفية تدّعي التنفيذ بدون Adapter وReceipt. حدود الأمان الأساسية للمنصة تبقى مستقلة عن هذه الأزرار.</p>
+        <p style={{...S.muted,marginTop:14}}>هذه الصلاحيات وسياسة المالك محفوظة محليًا في هذا المتصفح/الجهاز. وضع الاستقلالية يُرسل إلى الـAdapter. القدرة غير الموصولة تبقى «غير متاحة» وليست «ممنوعة»؛ وعند توصيلها يقرر المالك من هذه المفاتيح هل يسمح بها أم لا.</p>
         <h3>سجل تغييرات الصلاحيات</h3>
         <div style={S.list}>{permissionLog.slice(0,12).map(x=><div key={x.id} style={S.item}><div><b>{x.action}</b><small style={{display:'block',opacity:.7}}>{x.detail}</small></div><small>{new Date(x.created_at).toLocaleString('ar-MA')}</small></div>)}</div>
       </section>
