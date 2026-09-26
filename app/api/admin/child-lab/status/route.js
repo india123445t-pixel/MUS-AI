@@ -20,7 +20,13 @@ async function owner(req){
 export async function GET(req){
   try{
     const gate=await owner(req);if(gate.error)return gate.error;
-    const health=await childHealth();
+    let health={ok:false,configured:false,status:0,error_class:'STATUS_CHECK_FAILED',protocol:'AQLEVON_CHILD_RUNTIME_V1'};
+    let tools={};
+    let health_error=null,tools_error=null;
+    try{health=await childHealth()}
+    catch(e){health_error=String(e?.name||'CHILD_HEALTH_ERROR').slice(0,80);console.error('CHILD_HEALTH_STATUS_FAILED',{error_class:health_error})}
+    try{tools=childToolStatus()}
+    catch(e){tools_error=String(e?.name||'CHILD_TOOLS_ERROR').slice(0,80);console.error('CHILD_TOOL_STATUS_FAILED',{error_class:tools_error})}
     return NextResponse.json({
       isolated:true,
       runtime:'AQLEVON_CHILD_RUNTIME_V1',
@@ -30,7 +36,9 @@ export async function GET(req){
       policy_mode:'owner-controlled',
       owner_policy_source:'client-owner-session',
       memory_scope:'child-lab-only',
-      tools:childToolStatus()
+      tools,
+      status_degraded:!!(health_error||tools_error),
+      diagnostics:{health_error,tools_error}
     },{headers:{'Cache-Control':'no-store'}});
   }catch(e){return NextResponse.json({message:e?.message||'CHILD_LAB_STATUS_FAILED'},{status:500})}
 }
