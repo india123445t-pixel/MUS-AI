@@ -1,0 +1,26 @@
+name: AQLEVON 27B Emergency Cleanup 01
+on:
+  push:
+    branches: [ops/aqlevon-27b-r0-20260926]
+    paths: [".github/workflows/aqlevon-27b-emergency-cleanup-01.yml"]
+jobs:
+  cleanup:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      POD_ID: z8xdb23kcxgltg
+    steps:
+      - name: Stop and delete failed bootstrap pod
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -sS -X POST "https://rest.runpod.io/v1/pods/$POD_ID/stop" -H "Authorization: Bearer $RUNPOD_API_KEY" -H 'Content-Type: application/json' -d '{}' || true
+          sleep 2
+          curl -sS -X DELETE "https://rest.runpod.io/v1/pods/$POD_ID" -H "Authorization: Bearer $RUNPOD_API_KEY" || true
+          for i in $(seq 1 20); do
+            code="$(curl -sS -o /tmp/check.json -w '%{http_code}' "https://rest.runpod.io/v1/pods/$POD_ID" -H "Authorization: Bearer $RUNPOD_API_KEY" || true)"
+            if [ "$code" = 404 ]; then echo "AQLEVON_POD_DELETED"; exit 0; fi
+            sleep 2
+          done
+          echo "cleanup_not_confirmed"; exit 1
