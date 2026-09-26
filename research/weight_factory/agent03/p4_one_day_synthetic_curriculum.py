@@ -105,8 +105,9 @@ def verify_text(w02, task: dict[str, Any], text: str) -> tuple[bool, str]:
 
 def tensor_layout(weights: dict) -> dict:
     modules: dict[tuple[int, str], dict[str, tuple[int, ...]]] = {}
-    if len(weights) != 64:
-        raise RuntimeError(f"expected_64_adapter_tensors:{len(weights)}")
+    expected_tensors=len(LAYERS)*4*2
+    if len(weights) != expected_tensors:
+        raise RuntimeError(f"adapter_tensor_count_mismatch:{len(weights)} expected={expected_tensors}")
     for name, value in weights.items():
         hit = WEIGHT_NAME.search(name)
         if not hit:
