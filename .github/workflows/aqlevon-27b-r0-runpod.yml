@@ -1,0 +1,47 @@
+name: AQLEVON 27B R0 Gene1 RunPod
+on:
+  push:
+    branches:
+      - ops/aqlevon-27b-r0-20260926
+    paths:
+      - .github/runpod-control/execute-aqlevon-27b-r0-20260926.json
+permissions:
+  contents: write
+concurrency:
+  group: aqlevon-p4-paid-single-use
+  cancel-in-progress: false
+jobs:
+  execute:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 290
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/aqlevon-27b-r0-20260926
+          fetch-depth: 0
+      - name: Run budget-gated 27B driver
+        shell: bash
+        run: |
+          set -euo pipefail
+          gzip -dc .github/runpod-control/aqlevon-27b-r0-driver.sh.gz > /tmp/aq27-driver.sh
+          test "$(sha256sum /tmp/aq27-driver.sh | awk '{print $1}')" = "e3bb2934fae41331a87fce9042dd973ff3b77db9c9643906240c8088b0647d61"
+          bash -n /tmp/aq27-driver.sh
+          exec bash /tmp/aq27-driver.sh
+      - name: Upload AQLEVON 27B evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aqlevon-27b-r0-gene1
+          path: |
+            /tmp/evidence.tgz
+            /tmp/status.json
+            /tmp/final_stage
+            /tmp/create.json
+            /tmp/stop.json
+            /tmp/delete.json
+            /tmp/exit-stop.json
+            /tmp/exit-delete.json
+          if-no-files-found: warn
+          retention-days: 14
