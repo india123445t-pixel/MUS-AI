@@ -1,0 +1,8 @@
+{
+  "authorization_id": "AQLEVON-27B-AUTH16-TRANSFER-20260926-01",
+  "action": "EXECUTE_SINGLE_BOUNDED_27B_TRANSFER",
+  "owner_budget_usd": "8.00",
+  "attempt_compute_cap_usd": "6.40",
+  "source_trainer_commit": "b69b52b2d6241fc3f49476f81d06713a1c639aa4",
+  "requested_at_utc": "2026-09-26T07:31:00Z"
+}
