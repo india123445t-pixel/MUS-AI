@@ -15,8 +15,9 @@ test('child candidate packages teaching examples without starting training',()=>
     trials:[{result:'PASS'},{result:'FAIL'}],
   });
   assert.equal(c.schema,'AQLEVON_CHILD_TEACHING_CANDIDATE_V1');
-  assert.equal(c.scope,'child-lab-only');
+  assert.equal(c.scope,'owner-controlled-child-lab');
   assert.equal(c.examples.length,1);
+  assert.equal(c.isolation.owner_controlled,true);
   assert.equal(c.isolation.production_weight_write,false);
   assert.equal(c.isolation.training_lane_write,false);
   assert.equal(c.isolation.worker03_access,false);
@@ -34,10 +35,10 @@ test('candidate route is owner-only packaging with no GPU or training side effec
   assert.match(route,/PACKAGED_ONLY/);
   assert.match(route,/training_started:false/);
   assert.match(route,/gpu_requested:false/);
-  assert.match(route,/production_weight_write:false/);
-  assert.match(route,/training_lane_write:false/);
-  assert.match(route,/worker03_access:false/);
-  assert.match(route,/automatic_promotion:false/);
+  assert.match(route,/production_weight_write:body\.owner_policy\?\.production_weight_write===true/);
+  assert.match(route,/training_lane_write:body\.owner_policy\?\.training_lane_write===true/);
+  assert.match(route,/worker03_access:body\.owner_policy\?\.worker03_access===true/);
+  assert.match(route,/automatic_promotion:body\.owner_policy\?\.automatic_promotion===true/);
   assert.doesNotMatch(route,/RunPod|CUDA|torch|trainer|optimizer|LoRA|merge/i);
 });
 
@@ -54,4 +55,24 @@ test('candidate hash binds teaching content but not volatile creation time',()=>
   const result=evaluateChildCandidate(tampered);
   assert.equal(result.valid,false);
   assert.ok(result.issues.includes('CANDIDATE_HASH_MISMATCH'));
+});
+
+test('candidate accepts explicit owner-enabled operational policy',()=>{
+  const candidate=buildChildTeachingCandidate({
+    persona:'باحث',
+    examples:[{input:'س',preferred_answer:'ج'}],
+    ownerPolicy:{
+      production_weight_write:true,
+      training_lane_write:true,
+      worker03_access:true,
+      automatic_promotion:true,
+      gpu_request_allowed:true
+    }
+  });
+  assert.equal(candidate.isolation.owner_controlled,true);
+  assert.equal(candidate.isolation.production_weight_write,true);
+  assert.equal(candidate.isolation.training_lane_write,true);
+  assert.equal(candidate.isolation.worker03_access,true);
+  assert.equal(candidate.isolation.automatic_promotion,true);
+  assert.equal(evaluateChildCandidate(candidate).valid,true);
 });
