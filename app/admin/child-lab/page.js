@@ -5,8 +5,8 @@ import {createClient} from '@supabase/supabase-js';
 import {putChildMemory,searchChildMemories,listChildMemories,deleteChildMemory,clearChildMemories,childMemoryStats,exportChildMemories,importChildMemories,markChildMemoriesUsed} from './memory-db.js';
 import {CHILD_PERMISSION_CATALOG,CHILD_TOOL_ACTIONS,defaultChildPermissions,normalizeChildPermissions,requiredChildPermissions} from '../../../lib/aqlevon/child-permissions.js';
 
-const URL=process.env.NEXT_PUBLIC_SUPABASE_URL;
-const KEY=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+const URL=process.env.NEXT_PUBLIC_SUPABASE_URL||'https://yaqjhcfitxhtzpaswuif.supabase.co';
+const KEY=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||'sb_publishable_1uRtACKcyT2ZQH9ixdKQ-Q_ARbY6xET';
 const STORAGE='aqlevon-child-lab-v1';
 const PERMISSION_STORAGE='aqlevon-child-permissions-v1';
 
