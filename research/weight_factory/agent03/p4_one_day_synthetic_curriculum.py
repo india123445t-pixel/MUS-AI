@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""AQLEVON one-day synthetic-curriculum crystallization (Candidate D).
+"""AQLEVON 27B Auth16-recipe transfer candidate.
 
-Candidate D trains only on newly generated AQLEVON-owned PUBLIC synthetic
+This independent 27B lane trains only on AQLEVON-owned PUBLIC synthetic
 cores at indices 04..19. Public discovery indices 00..01 are held out as an
 internal development gate. Public shadow indices 02..03 are not evaluated
 unless the discovery-dev gate passes. Worker05 sealed/private evaluation is
@@ -20,8 +20,8 @@ import re
 from pathlib import Path
 from typing import Any
 
-MODEL_REPO = "Qwen/Qwen3.5-4B-Base"
-MODEL_REV = "daa9c16f371249f9ad1c75a9ed6f956c08ea08f5"
+MODEL_REPO = "Qwen/Qwen3.8-27B"
+MODEL_REV = "1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0"
 PACK_SHA = "35c7ebe6d5e82f42d7553fa28391f6d82c8800d6eced582d06881c8eb17d9d6b"
 RECOVERY_KIND = "AQLEVON_ONE_DAY_PUBLIC_PASSN_PROBE_RECOVERED_DECISION_V1"
 AUTH05_LOG_SHA = "047c1a06bb68ba7c8799eff3d569dd6639ed96d16deae1700c279ecb1449875d"
@@ -31,10 +31,10 @@ SYNTH_START = 4
 SYNTH_STOP = 20
 PROMPT_PERTURBATIONS = 3
 EPOCHS = 1
-LR = 2e-5
-MIN_LR = 2e-6
+LR = 1e-5
+MIN_LR = 1e-6
 CAP = 2048
-LAYERS = (3, 7, 11, 15, 19, 23, 27, 31)
+LAYERS = tuple(range(3, 64, 4))
 TARGET_SUFFIXES = {f"layers.{i}.self_attn.{p}" for i in LAYERS for p in ("q_proj", "k_proj", "v_proj", "o_proj")}
 WEIGHT_NAME = re.compile(r"(?:^|\.)layers\.(\d+)\.self_attn\.(q_proj|k_proj|v_proj|o_proj)\.lora_([AB])(?:\.default)?\.weight$")
 
@@ -336,12 +336,14 @@ def run(args):
     targets=sorted(name for name,mod in model.named_modules()
                    if isinstance(mod,LoraLayer) and name.endswith((".q_proj",".k_proj",".v_proj",".o_proj")))
     observed={next((x for x in TARGET_SUFFIXES if name.endswith(x)),"") for name in targets}
-    if observed != TARGET_SUFFIXES or len(targets)!=32:
-        raise RuntimeError(f"lora_target_topology_mismatch:{len(targets)}")
+    expected_modules=len(LAYERS)*4
+    if observed != TARGET_SUFFIXES or len(targets)!=expected_modules:
+        raise RuntimeError(f"lora_target_topology_mismatch:{len(targets)} expected={expected_modules}")
     params=[p for p in model.parameters() if p.requires_grad]
     trainable=sum(p.numel() for p in params)
-    if trainable != 1572864:
-        raise RuntimeError(f"trainable_parameter_count_mismatch:{trainable}")
+    if trainable <= 0:
+        raise RuntimeError(f"trainable_parameter_count_invalid:{trainable}")
+    print(f"AQLEVON_27B_TRAINABLE_PARAMETERS={trainable}",flush=True)
 
     optimizer=torch.optim.AdamW(params,lr=LR,weight_decay=0.05)
     model.train()
@@ -440,13 +442,13 @@ def run(args):
     train_path=outdir/"synthetic_curriculum.json"
     write_json(train_path,used)
     receipt=sealed({
-        "receipt_kind":"AQLEVON_ONE_DAY_SYNTHETIC_CURRICULUM_RECEIPT_V1",
+        "receipt_kind":"AQLEVON_27B_AUTH16_TRANSFER_RECEIPT_V1","lane":"AQLEVON_27B_AUTH16_TRANSFER_V1",
         "base_repo":MODEL_REPO,"base_revision":MODEL_REV,"public_pack_sha256":PACK_SHA,
         "seed":SEED,"synthetic_start":SYNTH_START,"synthetic_stop":SYNTH_STOP,
         "prompt_perturbations":PROMPT_PERTURBATIONS,"training_presentations":len(used),
         "optimizer_updates":global_step,"expected_optimizer_updates":steps,"epochs":EPOCHS,
         "lr":LR,"min_lr":MIN_LR,"trainable_parameters":trainable,
-        "adapter_tensors":64,"target_modules":32,"losses":losses,"gradient_norms":grad_norms,
+        "adapter_tensors":len(layout),"target_modules":len(targets),"losses":losses,"gradient_norms":grad_norms,
         "changed_lora_B_elements":changed,"adapter_state_sha256":saved_hash,
         "reloaded_adapter_state_sha256":reloaded_hash,"save_reload_hash_match":True,
         "dev_pre_successes":dev_pre["successes"],"dev_post_successes":dev_post["successes"],
@@ -461,9 +463,9 @@ def run(args):
     write_json(outdir/"dev_pre_eval.json",dev_pre); write_json(outdir/"dev_post_eval.json",dev_post)
     write_json(outdir/"shadow_pre_eval.json",shadow_pre); write_json(outdir/"shadow_post_eval.json",shadow_post)
 
-    status="READY_FOR_WORKER05_EVALUATION" if public_gate else ("PUBLIC_SHADOW_GATE_FAILED" if dev_gate else "DISCOVERY_DEV_GATE_FAILED")
+    status="PUBLICLY_VERIFIED_27B_CANDIDATE" if public_gate else ("PUBLIC_SHADOW_GATE_FAILED" if dev_gate else "DISCOVERY_DEV_GATE_FAILED")
     manifest=sealed({
-        "manifest_kind":"AQLEVON_ONE_DAY_SYNTHETIC_CURRICULUM_CANDIDATE_V1",
+        "manifest_kind":"AQLEVON_27B_AUTH16_TRANSFER_CANDIDATE_V1","lane":"AQLEVON_27B_AUTH16_TRANSFER_V1",
         "candidate_status":status,"artifact_type":"adapter",
         "base_repo":MODEL_REPO,"base_revision":MODEL_REV,
         "training_receipt_sha256":sha_file(outdir/"training_run_receipt.json"),
@@ -477,13 +479,13 @@ def run(args):
     },"manifest_sha256")
     write_json(outdir/"candidate_artifact_manifest.json",manifest)
     handoff=sealed({
-        "handoff_kind":"AQLEVON_ONE_DAY_SYNTHETIC_CURRICULUM_WORKER05_HANDOFF_V1",
+        "handoff_kind":"AQLEVON_27B_PUBLIC_EVALUATION_INDEX_V1",
         "candidate_status":status,"candidate_manifest_sha256":manifest["manifest_sha256"],
         "discovery_dev_gate_pass":dev_gate,"public_shadow_gate_pass":public_gate,
         "sealed_eval_consumed":False,"capability_gain_claim":False
     },"handoff_sha256")
-    write_json(outdir/"worker05_handoff_index.json",handoff)
-    print(f"AQLEVON_SYNTH_PACKAGE_PASS status={status} tensors=64 modules=32 changed_B={changed}",flush=True)
+    write_json(outdir/"public_evaluation_index.json",handoff)
+    print(f"AQLEVON_27B_PACKAGE_PASS status={status} tensors={len(layout)} modules={len(targets)} changed_B={changed}",flush=True)
 
 def main():
     p=argparse.ArgumentParser()
