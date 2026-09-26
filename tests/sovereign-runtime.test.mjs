@@ -111,3 +111,24 @@ test('deep reasoning and advisory passes stay on the same AQLEVON engine without
   assert.match(source,/same_runtime:true/);
   assert.match(source,/INDEPENDENT SOLUTION PATH/);
 });
+
+
+test('RunPod readiness probes the real health endpoint without inference',async()=>{
+  const saved=saveEnv(['AQLEVON_MODEL_URL','AQLEVON_MODEL_RUNPOD_ENDPOINT_ID','AQLEVON_MODEL_RUNPOD_KEY','AQLEVON_MODEL_KEY']);
+  try{
+    delete process.env.AQLEVON_MODEL_URL;
+    delete process.env.AQLEVON_MODEL_KEY;
+    process.env.AQLEVON_MODEL_RUNPOD_ENDPOINT_ID='runtime-test-endpoint';
+    process.env.AQLEVON_MODEL_RUNPOD_KEY='runtime-test-key';
+    let seen=null;
+    const health=await checkSelfHostedHealth({},{
+      fetchImpl:async(url,init)=>{
+        seen={url:String(url),auth:init?.headers?.Authorization,method:init?.method};
+        return {ok:true,status:200};
+      }
+    });
+    assert.equal(health.ok,true);
+    assert.equal(health.transport,'runpod-serverless');
+    assert.deepEqual(seen,{url:'https://api.runpod.ai/v2/runtime-test-endpoint/health',auth:'Bearer runtime-test-key',method:'GET'});
+  }finally{restoreEnv(saved)}
+});
