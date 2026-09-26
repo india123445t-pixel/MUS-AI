@@ -31,6 +31,9 @@ jobs:
       - name: Sovereign runtime tests
         run: node --test tests/sovereign-runtime.test.mjs
 
+      - name: Auth16 serverless handler tests
+        run: node --test tests/serverless-handler-contract.test.mjs
+
       - name: Workspace truth/readiness tests
         run: node --test tests/workspace-truth-readiness.test.mjs
 
