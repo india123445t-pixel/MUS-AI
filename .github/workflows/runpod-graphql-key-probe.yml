@@ -1,0 +1,43 @@
+name: RunPod GraphQL Key Mutation Probe
+
+on:
+  push:
+    branches: [ops/runpod-control-v1]
+    paths:
+      - ".github/runpod-control/runpod-graphql-key-probe-trigger.json"
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Introspect key-related GraphQL schema names
+        env:
+          RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, urllib.request
+          q='''query { __schema { mutationType { fields { name args { name type { kind name ofType { kind name ofType { kind name } } } } type { kind name ofType { kind name } } } } types { name kind inputFields { name type { kind name ofType { kind name ofType { kind name } } } } fields { name } } } }'''
+          req=urllib.request.Request(
+            'https://api.runpod.io/graphql',
+            data=json.dumps({'query':q}).encode(),
+            headers={'Authorization':'Bearer '+os.environ['RUNPOD_API_KEY'],'Content-Type':'application/json'}
+          )
+          with urllib.request.urlopen(req,timeout=30) as r:
+            d=json.load(r)
+          if d.get('errors'):
+            print('RUNPOD_GRAPHQL_INTROSPECTION_ERRORS',json.dumps([e.get('message') for e in d['errors']],sort_keys=True))
+          s=(d.get('data') or {}).get('__schema') or {}
+          muts=((s.get('mutationType') or {}).get('fields') or [])
+          keym=[{'name':m.get('name'),'args':[a.get('name') for a in m.get('args') or []]} for m in muts if any(k in (m.get('name') or '').lower() for k in ['key','secret','token','auth'])]
+          types=[]
+          for t in s.get('types') or []:
+            n=t.get('name') or ''
+            if any(k in n.lower() for k in ['apikey','api_key','sharedapikey','secretkey','accesskey']):
+              types.append({'name':n,'kind':t.get('kind'),'input_fields':[x.get('name') for x in t.get('inputFields') or []],'fields':[x.get('name') for x in t.get('fields') or []]})
+          print('RUNPOD_GRAPHQL_KEY_MUTATIONS',json.dumps(keym,sort_keys=True))
+          print('RUNPOD_GRAPHQL_KEY_TYPES',json.dumps(types,sort_keys=True))
+          PY
