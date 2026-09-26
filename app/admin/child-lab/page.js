@@ -228,7 +228,7 @@ export default function ChildLabPage(){
       lessons:(lab.lessons||[]).map(x=>({id:x.id||crypto.randomUUID(),text:String(x.text||''),created_at:x.created_at||null})),
       trials:(lab.trials||[]).slice(0,100),
       examples:(lab.examples||[]).slice(0,200),
-      source:{runtime:'AQLEVON_CHILD_RUNTIME_V1',memory_scope:'child-lab-only',production_weight_write:false,training_lane_write:false}
+      source:{runtime:'AQLEVON_CHILD_RUNTIME_V1',memory_scope:'child-lab-only',owner_policy:ownerPolicy}
     };
   }
 
@@ -436,12 +436,15 @@ export default function ChildLabPage(){
       examples:pkg.examples,
       trials:pkg.trials,
       manifest:{
-        scope:'child-lab-only',
-        target_artifact:'CHILD_CHECKPOINT_ONLY',
-        public_model_access:false,
-        production_weight_write:false,
-        training_lane_write:false,
-        auto_promote:false,
+        scope:'owner-controlled-child-lab',
+        target_artifact:ownerPolicy.production_weight_write?'OWNER_SELECTED_PRODUCTION_OR_CHILD':'CHILD_CHECKPOINT_ONLY',
+        public_model_access:ownerPolicy.public_model_access,
+        production_weight_write:ownerPolicy.production_weight_write,
+        training_lane_write:ownerPolicy.training_lane_write,
+        worker03_access:ownerPolicy.worker03_access,
+        auto_promote:ownerPolicy.automatic_promotion,
+        gpu_request_allowed:ownerPolicy.gpu_request_allowed,
+        owner_policy:ownerPolicy,
         source_runtime:'AQLEVON_CHILD_RUNTIME_V1',
       }
     };
@@ -450,11 +453,12 @@ export default function ChildLabPage(){
   }
 
   async function resetChild(){
-    if(!confirm('إعادة الطفل إلى بداية جديدة؟ سيتم مسح شخصيته ودروسه وذاكرته وCandidate الحالية وسحب صلاحيات الأدوات. لن يتأثر نموذج المستخدمين أو التدريب.'))return;
+    if(!confirm('إعادة الطفل إلى بداية جديدة؟ سيتم مسح شخصيته ودروسه وذاكرته وCandidate الحالية وسحب صلاحيات الأدوات وسياسة المالك إلى الوضع الافتراضي المغلق.'))return;
     await clearChildMemories().catch(()=>{});
     setMemoryItems([]);setMemoryInfo({count:0,by_kind:{}});
     setCandidate(null);setCandidateEval(null);
     setPermissions(defaultChildPermissions());
+    setOwnerPolicy(defaultChildOwnerPolicy());
     recordPermissionChange('CHILD_RESET','تم سحب جميع صلاحيات الطفل أثناء إعادة الضبط');
     setLab({...blank,identity:{...blank.identity},currentTrial:{...blank.currentTrial},messages:[...blank.messages]});
     setNotice('عاد الطفل إلى بداية جديدة داخل المختبر فقط وتم سحب صلاحيات الأدوات.');
@@ -468,13 +472,13 @@ export default function ChildLabPage(){
   const readyChild=status?.child_model_ready===true;
   return <div dir="rtl" style={S.shell}>
     <header style={S.header}>
-      <div><span style={S.kicker}>AQLEVON · OWNER ONLY</span><h1 style={{margin:'4px 0'}}>مختبر الطفل</h1><p style={S.muted}>شخصية تجريبية مستقلة. لا تلمس نموذج المستخدمين، أوزان الإنتاج، أو مسار التدريب الحالي.</p></div>
+      <div><span style={S.kicker}>AQLEVON · OWNER ONLY</span><h1 style={{margin:'4px 0'}}>مختبر الطفل</h1><p style={S.muted}>شخصية تجريبية تحت تحكم المالك. الوصول والتنفيذ يحددهما OWNER_POLICY والصلاحيات التي تختارها أنت.</p></div>
       <div style={S.row}><span style={readyChild?S.ok:S.warn}>{readyChild?'Runtime الطفل جاهز':'Runtime الطفل غير متصل'}</span><a href="/admin" style={S.link}>← لوحة المالك</a></div>
     </header>
 
     <section style={S.guard}>
-      <b>العزل مفروض تقنيًا</b>
-      <span>ذاكرة منفصلة · Runtime منفصل · لا كتابة لأوزان الإنتاج · لا كتابة لمسار التدريب · الأدوات الخارجية تحتاج Adapter مستقل.</span>
+      <b>تحكم المالك فعّال</b>
+      <span>Runtime الطفل منفصل، لكن الوصول والكتابة والتنفيذ ليست ممنوعة بقيم ثابتة؛ يحددها المالك من سياسة المالك والصلاحيات. القدرات غير الموصولة تحتاج Adapter فقط.</span>
     </section>
 
     <main style={S.grid}>
