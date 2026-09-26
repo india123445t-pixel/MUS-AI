@@ -4,8 +4,8 @@ import { randomUUID } from 'crypto';
 import { generateModelResponse } from '../../../../../lib/aqlevon/providers.js';
 import { redactSecrets, sanitizeHistory } from '../../../../../lib/aqlevon/security.js';
 
-const SUPABASE_URL=process.env.NEXT_PUBLIC_SUPABASE_URL;
-const SUPABASE_KEY=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+const SUPABASE_URL=process.env.NEXT_PUBLIC_SUPABASE_URL||'https://yaqjhcfitxhtzpaswuif.supabase.co';
+const SUPABASE_KEY=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||'sb_publishable_1uRtACKcyT2ZQH9ixdKQ-Q_ARbY6xET';
 const ALLOWED_PROFILES=new Set(['guardian','engineer','model_lab','research','authorized_security']);
 
 function bearer(req){const h=req.headers.get('authorization')||'';return h.startsWith('Bearer ')?h.slice(7).trim():''}
