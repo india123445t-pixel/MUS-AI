@@ -10,6 +10,7 @@ const defaultSettings={runtime_mode:'self_hosted_only',web_search_default:false,
 
 function manifestResponse(){
   const icons=[{src:'/icon.svg',sizes:'192x192',type:'image/svg+xml',purpose:'any'},{src:'/icon.svg',sizes:'512x512',type:'image/svg+xml',purpose:'any maskable'}];
+  icons.push({src:'/icons/icon-192.png',sizes:'192x192',type:'image/png',purpose:'any'},{src:'/icons/icon-512.png',sizes:'512x512',type:'image/png',purpose:'any maskable'});
   const manifest={name:'AQLEVON AI',short_name:'AQLEVON AI',description:'AQLEVON AI — Learn · Create · Evolve',id:'/',start_url:'/?source=pwa',scope:'/',display:'standalone',display_override:['standalone','minimal-ui'],orientation:'any',background_color:'#06101e',theme_color:'#07111f',lang:'ar',dir:'rtl',categories:['productivity','education','utilities'],icons,shortcuts:[{name:'محادثة جديدة',short_name:'دردشة',url:'/?new=1',icons:[icons[0]]}]};
   return new Response(JSON.stringify(manifest),{status:200,headers:{'Content-Type':'application/manifest+json; charset=utf-8','Cache-Control':'public, max-age=3600'}});
 }
