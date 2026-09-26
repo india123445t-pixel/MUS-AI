@@ -20,6 +20,8 @@ export default function ChatPage({ onChatsChanged, newChat, onMenu }) {
   const [busy, setBusy] = useState(false);
   const [webSearch, setWebSearch] = useState(false);
   const [deepResearch, setDeepResearch] = useState(false);
+  const [thinkLonger, setThinkLonger] = useState(false);
+  const [feedback, setFeedback] = useState({});
   const [editing, setEditing] = useState(null);
   const [listening, setListening] = useState(false);
   const [addMenu, setAddMenu] = useState(false);
@@ -39,7 +41,7 @@ export default function ChatPage({ onChatsChanged, newChat, onMenu }) {
   const speechAvailable = typeof window !== 'undefined' && !!(window.SpeechRecognition || window.webkitSpeechRecognition);
 
   useEffect(() => {
-    api.get('/bootstrap').then(setRuntime).catch(() => setRuntime({ inferenceReady:false, inferenceError:'HEALTH_CHECK_FAILED', webSearchAvailable:false }));
+    api.get('/bootstrap').then(r => { setRuntime(r); if (r?.searchDefault && r?.webSearchAvailable) setWebSearch(true); }).catch(() => setRuntime({ inferenceReady:false, inferenceError:'HEALTH_CHECK_FAILED', webSearchAvailable:false }));
   }, []);
 
   useEffect(() => {
@@ -93,6 +95,8 @@ export default function ChatPage({ onChatsChanged, newChat, onMenu }) {
       const resp = await api.streamChat(chatId, {
         content: content || undefined,
         useWebSearch: webSearch || deepResearch,
+        reasoning: (deepResearch || thinkLonger) ? 'deep' : undefined,
+        researchDepth: deepResearch ? 'thorough' : (runtime?.researchDepth || 'standard'),
         ...extra
       }, controller.signal);
       const reader = resp.body.getReader();
@@ -156,6 +160,12 @@ export default function ChatPage({ onChatsChanged, newChat, onMenu }) {
   const readAloud = (text) => {
     speechSynthesis.cancel();
     speechSynthesis.speak(new SpeechSynthesisUtterance(text.replace(/[#*`>|]/g, '')));
+  };
+
+  const rateMessage = async (m, rating) => {
+    setFeedback(x => ({ ...x, [m.id]: rating }));
+    try { await api.feedback(m.chatLogId, rating); }
+    catch (e) { setLastError(e?.message || 'تعذر حفظ التقييم.'); }
   };
 
   const dictate = () => {
@@ -285,8 +295,8 @@ export default function ChatPage({ onChatsChanged, newChat, onMenu }) {
                     {m.role === 'user' && <button className="iconbtn" title={t('chat.edit')} onClick={() => setEditing(m.id)}><Icon name="pencil" size={15} /></button>}
                     {m.role === 'assistant' && <>
                       <button className="iconbtn" title={t('chat.readAloud')} onClick={() => readAloud(m.content)}><Icon name="volume" size={15} /></button>
-                      <button className="iconbtn" title={t('chat.good')}><Icon name="thumbUp" size={15} /></button>
-                      <button className="iconbtn" title={t('chat.bad')}><Icon name="thumbDown" size={15} /></button>
+                      <button className={'iconbtn' + (feedback[m.id] === 'good' ? ' on' : '')} title={t('chat.good')} onClick={() => rateMessage(m,'good')}><Icon name="thumbUp" size={15} /></button>
+                      <button className={'iconbtn' + (feedback[m.id] === 'bad' ? ' on' : '')} title={t('chat.bad')} onClick={() => rateMessage(m,'bad')}><Icon name="thumbDown" size={15} /></button>
                       {i === messages.length - 1 && <button className="iconbtn" title={t('chat.retry')} onClick={regenerate} disabled={busy}><Icon name="retry" size={15} /> {t('chat.retry')}</button>}
                     </>}
                     <button className="iconbtn" title={t('chat.branch')} onClick={() => branch(m.id)}><Icon name="branch" size={15} /></button>
@@ -344,20 +354,20 @@ export default function ChatPage({ onChatsChanged, newChat, onMenu }) {
               if (f) { const summarize = summarizeRef.current; summarizeRef.current = false; uploadFile(f, summarize); }
             }} />
 
-            <button className={'chip' + (webSearch ? ' on' : '')} disabled={runtime?.webSearchAvailable !== true} title={runtime?.webSearchAvailable !== true ? t('chat.webUnavailable') : undefined} onClick={() => setWebSearch(v => !v)}>
+            <button className={'chip' + (webSearch ? ' on' : '')} disabled={runtime?.webSearchAvailable !== true} title={runtime?.webSearchAvailable !== true ? t('chat.webUnavailable') : undefined} onClick={() => { const next=!webSearch; setWebSearch(next); if(next)setDeepResearch(false); }}>
               <Icon name="globe" size={15} /><span className="chip-label">{t('chat.webSearch')}</span>
             </button>
-            <button className={'chip' + (deepResearch ? ' on' : '')} disabled={runtime?.webSearchAvailable !== true} title={runtime?.webSearchAvailable !== true ? t('chat.webUnavailable') : t('chat.researchHint')} onClick={() => setDeepResearch(v => !v)}>
+            <button className={'chip' + (deepResearch ? ' on' : '')} disabled={runtime?.webSearchAvailable !== true} title={runtime?.webSearchAvailable !== true ? t('chat.webUnavailable') : t('chat.researchHint')} onClick={() => { const next=!deepResearch; setDeepResearch(next); if(next)setWebSearch(false); }}>
               <Icon name="flask" size={15} /><span className="chip-label">{t('chat.deepResearch')}</span>
             </button>
 
             <div className="spacer" />
 
             <button
-              className="chip"
-              disabled
-              aria-pressed={false}
+              className={'chip' + (thinkLonger ? ' on' : '')}
+              aria-pressed={thinkLonger}
               title={t('chat.thinkLongerAutomatic')}
+              onClick={() => setThinkLonger(v => !v)}
             >
               <Icon name="spark" size={14} /><span className="chip-label">{t('chat.thinkLonger')}</span>
             </button>
