@@ -42,6 +42,7 @@ export default function AdminPage(){
   const sb=useMemo(()=>URL&&KEY?createClient(URL,KEY):null,[]);
   const [ready,setReady]=useState(false),[session,setSession]=useState(null),[authorized,setAuthorized]=useState(false);
   const [email,setEmail]=useState(''),[password,setPassword]=useState(''),[authMsg,setAuthMsg]=useState('');
+  const [recovery,setRecovery]=useState(false),[newPassword,setNewPassword]=useState('');
   const [status,setStatus]=useState(null),[settings,setSettings]=useState(null),[logs,setLogs]=useState([]),[examples,setExamples]=useState([]),[bench,setBench]=useState([]),[skills,setSkills]=useState([]);
   const [tasks,setTasks]=useState([]),[intents,setIntents]=useState([]),[attempts,setAttempts]=useState([]),[receipts,setReceipts]=useState([]),[audit,setAudit]=useState([]),[responses,setResponses]=useState([]);
   const [busy,setBusy]=useState(false),[notice,setNotice]=useState(''),[tab,setTab]=useState('owner');
@@ -55,13 +56,27 @@ export default function AdminPage(){
   useEffect(()=>{
     if(!sb){setReady(true);return}
     sb.auth.getSession().then(({data})=>{setSession(data.session||null);setReady(true)});
-    const {data}=sb.auth.onAuthStateChange((_event,s)=>setSession(s));
+    const {data}=sb.auth.onAuthStateChange((event,s)=>{setSession(s);if(event==='PASSWORD_RECOVERY')setRecovery(true)});
     return()=>data.subscription.unsubscribe();
   },[sb]);
 
   useEffect(()=>{if(session)loadAll();else setAuthorized(false)},[session]);
 
-  async function login(e){e.preventDefault();setAuthMsg('');const r=await sb.auth.signInWithPassword({email,password});if(r.error)setAuthMsg('بيانات الدخول غير صحيحة.')}
+  async function login(e){e.preventDefault();setAuthMsg('');const r=await sb.auth.signInWithPassword({email,password});if(r.error)setAuthMsg('بيانات الدخول غير صحيحة. استخدم «نسيت كلمة المرور؟» إذا لزم.')}
+  async function requestPasswordReset(){
+    const target=email.trim();if(!target){setAuthMsg('اكتب بريد المالك أولًا.');return}
+    setAuthMsg('');
+    const {error}=await sb.auth.resetPasswordForEmail(target,{redirectTo:window.location.origin+'/admin'});
+    setAuthMsg(error?(error.message||'تعذر إرسال رابط الاستعادة.'):'تم إرسال رابط استعادة كلمة المرور إلى البريد. افتحه ثم عُد إلى هذه الصفحة.');
+  }
+  async function updateRecoveredPassword(e){
+    e?.preventDefault?.();
+    if(newPassword.length<10){setAuthMsg('اجعل كلمة المرور الجديدة 10 أحرف على الأقل.');return}
+    setAuthMsg('');
+    const {error}=await sb.auth.updateUser({password:newPassword});
+    if(error){setAuthMsg(error.message||'تعذر تحديث كلمة المرور.');return}
+    setNewPassword('');setRecovery(false);setAuthMsg('تم تغيير كلمة المرور بنجاح.');
+  }
   async function safeRows(promise){try{const r=await promise;return r.error?[]:(r.data||[])}catch{return []}}
 
   async function loadAll(){
@@ -132,7 +147,8 @@ export default function AdminPage(){
 
   if(!URL||!KEY)return <div className="center-screen"><div className="error-box">إعداد Supabase غير مكتمل.</div></div>;
   if(!ready)return <div className="center-screen"><div className="brand-loader"><img src="/admin-icon.svg" alt=""/><b>AQLEVON AI</b></div></div>;
-  if(!session)return <div className="admin-login-shell"><form className="admin-login-card" onSubmit={login}><img src="/admin-icon.svg" alt="AQLEVON AI"/><span className="eyebrow">مركز التحكم الخاص</span><h1>AQLEVON AI</h1><div className="admin-version-badge">نواة المالك V3 · منصة التتبّع</div><p>لوحة الإدارة الخاصة بالمشروع.</p><label>البريد الإلكتروني<input type="email" value={email} onChange={e=>setEmail(e.target.value)} required/></label><label>كلمة المرور<input type="password" value={password} onChange={e=>setPassword(e.target.value)} required/></label><button className="primary-btn" type="submit">دخول</button>{authMsg&&<div className="auth-msg">{authMsg}</div>}</form></div>;
+  if(recovery&&session)return <div className="admin-login-shell"><form className="admin-login-card" onSubmit={updateRecoveredPassword}><img src="/admin-icon.svg" alt="AQLEVON AI"/><span className="eyebrow">استعادة حساب المالك</span><h1>كلمة مرور جديدة</h1><p>اكتب كلمة مرور جديدة لحساب المالك ثم احفظها.</p><label>كلمة المرور الجديدة<input type="password" minLength="10" value={newPassword} onChange={e=>setNewPassword(e.target.value)} required/></label><button className="primary-btn" type="submit">حفظ كلمة المرور</button>{authMsg&&<div className="auth-msg">{authMsg}</div>}</form></div>;
+  if(!session)return <div className="admin-login-shell"><form className="admin-login-card" onSubmit={login}><img src="/admin-icon.svg" alt="AQLEVON AI"/><span className="eyebrow">مركز التحكم الخاص</span><h1>AQLEVON AI</h1><div className="admin-version-badge">نواة المالك V3 · منصة التتبّع</div><p>لوحة الإدارة الخاصة بالمشروع.</p><label>البريد الإلكتروني<input type="email" value={email} onChange={e=>setEmail(e.target.value)} required/></label><label>كلمة المرور<input type="password" value={password} onChange={e=>setPassword(e.target.value)} required/></label><button className="primary-btn" type="submit">دخول</button><button className="ghost-fit" type="button" onClick={requestPasswordReset}>نسيت كلمة المرور؟</button>{authMsg&&<div className="auth-msg">{authMsg}</div>}</form></div>;
   if(!authorized&&!busy)return <div className="center-screen"><div className="error-box">غير مصرح لهذا الحساب.</div></div>;
 
   const verified=logs.filter(isVerified).length,eligible=logs.filter(learningEligible),promotedIds=new Set(examples.map(x=>x.context_snapshot?.public_chat_log_id).filter(Boolean).map(String));
