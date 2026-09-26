@@ -24,9 +24,12 @@ export async function POST(req){
       execution_state:'EVALUATED_ONLY',
       training_started:false,
       gpu_requested:false,
-      production_weight_write:false,
-      training_lane_write:false,
-      worker03_access:false,
+      production_weight_write:body.owner_policy?.production_weight_write===true,
+      training_lane_write:body.owner_policy?.training_lane_write===true,
+      worker03_access:body.owner_policy?.worker03_access===true,
+      automatic_promotion:body.owner_policy?.automatic_promotion===true,
+      gpu_request_allowed:body.owner_policy?.gpu_request_allowed===true,
+      owner_policy:body.owner_policy||null,
     });
   }catch(e){return NextResponse.json({message:e?.message||'CHILD_EVAL_FAILED',training_started:false},{status:400})}
 }
