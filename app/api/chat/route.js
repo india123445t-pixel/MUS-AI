@@ -18,6 +18,7 @@ import { redactSecrets } from '../../../lib/aqlevon/security.js';
 import { AQLEVON_BOS_VERSION } from '../../../lib/aqlevon/constants.js';
 import { governResponse } from '../../../lib/aqlevon/response-governor.js';
 import { extractFormatConstraints, collapseDuplicatePrefixes, enforceFormatConstraints, fixMixedScriptWords } from '../../../lib/aqlevon/constraints-checker.js';
+import { getWorkbenchSnapshot, inferWorkbenchTool } from '../../../lib/aqlevon/workbench.js';
 
 const SUPABASE_URL=process.env.NEXT_PUBLIC_SUPABASE_URL||'https://yaqjhcfitxhtzpaswuif.supabase.co';
 const SUPABASE_KEY=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||'sb_publishable_1uRtACKcyT2ZQH9ixdKQ-Q_ARbY6xET';
@@ -224,6 +225,8 @@ export async function POST(req){
     const collapsed=collapseDuplicatePrefixes(selected.text);
     const formatted=enforceFormatConstraints({text:collapsed.text,constraints:formatConstraints});
     const mixed=fixMixedScriptWords(formatted.text); selected={...selected,text:mixed.text};
+    const requestedWorkbenchTool=inferWorkbenchTool(redactedInput);
+    if(requestedWorkbenchTool&&getWorkbenchSnapshot().tools.find(tool=>tool.name===requestedWorkbenchTool)?.state==='ADAPTER_REQUIRED')selected={...selected,text:`${selected.text}\n\nهذه القدرة تتطلب تهيئة محوّل ${requestedWorkbenchTool} من صفحة Workbench.`};
     const latency=Date.now()-started;
     const evidenceReady=!contract.external_evidence_required||(route.external_evidence_available&&(selected.citations||[]).length>0);
     const learningEligible=verification.result==='VERIFIED'&&evidenceReady&&!contract.high_consequence&&selected.text.length>=40;
