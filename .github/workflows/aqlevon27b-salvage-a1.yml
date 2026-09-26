@@ -33,20 +33,20 @@ jobs:
           cp /tmp/evidence/hardware.txt artifacts/aqlevon27b/a1/hardware.txt
           python3 -m pip install -q safetensors
           python3 - <<'PY'
-          import hashlib,json,torch
+          import hashlib,json,numpy as np
           from pathlib import Path
-          from safetensors.torch import load_file
+          from safetensors.numpy import load_file
           p=Path("artifacts/aqlevon27b/a1/adapter_model.safetensors")
           file_sha=hashlib.sha256(p.read_bytes()).hexdigest()
           assert file_sha=="6ca3cfe6bdd9261bbbb630dbb12c0ace71753a8e4d1e80dd9b685674613dc2f0",file_sha
-          w=load_file(str(p),device="cpu")
+          w=load_file(str(p))
           assert len(w)==128,len(w)
           h=hashlib.sha256(); changed=0; total=0
           for name in sorted(w):
-              v=w[name].detach().cpu().contiguous().float()
-              h.update(name.encode()); h.update(str(tuple(v.shape)).encode()); h.update(v.numpy().tobytes(order="C"))
+              v=np.ascontiguousarray(w[name],dtype=np.float32)
+              h.update(name.encode()); h.update(str(tuple(v.shape)).encode()); h.update(v.tobytes(order="C"))
               total += v.numel()
-              if ".lora_B." in name: changed += int(torch.count_nonzero(v).item())
+              if ".lora_B." in name: changed += int(np.count_nonzero(v))
           state=h.hexdigest()
           assert state=="bdf25250c3ebed8c7a9364d33f8461f5842399e751d20a5c1cd66bb80d2281ad",state
           assert total==5242880,total
