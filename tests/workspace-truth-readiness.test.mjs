@@ -28,6 +28,7 @@ const ownerCoreChat=read('app/api/admin/owner-core/chat/route.js');
 const providers=read('lib/aqlevon/providers.js');
 const kernel=read('lib/aqlevon/kernel.js');
 const commonsChat=read('app/api/commons/chat/route.js');
+const webResearch=read('lib/aqlevon/web-research.js');
 
 test('browser workspace fails closed for unavailable adapters',()=>{
   assert.match(api,/adapter_state:'NOT_CONNECTED'/);
@@ -35,8 +36,10 @@ test('browser workspace fails closed for unavailable adapters',()=>{
   assert.match(api,/connection:\{status:'disconnected',scopes:\[\]\}/);
   assert.doesNotMatch(api,/code-interpreter'.*enabled:1/);
   assert.doesNotMatch(api,/image-gen'.*enabled:1/);
-  assert.match(scheduled,/disabled title=\{t\('auto\.adapterRequired'\)\}/);
-  assert.match(plugins,/t\('apps\.adapterRequired'\)/);
+  assert.match(scheduled,/tag warn/);
+  assert.doesNotMatch(scheduled,/role="switch" aria-checked=\{false\} disabled title=\{t\('auto\.adapterRequired'\)\}/);
+  assert.match(plugins,/toggleWebDefault/);
+  assert.match(plugins,/tag warn/);
 });
 
 test('public runtime readiness is sovereign-only and external providers are never required',()=>{
@@ -48,12 +51,13 @@ test('public runtime readiness is sovereign-only and external providers are neve
   assert.match(statusRoute,/external_provider_routing:false/);
   assert.match(chatRoute,/runtime_mode:'self_hosted_only'/);
   assert.match(chatRoute,/allow_paid_external:false/);
-  assert.match(chatRoute,/public_web_search_enabled:false/);
+  assert.match(chatRoute,/isWebSearchConfigured/);
+  assert.match(chatRoute,/searchWeb/);
   assert.match(providers,/runtime_mode:'self_hosted_only'/);
   assert.match(providers,/const result=await aqlevonRuntime/);
   assert.match(api,/selfHostedConfigured/);
   assert.match(api,/commons\?\.available===true/);
-  assert.match(api,/webSearchAvailable:false/);
+  assert.match(api,/webSearchAvailable=status\?\.web_search_configured===true\|\|status\?\.settings\?\.public_web_search_enabled===true/);
   assert.match(api,/runtimeMode:'self_hosted_only'/);
   assert.match(api,/externalProviderRouting:false/);
   assert.match(chat,/runtime\.inferenceReady !== true/);
@@ -80,11 +84,13 @@ test('public work surface only advertises the format it actually renders',()=>{
   assert.match(work,/work\.browserOnly/);
 });
 
-test('browser chat controls do not overclaim stop reasoning temporary privacy or dictation',()=>{
+test('browser chat controls are wired to real runtime capabilities without overclaiming stop privacy or dictation',()=>{
   assert.match(chat,/const stop = \(\) => abortRef\.current\?\.abort\(\)/);
   assert.doesNotMatch(chat,/stream\/stop/);
-  assert.doesNotMatch(chat,/reasoning: thinkLonger/);
-  assert.match(chat,/disabled\s*\n\s*aria-pressed=\{false\}/);
+  assert.match(chat,/reasoning: \(deepResearch \|\| thinkLonger\) \? 'deep'/);
+  assert.match(chat,/onClick=\{\(\) => setThinkLonger/);
+  assert.match(chat,/rateMessage/);
+  assert.match(chat,/api\.feedback/);
   assert.match(chat,/speechAvailable/);
   assert.match(chat,/disabled=\{!speechAvailable\}/);
   assert.match(en,/Hidden from history · stored locally/);
@@ -132,6 +138,8 @@ test('new users default to Arabic and persistence claims are truthful',()=>{
   assert.doesNotMatch(en,/Public repositories clone without a token/);
   assert.match(dev,/browserSandboxNotice/);
   assert.match(settings,/set\.webUnavailable/);
+  assert.match(settings,/webSearchAvailable/);
+  assert.match(settings,/research_depth:d/);
 });
 
 
@@ -163,6 +171,8 @@ test('benchmark evaluation and owner core stay bound to AQLEVON runtime',()=>{
   assert.match(evalRoute,/runtime_mode:'self_hosted_only'/);
   assert.match(ownerCoreChat,/allow_paid_external:false/);
   assert.match(ownerCoreChat,/public_web_search_enabled:false/);
+  assert.match(webResearch,/https:\/\/s\.jina\.ai\/\?q=/);
+  assert.match(webResearch,/AQLEVON_CHILD_WEB_SEARCH_KEY/);
   assert.match(en,/AQLEVON is the sole model runtime/);
   assert.match(ar,/وليس إضافة مزود خارجي/);
 });
