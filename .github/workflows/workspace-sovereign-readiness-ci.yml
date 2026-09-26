@@ -5,6 +5,7 @@ on:
     branches:
       - fix/workspace-readiness-truth-20260922
       - main
+      - release/aqlevon-unified-production-final-20260926
   workflow_dispatch:
 
 permissions:
