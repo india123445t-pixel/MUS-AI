@@ -142,3 +142,39 @@ test('public error surfaces do not echo raw internal exception messages',()=>{
   assert.doesNotMatch(statusRoute,/message:e\?\.message/);
   assert.match(statusRoute,/AUTHENTICATED_ENDPOINT_REQUIRED/);
 });
+
+
+test('workspace search spans chats projects files jobs and automation drafts',()=>{
+  const api=read('app/workspace/api.js');
+  const search=read('app/workspace/components/SearchModal.jsx');
+  assert.match(api,/if\(p==='\/search'\)/);
+  for(const type of ["'chat'","'project'","'file'","'job'","'automation'"])assert.match(api,new RegExp(type));
+  assert.match(search,/api\.get\('\/search'/);
+  assert.match(search,/r\.path/);
+});
+
+test('web readiness is consistent across chat settings and apps',()=>{
+  const chat=read('app/workspace/pages/ChatPage.jsx');
+  const settings=read('app/workspace/pages/SettingsPage.jsx');
+  const plugins=read('app/workspace/pages/PluginsPage.jsx');
+  assert.match(chat,/settings\?\.search_default==='on'/);
+  assert.match(settings,/runtime\?\.webSearchAvailable===true/);
+  assert.match(settings,/set\.webReady/);
+  assert.match(plugins,/runtime\?\.webSearchAvailable===true/);
+  assert.match(plugins,/apps\.ready/);
+});
+
+test('automation drafts require complete local inputs before save',()=>{
+  const scheduled=read('app/workspace/pages/ScheduledPage.jsx');
+  assert.match(scheduled,/const canCreate =/);
+  assert.match(scheduled,/Date\.parse\(form\.runAt\) > Date\.now\(\)/);
+  assert.match(scheduled,/!!form\.conditionQuery\.trim\(\)/);
+  assert.match(scheduled,/disabled=\{!canCreate\}/);
+});
+
+test('developer and workbench expose truthful control labels and permission location',()=>{
+  const dev=read('app/workspace/pages/DeveloperPage.jsx');
+  const policy=read('app/workbench/PolicyPanel.jsx');
+  assert.match(dev,/t\('dev\.checkpoint'\)/);
+  assert.match(policy,/href="\/admin\/child-lab"/);
+});
