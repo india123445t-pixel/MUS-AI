@@ -61,8 +61,12 @@ assert a["artifact_preservation_required"] is True
 assert a["no_main_merge"] is True
 assert a["sealed_eval_forbidden"] is True
 assert str(a.get("issued_at_utc") or "").strip()
+resume_pod_id=str(a.get("resume_pod_id") or "").strip()
+if resume_pod_id:
+    assert re.fullmatch(r"[A-Za-z0-9_-]{6,80}",resume_pod_id)
 Path("/tmp/aq27-auth-id").write_text(auth_id)
-print("AQLEVON_27B_FRESH_AUTHORIZATION_V2_PASS",auth_id)
+Path("/tmp/aq27-resume-pod-id").write_text(resume_pod_id)
+print("AQLEVON_27B_FRESH_AUTHORIZATION_V2_PASS",auth_id,"resume_pod_id="+(resume_pod_id or "NONE"))
 PY
 AUTH_ID="$(cat /tmp/aq27-auth-id)"
 export AUTH_ID
@@ -148,6 +152,35 @@ open("/tmp/aq27-dc","w").write(dc)
 print("AQLEVON_27B_CAPACITY_PASS",price,dc,stock)
 PY
 
+RESUME_POD_ID="$(cat /tmp/aq27-resume-pod-id)"
+if [ -n "$RESUME_POD_ID" ]; then
+  TARGET_POD_ID="$RESUME_POD_ID" python3 - <<'PY' >/tmp/aq27-pod-query.json
+import json,os
+q="""query pod($input: PodFilter) {
+  pod(input: $input) {
+    id name desiredStatus costPerHr gpuCount imageName machineId
+    containerDiskInGb volumeInGb volumeMountPath ports
+  }
+}"""
+print(json.dumps({"query":q,"variables":{"input":{"podId":os.environ["TARGET_POD_ID"]}}}))
+PY
+  curl -fsS https://api.runpod.io/graphql     -H "Authorization: Bearer $RUNPOD_API_KEY"     -H 'Content-Type: application/json'     --data-binary @/tmp/aq27-pod-query.json >/tmp/aq27-pod-query-response.json
+  TARGET_POD_ID="$RESUME_POD_ID" IMAGE_DIGEST="$IMAGE_DIGEST" python3 - <<'PY'
+import json,os
+d=json.load(open("/tmp/aq27-pod-query-response.json"))
+assert not d.get("errors"),d.get("errors")
+p=(d.get("data") or {}).get("pod")
+assert p and p.get("id")==os.environ["TARGET_POD_ID"],p
+assert p.get("name")=="AQLEVON-27B-R0-BUDGET8",p
+assert p.get("desiredStatus")=="EXITED",p
+assert int(p.get("gpuCount") or 0)==1,p
+assert str(p.get("imageName") or "")=="ghcr.io/india123445t-pixel/mus-ai@"+os.environ["IMAGE_DIGEST"],p
+assert float(p.get("costPerHr") or 999)<=1.60,p
+assert str(p.get("machineId") or ""),p
+print("AQLEVON_27B_RESUME_POD_PRECREATE_PASS",p["id"],p["machineId"],p["costPerHr"])
+PY
+fi
+
 # Durable pre-create claim. The authorization is consumed before any provider
 # create mutation. Ordinary non-force Git push is the cross-run CAS: if another
 # claimant moves the control branch first, this run fails before pod creation.
@@ -198,18 +231,83 @@ echo AQLEVON_27B_DURABLE_PRECREATE_RESERVATION_PASS
 
 BOOT_URL="https://raw.githubusercontent.com/india123445t-pixel/MUS-AI/$GITHUB_SHA/.github/runpod-control/aqlevon-27b-r0-bootstrap.sh"
 DOCKER_ARGS="bash -lc 'export AQLEVON_SOURCE_SHA=$GITHUB_SHA; curl -fsSL $BOOT_URL -o /tmp/aq27.sh && chmod +x /tmp/aq27.sh && exec bash /tmp/aq27.sh'"
-runpodctl pod create   --name AQLEVON-27B-R0-BUDGET8   --image "ghcr.io/india123445t-pixel/mus-ai@$IMAGE_DIGEST"   --gpu-id "NVIDIA A100-SXM4-80GB"   --gpu-count 1   --cloud-type SECURE   --container-disk-in-gb 100   --volume-in-gb 100   --volume-mount-path /workspace   --ports 8000/http   --ssh=false   --docker-args "$DOCKER_ARGS"   --output json >/tmp/aq27-create.json
+IMAGE_NAME="ghcr.io/india123445t-pixel/mus-ai@$IMAGE_DIGEST"
 
-python3 - <<'PY'
-import json,time
+if [ -n "$RESUME_POD_ID" ]; then
+  TARGET_POD_ID="$RESUME_POD_ID" AQLEVON_DOCKER_ARGS="$DOCKER_ARGS" AQLEVON_IMAGE_NAME="$IMAGE_NAME" python3 - <<'PY' >/tmp/aq27-edit-payload.json
+import json,os
+q="""mutation podEditJob($input: PodEditJobInput!) {
+  podEditJob(input: $input) {
+    id name desiredStatus costPerHr gpuCount imageName machineId
+    containerDiskInGb volumeInGb volumeMountPath ports dockerArgs
+  }
+}"""
+inp={
+  "podId":os.environ["TARGET_POD_ID"],
+  "imageName":os.environ["AQLEVON_IMAGE_NAME"],
+  "dockerArgs":os.environ["AQLEVON_DOCKER_ARGS"],
+  "ports":"8000/http",
+  "containerDiskInGb":100,
+  "volumeInGb":100,
+  "volumeMountPath":"/workspace"
+}
+print(json.dumps({"query":q,"variables":{"input":inp}}))
+PY
+  curl -fsS https://api.runpod.io/graphql     -H "Authorization: Bearer $RUNPOD_API_KEY"     -H 'Content-Type: application/json'     --data-binary @/tmp/aq27-edit-payload.json >/tmp/aq27-edit-response.json
+  TARGET_POD_ID="$RESUME_POD_ID" AQLEVON_IMAGE_NAME="$IMAGE_NAME" python3 - <<'PY'
+import json,os
+d=json.load(open("/tmp/aq27-edit-response.json"))
+assert not d.get("errors"),d.get("errors")
+p=(d.get("data") or {}).get("podEditJob")
+assert p and p.get("id")==os.environ["TARGET_POD_ID"],p
+assert p.get("desiredStatus")=="EXITED",p
+assert str(p.get("imageName") or "")==os.environ["AQLEVON_IMAGE_NAME"],p
+assert int(p.get("containerDiskInGb") or 0)>=100,p
+assert int(p.get("volumeInGb") or 0)>=100,p
+assert str(p.get("volumeMountPath") or "")=="/workspace",p
+print("AQLEVON_27B_STOPPED_POD_EDIT_PASS",p["id"],p.get("machineId"))
+PY
+  TARGET_POD_ID="$RESUME_POD_ID" python3 - <<'PY' >/tmp/aq27-resume-payload.json
+import json,os
+q="""mutation podResume($input: PodResumeInput!) {
+  podResume(input: $input) {
+    id name desiredStatus costPerHr gpuCount imageName machineId
+    containerDiskInGb volumeInGb volumeMountPath ports
+  }
+}"""
+print(json.dumps({"query":q,"variables":{"input":{"podId":os.environ["TARGET_POD_ID"],"gpuCount":1,"computeType":"GPU"}}}))
+PY
+  curl -fsS https://api.runpod.io/graphql     -H "Authorization: Bearer $RUNPOD_API_KEY"     -H 'Content-Type: application/json'     --data-binary @/tmp/aq27-resume-payload.json >/tmp/aq27-create.json
+  TARGET_POD_ID="$RESUME_POD_ID" AQLEVON_IMAGE_NAME="$IMAGE_NAME" python3 - <<'PY'
+import json,os
+d=json.load(open("/tmp/aq27-create.json"))
+assert not d.get("errors"),d.get("errors")
+p=(d.get("data") or {}).get("podResume")
+assert p and p.get("id")==os.environ["TARGET_POD_ID"],p
+assert p.get("desiredStatus")=="RUNNING",p
+assert int(p.get("gpuCount") or 0)==1,p
+assert str(p.get("imageName") or "")==os.environ["AQLEVON_IMAGE_NAME"],p
+price=float(p.get("costPerHr") or 999)
+assert price<=1.60,p
+open("/tmp/aq27-price","w").write(str(price))
+open("/tmp/aq27-resumed-pod","w").write(str(p["id"]))
+print("AQLEVON_27B_EXISTING_POD_RESUME_PASS",p["id"],p.get("machineId"),price)
+PY
+  pod="$(cat /tmp/aq27-resumed-pod)"
+  printf '%s' "$pod" >/tmp/aq27-pod
+else
+  runpodctl pod create     --name AQLEVON-27B-R0-BUDGET8     --image "$IMAGE_NAME"     --gpu-id "NVIDIA A100-SXM4-80GB"     --gpu-count 1     --cloud-type SECURE     --container-disk-in-gb 100     --volume-in-gb 100     --volume-mount-path /workspace     --ports 8000/http     --ssh=false     --docker-args "$DOCKER_ARGS"     --output json >/tmp/aq27-create.json
+  python3 - <<'PY'
+import json
 from pathlib import Path
 p=json.load(open("/tmp/aq27-create.json"))
 pod=p.get("id") or p.get("podId")
 assert pod
 Path("/tmp/aq27-pod").write_text(str(pod))
-Path("/tmp/aq27-start").write_text(str(int(time.time())))
 PY
-pod="$(cat /tmp/aq27-pod)"
+  pod="$(cat /tmp/aq27-pod)"
+fi
+date +%s >/tmp/aq27-start
 python3 .github/runpod-control/aqlevon-27b-reservation.py mark-created \
   --authorization "$AUTH" --reservation "$RESERVATION" --consumed "$CONSUMED" \
   --run-id "$GITHUB_RUN_ID" --run-attempt "$GITHUB_RUN_ATTEMPT" \
