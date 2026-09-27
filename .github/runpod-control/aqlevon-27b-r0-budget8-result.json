@@ -1,0 +1,87 @@
+{
+  "authorization_id": "P4-AQLEVON-27B-R0-BUDGET8-20260927-01",
+  "billed_seconds_estimate": 1283,
+  "candidate_manifest": {
+    "adapter_sha256": "c91f007acd1004ba5a2b2dae6014d13664ce9ccef665802e60aa975e47d32b0e",
+    "adapter_state_sha256": "e5a9b8260e7cfc08f3f9c5b072b617bdafc5ed06a645b15c10ee7937d5465bde",
+    "base_repo": "Qwen/Qwen3.8-27B",
+    "base_revision": "1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0",
+    "baseline_dev_successes": 2,
+    "baseline_shadow_successes": 1,
+    "checkpoints": [
+      {
+        "step": 112,
+        "successes": 9
+      },
+      {
+        "step": 224,
+        "successes": 17
+      },
+      {
+        "step": 336,
+        "successes": 21
+      },
+      {
+        "step": 448,
+        "successes": 22
+      },
+      {
+        "step": 560,
+        "successes": 23
+      },
+      {
+        "step": 672,
+        "successes": 24
+      }
+    ],
+    "dev_nonregression": true,
+    "early_stop_check_every": 112,
+    "elapsed_seconds": 754.072,
+    "final_dev_successes": 24,
+    "final_shadow_successes": 23,
+    "kind": "AQLEVON_27B_R0_CANDIDATE_MANIFEST_V1",
+    "manifest_sha256": "cf1d3b4c31a2d5396986099f2663cf3ce7d18c15cac695dfe1379e25da7d45b2",
+    "max_optimizer_updates": 672,
+    "model_name": "AQLEVON-27B-R0",
+    "optimizer_updates": 672,
+    "public_gain_observed": true,
+    "sealed_eval_consumed": false,
+    "shadow_nonregression": true,
+    "status": "AQLEVON_27B_R0_PUBLIC_PASS",
+    "trainable_parameters": 1507328,
+    "truth_boundary": "Real parameter-changing 27B LoRA artifact with save/reload hash and public held-out checks. No sealed/private W05 claim.",
+    "worker05_used_for_tuning": false
+  },
+  "compute_cost_estimate_usd": 0.566658,
+  "evidence_sha256": "eca1b1023f000fc49e9c5c3579aa330bb73121cd54a00b16327d068e74de1bb6",
+  "final_stage": "DONE",
+  "kind": "AQLEVON_27B_R0_BUDGET8_RUN_RECEIPT_V1",
+  "pod_stopped_and_deleted": true,
+  "rate_per_hour_usd": 1.59,
+  "sealed_eval_consumed": false,
+  "source_sha": "4e3f1b03cfe77ac4355907ec692574f30d180252",
+  "training_receipt": {
+    "adapter_sha256": "c91f007acd1004ba5a2b2dae6014d13664ce9ccef665802e60aa975e47d32b0e",
+    "adapter_state_sha256": "e5a9b8260e7cfc08f3f9c5b072b617bdafc5ed06a645b15c10ee7937d5465bde",
+    "base_repo": "Qwen/Qwen3.8-27B",
+    "base_revision": "1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0",
+    "kind": "AQLEVON_27B_R0_TRAINING_RECEIPT_V1",
+    "loss_first": 0.3523574471473694,
+    "loss_last": 0.018427735194563866,
+    "model_name": "AQLEVON-27B-R0",
+    "optimizer_updates": 672,
+    "public_dev": {
+      "after": 24,
+      "before": 2,
+      "tasks": 28
+    },
+    "public_shadow": {
+      "after": 23,
+      "before": 1,
+      "tasks": 28
+    },
+    "reload_hash_match": true,
+    "sealed_eval_consumed": false,
+    "worker05_used_for_tuning": false
+  }
+}
