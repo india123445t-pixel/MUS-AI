@@ -186,3 +186,27 @@ test('library honors global-search query handoff',()=>{
   assert.match(library,/params\.get\('q'\)/);
   assert.match(library,/setQ\(queryQ\)/);
 });
+
+
+test('owner surfaces use environment-only Supabase configuration',()=>{
+  const admin=read('app/admin/page.js');
+  const ownerChat=read('app/api/admin/owner-core/chat/route.js');
+  const ownerTask=read('app/api/admin/owner-core/task/route.js');
+  for(const src of [admin,ownerChat,ownerTask]){
+    assert.match(src,/process\.env\.NEXT_PUBLIC_SUPABASE_URL\|\|''/);
+    assert.match(src,/process\.env\.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY\|\|''/);
+    assert.doesNotMatch(src,/yaqjhcfitxhtzpaswuif/);
+    assert.doesNotMatch(src,/sb_publishable_/);
+  }
+});
+
+test('internal diagnostics require owner authentication',()=>{
+  const ownerAuth=read('lib/aqlevon/owner-auth.js');
+  const bos=read('app/api/internal/bos-status/route.js');
+  const selfHealth=read('app/api/internal/self-hosted-health/route.js');
+  assert.match(ownerAuth,/TOKEN_MISSING/);
+  assert.match(ownerAuth,/system_owner/);
+  assert.match(ownerAuth,/OWNER_REQUIRED/);
+  assert.match(bos,/requireSystemOwner\(req\)/);
+  assert.match(selfHealth,/requireSystemOwner\(req\)/);
+});
