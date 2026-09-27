@@ -6,6 +6,10 @@ on:
     paths:
       - "research/evaluation/auth08_unified_public_eval_runner_v1.py"
       - "ops/auth08-eval/bootstrap.sh"
+      - "ops/auth08-eval/run-auth08-unified-eval.sh"
+      - "ops/auth08-eval/eval-reservation.py"
+      - "ops/auth08-eval/finalize.sh"
+      - ".github/workflows/auth08-unified-public-eval-control.yml"
       - ".github/workflows/auth08-unified-eval-free-preflight.yml"
       - "ops/auth08-eval/free-preflight-trigger.json"
 
@@ -29,7 +33,18 @@ jobs:
         run: |
           set -euo pipefail
           python3 -m py_compile research/evaluation/auth08_unified_public_eval_runner_v1.py
+          python3 -m py_compile ops/auth08-eval/eval-reservation.py
           bash -n ops/auth08-eval/bootstrap.sh
+          bash -n ops/auth08-eval/run-auth08-unified-eval.sh
+          bash -n ops/auth08-eval/finalize.sh
+          python3 - <<'PY'
+          import pathlib
+          text=pathlib.Path(".github/workflows/auth08-unified-public-eval-control.yml").read_text()
+          assert "cancel-in-progress: false" in text
+          assert "actions/upload-artifact@v4" in text
+          assert "Finalize durable upload and delete pod" in text
+          print("AQLEVON_AUTH08_EVAL_WORKFLOW_STATIC_PASS")
+          PY
           echo AQLEVON_AUTH08_UNIFIED_EVAL_SYNTAX_PASS
       - name: Frozen Agent04 tests
         run: |
@@ -50,4 +65,9 @@ jobs:
           grep -F 'total_model_dispatches": 352' research/evaluation/auth08_unified_public_eval_runner_v1.py
           grep -F 'runpodctl receive "$TRANSFER_CODE"' ops/auth08-eval/bootstrap.sh
           grep -F 'sealed_eval_consumed": False' research/evaluation/auth08_unified_public_eval_runner_v1.py
+          grep -F 'MAX_ELAPSED=3300' ops/auth08-eval/run-auth08-unified-eval.sh
+          grep -F 'price*3300/3600<=1.50' ops/auth08-eval/run-auth08-unified-eval.sh
+          grep -F 'runpodctl send "$BUNDLE"' ops/auth08-eval/run-auth08-unified-eval.sh
+          grep -F 'runpodctl receive "$TRANSFER_CODE"' ops/auth08-eval/bootstrap.sh
+          grep -F 'AQLEVON_AUTH08_EVAL_DURABLE_ARTIFACT_BEFORE_DELETE_PASS' ops/auth08-eval/finalize.sh
           echo AQLEVON_AUTH08_UNIFIED_EVAL_STATIC_PASS
