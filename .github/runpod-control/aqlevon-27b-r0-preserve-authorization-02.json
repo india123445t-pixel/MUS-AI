@@ -1,0 +1,22 @@
+{
+  "kind": "AQLEVON_MANAGER_PAID_AUTHORIZATION_V1",
+  "authorization_id": "P4-AQLEVON-27B-R0-PRESERVE-20260927-02",
+  "parent_owner_budget_authorization": "Owner explicitly authorized up to USD 8 and instructed trying all solutions until the real model is delivered.",
+  "issued_at_utc": "2026-09-27T09:21:00Z",
+  "purpose": "Reproduce AQLEVON-27B-R0 and preserve the actual adapter artifact after successful Run 01 proved the recipe but its GitHub runner did not upload evidence.",
+  "model_repo": "Qwen/Qwen3.8-27B",
+  "model_revision": "1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0",
+  "training_authorized": true,
+  "single_use": true,
+  "max_total_cost_usd": "1.50",
+  "cumulative_owner_budget_ceiling_usd": "8.00",
+  "max_hourly_rate_usd": "1.60",
+  "max_billed_seconds": 3200,
+  "required_gpu": "NVIDIA A100-SXM4-80GB",
+  "automatic_cleanup_required": true,
+  "artifact_preservation_required": true,
+  "no_main_merge": true,
+  "sealed_eval_forbidden": true,
+  "prior_run_compute_cost_usd": 0.566658,
+  "prior_run_manifest_sha256": "cf1d3b4c31a2d5396986099f2663cf3ce7d18c15cac695dfe1379e25da7d45b2"
+}
