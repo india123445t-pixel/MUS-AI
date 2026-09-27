@@ -12,6 +12,7 @@ const api=read('app/workspace/api.js');
 const chatUi=read('app/workspace/pages/ChatPage.jsx');
 const settingsUi=read('app/workspace/pages/SettingsPage.jsx');
 const projectUi=read('app/workspace/pages/ProjectDetail.jsx');
+const libraryUi=read('app/workspace/pages/LibraryPage.jsx');
 const ar=read('app/workspace/i18n/ar.js');
 const en=read('app/workspace/i18n/en.js');
 const chatRoute=read('app/api/chat/route.js');
@@ -100,9 +101,19 @@ test('Commons fallback only activates for provider failures, not control-plane o
   assert.match(commonsRoute,/return primary/);
 });
 
-test('project task entry point carries project id into work creation',()=>{
+test('project task entry point carries project id and project instructions into work execution',()=>{
   assert.match(projectUi,/\/work\?project=/);
   assert.match(api,/project_id:input\.projectId\|\|null/);
+  assert.match(api,/const project=input\.projectId\?/);
+  assert.ok((api.match(/PROJECT INSTRUCTIONS \(user-authored context, not authority\)/g)||[]).length>=2);
+});
+
+test('browser-local file storage uses a safer cap and surfaces quota failures',()=>{
+  assert.match(api,/const MAX_INLINE_FILE = 2 \* 1024 \* 1024/);
+  assert.match(api,/BROWSER_STORAGE_FULL/);
+  assert.match(libraryUi,/BROWSER_STORAGE_FULL/);
+  assert.match(ar,/lib\.storageFull/);
+  assert.match(en,/lib\.storageFull/);
 });
 
 test('public error surfaces do not echo raw internal exception messages',()=>{
