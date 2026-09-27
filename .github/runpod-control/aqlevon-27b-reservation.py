@@ -13,6 +13,8 @@ from typing import Any
 
 RESERVATION_KIND = "AQLEVON_27B_AUTH_RESERVATION_V1"
 CONSUMPTION_KIND = "AQLEVON_27B_AUTH_CONSUMPTION_V2"
+AUTHORIZATION_KIND = "AQLEVON_MANAGER_PAID_AUTHORIZATION_V2"
+CONTROL_PLANE_CONTRACT = "AQLEVON_27B_CONTROL_PLANE_V2"
 
 
 def utc_now() -> str:
@@ -34,6 +36,14 @@ def validate_authorization(auth: dict[str, Any], expected_authorization_id: str 
         raise ValueError("missing_authorization_id")
     if expected_authorization_id and auth_id != expected_authorization_id:
         raise ValueError(f"authorization_id_mismatch:{auth_id}")
+    if auth.get("kind") != AUTHORIZATION_KIND:
+        raise ValueError("legacy_or_invalid_authorization_kind")
+    if auth.get("control_plane_contract") != CONTROL_PLANE_CONTRACT:
+        raise ValueError("authorization_control_plane_contract_mismatch")
+    if auth.get("fresh_authorization") is not True:
+        raise ValueError("authorization_not_marked_fresh")
+    if not str(auth.get("issued_at_utc") or "").strip():
+        raise ValueError("authorization_missing_issued_at")
     required_true = (
         "single_use",
         "training_authorized",

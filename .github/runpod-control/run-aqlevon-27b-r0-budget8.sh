@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-AUTH=.github/runpod-control/aqlevon-27b-r0-preserve-authorization-02.json
-RESERVATION=.github/runpod-control/aqlevon-27b-r0-preserve-reservation-02.json
-CONSUMED=.github/runpod-control/aqlevon-27b-r0-preserve-consumed-02.json
-RESULT=.github/runpod-control/aqlevon-27b-r0-preserve-result-02.json
+AUTH=.github/runpod-control/aqlevon-27b-r0-fresh-authorization.json
+RESERVATION=.github/runpod-control/aqlevon-27b-r0-fresh-reservation.json
+CONSUMED=.github/runpod-control/aqlevon-27b-r0-fresh-consumed.json
+RESULT=.github/runpod-control/aqlevon-27b-r0-fresh-result.json
 IMAGE_DIGEST=sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec
-AUTH_ID=P4-AQLEVON-27B-R0-PRESERVE-20260927-02
 MAX_ELAPSED=3000
 pod=""
 stopped=0
@@ -31,10 +30,16 @@ python3 -m py_compile research/weight_factory/agent03/aqlevon_27b_r0_auth16_tran
 bash -n .github/runpod-control/aqlevon-27b-r0-bootstrap.sh
 echo AQLEVON_27B_FREE_SYNTAX_PREFLIGHT_PASS
 
-python3 - <<'PY'
-import json
-a=json.load(open(".github/runpod-control/aqlevon-27b-r0-preserve-authorization-02.json"))
-assert a["authorization_id"]=="P4-AQLEVON-27B-R0-PRESERVE-20260927-02"
+AUTH="$AUTH" python3 - <<'PY'
+import json,os,re
+from pathlib import Path
+p=Path(os.environ["AUTH"])
+a=json.loads(p.read_text())
+assert a["kind"]=="AQLEVON_MANAGER_PAID_AUTHORIZATION_V2"
+assert a["control_plane_contract"]=="AQLEVON_27B_CONTROL_PLANE_V2"
+assert a["fresh_authorization"] is True
+auth_id=str(a.get("authorization_id") or "")
+assert auth_id and re.fullmatch(r"[A-Za-z0-9._:-]{8,160}",auth_id)
 assert a["single_use"] is True and a["training_authorized"] is True
 assert a["model_repo"]=="Qwen/Qwen3.8-27B"
 assert a["model_revision"]=="1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0"
@@ -45,8 +50,12 @@ assert a["automatic_cleanup_required"] is True
 assert a["artifact_preservation_required"] is True
 assert a["no_main_merge"] is True
 assert a["sealed_eval_forbidden"] is True
-print("AQLEVON_27B_AUTHORIZATION_PASS")
+assert str(a.get("issued_at_utc") or "").strip()
+Path("/tmp/aq27-auth-id").write_text(auth_id)
+print("AQLEVON_27B_FRESH_AUTHORIZATION_V2_PASS",auth_id)
 PY
+AUTH_ID="$(cat /tmp/aq27-auth-id)"
+export AUTH_ID
 
 curl -fsS https://rest.runpod.io/v1/pods -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/aq27-pods.json
 python3 - <<'PY'
@@ -214,8 +223,8 @@ elapsed=int(datetime.datetime.now(datetime.timezone.utc).timestamp())-start
 price=float(Path("/tmp/aq27-price").read_text())
 stage=Path("/tmp/aq27-final-stage").read_text().strip()
 out={
- "kind":"AQLEVON_27B_R0_PRESERVE_RUN_RECEIPT_V1",
- "authorization_id":"P4-AQLEVON-27B-R0-PRESERVE-20260927-02",
+ "kind":"AQLEVON_27B_R0_FRESH_AUTH_RUN_RECEIPT_V2",
+ "authorization_id":os.environ["AUTH_ID"],
  "source_sha":os.environ["GITHUB_SHA"],
  "final_stage":stage,
  "billed_seconds_estimate":elapsed,

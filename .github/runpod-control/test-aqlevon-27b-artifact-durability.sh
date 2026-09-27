@@ -36,6 +36,12 @@ assert "runtime_versions.json" in boot
 assert '"runtime_versions"' in run
 assert "runtime_versions_sha256" in fin
 assert "runtime_versions.json" in ver
+assert "aqlevon-27b-r0-fresh-authorization.json" in run
+assert "AQLEVON_MANAGER_PAID_AUTHORIZATION_V2" in run
+assert "AQLEVON_27B_CONTROL_PLANE_V2" in run
+assert "fresh_authorization" in run
+assert "P4-AQLEVON-27B-R0-PRESERVE-20260927-02" not in run
+assert "aqlevon-27b-r0-preserve-authorization-02.json" not in run
 print("AQLEVON_27B_CONTROL_ORDER_STATIC_PASS")
 PY
 
@@ -106,6 +112,10 @@ echo AQLEVON_27B_RUNTIME_VERSION_RECEIPT_REQUIRED_PASS
 # Reservation helper: missing/invalid claims fail closed.
 cat >"$tmp/auth.json" <<'JSON'
 {
+  "kind": "AQLEVON_MANAGER_PAID_AUTHORIZATION_V2",
+  "control_plane_contract": "AQLEVON_27B_CONTROL_PLANE_V2",
+  "fresh_authorization": true,
+  "issued_at_utc": "2099-01-01T00:00:00Z",
   "authorization_id": "TEST-FRESH-AUTH",
   "single_use": true,
   "training_authorized": true,
@@ -116,6 +126,27 @@ cat >"$tmp/auth.json" <<'JSON'
 }
 JSON
 SRC="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+cat >"$tmp/legacy-auth.json" <<'JSON'
+{
+  "kind": "AQLEVON_MANAGER_PAID_AUTHORIZATION_V1",
+  "authorization_id": "HISTORICAL-AUTH-MUST-FAIL",
+  "single_use": true,
+  "training_authorized": true,
+  "automatic_cleanup_required": true,
+  "artifact_preservation_required": true,
+  "no_main_merge": true,
+  "sealed_eval_forbidden": true,
+  "issued_at_utc": "2026-09-27T00:00:00Z"
+}
+JSON
+if python3 .github/runpod-control/aqlevon-27b-reservation.py reserve \
+  --authorization "$tmp/legacy-auth.json" --reservation "$tmp/legacy-reservation.json" --consumed "$tmp/legacy-consumed.json" \
+  --run-id 100 --run-attempt 1 --source-sha "$SRC" --expected-authorization-id HISTORICAL-AUTH-MUST-FAIL >/dev/null 2>&1; then
+  echo "legacy authorization unexpectedly passed fresh-auth gate" >&2
+  exit 1
+fi
+echo AQLEVON_27B_LEGACY_AUTHORIZATION_REJECTED_PASS
+
 python3 .github/runpod-control/aqlevon-27b-reservation.py reserve \
   --authorization "$tmp/auth.json" --reservation "$tmp/reservation.json" --consumed "$tmp/consumed.json" \
   --run-id 101 --run-attempt 1 --source-sha "$SRC" --expected-authorization-id TEST-FRESH-AUTH

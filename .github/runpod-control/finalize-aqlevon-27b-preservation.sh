@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-RESULT="${AQLEVON_RESULT_PATH:-.github/runpod-control/aqlevon-27b-r0-preserve-result-02.json}"
+RESULT="${AQLEVON_RESULT_PATH:-.github/runpod-control/aqlevon-27b-r0-fresh-result.json}"
 VERIFY_MARKER="${AQLEVON_VERIFY_MARKER_PATH:-/tmp/aq27-evidence-verified.json}"
 POD_FILE="${AQLEVON_POD_FILE:-/tmp/aq27-pod}"
 pod="$(cat "$POD_FILE" 2>/dev/null || true)"
