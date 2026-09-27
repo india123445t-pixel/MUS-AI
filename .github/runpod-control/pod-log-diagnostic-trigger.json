@@ -1,6 +1,6 @@
 {
   "pod_id": "v3njg70l4mtazn",
-  "source": "container",
-  "requested_at_utc": "2026-09-27T15:19:00+00:00",
-  "reason": "AQLEVON 27B fresh retry runtime-status probe"
+  "source": "system",
+  "requested_at_utc": "2026-09-27T15:24:00+00:00",
+  "reason": "verify stopped state after AQLEVON 27B budget timeout"
 }
