@@ -3,6 +3,9 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+
 bash -n .github/runpod-control/run-aqlevon-27b-r0-budget8.sh
 bash -n .github/runpod-control/finalize-aqlevon-27b-preservation.sh
 bash -n .github/runpod-control/aqlevon-27b-r0-bootstrap.sh
@@ -79,8 +82,6 @@ assert x["private_or_sealed_source_count"]==0
 PY
 echo AQLEVON_27B_SCIENTIFIC_CONTRACT_BINDING_PASS
 
-tmp="$(mktemp -d)"
-trap 'rm -rf "$tmp"' EXIT
 
 # Evidence verifier: adapter integrity + mandatory structured runtime versions.
 mkdir -p "$tmp/evidence/candidate/adapter"
