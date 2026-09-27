@@ -1,0 +1,14 @@
+{
+  "authorization_id": "P4-AQLEVON-27B-R0-FRESH-20260927-1606-08",
+  "consumed_at_utc": "2026-09-27T16:08:56.906354+00:00",
+  "consumption_state": "CONSUMED_BY_PRECREATE_RESERVATION",
+  "kind": "AQLEVON_27B_AUTH_CONSUMPTION_V2",
+  "pod_id": null,
+  "provider_create_attempted": false,
+  "reservation_id": "40abe3e3f2afdc88f46c362c70994915c0a5c1204775511b699fcca7c12d231b",
+  "run_attempt": "1",
+  "run_id": "36332132785",
+  "scientific_contract_sha256": "484c369ee9e4d19d1142f4d55cce4296a594d49697d5cf47afa13f31da0a283d",
+  "single_use_consumed": true,
+  "source_sha": "e07d41dd140c7a56b3a27a45fb8ca04b5e03ac74"
+}
