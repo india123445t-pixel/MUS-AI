@@ -1,6 +1,11 @@
 {
-  "action": "status",
+  "action": "execute_auth08_unified_public_eval",
   "requested_by": "AQLEVON_MANAGER",
-  "mode": "read_only",
-  "note": "No paid public evaluation authorized yet."
+  "mode": "paid_single_use",
+  "authorization_id": "AQLEVON-AUTH08-PUBLIC-EVAL-20260927-01",
+  "max_total_cost_usd": 1.5,
+  "max_hourly_rate_usd": 1.6,
+  "max_billed_seconds": 3300,
+  "nonce": "auth08-public-eval-20260927-01",
+  "note": "Fresh owner-authorized unified public evaluation: 128 structural-generalization + 224 paired-public attempts; no sealed/private W05."
 }
