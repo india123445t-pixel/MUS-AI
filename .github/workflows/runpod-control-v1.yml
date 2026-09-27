@@ -99,3 +99,12 @@ jobs:
           fi
           bash -n .github/runpod-control/run-aqlevon-27b-r0-budget8.sh
           exec bash .github/runpod-control/run-aqlevon-27b-r0-budget8.sh
+
+      - name: Preserve AQLEVON 27B R0 adapter artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aqlevon-27b-r0-preserve-${{ github.run_id }}
+          path: /tmp/aq27-r2-evidence.tgz
+          if-no-files-found: ignore
+          retention-days: 14
