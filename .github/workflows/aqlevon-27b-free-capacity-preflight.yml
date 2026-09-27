@@ -19,6 +19,15 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ops/runpod-control-v1
+      - name: Verify paid script syntax and no literal newline corruption
+        run: |
+          set -euo pipefail
+          bash -n .github/runpod-control/run-aqlevon-27b-r0-budget8.sh
+          if grep -F '\\n' .github/runpod-control/run-aqlevon-27b-r0-budget8.sh; then
+            echo "::error::literal backslash-n found in paid script"
+            exit 1
+          fi
+          echo AQLEVON_27B_PAID_SCRIPT_SYNTAX_PASS
       - name: Verify no active AQLEVON 27B pod
         run: |
           set -euo pipefail
@@ -40,9 +49,19 @@ jobs:
       - name: Install runpodctl
         run: |
           set -euo pipefail
-          sudo wget -q https://github.com/runpod/runpodctl/releases/latest/download/runpodctl-linux-amd64 -O /usr/local/bin/runpodctl
-          sudo chmod +x /usr/local/bin/runpodctl
-          runpodctl version || true
+          RUNPODCTL_URL="https://github.com/runpod/runpodctl/releases/latest/download/runpodctl-linux-amd64"
+          RUNPODCTL_TMP="/tmp/aqlevon-runpodctl"
+          rm -f "$RUNPODCTL_TMP"
+          for attempt in 1 2 3 4 5; do
+            if curl -fL --retry 2 --retry-all-errors --connect-timeout 10 --max-time 90 "$RUNPODCTL_URL" -o "$RUNPODCTL_TMP"; then
+              break
+            fi
+            rm -f "$RUNPODCTL_TMP"
+            sleep $((attempt * 2))
+          done
+          test -s "$RUNPODCTL_TMP"
+          sudo install -m 0755 "$RUNPODCTL_TMP" /usr/local/bin/runpodctl
+          runpodctl version
       - name: Check A100 80GB secure capacity under ceiling
         run: |
           set -euo pipefail
