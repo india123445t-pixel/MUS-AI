@@ -1,0 +1,10 @@
+{
+  "authorization_id": "AQLEVON-AUTH02-EVIDENCE-RECOVERY-20260927-01",
+  "consumed_at_utc": "2026-09-27T22:33:34.285853+00:00",
+  "kind": "AQLEVON_AUTH08_EVIDENCE_RECOVERY_CONSUMPTION_V1",
+  "no_inference": true,
+  "no_model_dispatch": true,
+  "run_id": "36355697462",
+  "state": "CONSUMED_BEFORE_PROVIDER_START",
+  "target_pod_id": "hjwspv5aqtnqxd"
+}
