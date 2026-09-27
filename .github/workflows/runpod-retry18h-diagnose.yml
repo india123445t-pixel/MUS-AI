@@ -1,4 +1,4 @@
-name: Diagnose Retry18H Stopped Pod
+name: Diagnose Active AQLEVON 27B Pod
 
 on:
   push:
@@ -43,7 +43,7 @@ jobs:
           try: raw=json.load(open('/tmp/pods.json'))
           except Exception: raise SystemExit(0)
           pods=((raw.get('data') or {}).get('myself') or {}).get('pods') or []
-          exact=[p for p in pods if isinstance(p,dict) and p.get('name')=='AQLEVON-P4-A1-R18H']
+          exact=[p for p in pods if isinstance(p,dict) and p.get('name')=='AQLEVON-27B-R0-BUDGET8-04']
           if exact:
               exact.sort(key=lambda p:str(p.get('createdAt') or ''))
               print(exact[-1].get('id') or '')
@@ -51,16 +51,13 @@ jobs:
           )"
           if [ -z "$POD_ID" ]; then
             POD_ID="$(python - <<'PY'
-          import json
-          try: raw=json.load(open('/tmp/pods.json'))
-          except Exception: raise SystemExit(0)
-          pods=((raw.get('data') or {}).get('myself') or {}).get('pods') or []
-          c=[p for p in pods if isinstance(p,dict) and str(p.get('createdAt') or '').startswith('2026-09-22') and p.get('costPerHr')==0.74]
-          if c:
-              c.sort(key=lambda p:str(p.get('createdAt') or ''))
-              print(c[-1].get('id') or '')
-          PY
-            )"
+import json
+from pathlib import Path
+p=Path('.github/runpod-control/aqlevon-27b-r0-budget8-pr-consumed-04.json')
+if p.exists():
+    print(json.loads(p.read_text()).get('pod_id') or '')
+PY
+)"
           fi
 
           LOG_RC=99
@@ -104,10 +101,10 @@ jobs:
               'stderr':err,
               'lines':lines[-500:]
           }
-          open('.github/runpod-control/retry18h-diagnostic.json','w',encoding='utf-8').write(
+          open('.github/runpod-control/aqlevon-27b-live-diagnostic.json','w',encoding='utf-8').write(
               json.dumps(out,indent=2,sort_keys=True)+'\n'
           )
-          print('RETRY18H_DIAGNOSTIC_WRITTEN',out['pod_found'],len(lines))
+          print('AQLEVON_27B_DIAGNOSTIC_WRITTEN',out['pod_found'],len(lines))
           PY
 
       - name: Commit sanitized diagnostic
@@ -116,7 +113,7 @@ jobs:
           set -euo pipefail
           git config user.name "aqlevon-runpod-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add .github/runpod-control/retry18h-diagnostic.json
-          git commit -m "ops: record Retry18H stopped-pod diagnostic [skip ci]" || exit 0
+          git add .github/runpod-control/aqlevon-27b-live-diagnostic.json
+          git commit -m "ops: record AQLEVON 27B live diagnostic [skip ci]" || exit 0
           git pull --rebase origin ops/runpod-control-v1
           git push origin HEAD:ops/runpod-control-v1
