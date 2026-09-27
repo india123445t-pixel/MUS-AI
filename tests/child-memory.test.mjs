@@ -2,9 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import {fileURLToPath} from 'node:url';
 import {normalizeChildMemory,selectChildMemories} from '../lib/aqlevon/child-memory.js';
 
-const root=path.resolve(path.dirname(new URL(import.meta.url).pathname),'..');
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const db=fs.readFileSync(path.join(root,'app/admin/child-lab/memory-db.js'),'utf8');
 const page=fs.readFileSync(path.join(root,'app/admin/child-lab/page.js'),'utf8');
 const runtime=fs.readFileSync(path.join(root,'lib/aqlevon/child-runtime.js'),'utf8');
