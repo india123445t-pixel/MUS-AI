@@ -1,0 +1,159 @@
+{
+  "schema_version": "aqlevon.b07e0.config.v1",
+  "experiment_id": "B07-E0",
+  "task_id": "B07-02-BUILD-THE-BREAKTHROUGH-FALSIFIER",
+  "base_model": {
+    "repo_id": "Qwen/Qwen3.5-0.8B-Base",
+    "revision": "dc7cdfe2ee4154fa7e30f5b51ca41bfa40174e68",
+    "license": "apache-2.0",
+    "parameter_class_reported": "0.8B",
+    "text_architecture": "Qwen3_5ForCausalLM via composite-checkpoint text_config",
+    "hybrid_pattern": "3 linear_attention : 1 full_attention",
+    "trust_remote_code": false
+  },
+  "data_policy": {
+    "owner": "AQLEVON Worker 07 synthetic-only microprotocol generator",
+    "protected_benchmarks_allowed": false,
+    "closed_model_outputs_allowed": false,
+    "worker02_assets_imported": false,
+    "note": "B07-E0 owns only synthetic microprotocol data. Worker-02 protected/private verifier assets are not imported or duplicated."
+  },
+  "dataset": {
+    "modulus": 17,
+    "capsule_examples_per_family": 32,
+    "train_examples_per_family": 64,
+    "hidden_examples_per_family": 64,
+    "generation_seed": 7007,
+    "train_prompt_variants": [
+      0,
+      1
+    ],
+    "hidden_prompt_variant": 0,
+    "semantic_hidden_prompt_variant": 2
+  },
+  "lora": {
+    "rank": 2,
+    "alpha": 2,
+    "dropout": 0.0,
+    "target_modules": [
+      "q_proj",
+      "v_proj"
+    ],
+    "bias": "none",
+    "max_steps": 48,
+    "batch_size": 4,
+    "learning_rate": 0.0003,
+    "weight_decay": 0.0,
+    "seed": 707,
+    "max_length": 96
+  },
+  "compiler": {
+    "ridge_alpha": 0.1,
+    "pca_variance_target": 0.95,
+    "max_components": 6,
+    "eigenvalue_floor": 1e-10,
+    "random_control_seed": 7007001
+  },
+  "decision": {
+    "required_holdout_families": 4,
+    "min_direct_lift": 0.2,
+    "min_families_beating_all_controls": 3,
+    "min_control_margin": 0.02,
+    "min_median_lift_recovery": 0.4,
+    "max_worst_family_regression": 0.05,
+    "require_semantic_hidden_positive_direction": true,
+    "mandatory_controls": [
+      "zero_update",
+      "random_same_norm",
+      "nearest_adapter",
+      "mean_delta",
+      "basis_pc1_same_norm"
+    ]
+  },
+  "families": [
+    {
+      "id": "cap_00",
+      "split": "compiler_train",
+      "a": 1,
+      "b": 1,
+      "c": 1
+    },
+    {
+      "id": "cap_01",
+      "split": "compiler_train",
+      "a": 1,
+      "b": -1,
+      "c": 2
+    },
+    {
+      "id": "cap_02",
+      "split": "compiler_train",
+      "a": 2,
+      "b": 1,
+      "c": 3
+    },
+    {
+      "id": "cap_03",
+      "split": "compiler_train",
+      "a": 1,
+      "b": 2,
+      "c": 4
+    },
+    {
+      "id": "cap_04",
+      "split": "compiler_train",
+      "a": 3,
+      "b": -1,
+      "c": 5
+    },
+    {
+      "id": "cap_05",
+      "split": "compiler_train",
+      "a": -1,
+      "b": 3,
+      "c": 6
+    },
+    {
+      "id": "cap_06",
+      "split": "compiler_train",
+      "a": 2,
+      "b": 2,
+      "c": 7
+    },
+    {
+      "id": "cap_07",
+      "split": "compiler_train",
+      "a": 4,
+      "b": 1,
+      "c": 8
+    },
+    {
+      "id": "cap_08",
+      "split": "compiler_holdout",
+      "a": 1,
+      "b": 4,
+      "c": 9
+    },
+    {
+      "id": "cap_09",
+      "split": "compiler_holdout",
+      "a": 5,
+      "b": -2,
+      "c": 10
+    },
+    {
+      "id": "cap_10",
+      "split": "compiler_holdout",
+      "a": -2,
+      "b": 5,
+      "c": 11
+    },
+    {
+      "id": "cap_11",
+      "split": "compiler_holdout",
+      "a": 3,
+      "b": 4,
+      "c": 12
+    }
+  ]
+}
