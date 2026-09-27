@@ -2,8 +2,9 @@
 set -euo pipefail
 
 AUTH=.github/runpod-control/aqlevon-27b-r0-fresh-authorization.json
-RESERVATION=.github/runpod-control/aqlevon-27b-r0-fresh-reservation.json
-CONSUMED=.github/runpod-control/aqlevon-27b-r0-fresh-consumed.json
+CLAIMS_DIR=.github/runpod-control/claims
+RESERVATION=""
+CONSUMED=""
 RESULT=.github/runpod-control/aqlevon-27b-r0-fresh-result.json
 IMAGE_DIGEST=sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec
 SCIENTIFIC_CONTRACT_SHA256=484c369ee9e4d19d1142f4d55cce4296a594d49697d5cf47afa13f31da0a283d
@@ -14,7 +15,7 @@ SCIENTIFIC_CONTRACT_VERIFIER_PATH=research/weight_factory/agent03/aqlevon_27b_re
 SCIENTIFIC_CONTRACT_VERIFIER_BLOB=990ab86bebcbe69050dc5f644c6ff12f60db75d3
 HISTORICAL_SOURCE_COMMIT=4e3f1b03cfe77ac4355907ec692574f30d180252
 W02_COMMIT=abb94ef134e2e97036b6959dbc9db4278d3736b6
-MAX_ELAPSED=3000
+MAX_ELAPSED=3200
 pod=""
 stopped=0
 
@@ -32,8 +33,6 @@ trap cleanup EXIT
 
 test -n "${RUNPOD_API_KEY:-}"
 test -f "$AUTH"
-test ! -e "$RESERVATION"
-test ! -e "$CONSUMED"
 python3 -m py_compile research/weight_factory/agent03/aqlevon_27b_r0_auth16_transfer.py .github/runpod-control/aqlevon-27b-reservation.py
 bash -n .github/runpod-control/aqlevon-27b-r0-bootstrap.sh
 echo AQLEVON_27B_FREE_SYNTAX_PREFLIGHT_PASS
@@ -66,6 +65,11 @@ PY
 AUTH_ID="$(cat /tmp/aq27-auth-id)"
 export AUTH_ID
 export SCIENTIFIC_CONTRACT_SHA256
+mkdir -p "$CLAIMS_DIR"
+RESERVATION="$CLAIMS_DIR/${AUTH_ID}.reservation.json"
+CONSUMED="$CLAIMS_DIR/${AUTH_ID}.consumed.json"
+test ! -e "$RESERVATION"
+test ! -e "$CONSUMED"
 
 # Verify Agent 03's frozen scientific contract, source blobs, and training
 # constants before any provider API call or provider-create action.
@@ -190,7 +194,7 @@ echo AQLEVON_27B_DURABLE_PRECREATE_RESERVATION_PASS
 
 BOOT_URL="https://raw.githubusercontent.com/india123445t-pixel/MUS-AI/$GITHUB_SHA/.github/runpod-control/aqlevon-27b-r0-bootstrap.sh"
 DOCKER_ARGS="bash -lc 'export AQLEVON_SOURCE_SHA=$GITHUB_SHA; curl -fsSL $BOOT_URL -o /tmp/aq27.sh && chmod +x /tmp/aq27.sh && exec bash /tmp/aq27.sh'"
-runpodctl pod create   --name AQLEVON-27B-R0-BUDGET8   --image "ghcr.io/india123445t-pixel/mus-ai@$IMAGE_DIGEST"   --gpu-id "NVIDIA A100-SXM4-80GB"   --gpu-count 1   --cloud-type SECURE   --container-disk-in-gb 100   --ports 8000/http   --ssh=false   --docker-args "$DOCKER_ARGS"   --output json >/tmp/aq27-create.json
+runpodctl pod create   --name AQLEVON-27B-R0-BUDGET8   --image "ghcr.io/india123445t-pixel/mus-ai@$IMAGE_DIGEST"   --gpu-id "NVIDIA A100-SXM4-80GB"   --gpu-count 1   --cloud-type SECURE   --container-disk-in-gb 40   --volume-in-gb 100   --volume-mount-path /workspace   --ports 8000/http   --ssh=false   --docker-args "$DOCKER_ARGS"   --output json >/tmp/aq27-create.json
 
 python3 - <<'PY'
 import json,time
