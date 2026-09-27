@@ -4,9 +4,9 @@
   "issued_at_utc": "2026-09-27T22:43:30Z",
   "authorized_by": "AQLEVON_OWNER",
   "owner_authorization_text": "أصرح بمحاولة استرداد Zero-GPU لأدلة Auth02 من الـPod `hjwspv5aqtnqxd` مرة واحدة فقط، بحد أقصى إجمالي 0.20 دولار و300 ثانية، مع اشتراط `gpuCount=0` وعدم تشغيل أي inference أو model dispatch، ودون W05 ودون دمج إلى main.",
-  "fresh_authorization": true,
+  "fresh_authorization": false,
   "single_use": true,
-  "artifact_recovery_authorized": true,
+  "artifact_recovery_authorized": false,
   "zero_gpu_required": true,
   "required_gpu_count": 0,
   "no_inference": true,
@@ -17,5 +17,15 @@
   "max_billed_seconds": 300,
   "historical_w05_forbidden": true,
   "no_main_merge": true,
-  "consumed": false
+  "consumed": true,
+  "consumed_run_id": 36356308254,
+  "consumed_claim": "ops/auth08-eval/claims/AQLEVON-AUTH02-EVIDENCE-RECOVERY-ZEROGPU-20260927-02.recovery.consumed.json",
+  "provider_resume_attempted": true,
+  "provider_resume_succeeded": false,
+  "provider_error": "There are not enough free GPUs on the host machine to start this pod.",
+  "pod_remained_exited": true,
+  "no_inference_verified": true,
+  "no_model_dispatch_verified": true,
+  "invalidated_after_attempt": true,
+  "invalidated_reason": "Single-use zero-GPU recovery claim became durable before podResume. podResume with gpuCount=0 returned a Runpod GPU-capacity error; live recheck confirmed the Pod remained EXITED and no runtime started. Authorization must not be reused."
 }
