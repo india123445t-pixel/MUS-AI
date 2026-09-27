@@ -1,5 +1,5 @@
 {
-  "nonce": "auth02-zero-gpu-recovery-preflight-20260927T2236Z",
+  "nonce": "auth02-cpu-zero-gpu-schema-preflight-20260927T2247Z",
   "mode": "free_only",
-  "expected": "graphql_podResume_gpuCount_0"
+  "expected": "computeType_CPU_gpuCount_0"
 }
