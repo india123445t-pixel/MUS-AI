@@ -1,28 +1,9 @@
 {
   "action": "status",
   "api": "v1",
-  "checked_at_utc": "2026-09-27T07:11:13.281690+00:00",
+  "checked_at_utc": "2026-09-27T08:59:21.309022+00:00",
   "ok": true,
-  "pod_count": 1,
-  "pods": [
-    {
-      "container_status": null,
-      "cost_per_hr": 1.59,
-      "created_at": "2026-09-27 07:00:45.974 +0000 UTC",
-      "data_center_id": null,
-      "fingerprint": "ccf7fe1cdb17",
-      "gpu_type_id": null,
-      "last_status_change": "Rented by User: Sun Sep 27 2026 07:00:45 GMT+0000 (Coordinated Universal Time)",
-      "status": "RUNNING"
-    }
-  ],
-  "target_detail": {
-    "costPerHr": 1.59,
-    "createdAt": "2026-09-27 07:00:45.974 +0000 UTC",
-    "desiredStatus": "RUNNING",
-    "gpuCount": 1,
-    "imageName": "ghcr.io/india123445t-pixel/mus-ai@sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec",
-    "lastStatusChange": "Rented by User: Sun Sep 27 2026 07:00:45 GMT+0000 (Coordinated Universal Time)",
-    "name": "AQLEVON-27B-R0-BUDGET8-04"
-  }
+  "pod_count": 0,
+  "pods": [],
+  "target_detail": {}
 }
