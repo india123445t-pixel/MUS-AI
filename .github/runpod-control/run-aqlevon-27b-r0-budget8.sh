@@ -274,15 +274,18 @@ assert isinstance(cmd,list) and len(cmd)==1 and "AQLEVON_SOURCE_SHA=" in cmd[0],
 print("AQLEVON_27B_STOPPED_POD_REST_UPDATE_PASS",p["id"],p.get("machineId"))
 PY
 
-  curl -fsS --request POST \
-    --url "https://rest.runpod.io/v1/pods/$RESUME_POD_ID/start" \
-    --header "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/aq27-start-response.txt
   started=0
-  for _ in $(seq 1 60); do
-    if curl -fsS --request GET \
-      --url "https://rest.runpod.io/v1/pods/$RESUME_POD_ID?includeMachine=true" \
-      --header "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/aq27-create.json; then
-      if TARGET_POD_ID="$RESUME_POD_ID" AQLEVON_IMAGE_NAME="$IMAGE_NAME" python3 - <<'PY'
+  for start_attempt in $(seq 1 6); do
+    start_code="$(curl -sS --request POST \
+      --url "https://rest.runpod.io/v1/pods/$RESUME_POD_ID/start" \
+      --header "Authorization: Bearer $RUNPOD_API_KEY" \
+      -o /tmp/aq27-start-response.txt -w '%{http_code}' || true)"
+    echo "AQLEVON_27B_RESUME_START_ATTEMPT attempt=$start_attempt http=$start_code"
+    for _ in $(seq 1 12); do
+      if curl -fsS --request GET \
+        --url "https://rest.runpod.io/v1/pods/$RESUME_POD_ID?includeMachine=true" \
+        --header "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/aq27-create.json; then
+        if TARGET_POD_ID="$RESUME_POD_ID" AQLEVON_IMAGE_NAME="$IMAGE_NAME" python3 - <<'PY'
 import json,os,sys
 p=json.load(open("/tmp/aq27-create.json"))
 if p.get("id")!=os.environ["TARGET_POD_ID"]:
@@ -304,12 +307,15 @@ open("/tmp/aq27-price","w").write(str(price))
 open("/tmp/aq27-resumed-pod","w").write(str(p["id"]))
 print("AQLEVON_27B_EXISTING_POD_REST_START_PASS",p["id"],p.get("machineId"),price)
 PY
-      then
-        started=1
-        break
+        then
+          started=1
+          break
+        fi
       fi
-    fi
-    sleep 2
+      sleep 2
+    done
+    if [ "$started" = 1 ]; then break; fi
+    sleep 5
   done
   test "$started" = 1
   pod="$(cat /tmp/aq27-resumed-pod)"
