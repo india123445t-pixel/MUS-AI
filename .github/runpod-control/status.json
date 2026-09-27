@@ -1,7 +1,7 @@
 {
   "action": "status",
   "api": "v1",
-  "checked_at_utc": "2026-09-27T09:01:25.543167+00:00",
+  "checked_at_utc": "2026-09-27T09:02:28.184967+00:00",
   "ok": true,
   "pod_count": 1,
   "pods": [
@@ -16,6 +16,7 @@
       "status": "RUNNING"
     }
   ],
+  "runtime_status": {},
   "target_detail": {
     "costPerHr": 1.59,
     "createdAt": "2026-09-27 08:59:23.847 +0000 UTC",
