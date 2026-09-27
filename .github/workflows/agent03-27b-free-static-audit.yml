@@ -1,0 +1,56 @@
+name: Agent03 27B Free Static Audit
+
+on:
+  push:
+    branches:
+      - agent/03-27b-control-audit-20260927
+    paths:
+      - "research/weight_factory/agent03/aqlevon_27b_r0_static_audit_v1.py"
+      - "tests/test_aqlevon_27b_r0_static_audit.py"
+      - ".github/workflows/agent03-27b-free-static-audit.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  static_audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify pinned historical commits are available
+        shell: bash
+        run: |
+          set -euo pipefail
+          git cat-file -e 4e3f1b03cfe77ac4355907ec692574f30d180252^{commit}
+          if ! git cat-file -e abb94ef134e2e97036b6959dbc9db4278d3736b6^{commit} 2>/dev/null; then
+            git fetch --no-tags origin abb94ef134e2e97036b6959dbc9db4278d3736b6
+          fi
+          git cat-file -e abb94ef134e2e97036b6959dbc9db4278d3736b6^{commit}
+
+      - name: Free syntax check of exact historical path
+        shell: bash
+        run: |
+          set -euo pipefail
+          git show 4e3f1b03cfe77ac4355907ec692574f30d180252:research/weight_factory/agent03/aqlevon_27b_r0_auth16_transfer.py > /tmp/aq27-trainer.py
+          git show 4e3f1b03cfe77ac4355907ec692574f30d180252:.github/runpod-control/run-aqlevon-27b-r0-budget8.sh > /tmp/aq27-control.sh
+          git show 4e3f1b03cfe77ac4355907ec692574f30d180252:.github/runpod-control/aqlevon-27b-r0-bootstrap.sh > /tmp/aq27-bootstrap.sh
+          git show abb94ef134e2e97036b6959dbc9db4278d3736b6:research/weight_factory/agent02/gene1_data_verifier_pack_v1.py > /tmp/aq27-w02.py
+          python3 -m py_compile /tmp/aq27-trainer.py /tmp/aq27-w02.py
+          bash -n /tmp/aq27-control.sh
+          bash -n /tmp/aq27-bootstrap.sh
+
+      - name: Compile audit detector and unit test
+        run: |
+          python3 -m py_compile research/weight_factory/agent03/aqlevon_27b_r0_static_audit_v1.py
+          python3 -m py_compile tests/test_aqlevon_27b_r0_static_audit.py
+
+      - name: Run free unit and static audit tests
+        run: python3 -m unittest -v tests/test_aqlevon_27b_r0_static_audit.py
+
+      - name: Emit exact audit report
+        run: python3 research/weight_factory/agent03/aqlevon_27b_r0_static_audit_v1.py
