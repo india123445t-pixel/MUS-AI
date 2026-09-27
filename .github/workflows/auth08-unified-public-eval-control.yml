@@ -1,0 +1,70 @@
+name: Auth08 Unified Public Eval Control
+
+on:
+  push:
+    branches: [manager/auth08-unified-eval-20260927]
+    paths:
+      - "ops/auth08-eval/command.json"
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: aqlevon-auth08-unified-public-eval-paid-single-flight
+  cancel-in-progress: false
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: manager/auth08-unified-eval-20260927
+          fetch-depth: 0
+      - name: Gate command
+        id: gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          action="$(python3 -c 'import json; print(json.load(open("ops/auth08-eval/command.json")).get("action",""))')"
+          if [ "$action" = "execute_auth08_unified_public_eval" ]; then
+            echo "requested=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "requested=false" >> "$GITHUB_OUTPUT"
+            echo AQLEVON_AUTH08_EVAL_COMMAND_NOT_REQUESTED
+          fi
+      - name: Execute Auth08 unified public eval
+        id: controller
+        if: steps.gate.outputs.requested == 'true'
+        env:
+          RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          bash ops/auth08-eval/run-auth08-unified-eval.sh
+      - name: Upload Auth08 public eval evidence
+        id: upload
+        if: steps.gate.outputs.requested == 'true' && steps.controller.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: aqlevon-auth08-unified-public-eval-${{ github.run_id }}
+          path: |
+            /tmp/auth08-public-eval-final-evidence.tgz
+            /tmp/auth08-public-eval-final-evidence.sha256
+            /tmp/generalization-score.json
+            /tmp/paired-public-score.json
+            /tmp/combined-public-eval-verdict.json
+          if-no-files-found: error
+          retention-days: 90
+      - name: Finalize durable upload and delete pod
+        if: steps.gate.outputs.requested == 'true' && steps.controller.outcome == 'success' && steps.upload.outcome == 'success'
+        env:
+          RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+          UPLOAD_OUTCOME: ${{ steps.upload.outcome }}
+          ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
+          ARTIFACT_DIGEST: ${{ steps.upload.outputs.artifact-digest }}
+        run: |
+          set -euo pipefail
+          bash ops/auth08-eval/finalize.sh
