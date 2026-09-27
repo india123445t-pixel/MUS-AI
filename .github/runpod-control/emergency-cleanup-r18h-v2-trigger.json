@@ -1,6 +1,6 @@
 {
-  "action": "emergency_cleanup",
-  "pod_id": "k0asg9w5vlhcnr",
-  "requested_by": "AQLEVON_MANAGER",
-  "nonce": "2026-09-22T05:34:00Z"
+  "action": "stop_delete_exact_stalled_27b",
+  "pod_fingerprint": "ccf7fe1cdb17",
+  "reason": "No bootstrap/status after >10m; protect owner $8 budget",
+  "nonce": "20260927-cleanup-27b-04"
 }
