@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "authorization_id": "P4-27B-R0A-BUDGET8-20260927-01",
+  "authorized_at_utc": "2026-09-27T04:00:16Z",
+  "owner_authorization_basis": "Owner explicitly authorized up to USD 8 RunPod spend for AQLEVON final-model mission; live RunPod balance verified as 7.437698534 USD before authorization.",
+  "single_use": true,
+  "training_authorized": true,
+  "merge_to_main_authorized": false,
+  "model_repo": "Qwen/Qwen3.8-27B",
+  "model_revision": "1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0",
+  "candidate": "AQLEVON-27B-R0A-GENE1",
+  "precision": "bf16",
+  "quantization": "none",
+  "gpu_id": "NVIDIA A100-SXM4-80GB",
+  "max_hourly_rate_usd": "1.60",
+  "max_total_cost_usd": "6.50",
+  "max_billed_seconds": 14400,
+  "minimum_balance_reserve_usd": "0.60",
+  "observed_account_balance_usd": "7.437698534",
+  "balance_checked_at_utc": "2026-09-27T04:00:16.147336+00:00",
+  "source_head": "8b317be3153dce814236493e4e2fe2b63dcac84c",
+  "trainer_blob_sha": "133a0b61dff2ea337663031c4ce22a9b0df62820",
+  "bootstrap_blob_sha": "1462f4f57e2259262a061802087f57a634108ff4",
+  "driver_blob_sha": "ae3bab6dd991a163d2328cfd2aa1073c0683dabc",
+  "workflow_blob_sha": "f13f0e45f8092462878394f0600fb5c294b5257a",
+  "training_pack_sha256": "35c7ebe6d5e82f42d7553fa28391f6d82c8800d6eced582d06881c8eb17d9d6b",
+  "w02_head": "abb94ef134e2e97036b6959dbc9db4278d3736b6",
+  "image_digest": "sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec",
+  "curriculum": {
+    "owned_synthetic_indices": "04..19",
+    "phases": [
+      [
+        4,
+        8
+      ],
+      [
+        8,
+        12
+      ],
+      [
+        12,
+        16
+      ],
+      [
+        16,
+        20
+      ]
+    ],
+    "updates_per_phase": 168,
+    "max_optimizer_updates": 672,
+    "discovery_dev_tasks": 28,
+    "public_shadow_tasks": 28,
+    "shadow_used_for_selection": false,
+    "sealed_worker05_eval_consumed": false
+  },
+  "stop_conditions": [
+    "paid_boundary_balance_below_authorized_cost_plus_reserve",
+    "A100_SXM_80GB_rate_above_1.60",
+    "no_authorized_A100_capacity",
+    "duplicate_active_AQLEVON_pod",
+    "source_or_blob_identity_mismatch",
+    "HTTP_readiness_timeout",
+    "HTTP_lost_after_readiness",
+    "billing_window_timeout",
+    "trainer_failure",
+    "evidence_egress_failure"
+  ],
+  "truth_boundary": "This authorization permits one bounded 27B training attempt and public held-out evaluation. It does not regenerate or consume the missing original Worker05 sealed secret and does not authorize a final frontier/superiority claim.",
+  "authorization_sha256": "24e0143ebd908134f0974640250fe1553d8d84f0534a085710e2f46d4847fecc"
+}
