@@ -149,7 +149,8 @@ if [ "$final_stage" = "DONE" ] || [ "$final_stage" = "FAILED" ]; then
     fi
     sleep 3
   done
-fiif [ "$final_stage" = "DONE" ] && [ "$evidence_ok" != 1 ]; then
+fi
+if [ "$final_stage" = "DONE" ] && [ "$evidence_ok" != 1 ]; then
   final_stage="EVIDENCE_EGRESS_FAILED"
   printf '%s\n' "$final_stage" >/tmp/aq27-final-stage
 fi
