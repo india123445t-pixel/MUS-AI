@@ -1,0 +1,24 @@
+name: Auth02 Host Readiness Readonly Probe
+
+on:
+  push:
+    branches: [manager/auth08-unified-eval-20260927]
+    paths:
+      - "ops/auth08-eval/host-readiness-probe.sh"
+      - "ops/auth08-eval/host-readiness-probe-trigger.json"
+      - ".github/workflows/auth02-host-readiness-probe.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Query stopped pod host capacity
+        env:
+          RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+        shell: bash
+        run: bash ops/auth08-eval/host-readiness-probe.sh
