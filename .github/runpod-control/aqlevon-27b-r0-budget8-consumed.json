@@ -1,0 +1,9 @@
+{
+  "authorization_id": "P4-AQLEVON-27B-R0-BUDGET8-20260927-01",
+  "controller_budget_window_seconds": 14500,
+  "created_at_utc": "2026-09-27T08:59:24.052668+00:00",
+  "max_total_cost_usd": 7.6,
+  "pod_id": "8sr0se37npmlje",
+  "single_use_consumed": true,
+  "source_sha": "4e3f1b03cfe77ac4355907ec692574f30d180252"
+}
