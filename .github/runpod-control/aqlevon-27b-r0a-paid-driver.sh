@@ -114,7 +114,7 @@ assert a["precision"]=="bf16" and a["quantization"]=="none"
 assert a["gpu_id"]=="NVIDIA A100-SXM4-80GB"
 assert a["max_hourly_rate_usd"]=="1.60"
 assert a["max_total_cost_usd"]=="6.50"
-assert a["minimum_balance_reserve_usd"]=="0.90"
+assert a["minimum_balance_reserve_usd"]=="0.60"
 assert a["observed_account_balance_usd"]=="7.437698534"
 assert float(a["max_total_cost_usd"])+float(a["minimum_balance_reserve_usd"])<=float(a["observed_account_balance_usd"])
 for path,key in [
