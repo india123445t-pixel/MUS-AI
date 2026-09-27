@@ -1,0 +1,12 @@
+{
+  "account_balance_before_creation_usd": 7.437698534,
+  "authorization_id": "P4-27B-R0A-BUDGET8-20260927-01",
+  "dynamic_max_billed_seconds": 14400,
+  "max_total_cost_usd": "6.50",
+  "minimum_balance_reserve_usd": "0.60",
+  "observed_capacity_datacenter": "US-KS-2",
+  "paid_boundary_refresh_at_utc": "2026-09-27T04:19:01.514759+00:00",
+  "selected_datacenter": "UNPINNED_ANY_AVAILABLE",
+  "selected_gpu_id": "NVIDIA A100-SXM4-80GB",
+  "selected_price_hr": 1.59
+}
