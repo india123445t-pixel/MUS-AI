@@ -1,7 +1,10 @@
 {
-  "action": "status",
+  "action": "execute_aqlevon_27b_r0_budget8",
   "requested_by": "AQLEVON_MANAGER",
-  "mode": "read_only",
-  "nonce": "aq27-final-status-20260927-1134",
-  "note": "verify pod deleted after successful 27B run"
+  "mode": "paid_single_use",
+  "authorization_id": "P4-AQLEVON-27B-R0-FRESH-20260927-141120-03",
+  "max_total_cost_usd": 1.5,
+  "scientific_contract_sha256": "484c369ee9e4d19d1142f4d55cce4296a594d49697d5cf47afa13f31da0a283d",
+  "nonce": "aq27-fresh-20260927-141120-03",
+  "note": "Owner explicitly authorized one fresh AQLEVON-27B run with max total cost USD 1.50."
 }
