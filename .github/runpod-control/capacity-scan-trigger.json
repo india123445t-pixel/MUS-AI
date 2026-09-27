@@ -1,6 +1,7 @@
 {
-  "action": "scan_secure_gpu_capacity",
-  "reason": "AQLEVON $8 authorized mission fresh pre-spend scan before 27B recipe transfer",
-  "nonce": "20260927-budget8-27b-prespend-01",
-  "requested_at_utc": "2026-09-27T03:50:00Z"
+  "action": "execute_aqlevon_27b_r0_budget8_via_registered_control_trigger",
+  "authorization_id": "P4-AQLEVON-27B-R0-BUDGET8-20260927-01",
+  "reason": "Registered-path bridge for the already-authorized 27B R0 run; workflow performs free syntax checks before paid creation.",
+  "nonce": "20260927-27b-r0-budget8-launch-01",
+  "requested_at_utc": "2026-09-27T06:39:00Z"
 }
