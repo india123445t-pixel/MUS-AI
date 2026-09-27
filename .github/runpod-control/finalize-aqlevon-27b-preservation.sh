@@ -13,7 +13,7 @@ artifact_digest="${AQLEVON_ARTIFACT_DIGEST:-}"
 stop_pod() {
   if [ -n "$pod" ]; then
     curl -sS -X POST "https://rest.runpod.io/v1/pods/$pod/stop" \
-      -H "Authorization: Bearer $RUNPOD_API_KEY" \
+      -H "Authorization: Bearer ${RUNPOD_API_KEY:-}" \
       -H 'Content-Type: application/json' -d '{}' >/tmp/aq27-finalize-stop.json || true
   fi
 }
@@ -25,10 +25,14 @@ record_result() {
     return 0
   fi
   AQ_STATE="$state" AQ_DELETED="$deleted" AQ_ARTIFACT_ID="$artifact_id" \
-  AQ_ARTIFACT_URL="$artifact_url" AQ_ARTIFACT_DIGEST="$artifact_digest" AQ_VERIFY_MARKER="$VERIFY_MARKER" RESULT="$RESULT" \
+  AQ_ARTIFACT_URL="$artifact_url" AQ_ARTIFACT_DIGEST="$artifact_digest" \
+  AQ_VERIFY_MARKER="$VERIFY_MARKER" RESULT="$RESULT" \
   python3 - <<'PY'
-import datetime,json,os
+import datetime
+import json
+import os
 from pathlib import Path
+
 p=Path(os.environ["RESULT"])
 out=json.loads(p.read_text())
 out["artifact_preservation_state"]=os.environ["AQ_STATE"]
@@ -59,39 +63,16 @@ PY
   git push origin HEAD:ops/runpod-control-v1
 }
 
-# Fail closed: upload success, durable artifact identity, and pre-upload SHA verification
-# are all mandatory before the pod may be deleted.
+# Fail closed: upload success, durable artifact identity, and pre-upload SHA
+# verification are mandatory before the pod may be deleted.
 if [ "$outcome" != "success" ] || [ -z "$artifact_id" ] || [ ! -s "$VERIFY_MARKER" ]; then
   stop_pod
   record_result "DURABLE_UPLOAD_FAILED_POD_STOPPED_NOT_DELETED" "false"
   echo "AQLEVON_27B_PRESERVATION_FAIL_CLOSED"
   exit 86
 fi
-if ! printf '%s' "$artifact_digest" | grep -Eq '^(sha256:)?[0-9a-fA-F]{64}
-# The execution step already stopped GPU billing. Delete only after the
-# actions/upload-artifact step has completed successfully.
-stop_pod
-curl -sS -X DELETE "https://rest.runpod.io/v1/pods/$pod" \
-  -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/aq27-finalize-delete.json || true
-cleaned=0
-for _ in $(seq 1 45); do
-  code="$(curl -sS -o /tmp/aq27-finalize-status.json -w '%{http_code}' \
-    "https://rest.runpod.io/v1/pods/$pod" -H "Authorization: Bearer $RUNPOD_API_KEY" || true)"
-  if [ "$code" = 404 ]; then
-    cleaned=1
-    break
-  fi
-  sleep 2
-done
-if [ "$cleaned" != 1 ]; then
-  record_result "DURABLE_UPLOAD_VERIFIED_POD_DELETE_UNCONFIRMED" "false"
-  echo "AQLEVON_27B_POD_DELETE_UNCONFIRMED"
-  exit 88
-fi
 
-record_result "DURABLE_UPLOAD_VERIFIED_POD_DELETED" "true"
-echo "AQLEVON_27B_DURABLE_ARTIFACT_BEFORE_DELETE_PASS artifact_id=$artifact_id"
-; then
+if ! printf '%s' "$artifact_digest" | grep -Eq '^(sha256:)?[0-9a-fA-F]{64}$'; then
   stop_pod
   record_result "DURABLE_UPLOAD_DIGEST_INVALID_POD_STOPPED_NOT_DELETED" "false"
   echo "AQLEVON_27B_PRESERVATION_DIGEST_FAIL_CLOSED"
@@ -101,7 +82,9 @@ fi
 # Runtime package identity must be present in the verified evidence before
 # deletion. This makes exact runtime versions durable in both artifact and result.
 if ! python3 - "$VERIFY_MARKER" <<'PY'
-import json,sys
+import json
+import sys
+
 x=json.load(open(sys.argv[1]))
 assert x.get("kind")=="AQLEVON_27B_ARTIFACT_VERIFICATION_V2"
 rv=x.get("runtime_versions")
@@ -121,14 +104,14 @@ then
 fi
 
 # The execution step already stopped GPU billing. Delete only after the
-# actions/upload-artifact step has completed successfully.
+# actions/upload-artifact step has completed successfully and all gates pass.
 stop_pod
 curl -sS -X DELETE "https://rest.runpod.io/v1/pods/$pod" \
-  -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/aq27-finalize-delete.json || true
+  -H "Authorization: Bearer ${RUNPOD_API_KEY:-}" >/tmp/aq27-finalize-delete.json || true
 cleaned=0
 for _ in $(seq 1 45); do
   code="$(curl -sS -o /tmp/aq27-finalize-status.json -w '%{http_code}' \
-    "https://rest.runpod.io/v1/pods/$pod" -H "Authorization: Bearer $RUNPOD_API_KEY" || true)"
+    "https://rest.runpod.io/v1/pods/$pod" -H "Authorization: Bearer ${RUNPOD_API_KEY:-}" || true)"
   if [ "$code" = 404 ]; then
     cleaned=1
     break
