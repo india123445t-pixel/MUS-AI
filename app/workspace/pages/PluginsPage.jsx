@@ -11,9 +11,10 @@ export default function PluginsPage({ onMenu }) {
   const { t } = useI18n();
   const [plugins, setPlugins] = useState([]);
   const [q, setQ] = useState('');
+  const [runtime, setRuntime] = useState(null);
 
   const load = () => api.get('/plugins').then(setPlugins).catch(() => {});
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); api.get('/bootstrap').then(setRuntime).catch(() => setRuntime({webSearchAvailable:false})); }, []);
   const match = p => !q || (p.name + ' ' + p.description).toLowerCase().includes(q.toLowerCase());
   const tools = plugins.filter(p => BUILT_IN[p.id] && match(p));
   const apps = plugins.filter(p => !BUILT_IN[p.id] && match(p));
@@ -33,16 +34,14 @@ export default function PluginsPage({ onMenu }) {
           <div className="sec-title">{t('apps.builtin')}</div>
           <p className="muted small" style={{ marginTop: -4 }}>{t('apps.builtinHint')}</p>
           <div className="tool-row">
-            {tools.map(p => (
-              <div key={p.id} className="tool-tile">
-                <span className="tic"><Icon name={BUILT_IN[p.id]} size={18} /></span>
-                <span style={{ flex: 1, minWidth: 0 }}>
-                  <span className="tname">{t('apps.n.' + p.id)}</span>
-                  <span className="tdesc">{t(descKey(p))}</span>
-                </span>
-                <button className={'switch' + (p.enabled ? ' on' : '')} role="switch" aria-checked={false} disabled title={t('apps.adapterRequired')} />
-              </div>
-            ))}
+            {tools.map(p=>{
+              const ready=p.id==='web-search'&&runtime?.webSearchAvailable===true;
+              return <div key={p.id} className="tool-tile">
+                <span className="tic"><Icon name={BUILT_IN[p.id]} size={18}/></span>
+                <span style={{flex:1,minWidth:0}}><span className="tname">{t('apps.n.'+p.id)}</span><span className="tdesc">{t(descKey(p))}</span></span>
+                {ready?<span className="tag good">{t('apps.ready')}</span>:<button className="switch" role="switch" aria-checked={false} disabled title={t('apps.adapterRequired')}/>} 
+              </div>;
+            })}
           </div>
         </>}
 

@@ -171,23 +171,16 @@ function Memory({ t }) {
 }
 
 function WebResearch({ t, s, save }) {
-  const depth = s.research_depth || 'standard';
-  return (
-    <div className="set-card">
-      <h2>{t('set.web')}</h2>
-      <p className="muted small">{t('set.webUnavailable')}</p>
-      <Row label={t('set.searchDefault')}>
-        <button className={'switch' + (s.search_default === 'on' ? ' on' : '')} role="switch" aria-checked={false} disabled />
-      </Row>
-      <Row label={t('set.researchDepth')}>
-        <div className="seg">
-          {['quick', 'standard', 'thorough'].map(d => (
-            <button key={d} className={depth === d ? 'on' : ''} disabled>{t('set.depth.' + d)}</button>
-          ))}
-        </div>
-      </Row>
-    </div>
-  );
+  const depth=s.research_depth||'standard';
+  const [runtime,setRuntime]=useState(null);
+  useEffect(()=>{api.get('/bootstrap').then(setRuntime).catch(()=>setRuntime({webSearchAvailable:false,deepResearchAvailable:false}))},[]);
+  const ready=runtime?.webSearchAvailable===true;
+  return <div className="set-card">
+    <h2>{t('set.web')}</h2>
+    <p className="muted small">{ready?t('set.webReady'):t('set.webUnavailable')}</p>
+    <Row label={t('set.searchDefault')}><button className={'switch'+(s.search_default==='on'?' on':'')} role="switch" aria-checked={s.search_default==='on'} disabled={!ready} onClick={()=>ready&&save({search_default:s.search_default==='on'?'':'on'})}/></Row>
+    <Row label={t('set.researchDepth')}><div className="seg">{['quick','standard','thorough'].map(d=><button key={d} className={depth===d?'on':''} disabled title={t('chat.deepResearchUnavailable')}>{t('set.depth.'+d)}</button>)}</div></Row>
+  </div>;
 }
 
 function DataControls({ t, s, save }) {

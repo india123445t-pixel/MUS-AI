@@ -40,7 +40,10 @@ export default function ChatPage({ onChatsChanged, newChat, onMenu }) {
   const speechSynthesisAvailable = typeof window !== 'undefined' && !!window.speechSynthesis && typeof window.SpeechSynthesisUtterance !== 'undefined';
 
   useEffect(() => {
-    api.get('/bootstrap').then(setRuntime).catch(() => setRuntime({ inferenceReady:false, inferenceError:'HEALTH_CHECK_FAILED', webSearchAvailable:false }));
+    Promise.all([api.get('/bootstrap'),api.get('/settings')]).then(([rt,settings])=>{
+      setRuntime(rt);
+      if(rt?.webSearchAvailable===true&&settings?.search_default==='on')setWebSearch(true);
+    }).catch(() => setRuntime({ inferenceReady:false, inferenceError:'HEALTH_CHECK_FAILED', webSearchAvailable:false }));
   }, []);
 
   useEffect(() => {

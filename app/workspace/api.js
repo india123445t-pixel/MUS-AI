@@ -163,6 +163,19 @@ async function get(path){
     const q=(u.searchParams.get('q')||'').toLowerCase();
     return s.chats.filter(c=>!c.temporary&&(q?(c.title||'').toLowerCase().includes(q)||(c.messages||[]).some(m=>(m.content||'').toLowerCase().includes(q)):c.project_id==null)).sort((a,b)=>String(b.updated_at).localeCompare(String(a.updated_at))).slice(0,100).map(publicChat);
   }
+  if(p==='/search'){
+    const q=(u.searchParams.get('q')||'').trim().toLowerCase();
+    const out=[];
+    const add=(type,id,title,subtitle,path,updated_at)=>out.push({type,id,title:String(title||''),subtitle:String(subtitle||''),path,updated_at:updated_at||''});
+    const chats=s.chats.filter(c=>!c.temporary).slice().sort((a,b)=>String(b.updated_at).localeCompare(String(a.updated_at)));
+    if(!q){for(const c of chats.slice(0,12))add('chat',c.id,c.title||'Chat','',`/chat/${c.id}`,c.updated_at);return out;}
+    for(const c of chats){const hay=[c.title,...(c.messages||[]).map(m=>m.content)].join(' ').toLowerCase();if(hay.includes(q))add('chat',c.id,c.title||'Chat','',`/chat/${c.id}`,c.updated_at);}
+    for(const pr of s.projects){if([pr.name,pr.instructions].join(' ').toLowerCase().includes(q))add('project',pr.id,pr.name||'Project',pr.instructions||'',`/projects/${pr.id}`,pr.created_at);}
+    for(const f of s.files){if(String(f.name||'').toLowerCase().includes(q))add('file',f.id,f.name||'File',f.mime||'',`/library?q=${encodeURIComponent(f.name||'')}`,f.created_at);}
+    for(const j of s.jobs){let objective='';try{const input=JSON.parse(j.input||'{}');objective=input.prompt||input.question||input.goal||''}catch{}if([j.title,objective].join(' ').toLowerCase().includes(q))add('job',j.id,j.title||'Task',objective,`/work/${j.id}`,j.updated_at||j.created_at);}
+    for(const a of s.scheduled){if([a.title,a.prompt,a.condition_query].join(' ').toLowerCase().includes(q))add('automation',a.id,a.title||'Automation',a.prompt||a.condition_query||'', '/scheduled',a.created_at);}
+    return out.sort((a,b)=>String(b.updated_at).localeCompare(String(a.updated_at))).slice(0,50);
+  }
   let m=p.match(/^\/chats\/([^/]+)$/); if(m){const c=findChat(s,decodeURIComponent(m[1]));if(!c)throw Error('not found');return structuredClone(c)}
   if(p==='/projects') return s.projects.map(pr=>({...pr,chatCount:s.chats.filter(c=>c.project_id===pr.id).length,fileCount:s.files.filter(f=>f.project_id===pr.id).length}));
   m=p.match(/^\/projects\/([^/]+)$/); if(m){const pr=s.projects.find(x=>x.id===decodeURIComponent(m[1]));if(!pr)throw Error('not found');return {...structuredClone(pr),chats:s.chats.filter(c=>c.project_id===pr.id).map(publicChat),files:s.files.filter(f=>f.project_id===pr.id).map(({dataUrl,...f})=>f)}}
