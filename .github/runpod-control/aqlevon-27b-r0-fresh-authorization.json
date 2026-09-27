@@ -8,9 +8,9 @@
   "owner_authorization_text": "ارفع السقف الإجمالي إلى 4 دولار واستمر حتى تنجح.",
   "standing_retry": true,
   "standing_retry_cumulative_cap_usd": 4,
-  "fresh_authorization": true,
+  "fresh_authorization": false,
   "single_use": true,
-  "training_authorized": true,
+  "training_authorized": false,
   "model_repo": "Qwen/Qwen3.8-27B",
   "model_revision": "1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0",
   "scientific_contract_sha256": "484c369ee9e4d19d1142f4d55cce4296a594d49697d5cf47afa13f31da0a283d",
@@ -24,5 +24,14 @@
   "automatic_cleanup_required": true,
   "artifact_preservation_required": true,
   "no_main_merge": true,
-  "sealed_eval_forbidden": true
+  "sealed_eval_forbidden": true,
+  "consumed": true,
+  "provider_mutation_attempted": true,
+  "provider_started": false,
+  "provider_start_http_status": 500,
+  "compute_cost_estimate_usd": 0,
+  "final_stage": "PROVIDER_START_HTTP_500_NO_GPU_START",
+  "invalidated_after_attempt": true,
+  "invalidated_reason": "Single-use authorization consumed by durable precreate reservation; stopped Pod update succeeded, start returned HTTP 500, live status remained EXITED.",
+  "invalidated_at_utc": "2026-09-27T15:56:40+00:00"
 }
