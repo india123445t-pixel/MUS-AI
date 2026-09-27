@@ -1,0 +1,25 @@
+name: Cancel Failed Auth08 Eval Run
+
+on:
+  push:
+    branches: [coord/aqlevon-accel-wave-20260927]
+    paths:
+      - ".github/auth08-eval-monitor/cancel-failed-run.json"
+      - ".github/workflows/auth08-eval-cancel-failed-run.yml"
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  cancel:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Cancel failed waiting workflow
+        run: |
+          set -euo pipefail
+          gh run cancel 36339275953 --repo india123445t-pixel/MUS-AI || true
+          echo AQLEVON_AUTH08_EVAL_FAILED_RUN_CANCEL_REQUESTED
