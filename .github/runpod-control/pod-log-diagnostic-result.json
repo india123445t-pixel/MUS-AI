@@ -1,36 +1,768 @@
 {
   "pod_id": "v3njg70l4mtazn",
-  "runtime_status": {
-    "checked_at_utc": "2026-09-27T15:00:58.755364+00:00",
-    "detail": "auth16_recipe_transfer",
-    "kind": "AQLEVON_27B_R0_STATUS_V1",
-    "rc": 0,
-    "sealed_eval_consumed": false,
-    "stage": "TRAINING",
-    "worker05_used_for_tuning": false
+  "provider_status": {
+    "costPerHr": 1.59,
+    "createdAt": "2026-09-27 14:32:55.739 +0000 UTC",
+    "desiredStatus": "EXITED",
+    "gpuCount": 1,
+    "id": "v3njg70l4mtazn",
+    "lastStatusChange": "Exited by user: Sun Sep 27 2026 15:22:59 GMT+0000 (Coordinated Universal Time)",
+    "name": "AQLEVON-27B-R0-BUDGET8"
   },
-  "runtime_stderr": "",
+  "provider_stderr": "",
+  "runtime_status": {},
+  "runtime_stderr": "curl: (22) The requested URL returned error: 404\n",
   "stderr": "",
   "system_logs": [
     {
-      "line": "AQLEVON_27B_HARDWARE_PASS 81152.0",
-      "source": "container",
-      "ts": "2026-09-27T14:59:14.558294404Z"
+      "line": "f5c3e8a5cab3 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:58:53Z"
     },
     {
-      "line": "\rFetching 32 files:   0%|          | 0/32 [00:00<?, ?it/s]Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.",
-      "source": "container",
-      "ts": "2026-09-27T14:59:35.541070680Z"
+      "line": "f5c3e8a5cab3 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:58:53Z"
     },
     {
-      "line": "\rFetching 32 files:   3%|\u258e         | 1/32 [00:00<00:10,  3.01it/s]\rFetching 32 files:  25%|\u2588\u2588\u258c       | 8/32 [00:00<00:01, 14.09it/s]\rFetching 32 files:  25%|\u2588\u2588\u258c       | 8/32 [00:20<00:01, 14.09it/s]\rFetching 32 files:  28%|\u2588\u2588\u258a       | 9/32 [00:44<02:39,  6.95s/it]\rFetching 32 files:  56%|\u2588\u2588\u2588\u2588\u2588\u258b    | 18/32 [01:00<00:49,  3.51s/it]\rFetching 32 files:  62%|\u2588\u2588\u2588\u2588\u2588\u2588\u258e   | 20/32 [01:17<00:52,  4.37s/it]\rFetching 32 files:  75%|\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u258c  | 24/32 [01:22<00:26,  3.32s/it]\rFetching 32 files:  81%|\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u258f | 26/32 [01:23<00:16,  2.74s/it]\rFetching 32 files: 100%|\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588| 32/32 [01:23<00:00,  2.60s/it]",
-      "source": "container",
-      "ts": "2026-09-27T15:00:58.506516632Z"
+      "line": "f5c3e8a5cab3 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:58:53Z"
     },
     {
-      "line": "AQLEVON_27B_MODEL_STAGED",
-      "source": "container",
-      "ts": "2026-09-27T15:00:58.509928810Z"
+      "line": "f5c3e8a5cab3 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:58:53Z"
+    },
+    {
+      "line": "f5c3e8a5cab3 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:58:53Z"
+    },
+    {
+      "line": "f5c3e8a5cab3 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:58:53Z"
+    },
+    {
+      "line": "f5c3e8a5cab3 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:58:53Z"
+    },
+    {
+      "line": "f5c3e8a5cab3 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:58:54Z"
+    },
+    {
+      "line": "f5c3e8a5cab3 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:58:54Z"
+    },
+    {
+      "line": "f5c3e8a5cab3 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:58:54Z"
+    },
+    {
+      "line": "f5c3e8a5cab3 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:58:54Z"
+    },
+    {
+      "line": "f5c3e8a5cab3 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:58:54Z"
+    },
+    {
+      "line": "f5c3e8a5cab3 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:58:54Z"
+    },
+    {
+      "line": "f5c3e8a5cab3 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:58:54Z"
+    },
+    {
+      "line": "f5c3e8a5cab3 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:58:54Z"
+    },
+    {
+      "line": "f5c3e8a5cab3 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:58:55Z"
+    },
+    {
+      "line": "f5c3e8a5cab3 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:58:55Z"
+    },
+    {
+      "line": "f5c3e8a5cab3 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:58:55Z"
+    },
+    {
+      "line": "f5c3e8a5cab3 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:58:55Z"
+    },
+    {
+      "line": "f5c3e8a5cab3 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:58:55Z"
+    },
+    {
+      "line": "f5c3e8a5cab3 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:58:55Z"
+    },
+    {
+      "line": "f5c3e8a5cab3 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:58:55Z"
+    },
+    {
+      "line": "f5c3e8a5cab3 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:58:55Z"
+    },
+    {
+      "line": "f5c3e8a5cab3 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:58:56Z"
+    },
+    {
+      "line": "f5c3e8a5cab3 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:58:56Z"
+    },
+    {
+      "line": "f5c3e8a5cab3 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:58:56Z"
+    },
+    {
+      "line": "f5c3e8a5cab3 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:58:56Z"
+    },
+    {
+      "line": "f5c3e8a5cab3 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:58:56Z"
+    },
+    {
+      "line": "create container ghcr.io/india123445t-pixel/mus-ai@sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec",
+      "source": "system",
+      "ts": "2026-09-27T14:58:56Z"
+    },
+    {
+      "line": "create container: still fetching image ghcr.io/india123445t-pixel/mus-ai@sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec",
+      "source": "system",
+      "ts": "2026-09-27T14:58:56Z"
+    },
+    {
+      "line": "f5c3e8a5cab3 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:58:56Z"
+    },
+    {
+      "line": "f5c3e8a5cab3 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:58:56Z"
+    },
+    {
+      "line": "f5c3e8a5cab3 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:58:57Z"
+    },
+    {
+      "line": "f5c3e8a5cab3 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:58:57Z"
+    },
+    {
+      "line": "f5c3e8a5cab3 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:58:57Z"
+    },
+    {
+      "line": "f5c3e8a5cab3 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:58:57Z"
+    },
+    {
+      "line": "f5c3e8a5cab3 Pull complete",
+      "source": "system",
+      "ts": "2026-09-27T14:58:57Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:58:57Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:58:57Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:58:58Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:58:58Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:58:58Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:58:58Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:58:58Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:58:58Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:58:58Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:58:58Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:58:58Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:58:58Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:58:59Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:58:59Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:58:59Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:58:59Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:58:59Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:58:59Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:58:59Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:58:59Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:58:59Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:00Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:00Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:00Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:00Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:00Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:00Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:00Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:00Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:00Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:01Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:01Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:01Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:01Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:01Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:01Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:01Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:01Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:01Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:01Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:02Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:02Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:02Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:02Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:02Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:02Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:02Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:02Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:02Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:03Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:03Z"
+    },
+    {
+      "line": "d945d3510ebe Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:03Z"
+    },
+    {
+      "line": "d945d3510ebe Pull complete",
+      "source": "system",
+      "ts": "2026-09-27T14:59:03Z"
+    },
+    {
+      "line": "5ff3fc5c8d2d Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:03Z"
+    },
+    {
+      "line": "5ff3fc5c8d2d Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:03Z"
+    },
+    {
+      "line": "5ff3fc5c8d2d Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:03Z"
+    },
+    {
+      "line": "5ff3fc5c8d2d Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:03Z"
+    },
+    {
+      "line": "5ff3fc5c8d2d Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:03Z"
+    },
+    {
+      "line": "5ff3fc5c8d2d Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:03Z"
+    },
+    {
+      "line": "5ff3fc5c8d2d Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:03Z"
+    },
+    {
+      "line": "5ff3fc5c8d2d Pull complete",
+      "source": "system",
+      "ts": "2026-09-27T14:59:04Z"
+    },
+    {
+      "line": "fce55a325978 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:04Z"
+    },
+    {
+      "line": "fce55a325978 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:04Z"
+    },
+    {
+      "line": "fce55a325978 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:04Z"
+    },
+    {
+      "line": "fce55a325978 Pull complete",
+      "source": "system",
+      "ts": "2026-09-27T14:59:04Z"
+    },
+    {
+      "line": "49a971a3b5be Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:04Z"
+    },
+    {
+      "line": "49a971a3b5be Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:04Z"
+    },
+    {
+      "line": "49a971a3b5be Pull complete",
+      "source": "system",
+      "ts": "2026-09-27T14:59:04Z"
+    },
+    {
+      "line": "71736cd84108 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:04Z"
+    },
+    {
+      "line": "71736cd84108 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:04Z"
+    },
+    {
+      "line": "71736cd84108 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:04Z"
+    },
+    {
+      "line": "71736cd84108 Pull complete",
+      "source": "system",
+      "ts": "2026-09-27T14:59:04Z"
+    },
+    {
+      "line": "25a98379cf8a Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:04Z"
+    },
+    {
+      "line": "25a98379cf8a Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:04Z"
+    },
+    {
+      "line": "25a98379cf8a Pull complete",
+      "source": "system",
+      "ts": "2026-09-27T14:59:04Z"
+    },
+    {
+      "line": "ef0607faf4a5 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:04Z"
+    },
+    {
+      "line": "ef0607faf4a5 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:04Z"
+    },
+    {
+      "line": "ef0607faf4a5 Pull complete",
+      "source": "system",
+      "ts": "2026-09-27T14:59:04Z"
+    },
+    {
+      "line": "68f9fc4c4cd6 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:04Z"
+    },
+    {
+      "line": "68f9fc4c4cd6 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:05Z"
+    },
+    {
+      "line": "68f9fc4c4cd6 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:05Z"
+    },
+    {
+      "line": "68f9fc4c4cd6 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:05Z"
+    },
+    {
+      "line": "68f9fc4c4cd6 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:05Z"
+    },
+    {
+      "line": "68f9fc4c4cd6 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:05Z"
+    },
+    {
+      "line": "68f9fc4c4cd6 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:05Z"
+    },
+    {
+      "line": "68f9fc4c4cd6 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:05Z"
+    },
+    {
+      "line": "68f9fc4c4cd6 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:05Z"
+    },
+    {
+      "line": "68f9fc4c4cd6 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:06Z"
+    },
+    {
+      "line": "68f9fc4c4cd6 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:06Z"
+    },
+    {
+      "line": "68f9fc4c4cd6 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:06Z"
+    },
+    {
+      "line": "68f9fc4c4cd6 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:06Z"
+    },
+    {
+      "line": "68f9fc4c4cd6 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:06Z"
+    },
+    {
+      "line": "68f9fc4c4cd6 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:06Z"
+    },
+    {
+      "line": "68f9fc4c4cd6 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:06Z"
+    },
+    {
+      "line": "68f9fc4c4cd6 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:06Z"
+    },
+    {
+      "line": "68f9fc4c4cd6 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:06Z"
+    },
+    {
+      "line": "68f9fc4c4cd6 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:06Z"
+    },
+    {
+      "line": "68f9fc4c4cd6 Pull complete",
+      "source": "system",
+      "ts": "2026-09-27T14:59:07Z"
+    },
+    {
+      "line": "f3897fb8753a Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:07Z"
+    },
+    {
+      "line": "f3897fb8753a Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:07Z"
+    },
+    {
+      "line": "f3897fb8753a Pull complete",
+      "source": "system",
+      "ts": "2026-09-27T14:59:07Z"
+    },
+    {
+      "line": "227fdd183f53 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:07Z"
+    },
+    {
+      "line": "227fdd183f53 Extracting",
+      "source": "system",
+      "ts": "2026-09-27T14:59:07Z"
+    },
+    {
+      "line": "227fdd183f53 Pull complete",
+      "source": "system",
+      "ts": "2026-09-27T14:59:07Z"
+    },
+    {
+      "line": "Digest: sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec",
+      "source": "system",
+      "ts": "2026-09-27T14:59:07Z"
+    },
+    {
+      "line": "Status: Downloaded newer image for ghcr.io/india123445t-pixel/mus-ai@sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec",
+      "source": "system",
+      "ts": "2026-09-27T14:59:07Z"
+    },
+    {
+      "line": "create container ghcr.io/india123445t-pixel/mus-ai@sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec",
+      "source": "system",
+      "ts": "2026-09-27T14:59:08Z"
+    },
+    {
+      "line": "ghcr.io/india123445t-pixel/mus-ai@sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec Pulling from india123445t-pixel/mus-ai",
+      "source": "system",
+      "ts": "2026-09-27T14:59:08Z"
+    },
+    {
+      "line": "Digest: sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec",
+      "source": "system",
+      "ts": "2026-09-27T14:59:08Z"
+    },
+    {
+      "line": "Status: Image is up to date for ghcr.io/india123445t-pixel/mus-ai@sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec",
+      "source": "system",
+      "ts": "2026-09-27T14:59:08Z"
+    },
+    {
+      "line": "start container for ghcr.io/india123445t-pixel/mus-ai@sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec: begin",
+      "source": "system",
+      "ts": "2026-09-27T14:59:09Z"
+    },
+    {
+      "line": "stop container d97dea94f381dfd82284309a3db4b148963b929883386d62c4e68e6e7234716d",
+      "source": "system",
+      "ts": "2026-09-27T15:23:00Z"
+    },
+    {
+      "line": "remove container",
+      "source": "system",
+      "ts": "2026-09-27T15:23:01Z"
     }
   ]
 }
