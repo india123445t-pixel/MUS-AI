@@ -78,7 +78,7 @@ test('public control plane fails closed instead of using a hardcoded production 
     assert.doesNotMatch(src,/yaqjhcfitxhtzpaswuif/);
     assert.doesNotMatch(src,/sb_publishable_/);
   }
-  assert.match(chatRoute,/error_class:'ENV_MISSING'/);
+  assert.match(chatRoute,/error_class:'CONTROL_PLANE_ENV_MISSING'/);
   assert.match(chatRoute,/quota\.degraded===true/);
   assert.match(statusRoute,/control_plane_ready:controlPlaneReady/);
 });
