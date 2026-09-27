@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server';
 import { EFFECT_CAPABILITIES, AQLEVON_BOS_VERSION, VERIFICATION_RESULTS } from '../../../../lib/aqlevon/constants.js';
 import { protocolRegistrySnapshot } from '../../../../lib/aqlevon/domain-protocols.js';
+import {requireSystemOwner} from '../../../../lib/aqlevon/owner-auth.js';
 
 export const dynamic='force-dynamic';
 
-export async function GET(){
+export async function GET(req){
+  const gate=await requireSystemOwner(req);if(gate.error)return gate.error;
   return NextResponse.json({
     name:'AQLEVON AI Behavioral Operating System',
     version:AQLEVON_BOS_VERSION,
