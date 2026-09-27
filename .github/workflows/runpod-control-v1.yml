@@ -69,3 +69,26 @@ jobs:
           git add .github/runpod-control/status.json
           git commit -m "ops: record sanitized RunPod status [skip ci]" || true
           git push origin HEAD:ops/runpod-control-v1 || true
+
+  execute_27b:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 270
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/runpod-control-v1
+          fetch-depth: 0
+      - name: Execute AQLEVON 27B R0 only when commanded
+        shell: bash
+        run: |
+          set -euo pipefail
+          action="$(jq -r '.action // ""' .github/runpod-control/command.json)"
+          if [ "$action" != "execute_aqlevon_27b_r0_budget8" ]; then
+            echo "AQLEVON_27B_COMMAND_NOT_REQUESTED"
+            exit 0
+          fi
+          bash -n .github/runpod-control/run-aqlevon-27b-r0-budget8.sh
+          exec bash .github/runpod-control/run-aqlevon-27b-r0-budget8.sh
