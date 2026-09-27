@@ -1,14 +1,8 @@
 {
-  "action": "execute_auth08_unified_public_eval",
+  "action": "status",
   "requested_by": "AQLEVON_MANAGER",
-  "mode": "paid_single_use_authorized",
+  "mode": "read_only",
+  "nonce": "auth08-eval-retry-02-closed-20260927T2154Z",
   "authorization_id": "AQLEVON-AUTH08-PUBLIC-EVAL-20260927-02",
-  "nonce": "auth08-eval-retry-02-20260927T1943Z",
-  "scope": "unified_public_generalization_only",
-  "historical_w05_forbidden": true,
-  "no_main_merge": true,
-  "max_total_cost_usd": 1.5,
-  "max_hourly_rate_usd": 1.6,
-  "max_billed_seconds": 3300,
-  "note": "Fresh owner-authorized Auth02 retry after tar --no-same-owner free-preflight success; execute once only."
+  "note": "Auth02 is consumed and invalidated after entering inference. At least 224/352 dispatches were observed; exact final count/evidence recovery remains pending. No paid retry or resume is authorized."
 }
