@@ -1,0 +1,8 @@
+{
+  "action": "status",
+  "requested_by": "AQLEVON_MANAGER",
+  "mode": "read_only",
+  "purpose": "post-wave2-control-plane-live-preflight",
+  "scientific_contract_sha256": "484c369ee9e4d19d1142f4d55cce4296a594d49697d5cf47afa13f31da0a283d",
+  "no_paid_execution": true
+}
