@@ -73,6 +73,45 @@ jobs:
               f.write("\n")
           PY
 
+      - name: Read sanitized active 27B container tail
+        shell: bash
+        env:
+          RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+        run: |
+          set -uo pipefail
+          curl -sSL https://cli.runpod.net | sudo bash >/dev/null 2>&1 || true
+          cat > /tmp/q2.json <<'JSON'
+          {"query":"query { myself { pods { id name desiredStatus } } }"}
+          JSON
+          curl -sS --fail -X POST "https://api.runpod.io/graphql?api_key=${RUNPOD_API_KEY}" -H "content-type: application/json" --data-binary @/tmp/q2.json > /tmp/pods2.json || true
+          POD_ID="$(python3 - <<'PY'
+import json
+try: raw=json.load(open('/tmp/pods2.json'))
+except Exception: raise SystemExit
+pods=((raw.get('data') or {}).get('myself') or {}).get('pods') or []
+xs=[p for p in pods if isinstance(p,dict) and p.get('name')=='AQLEVON-27B-R0-BUDGET8-04']
+if xs: print(xs[-1].get('id') or '')
+PY
+)"
+          : > /tmp/live27.log
+          if [ -n "$POD_ID" ]; then runpodctl pod logs "$POD_ID" --tail 250 > /tmp/live27.log 2>/tmp/live27.err || true; fi
+          python3 - <<'PY'
+import json,re,datetime
+from pathlib import Path
+lines=[]
+for raw in Path('/tmp/live27.log').read_text(errors='replace').splitlines():
+    try:
+        d=json.loads(raw); line=str(d.get('line','')); ts=d.get('ts'); source=d.get('source')
+    except Exception:
+        line=raw; ts=None; source='unknown'
+    line=re.sub(r'rpa_[A-Za-z0-9_-]+','<REDACTED_RUNPOD_KEY>',line)
+    line=re.sub(r'gh[pousr]_[A-Za-z0-9_]+','<REDACTED_GITHUB_TOKEN>',line)
+    lines.append({'ts':ts,'source':source,'line':line[:3000]})
+out={'checked_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'line_count':len(lines),'lines':lines[-250:]}
+Path('.github/runpod-control/aqlevon-27b-live-tail.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
+print("AQLEVON_27B_LIVE_TAIL",len(lines))
+PY
+
       - name: Commit sanitized runtime result
         shell: bash
         run: |
