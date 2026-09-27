@@ -106,7 +106,7 @@ assert not active,active
 print("AQLEVON_27B_NO_ACTIVE_POD_PASS")
 PY
 
-curl -sSL https://cli.runpod.net | sudo bash >/dev/null
+sudo wget -q https://github.com/runpod/runpodctl/releases/latest/download/runpodctl-linux-amd64 -O /usr/local/bin/runpodctl\nsudo chmod +x /usr/local/bin/runpodctl
 runpodctl gpu list --output json >/tmp/aq27-gpus.json
 python3 - <<'PY'
 import json
