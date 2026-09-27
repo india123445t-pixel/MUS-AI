@@ -1,9 +1,7 @@
 {
-  "action": "execute_aqlevon_27b_r0_budget8",
+  "action": "status",
   "requested_by": "AQLEVON_MANAGER",
-  "authorization_id": "P4-AQLEVON-27B-R0-FRESH-20260927-1600-07",
-  "cumulative_budget_cap_usd": 4,
-  "resume_pod_id": "v3njg70l4mtazn",
-  "nonce": "aq27-auth07-20260927-1600z",
-  "note": "Fresh single-use retry 07 using safe documented REST start retries on retained stopped pod."
+  "mode": "read_only",
+  "nonce": "aq27-auth07-closed-20260927",
+  "note": "Auth07 closed with no GPU start; prepare fresh new-pod attempt."
 }
