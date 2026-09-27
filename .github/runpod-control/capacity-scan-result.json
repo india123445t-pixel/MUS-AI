@@ -21,44 +21,19 @@
     ]
   },
   {
-    "gpuId": "NVIDIA L4",
-    "displayName": "L4",
+    "gpuId": "NVIDIA GeForce RTX 3090",
+    "displayName": "RTX 3090",
     "memoryInGb": 24,
-    "securePricePerHr": 0.49,
-    "stockStatus": "Low",
-    "dataCenterAvailability": [
-      {
-        "dataCenterId": "EU-RO-1",
-        "stockStatus": "Low"
-      },
-      {
-        "dataCenterId": "EUR-IS-1",
-        "stockStatus": "none"
-      },
-      {
-        "dataCenterId": "EUR-IS-2",
-        "stockStatus": "none"
-      },
-      {
-        "dataCenterId": "US-GA-2",
-        "stockStatus": "none"
-      },
-      {
-        "dataCenterId": "US-MO-2",
-        "stockStatus": "none"
-      }
-    ]
-  },
-  {
-    "gpuId": "NVIDIA B300 SXM6 AC MIG 1g.34gb",
-    "displayName": "B300 MIG 34GB",
-    "memoryInGb": 34,
     "securePricePerHr": 0.5,
     "stockStatus": "Low",
     "dataCenterAvailability": [
       {
-        "dataCenterId": "US-WA-2",
+        "dataCenterId": "EU-CZ-1",
         "stockStatus": "Low"
+      },
+      {
+        "dataCenterId": "EUR-IS-2",
+        "stockStatus": "none"
       }
     ]
   },
@@ -79,7 +54,7 @@
       },
       {
         "dataCenterId": "EU-SE-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "US-KS-2",
@@ -87,7 +62,7 @@
       },
       {
         "dataCenterId": "US-TX-1",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       }
     ]
   },
@@ -121,7 +96,7 @@
       },
       {
         "dataCenterId": "US-PA-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "US-WA-1",
@@ -134,15 +109,15 @@
     "displayName": "RTX PRO 4500",
     "memoryInGb": 32,
     "securePricePerHr": 0.72,
-    "stockStatus": "High",
+    "stockStatus": "Low",
     "dataCenterAvailability": [
       {
         "dataCenterId": "EU-RO-1",
-        "stockStatus": "High"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "EUR-IS-1",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       }
     ]
   },
@@ -160,12 +135,36 @@
     ]
   },
   {
-    "gpuId": "NVIDIA RTX 6000 Ada Generation",
-    "displayName": "RTX 6000 Ada",
-    "memoryInGb": 48,
-    "securePricePerHr": 0.84,
+    "gpuId": "NVIDIA GeForce RTX 4090",
+    "displayName": "RTX 4090",
+    "memoryInGb": 24,
+    "securePricePerHr": 0.74,
     "stockStatus": "Low",
     "dataCenterAvailability": [
+      {
+        "dataCenterId": "CA-MTL-3",
+        "stockStatus": "none"
+      },
+      {
+        "dataCenterId": "EU-CZ-1",
+        "stockStatus": "none"
+      },
+      {
+        "dataCenterId": "EU-RO-1",
+        "stockStatus": "Low"
+      },
+      {
+        "dataCenterId": "EUR-IS-1",
+        "stockStatus": "none"
+      },
+      {
+        "dataCenterId": "EUR-IS-2",
+        "stockStatus": "none"
+      },
+      {
+        "dataCenterId": "EUR-NO-1",
+        "stockStatus": "none"
+      },
       {
         "dataCenterId": "US-CA-2",
         "stockStatus": "none"
@@ -175,12 +174,12 @@
         "stockStatus": "none"
       },
       {
-        "dataCenterId": "US-KS-3",
+        "dataCenterId": "US-NC-1",
         "stockStatus": "none"
       },
       {
-        "dataCenterId": "US-WA-1",
-        "stockStatus": "Low"
+        "dataCenterId": "US-TX-3",
+        "stockStatus": "none"
       }
     ]
   },
@@ -193,11 +192,11 @@
     "dataCenterAvailability": [
       {
         "dataCenterId": "EU-NL-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "EUR-IS-2",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "OC-AU-1",
@@ -205,7 +204,7 @@
       },
       {
         "dataCenterId": "US-IL-1",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "US-MO-1",
@@ -217,11 +216,11 @@
       },
       {
         "dataCenterId": "US-TX-3",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "US-TX-4",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       }
     ]
   },
@@ -263,15 +262,15 @@
       },
       {
         "dataCenterId": "EU-RO-1",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "US-KS-2",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "US-MO-1",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       }
     ]
   },
@@ -321,11 +320,11 @@
     "dataCenterAvailability": [
       {
         "dataCenterId": "CA-MTL-3",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "EU-CZ-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "EU-NL-1",
@@ -333,11 +332,11 @@
       },
       {
         "dataCenterId": "EU-RO-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "EUR-IS-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "EUR-IS-2",
@@ -349,7 +348,7 @@
       },
       {
         "dataCenterId": "US-CO-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "US-KS-2",
@@ -361,7 +360,7 @@
       },
       {
         "dataCenterId": "US-MO-2",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "US-NC-1",
@@ -369,36 +368,15 @@
       },
       {
         "dataCenterId": "US-NC-2",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "US-NE-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "US-PA-1",
         "stockStatus": "Low"
-      }
-    ]
-  },
-  {
-    "gpuId": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
-    "displayName": "RTX PRO 6000 WK",
-    "memoryInGb": 96,
-    "securePricePerHr": 2.19,
-    "stockStatus": "Low",
-    "dataCenterAvailability": [
-      {
-        "dataCenterId": "EU-CZ-1",
-        "stockStatus": "Low"
-      },
-      {
-        "dataCenterId": "EU-RO-1",
-        "stockStatus": "none"
-      },
-      {
-        "dataCenterId": "EUR-IS-1",
-        "stockStatus": "none"
       }
     ]
   },
@@ -441,15 +419,15 @@
     "displayName": "H100 SXM",
     "memoryInGb": 80,
     "securePricePerHr": 3.49,
-    "stockStatus": "Low",
+    "stockStatus": "Medium",
     "dataCenterAvailability": [
       {
         "dataCenterId": "AP-IN-1",
-        "stockStatus": "Low"
+        "stockStatus": "Medium"
       },
       {
         "dataCenterId": "AP-IN-2",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "AP-JP-1",
@@ -465,7 +443,7 @@
       },
       {
         "dataCenterId": "EU-NL-1",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "EUR-IS-3",
@@ -510,11 +488,11 @@
       },
       {
         "dataCenterId": "CA-MTL-3",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "CA-MTL-4",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "EU-FR-1",
@@ -534,11 +512,11 @@
       },
       {
         "dataCenterId": "US-CA-2",
-        "stockStatus": "Low"
+        "stockStatus": "none"
       },
       {
         "dataCenterId": "US-CO-1",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       },
       {
         "dataCenterId": "US-GA-2",
@@ -550,7 +528,7 @@
       },
       {
         "dataCenterId": "US-PA-1",
-        "stockStatus": "none"
+        "stockStatus": "Low"
       }
     ]
   },
