@@ -1,7 +1,7 @@
 {
   "action": "status",
   "requested_by": "AQLEVON_MANAGER",
-  "mode": "read_only",
+  "mode": "read_only_exact_detail",
   "target_name": "AQLEVON-27B-R0-BUDGET8-04",
-  "nonce": "20260927-27b-status-container-01"
+  "nonce": "20260927-27b-status-detail-02"
 }
