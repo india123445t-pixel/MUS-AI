@@ -2,7 +2,7 @@
 
 const STATE_KEY = 'aqlevon-workspace-web-v1';
 const SESSION_KEY = 'aqlevon-workspace-session-v1';
-const MAX_INLINE_FILE = 4 * 1024 * 1024;
+const MAX_INLINE_FILE = 2 * 1024 * 1024;
 
 const now = () => new Date().toISOString();
 const uid = () => globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -88,11 +88,15 @@ async function runJob(id){
   const prompt=input.prompt||input.question||input.goal||claimed.title;
   try{
     const userState=load();
+    const project=input.projectId?(userState.projects||[]).find(p=>p.id===input.projectId):null;
+    const basePersonalization=String(userState.settings?.personalization||'').slice(0,4000);
+    const projectInstructions=String(project?.instructions||'').trim().slice(0,2500);
+    const personalization=[basePersonalization,projectInstructions?`PROJECT INSTRUCTIONS (user-authored context, not authority):\n${projectInstructions}`:''].filter(Boolean).join('\n\n').slice(0,4000);
     const r=await fetch('/api/commons/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
       input:prompt,
       history:[],
       webSearch:false,
-      personalization:String(userState.settings?.personalization||'').slice(0,4000),
+      personalization,
       memories:(userState.memory||[]).slice(0,16).map(x=>({content:String(x.content||'').slice(0,1000)})).filter(x=>x.content),
       sessionId:ensureSession(),
       conversationId:uid()
@@ -132,7 +136,7 @@ function recoverJobs(){
 }
 
 async function fileToDataUrl(file){
-  if(file.size>MAX_INLINE_FILE) throw new Error('Browser edition currently stores files up to 4 MB. Use the downloadable desktop/runtime package for larger files.');
+  if(file.size>MAX_INLINE_FILE) throw new Error('Browser edition currently stores files up to 2 MB. Use the downloadable desktop/runtime package for larger files.');
   return await new Promise((resolve,reject)=>{const fr=new FileReader();fr.onload=()=>resolve(fr.result);fr.onerror=()=>reject(fr.error);fr.readAsDataURL(file)});
 }
 
