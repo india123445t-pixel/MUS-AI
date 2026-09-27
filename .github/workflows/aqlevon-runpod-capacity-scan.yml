@@ -2,7 +2,8 @@ name: AQLEVON 27B R0 Budget8 via Control Plane
 on:
   push:
     branches: [ops/runpod-control-v1]
-    paths:\n      - ".github/runpod-control/execute-aqlevon-27b-r0-budget8.json"\n      - ".github/runpod-control/capacity-scan-trigger.json"
+    paths:
+      - ".github/runpod-control/execute-aqlevon-27b-r0-budget8.json"
 permissions:
   contents: write
 concurrency:
@@ -11,7 +12,7 @@ concurrency:
 jobs:
   execute:
     runs-on: ubuntu-24.04
-    timeout-minutes: 295
+    timeout-minutes: 270
     env:
       RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
     steps:
@@ -100,7 +101,7 @@ PY
               echo "AQLEVON_27B_STATUS elapsed=$elapsed stage=$stage"
               case "$stage" in DONE|FAILED) final_stage="$stage"; break;; esac
             fi
-            if [ "$elapsed" -ge 16500 ]; then final_stage="BUDGET_WINDOW_TIMEOUT"; break; fi
+            if [ "$elapsed" -ge 15000 ]; then final_stage="BUDGET_WINDOW_TIMEOUT"; break; fi
             sleep 5
           done
           printf '%s\n' "$final_stage" >/tmp/final_stage
