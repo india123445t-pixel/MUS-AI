@@ -76,7 +76,13 @@ snapshot_download(repo_id="Qwen/Qwen3.8-27B",revision="$MODEL_REV",local_dir="$M
 print("AQLEVON_27B_MODEL_STAGED",flush=True)
 PY
   write_status TRAINING 0 auth16_recipe_transfer
-  timeout --signal=TERM --kill-after=30s 13500s python3 "$ROOT/input/trainer.py" --w02-module "$ROOT/input/w02.py" --model-dir "$MODEL_DIR" --output-dir "$ROOT/candidate" >"$ROOT/train.log" 2>&1
+  set +e
+  PYTHONUNBUFFERED=1 timeout --signal=TERM --kill-after=30s 13500s \
+    python3 "$ROOT/input/trainer.py" --w02-module "$ROOT/input/w02.py" --model-dir "$MODEL_DIR" --output-dir "$ROOT/candidate" \
+    2>&1 | tee "$ROOT/train.log"
+  train_rc="${PIPESTATUS[0]}"
+  set -e
+  return "$train_rc"
 }
 rc=0
 main || rc=$?
