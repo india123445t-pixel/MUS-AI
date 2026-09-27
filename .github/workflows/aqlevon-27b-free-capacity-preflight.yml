@@ -25,18 +25,18 @@ jobs:
           test -n "${RUNPOD_API_KEY:-}"
           curl -fsS https://rest.runpod.io/v1/pods -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/pods.json
           python3 - <<'PY'
-import json
-p=json.load(open("/tmp/pods.json"))
-xs=p if isinstance(p,list) else p.get("pods") or p.get("items") or []
-active=[]
-for x in xs:
-    name=str(x.get("name") or "")
-    status=str(x.get("desiredStatus") or x.get("status") or "")
-    if name.startswith("AQLEVON-27B-R0") and status!="EXITED":
-        active.append({"name":name,"status":status})
-assert not active,active
-print("AQLEVON_27B_FREE_PREFLIGHT_NO_ACTIVE_POD_PASS")
-PY
+          import json
+          p=json.load(open("/tmp/pods.json"))
+          xs=p if isinstance(p,list) else p.get("pods") or p.get("items") or []
+          active=[]
+          for x in xs:
+              name=str(x.get("name") or "")
+              status=str(x.get("desiredStatus") or x.get("status") or "")
+              if name.startswith("AQLEVON-27B-R0") and status!="EXITED":
+                  active.append({"name":name,"status":status})
+          assert not active,active
+          print("AQLEVON_27B_FREE_PREFLIGHT_NO_ACTIVE_POD_PASS")
+          PY
       - name: Install runpodctl
         run: |
           set -euo pipefail
@@ -48,19 +48,19 @@ PY
           set -euo pipefail
           runpodctl gpu list --output json >/tmp/gpus.json
           python3 - <<'PY'
-import json
-choices=[]
-for g in json.load(open("/tmp/gpus.json")):
-    if str(g.get("gpuId"))!="NVIDIA A100-SXM4-80GB" or not g.get("secureCloud"):
-        continue
-    price=float(g.get("securePricePerHr") or 999)
-    if price>1.60:
-        continue
-    for d in g.get("dataCenterAvailability") or []:
-        if str(d.get("stockStatus") or "").lower()=="none" or not d.get("dataCenterId"):
-            continue
-        choices.append((price,str(d["dataCenterId"]),str(d.get("stockStatus"))))
-assert choices,"no_a100_sxm_80_stock_under_ceiling"
-price,dc,stock=sorted(choices)[0]
-print("AQLEVON_27B_FREE_CAPACITY_PASS",price,dc,stock)
-PY
+          import json
+          choices=[]
+          for g in json.load(open("/tmp/gpus.json")):
+              if str(g.get("gpuId"))!="NVIDIA A100-SXM4-80GB" or not g.get("secureCloud"):
+                  continue
+              price=float(g.get("securePricePerHr") or 999)
+              if price>1.60:
+                  continue
+              for d in g.get("dataCenterAvailability") or []:
+                  if str(d.get("stockStatus") or "").lower()=="none" or not d.get("dataCenterId"):
+                      continue
+                  choices.append((price,str(d["dataCenterId"]),str(d.get("stockStatus"))))
+          assert choices,"no_a100_sxm_80_stock_under_ceiling"
+          price,dc,stock=sorted(choices)[0]
+          print("AQLEVON_27B_FREE_CAPACITY_PASS",price,dc,stock)
+          PY
