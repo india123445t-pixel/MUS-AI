@@ -1,0 +1,34 @@
+name: Auth08 Evidence Recovery Free Preflight
+
+on:
+  push:
+    branches: [manager/auth08-unified-eval-20260927]
+    paths:
+      - "ops/auth08-eval/recover-auth02-evidence.sh"
+      - ".github/workflows/auth08-eval-evidence-recovery.yml"
+      - ".github/workflows/auth08-eval-evidence-recovery-free-preflight.yml"
+      - "ops/auth08-eval/recovery-preflight-trigger.json"
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Static no-inference recovery contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n ops/auth08-eval/recover-auth02-evidence.sh
+          grep -F 'MAX_RUNTIME_SECONDS=300' ops/auth08-eval/recover-auth02-evidence.sh
+          grep -F '"no_inference":True' ops/auth08-eval/recover-auth02-evidence.sh
+          grep -F '"no_model_dispatch":True' ops/auth08-eval/recover-auth02-evidence.sh
+          grep -F 'python3 -m http.server 8000 --directory /workspace/aqlevon-auth08-eval' ops/auth08-eval/recover-auth02-evidence.sh
+          grep -F '/pods/$POD_ID/stop' ops/auth08-eval/recover-auth02-evidence.sh
+          ! grep -F 'auth08_unified_public_eval_runner_v1.py' ops/auth08-eval/recover-auth02-evidence.sh
+          ! grep -F 'snapshot_download' ops/auth08-eval/recover-auth02-evidence.sh
+          ! grep -F 'model.generate' ops/auth08-eval/recover-auth02-evidence.sh
+          echo AQLEVON_AUTH02_EVIDENCE_RECOVERY_FREE_PREFLIGHT_PASS
