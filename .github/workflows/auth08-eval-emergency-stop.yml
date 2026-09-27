@@ -1,0 +1,29 @@
+name: Auth08 Eval Emergency Stop
+
+on:
+  push:
+    branches: [coord/aqlevon-accel-wave-20260927]
+    paths:
+      - ".github/auth08-eval-monitor/emergency-stop.json"
+      - ".github/workflows/auth08-eval-emergency-stop.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  stop:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      POD_ID: a6hxcy4h40l5gd
+    steps:
+      - name: Stop failed eval pod
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$RUNPOD_API_KEY"
+          code="$(curl -sS -o /tmp/stop.json -w '%{http_code}' -X POST "https://rest.runpod.io/v1/pods/$POD_ID/stop" -H "Authorization: Bearer $RUNPOD_API_KEY" || true)"
+          cat /tmp/stop.json || true
+          case "$code" in 200|201|202|204) ;; *) echo "stop_http=$code"; exit 1;; esac
+          echo AQLEVON_AUTH08_EVAL_EMERGENCY_STOP_SENT "$POD_ID"
