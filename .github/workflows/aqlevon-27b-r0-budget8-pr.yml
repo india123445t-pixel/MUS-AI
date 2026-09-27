@@ -25,12 +25,12 @@ jobs:
     timeout-minutes: 275
     env:
       RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
-      AUTH_ID: P4-AQLEVON-27B-R0-BUDGET8-20260927-03
+      AUTH_ID: P4-AQLEVON-27B-R0-BUDGET8-20260927-04
       IMAGE_DIGEST: sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec
       SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
       CONTROL_BRANCH: ops/runpod-control-v1
-      CONSUMED_PATH: .github/runpod-control/aqlevon-27b-r0-budget8-pr-consumed-03.json
-      RESULT_PATH: .github/runpod-control/aqlevon-27b-r0-budget8-pr-result-03.json
+      CONSUMED_PATH: .github/runpod-control/aqlevon-27b-r0-budget8-pr-consumed-04.json
+      RESULT_PATH: .github/runpod-control/aqlevon-27b-r0-budget8-pr-result-04.json
 
     steps:
       - uses: actions/checkout@v4
@@ -62,7 +62,7 @@ jobs:
           PY
           git fetch -q origin "$CONTROL_BRANCH"
           if git cat-file -e "origin/$CONTROL_BRANCH:$CONSUMED_PATH" 2>/dev/null; then
-            echo "::error::Fresh authorization #02 is already consumed"
+            echo "::error::Fresh authorization #04 is already consumed"
             exit 90
           fi
 
@@ -107,7 +107,7 @@ jobs:
           pod=""
           BOOT_URL="https://raw.githubusercontent.com/$GITHUB_REPOSITORY/$SOURCE_SHA/.github/runpod-control/aqlevon-27b-r0-bootstrap.sh"
           DOCKER_ARGS="bash -lc 'export AQLEVON_SOURCE_SHA=$SOURCE_SHA; curl -fsSL $BOOT_URL -o /tmp/aq27.sh && chmod +x /tmp/aq27.sh && exec bash /tmp/aq27.sh'"
-          runpodctl pod create             --name AQLEVON-27B-R0-BUDGET8-02             --image "ghcr.io/india123445t-pixel/mus-ai@$IMAGE_DIGEST"             --gpu-id "NVIDIA A100-SXM4-80GB"             --gpu-count 1             --cloud-type SECURE             --data-center-ids "$(cat /tmp/dc)"             --container-disk-in-gb 100             --ports 8000/http             --ssh=false             --stop-after 270m             --docker-args "$DOCKER_ARGS"             --output json > /tmp/create.json
+          runpodctl pod create             --name AQLEVON-27B-R0-BUDGET8-04             --image "ghcr.io/india123445t-pixel/mus-ai@$IMAGE_DIGEST"             --gpu-id "NVIDIA A100-SXM4-80GB"             --gpu-count 1             --cloud-type SECURE             --data-center-ids "$(cat /tmp/dc)"             --container-disk-in-gb 100             --ports 8000/http             --ssh=false             --docker-args "$DOCKER_ARGS"             --output json > /tmp/create.json
           python3 - <<'PY'
           import datetime,json,os,time
           from pathlib import Path
@@ -134,7 +134,7 @@ jobs:
           git -C /tmp/control config user.name aqlevon-runpod-bot
           git -C /tmp/control config user.email actions@users.noreply.github.com
           git -C /tmp/control add "$CONSUMED_PATH"
-          git -C /tmp/control commit -m "ops: consume AQLEVON 27B R0 authorization #02 [skip ci]"
+          git -C /tmp/control commit -m "ops: consume AQLEVON 27B R0 authorization #04 [skip ci]"
           git -C /tmp/control pull --rebase origin "$CONTROL_BRANCH"
           git -C /tmp/control push origin HEAD:"$CONTROL_BRANCH"
 

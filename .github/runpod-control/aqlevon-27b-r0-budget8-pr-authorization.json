@@ -1,7 +1,7 @@
 {
   "kind": "AQLEVON_MANAGER_PAID_AUTHORIZATION_V1",
-  "authorization_id": "P4-AQLEVON-27B-R0-BUDGET8-20260927-03",
-  "issued_at_utc": "2026-09-27T06:59:00Z",
+  "authorization_id": "P4-AQLEVON-27B-R0-BUDGET8-20260927-04",
+  "issued_at_utc": "2026-09-27T07:01:00Z",
   "issued_by": "owner_explicit_chat_authorization",
   "purpose": "One AQLEVON-27B-R0 training/evaluation run using the verified Auth16 synthetic curriculum transfer on canonical Qwen3.8-27B.",
   "model_repo": "Qwen/Qwen3.8-27B",
@@ -16,5 +16,5 @@
   "automatic_cleanup_required": true,
   "no_main_merge": true,
   "sealed_eval_forbidden": true,
-  "prior_authorization_02_outcome": "CONTROL_PLANE_CREATE_REJECTED_BEFORE_POD_NO_SPEND_DO_NOT_REUSE"
+  "prior_authorization_03_outcome": "CONTROL_PLANE_CREATE_REJECTED_BEFORE_POD_NO_SPEND_DO_NOT_REUSE"
 }
