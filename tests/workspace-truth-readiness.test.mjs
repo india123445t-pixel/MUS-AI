@@ -53,7 +53,8 @@ test('public runtime readiness is sovereign-only and external providers are neve
   assert.match(providers,/const result=await aqlevonRuntime/);
   assert.match(api,/selfHostedConfigured/);
   assert.match(api,/commons\?\.available===true/);
-  assert.match(api,/webSearchAvailable:false/);
+  assert.match(api,/const webSearchAvailable=status\?\.web_search_configured===true/);
+  assert.match(api,/deepResearchAvailable:false/);
   assert.match(api,/runtimeMode:'self_hosted_only'/);
   assert.match(api,/externalProviderRouting:false/);
   assert.match(chat,/runtime\.inferenceReady !== true/);
@@ -119,7 +120,7 @@ test('Work fails closed when inference is unavailable, cancellation stays termin
 test('PWA registers its service worker and cache rotates on the sovereign runtime cutover',()=>{
   assert.match(workspaceRoot,/serviceWorker/);
   assert.match(workspaceRoot,/register\('\/api\/status\?sw=1',\{scope:'\/'\}\)/);
-  assert.match(statusRoute,/aqlevon-ai-shell-v7-sovereign/);
+  assert.match(statusRoute,/aqlevon-ai-shell-v8-sovereign/);
   assert.match(statusRoute,/x!==C/);
   assert.match(statusRoute,/no-cache, no-store, must-revalidate/);
 });
