@@ -27,7 +27,9 @@ jobs:
           grep -F '"no_inference":True' ops/auth08-eval/recover-auth02-evidence.sh
           grep -F '"no_model_dispatch":True' ops/auth08-eval/recover-auth02-evidence.sh
           grep -F 'python3 -m http.server 8000 --directory /workspace/aqlevon-auth08-eval' ops/auth08-eval/recover-auth02-evidence.sh
-          grep -F 'gpuCount: 0' ops/auth08-eval/recover-auth02-evidence.sh
+          grep -F 'gpuCount: 0, computeType: CPU' ops/auth08-eval/recover-auth02-evidence.sh
+          grep -F 'zero_gpu_required' ops/auth08-eval/recover-auth02-evidence.sh
+          grep -F 'required_gpu_count' ops/auth08-eval/recover-auth02-evidence.sh
           grep -F 'AQLEVON_AUTH02_RECOVERY_RUNTIME_ZERO_GPU_VERIFIED' ops/auth08-eval/recover-auth02-evidence.sh
           grep -F '/pods/$POD_ID/stop' ops/auth08-eval/recover-auth02-evidence.sh
           ! grep -F '/pods/$POD_ID/start' ops/auth08-eval/recover-auth02-evidence.sh
@@ -35,3 +37,28 @@ jobs:
           ! grep -F 'snapshot_download' ops/auth08-eval/recover-auth02-evidence.sh
           ! grep -F 'model.generate' ops/auth08-eval/recover-auth02-evidence.sh
           echo AQLEVON_AUTH02_EVIDENCE_RECOVERY_FREE_PREFLIGHT_PASS
+
+      - name: Live Runpod GraphQL schema check
+        env:
+          RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$RUNPOD_API_KEY"
+          cat > /tmp/schema-query.json <<'JSON'
+          {"query":"query { resume: __type(name: \"PodResumeInput\") { inputFields { name type { kind name ofType { kind name } } } } compute: __type(name: \"ComputeType\") { enumValues { name } } }"}
+          JSON
+          curl -fsS -X POST -H "content-type: application/json" \
+            --url "https://api.runpod.io/graphql?api_key=$RUNPOD_API_KEY" \
+            --data-binary @/tmp/schema-query.json > /tmp/schema.json
+          python3 - <<'PY'
+          import json
+          d=json.load(open("/tmp/schema.json"))
+          assert not d.get("errors"), d
+          data=d["data"]
+          fields={x["name"] for x in data["resume"]["inputFields"]}
+          enums={x["name"] for x in data["compute"]["enumValues"]}
+          assert {"podId","gpuCount","computeType"} <= fields, fields
+          assert "CPU" in enums, enums
+          print("AQLEVON_AUTH02_RECOVERY_LIVE_SCHEMA_CPU_ZERO_GPU_PASS")
+          PY
