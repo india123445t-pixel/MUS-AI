@@ -5,9 +5,9 @@
   "issued_at_utc": "2026-09-27T18:00:00Z",
   "authorized_by": "AQLEVON_OWNER",
   "owner_authorization_text": "أصرح بتقييم AQLEVON-27B النهائي بحد أقصى 1.50 دولار.",
-  "fresh_authorization": true,
+  "fresh_authorization": false,
   "single_use": true,
-  "evaluation_authorized": true,
+  "evaluation_authorized": false,
   "automatic_cleanup_required": true,
   "artifact_preservation_required": true,
   "no_main_merge": true,
@@ -26,5 +26,13 @@
   "generalization_expected_attempts": 128,
   "paired_public_expected_attempts": 224,
   "total_expected_model_dispatches": 352,
-  "no_retry_after_model_dispatch": true
+  "no_retry_after_model_dispatch": true,
+  "consumed": true,
+  "consumed_run_id": 36339275953,
+  "consumed_pod_id": "a6hxcy4h40l5gd",
+  "final_stage": "FAILED_BEFORE_INFERENCE_BUNDLE_EXTRACT",
+  "model_dispatches_executed": 0,
+  "invalidated_after_attempt": true,
+  "invalidated_reason": "Single-use evaluation authorization consumed by provider-created run; bootstrap bundle extraction failed on ownership restoration before any model dispatch. Pod stopped fail-closed; authorization must never be reused.",
+  "invalidated_at_utc": "2026-09-27T18:10:00Z"
 }
