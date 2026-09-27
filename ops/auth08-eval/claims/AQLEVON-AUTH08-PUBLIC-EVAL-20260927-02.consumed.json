@@ -1,0 +1,18 @@
+{
+  "adapter_sha256": "5ed9a22e963eca99f5ebd00f13a46fa6afadd9b74bb9d2e501b23c1ff9219c74",
+  "authorization_id": "AQLEVON-AUTH08-PUBLIC-EVAL-20260927-02",
+  "candidate_manifest_sha256": "e020c6b140ffba104d1fe4485333fb225afd29c52dc03bf9a62d0f8c614e01c5",
+  "consumed_at_utc": "2026-09-27T19:45:55.730723+00:00",
+  "consumption_state": "CONSUMED_BY_PRECREATE_RESERVATION",
+  "generalization_manifest_sha256": "25fa2777010255bd8d91431632ba65d72355340086250fe4bce8dffa64e33b0f",
+  "kind": "AQLEVON_AUTH08_PUBLIC_EVAL_CONSUMPTION_V1",
+  "paired_binding_sha256": "b5f26e20bcdd13cead301623cc5e3496e231b32418a98c895e31db5dfdf9a888",
+  "pod_id": null,
+  "provider_create_attempted": false,
+  "reservation_id": "7ec9995212c073e3e6027b8f85702fa7941ac8c4ee364f53b80f8dc8287e5b42",
+  "reserved_at_utc": "2026-09-27T19:45:55.730723+00:00",
+  "run_attempt": "1",
+  "run_id": "36345538375",
+  "single_use_consumed": true,
+  "source_sha": "1cc58707ea1da83ac2800d5e43b39ead5e68fdea"
+}
