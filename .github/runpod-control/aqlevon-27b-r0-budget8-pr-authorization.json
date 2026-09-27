@@ -1,0 +1,27 @@
+{
+  "kind": "AQLEVON_MANAGER_PAID_AUTHORIZATION_V1",
+  "authorization_id": "P4-AQLEVON-27B-R0-BUDGET8-20260927-05",
+  "issued_at_utc": "2026-09-27T07:14:00Z",
+  "issued_by": "owner_explicit_chat_authorization",
+  "purpose": "One AQLEVON-27B-R0 training/evaluation run using verified Auth16 synthetic curriculum transfer on canonical Qwen3.8-27B, after infrastructure-only #04 was stopped before bootstrap.",
+  "model_repo": "Qwen/Qwen3.8-27B",
+  "model_revision": "1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0",
+  "training_authorized": true,
+  "single_use": true,
+  "max_total_cost_usd": "7.00",
+  "owner_budget_ceiling_usd": "8.00",
+  "max_hourly_rate_usd": "1.60",
+  "max_billed_seconds": 15000,
+  "required_gpu": "NVIDIA A100-SXM4-80GB",
+  "preferred_datacenters": [
+    "US-KS-2",
+    "US-MD-1",
+    "US-WA-1"
+  ],
+  "http_readiness_timeout_seconds": 480,
+  "automatic_cleanup_required": true,
+  "no_main_merge": true,
+  "sealed_eval_forbidden": true,
+  "prior_authorization_04_outcome": "POD_CREATED_BUT_BOOTSTRAP_NEVER_BECAME_HTTP_READY; POD_STOPPED_AND_DELETED; DO_NOT_REUSE",
+  "prior_spend_estimate_usd": "0.35"
+}
