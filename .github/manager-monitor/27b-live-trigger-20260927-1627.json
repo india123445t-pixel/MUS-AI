@@ -1,0 +1,8 @@
+{
+  "kind": "AQLEVON_MANAGER_27B_LIVE_MONITOR_TRIGGER",
+  "requested_by": "AQLEVON_MANAGER",
+  "read_only": true,
+  "target_run_id": 36332132785,
+  "target_pod_id": "y06z4plp60plbc",
+  "note": "auth08 checkpoint progress 2"
+}
