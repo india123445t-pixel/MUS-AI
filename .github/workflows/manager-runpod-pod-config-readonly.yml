@@ -1,0 +1,50 @@
+name: AQLEVON Manager RunPod Pod Config Readonly
+
+on:
+  push:
+    branches: [coord/aqlevon-accel-wave-20260927]
+    paths:
+      - ".github/workflows/manager-runpod-pod-config-readonly.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      TARGET_POD_ID: v3njg70l4mtazn
+    steps:
+      - name: Query stopped pod configuration read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${RUNPOD_API_KEY:-}"
+          python3 - <<'PY' >/tmp/payload.json
+          import json,os
+          q='''query pod($input: PodFilter) {
+            pod(input: $input) {
+              id name desiredStatus costPerHr adjustedCostPerHr gpuCount
+              containerDiskInGb volumeInGb volumeMountPath
+              imageName dockerArgs ports port podType
+              machineId memoryInGb vcpuCount createdAt lastStatusChange
+            }
+          }'''
+          print(json.dumps({"query":q,"variables":{"input":{"podId":os.environ["TARGET_POD_ID"]}}}))
+          PY
+          curl -fsS https://api.runpod.io/graphql \
+            -H "Authorization: Bearer $RUNPOD_API_KEY" \
+            -H 'Content-Type: application/json' \
+            --data-binary @/tmp/payload.json >/tmp/resp.json
+          python3 - <<'PY'
+          import json
+          d=json.load(open("/tmp/resp.json"))
+          if d.get("errors"):
+              raise SystemExit("GRAPHQL_ERRORS "+json.dumps(d["errors"]))
+          p=(d.get("data") or {}).get("pod")
+          assert p and p.get("id"),d
+          # No env/apiKey/registry fields are queried.
+          print("AQLEVON_RUNPOD_POD_CONFIG",json.dumps(p,sort_keys=True))
+          PY
