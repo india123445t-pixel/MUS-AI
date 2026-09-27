@@ -181,7 +181,7 @@ export default function DeveloperPage({ onMenu }) {
         {status && <span className="tag"><Icon name="branch" size={11} /> {status.branch}</span>}
         <div className="spacer" />
         <button className="btn sm ghost" onClick={showDiff}>{t('dev.diff')}</button>
-        <button className="btn sm ghost" onClick={checkpoint}>Checkpoint</button>
+        <button className="btn sm ghost" onClick={checkpoint}>{t('dev.checkpoint')}</button>
         <button className="btn sm ghost" onClick={commit}>{t('dev.commit')}</button>
         <button className="btn sm" onClick={save} disabled={!active || !dirty}>{t('common.save')}</button>
       </div>

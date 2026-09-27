@@ -5,5 +5,6 @@ const LABELS=Object.freeze({public_model_access:'الوصول لنموذج ال�
 export default function PolicyPanel({policy={}}){
   return <section className="wb-panel"><div className="wb-panel-head"><div><span className="wb-kicker">READ ONLY</span><h2>سياسة المالك</h2></div></div>
     <div className="wb-policy">{Object.entries(policy).filter(([key])=>key!=='schema'&&key!=='updated_at').map(([key,value])=><div key={key}><span>{LABELS[key]||key}</span><b className={value?'on':'off'}>{value?'مسموح':'موقوف'}</b></div>)}</div>
+    <p className="wb-muted">هذه اللوحة للعرض فقط. تغيير صلاحيات الأدوات وسياسة المالك يتم من <a href="/admin/child-lab">Child Lab</a> بعد دخول المالك.</p>
   </section>;
 }

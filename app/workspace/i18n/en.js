@@ -113,7 +113,7 @@ export default {
   'common.close': 'Close', 'common.create': 'Create', 'common.delete': 'Delete', 'common.cancel': 'Cancel',
   'common.save': 'Save', 'common.open': 'Open', 'common.loading': 'Loading…', 'common.error': 'Something went wrong',
   'common.today': 'Today', 'common.yesterday': 'Yesterday',
-  'search.placeholder': 'Search conversations…', 'search.noResults': 'No matching conversations',
+  'search.placeholder': 'Search Workspace…', 'search.noResults': 'No matching results',
   'notfound': 'That page does not exist.',
   'common.saved': 'Saved',
   // projects (tabs)
@@ -132,12 +132,12 @@ export default {
   'dev.checkpointLabel': 'Checkpoint label', 'dev.beforeChange': 'before change',
   'dev.committed': 'Local snapshot saved',
   // apps (per-plugin names & descriptions)
-  'apps.search': 'Search apps…', 'apps.builtinHint': 'Capability surfaces only; execution requires a real connected runtime adapter.',
+  'apps.search': 'Search apps…', 'apps.builtinHint': 'These cards reflect live runtime readiness; unavailable tools require a trusted adapter.',
   'apps.external': 'Connected apps', 'apps.externalHint': 'The browser edition does not accept access tokens or connect external services directly.',
   'apps.authError': 'Needs attention', 'apps.reconnect': 'Reconnect',
   'apps.serverSide': 'Do not enter secrets here. Real app connections are made only from a trusted runtime when an adapter is available.',
   'apps.token': 'Access token', 'apps.githubHint': 'Real GitHub connection is not available from the current browser edition.',
-  'apps.n.web-search': 'Web search', 'apps.d.web-search': 'Not connected yet; this can be added later as an AQLEVON tool without changing the sovereign model runtime.',
+  'apps.n.web-search': 'Web search', 'apps.d.web-search': 'Uses the public search adapter when a Jina key is configured in the runtime; otherwise it stays closed.',
   'apps.n.code-interpreter': 'Code interpreter', 'apps.d.code-interpreter': 'Not connected in the browser edition; real execution requires a trusted Code Sandbox Adapter.',
   'apps.n.image-gen': 'Image generation', 'apps.d.image-gen': 'Not connected in the browser edition; requires a trusted Image Generation Adapter.',
   'apps.n.github': 'GitHub', 'apps.d.github': 'Not connected in the browser edition; requires a trusted GitHub Adapter.',
@@ -162,9 +162,9 @@ export default {
   'auto.adapterRequired': 'Scheduler not connected',
   'auto.localDraftNotice': 'You can save a schedule draft only. It will not run in the background or execute automatically until a real Scheduler Adapter is connected.',
   'apps.browserNoticeTitle': 'Adapters not connected',
-  'apps.browserNotice': 'Tools and apps here do not execute externally in the current browser edition. Do not enter access tokens or secrets.',
+  'apps.browserNotice': 'Any service shown as disconnected will not execute externally. Do not enter access tokens or secrets in the browser.',
   'apps.adapterRequired': 'Adapter required', 'apps.ready': 'Ready',
   'lib.browserOnly': 'Local on this device',
   'lib.browserNotice': 'Files in this edition are stored in browser data on this device (up to 2 MB per file), not in a server library.', 'lib.storageFull': 'This browser does not have enough local storage. Delete some files or use a smaller file.',
-  'set.webUnavailable': 'Web search is an optional tool and is not connected yet. The core AQLEVON model does not depend on it.'
+  'set.webUnavailable': 'Web search is not configured in the current runtime. The core AQLEVON model does not depend on it.', 'set.webReady': 'Web search is configured and ready. Use the switch below to enable it by default for chats.'
 };

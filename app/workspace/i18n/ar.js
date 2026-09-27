@@ -113,7 +113,7 @@ export default {
   'common.close': 'إغلاق', 'common.create': 'إنشاء', 'common.delete': 'حذف', 'common.cancel': 'إلغاء',
   'common.save': 'حفظ', 'common.open': 'فتح', 'common.loading': 'جارٍ التحميل…', 'common.error': 'حدث خطأ ما',
   'common.today': 'اليوم', 'common.yesterday': 'أمس',
-  'search.placeholder': 'بحث في المحادثات…', 'search.noResults': 'لا محادثات مطابقة',
+  'search.placeholder': 'بحث في Workspace…', 'search.noResults': 'لا نتائج مطابقة',
   'notfound': 'هذه الصفحة غير موجودة.',
   'common.saved': 'حُفظ',
   // projects (tabs)
@@ -132,12 +132,12 @@ export default {
   'dev.checkpointLabel': 'تسمية نقطة الحفظ', 'dev.beforeChange': 'قبل التعديل',
   'dev.committed': 'تم حفظ اللقطة المحلية',
   // apps (per-plugin names & descriptions)
-  'apps.search': 'بحث في التطبيقات…', 'apps.builtinHint': 'هذه واجهات قدرات فقط؛ التنفيذ يحتاج Runtime Adapter حقيقيًا متصلًا.',
+  'apps.search': 'بحث في التطبيقات…', 'apps.builtinHint': 'تعرض هذه البطاقات حالة Runtime الحقيقية؛ الأداة غير الجاهزة تحتاج Adapter موثوقًا.',
   'apps.external': 'تطبيقات مرتبطة', 'apps.externalHint': 'نسخة المتصفح لا تقبل رموز الوصول ولا تربط خدمات خارجية مباشرة.',
   'apps.authError': 'يتطلب انتباهك', 'apps.reconnect': 'إعادة الربط',
   'apps.serverSide': 'لا تُدخل أسرارًا هنا. الربط الحقيقي للتطبيقات يتم فقط من Runtime موثوق عند توفر Adapter.',
   'apps.token': 'رمز الوصول', 'apps.githubHint': 'ربط GitHub الحقيقي غير متاح من نسخة المتصفح الحالية.',
-  'apps.n.web-search': 'بحث الويب', 'apps.d.web-search': 'غير متصل حاليًا؛ سيُربط لاحقًا كأداة لـAQLEVON دون تغيير محرك النموذج الأساسي.',
+  'apps.n.web-search': 'بحث الويب', 'apps.d.web-search': 'يعمل عبر محوّل البحث العام عندما يكون مفتاح Jina مهيأ في Runtime؛ وإلا يبقى مغلقًا.',
   'apps.n.code-interpreter': 'مفسّر الكود', 'apps.d.code-interpreter': 'غير متصل في نسخة المتصفح؛ يحتاج Code Sandbox Adapter موثوقًا للتنفيذ الحقيقي.',
   'apps.n.image-gen': 'توليد الصور', 'apps.d.image-gen': 'غير متصل في نسخة المتصفح؛ يحتاج Image Generation Adapter موثوقًا.',
   'apps.n.github': 'GitHub', 'apps.d.github': 'غير متصل في نسخة المتصفح؛ يحتاج GitHub Adapter موثوقًا.',
@@ -162,9 +162,9 @@ export default {
   'auto.adapterRequired': 'Scheduler غير متصل',
   'auto.localDraftNotice': 'يمكن حفظ مسودة الجدول فقط. لن تعمل في الخلفية ولن تنفذ تلقائيًا حتى يتم ربط Scheduler Adapter حقيقي.',
   'apps.browserNoticeTitle': 'Adapters غير متصلة',
-  'apps.browserNotice': 'الأدوات والتطبيقات هنا لا تنفذ خارجيًا في نسخة المتصفح الحالية. لا تُدخل رموز وصول أو أسرارًا.',
+  'apps.browserNotice': 'أي خدمة تظهر كغير متصلة لن تنفذ خارجيًا. لا تُدخل رموز وصول أو أسرارًا في المتصفح.',
   'apps.adapterRequired': 'يحتاج Adapter', 'apps.ready': 'جاهز',
   'lib.browserOnly': 'محلي على الجهاز',
   'lib.browserNotice': 'الملفات في هذه النسخة تُخزن داخل بيانات المتصفح على هذا الجهاز (حتى 2 MB للملف)، وليست مكتبة خادمية.', 'lib.storageFull': 'لا توجد مساحة محلية كافية في هذا المتصفح. احذف بعض الملفات أو استخدم ملفًا أصغر.',
-  'set.webUnavailable': 'بحث الويب أداة اختيارية غير متصلة حاليًا. لا يعتمد تشغيل نموذج AQLEVON الأساسي عليها.'
+  'set.webUnavailable': 'بحث الويب غير مهيأ في Runtime الحالي. لا يعتمد تشغيل نموذج AQLEVON الأساسي عليه.', 'set.webReady': 'بحث الويب مهيأ وجاهز. يمكنك تشغيله تلقائيًا لكل محادثة من المفتاح أدناه.'
 };
