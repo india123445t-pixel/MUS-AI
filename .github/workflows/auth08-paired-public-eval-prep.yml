@@ -1,0 +1,55 @@
+name: Auth08 Paired Public Eval Prep
+
+on:
+  push:
+    branches: [manager/auth08-paired-public-eval-prep-20260927]
+    paths:
+      - "research/weight_factory/auth08_eval_binding_v1.json"
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Ensure historical refs
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin 4e3f1b03cfe77ac4355907ec692574f30d180252 || true
+          git fetch --no-tags origin abb94ef134e2e97036b6959dbc9db4278d3736b6 || true
+      - name: Verify contract and build paired plan
+        run: |
+          set -euo pipefail
+          python3 research/weight_factory/agent03/aqlevon_27b_rerun_contract_v1.py verify
+          python3 research/weight_factory/agent03/aqlevon_27b_rerun_contract_v1.py plan --output auth08-paired-public-execution-plan.json
+          python3 - <<'PY'
+          import json,hashlib
+          b=json.load(open("research/weight_factory/auth08_eval_binding_v1.json"))
+          p=json.load(open("auth08-paired-public-execution-plan.json"))
+          assert len(p["rows"])==224
+          out={
+            "kind":"AQLEVON_27B_AUTH08_PAIRED_PUBLIC_EXECUTION_BINDING_V1",
+            "contract_sha256":p["contract_sha256"],
+            "task_catalog_sha256":p["task_catalog_sha256"],
+            "pair_matrix_sha256":p["pair_matrix_sha256"],
+            "candidate_identity":b,
+            "expected_rows":224,
+          }
+          raw=json.dumps(out,sort_keys=True,separators=(",",":"),ensure_ascii=False).encode()
+          out["binding_sha256"]=hashlib.sha256(raw).hexdigest()
+          open("auth08-paired-public-binding.json","w").write(json.dumps(out,sort_keys=True,indent=2)+"\n")
+          print("AQLEVON_AUTH08_PAIRED_PREP_PASS",out["binding_sha256"],len(p["rows"]))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aqlevon-auth08-paired-public-eval-prep
+          path: |
+            auth08-paired-public-execution-plan.json
+            auth08-paired-public-binding.json
+            research/weight_factory/auth08_eval_binding_v1.json
+          if-no-files-found: error
