@@ -4,9 +4,9 @@
   "issued_at_utc": "2026-09-27T22:32:30Z",
   "authorized_by": "AQLEVON_OWNER",
   "owner_authorization_text": "أصرح باسترداد أدلة Auth02 من الـPod المتوقف `hjwspv5aqtnqxd` مرة واحدة فقط، بحد أقصى إجمالي 0.20 دولار، وبحد أقصى 1.60 دولار/ساعة و300 ثانية، للاسترداد فقط دون أي inference أو model dispatch، ودون W05 ودون دمج إلى main.",
-  "fresh_authorization": true,
+  "fresh_authorization": false,
   "single_use": true,
-  "artifact_recovery_authorized": true,
+  "artifact_recovery_authorized": false,
   "no_inference": true,
   "no_model_dispatch": true,
   "target_pod_id": "hjwspv5aqtnqxd",
@@ -15,5 +15,15 @@
   "max_billed_seconds": 300,
   "historical_w05_forbidden": true,
   "no_main_merge": true,
-  "consumed": false
+  "consumed": true,
+  "consumed_run_id": 36355697462,
+  "consumed_claim": "ops/auth08-eval/claims/AQLEVON-AUTH02-EVIDENCE-RECOVERY-20260927-01.recovery.consumed.json",
+  "provider_start_attempted": true,
+  "provider_start_succeeded": false,
+  "provider_start_error": "HTTP 500",
+  "pod_remained_exited": true,
+  "no_inference_verified": true,
+  "no_model_dispatch_verified": true,
+  "invalidated_after_attempt": true,
+  "invalidated_reason": "Single-use recovery claim became durable before provider start. Recovery boot config patch succeeded and no-inference contract passed, but RunPod start returned HTTP 500. Live provider recheck confirmed pod remained EXITED. Authorization must not be reused."
 }
