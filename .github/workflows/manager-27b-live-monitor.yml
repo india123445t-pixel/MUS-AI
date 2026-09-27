@@ -1,0 +1,60 @@
+name: AQLEVON Manager 27B Live Monitor
+
+on:
+  push:
+    branches: [coord/aqlevon-accel-wave-20260927]
+    paths:
+      - ".github/manager-monitor/27b-live-trigger-*.json"
+      - ".github/workflows/manager-27b-live-monitor.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - name: Query active AQLEVON 27B pod
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${RUNPOD_API_KEY:-}"
+          curl -fsS https://rest.runpod.io/v1/pods -H "Authorization: Bearer $RUNPOD_API_KEY" -o /tmp/pods.json
+          python3 - <<'PY' > /tmp/monitor-env
+          import json
+          p=json.load(open("/tmp/pods.json"))
+          xs=p if isinstance(p,list) else p.get("pods") or p.get("items") or []
+          hits=[]
+          for x in xs:
+              name=str(x.get("name") or "")
+              status=str(x.get("desiredStatus") or x.get("status") or "")
+              if name.startswith("AQLEVON-27B-R0") and status!="EXITED":
+                  hits.append(x)
+          print("COUNT="+str(len(hits)))
+          if hits:
+              x=hits[-1]
+              print("POD_ID="+str(x.get("id") or ""))
+              print("STATUS="+str(x.get("desiredStatus") or x.get("status") or ""))
+              print("COST="+str(x.get("costPerHr") or ""))
+              print("CREATED="+str(x.get("createdAt") or ""))
+          PY
+          cat /tmp/monitor-env
+          . /tmp/monitor-env
+          if [ "${COUNT:-0}" = "0" ]; then
+            echo AQLEVON_MANAGER_MONITOR_NO_ACTIVE_POD
+            exit 0
+          fi
+          echo "AQLEVON_MANAGER_MONITOR_POD status=$STATUS cost_per_hr=$COST created=$CREATED"
+          code="$(curl -sS -o /tmp/status.json -w '%{http_code}' --connect-timeout 5 --max-time 10 "https://${POD_ID}-8000.proxy.runpod.net/status.json?t=$(date +%s)" || true)"
+          echo "AQLEVON_MANAGER_MONITOR_HTTP $code"
+          if [ "$code" = "200" ]; then
+            python3 - <<'PY'
+          import json
+          d=json.load(open("/tmp/status.json"))
+          keep={k:d.get(k) for k in ["kind","stage","rc","detail","model_name","status","optimizer_updates","baseline_dev_successes","final_dev_successes","baseline_shadow_successes","final_shadow_successes","adapter_sha256","manifest_sha256"] if k in d}
+          print("AQLEVON_MANAGER_MONITOR_RUNTIME",json.dumps(keep,sort_keys=True))
+          PY
+          fi
