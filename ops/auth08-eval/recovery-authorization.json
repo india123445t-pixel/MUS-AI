@@ -1,0 +1,15 @@
+{
+  "kind": "AQLEVON_AUTH08_EVIDENCE_RECOVERY_AUTHORIZATION_V1",
+  "authorization_id": null,
+  "fresh_authorization": false,
+  "single_use": true,
+  "artifact_recovery_authorized": false,
+  "no_inference": true,
+  "no_model_dispatch": true,
+  "target_pod_id": "hjwspv5aqtnqxd",
+  "max_total_cost_usd": 0.2,
+  "max_hourly_rate_usd": 1.6,
+  "max_billed_seconds": 300,
+  "no_main_merge": true,
+  "consumed": false
+}
