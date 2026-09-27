@@ -17,7 +17,7 @@ HISTORICAL_SOURCE_COMMIT=4e3f1b03cfe77ac4355907ec692574f30d180252
 EXPECTED_CURRENT_TRAINER_BLOB=9085e692d43110600e7bf214ffdab910f4821f1c
 CURRENT_TRAINER_PATH=research/weight_factory/agent03/aqlevon_27b_r0_auth16_transfer.py
 W02_COMMIT=abb94ef134e2e97036b6959dbc9db4278d3736b6
-MAX_ELAPSED=3200
+MAX_ELAPSED=3350
 pod=""
 stopped=0
 
@@ -53,9 +53,17 @@ assert auth_id and re.fullmatch(r"[A-Za-z0-9._:-]{8,160}",auth_id)
 assert a["single_use"] is True and a["training_authorized"] is True
 assert a["model_repo"]=="Qwen/Qwen3.8-27B"
 assert a["model_revision"]=="1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0"
-assert float(a["max_total_cost_usd"])<=1.50
-assert float(a["max_hourly_rate_usd"])<=1.60
-assert int(a["max_billed_seconds"])<=3200
+attempt_cap=float(a["max_total_cost_usd"])
+hourly_cap=float(a["max_hourly_rate_usd"])
+max_seconds=int(a["max_billed_seconds"])
+cumulative_cap=float(a["cumulative_budget_cap_usd"])
+spent_before=float(a["cumulative_spend_before_attempt_usd"])
+assert attempt_cap<=1.50
+assert hourly_cap<=1.60
+assert max_seconds<=3350
+assert cumulative_cap<=4.00
+assert spent_before>=0
+assert spent_before+attempt_cap<=cumulative_cap+1e-9
 assert a["automatic_cleanup_required"] is True
 assert a["artifact_preservation_required"] is True
 assert a["no_main_merge"] is True
@@ -154,30 +162,24 @@ PY
 
 RESUME_POD_ID="$(cat /tmp/aq27-resume-pod-id)"
 if [ -n "$RESUME_POD_ID" ]; then
-  TARGET_POD_ID="$RESUME_POD_ID" python3 - <<'PY' >/tmp/aq27-pod-query.json
-import json,os
-q="""query pod($input: PodFilter) {
-  pod(input: $input) {
-    id name desiredStatus costPerHr gpuCount imageName machineId
-    containerDiskInGb volumeInGb volumeMountPath ports
-  }
-}"""
-print(json.dumps({"query":q,"variables":{"input":{"podId":os.environ["TARGET_POD_ID"]}}}))
-PY
-  curl -fsS https://api.runpod.io/graphql     -H "Authorization: Bearer $RUNPOD_API_KEY"     -H 'Content-Type: application/json'     --data-binary @/tmp/aq27-pod-query.json >/tmp/aq27-pod-query-response.json
+  curl -fsS --request GET \
+    --url "https://rest.runpod.io/v1/pods/$RESUME_POD_ID?includeMachine=true" \
+    --header "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/aq27-resume-precheck.json
   TARGET_POD_ID="$RESUME_POD_ID" IMAGE_DIGEST="$IMAGE_DIGEST" python3 - <<'PY'
 import json,os
-d=json.load(open("/tmp/aq27-pod-query-response.json"))
-assert not d.get("errors"),d.get("errors")
-p=(d.get("data") or {}).get("pod")
-assert p and p.get("id")==os.environ["TARGET_POD_ID"],p
+p=json.load(open("/tmp/aq27-resume-precheck.json"))
+assert p.get("id")==os.environ["TARGET_POD_ID"],p
 assert p.get("name")=="AQLEVON-27B-R0-BUDGET8",p
-assert p.get("desiredStatus")=="EXITED",p
-assert int(p.get("gpuCount") or 0)==1,p
-assert str(p.get("imageName") or "")=="ghcr.io/india123445t-pixel/mus-ai@"+os.environ["IMAGE_DIGEST"],p
-assert float(p.get("costPerHr") or 999)<=1.60,p
+status=str(p.get("desiredStatus") or p.get("status") or "")
+assert status=="EXITED",p
+gpu=p.get("gpu") or {}
+assert int(gpu.get("count") or p.get("gpuCount") or 0)==1,p
+img=str(p.get("image") or p.get("imageName") or "")
+assert img=="ghcr.io/india123445t-pixel/mus-ai@"+os.environ["IMAGE_DIGEST"],(img,p)
+price=float(p.get("costPerHr") or p.get("adjustedCostPerHr") or 999)
+assert price<=1.60,p
 assert str(p.get("machineId") or ""),p
-print("AQLEVON_27B_RESUME_POD_PRECREATE_PASS",p["id"],p["machineId"],p["costPerHr"])
+print("AQLEVON_27B_RESUME_POD_PRECREATE_PASS",p["id"],p.get("machineId"),price)
 PY
 fi
 
@@ -266,24 +268,50 @@ assert str(p.get("image") or p.get("imageName") or "")==os.environ["AQLEVON_IMAG
 assert int(p.get("containerDiskInGb") or 0)>=100,p
 assert int(p.get("volumeInGb") or 0)>=100,p
 assert str(p.get("volumeMountPath") or "")=="/workspace",p
+assert p.get("dockerEntrypoint")==["bash","-lc"],p
+cmd=p.get("dockerStartCmd") or []
+assert isinstance(cmd,list) and len(cmd)==1 and "AQLEVON_SOURCE_SHA=" in cmd[0],p
 print("AQLEVON_27B_STOPPED_POD_REST_UPDATE_PASS",p["id"],p.get("machineId"))
 PY
 
   curl -fsS --request POST \
     --url "https://rest.runpod.io/v1/pods/$RESUME_POD_ID/start" \
-    --header "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/aq27-create.json
-  TARGET_POD_ID="$RESUME_POD_ID" AQLEVON_IMAGE_NAME="$IMAGE_NAME" python3 - <<'PY'
-import json,os
+    --header "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/aq27-start-response.txt
+  started=0
+  for _ in $(seq 1 60); do
+    if curl -fsS --request GET \
+      --url "https://rest.runpod.io/v1/pods/$RESUME_POD_ID?includeMachine=true" \
+      --header "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/aq27-create.json; then
+      if TARGET_POD_ID="$RESUME_POD_ID" AQLEVON_IMAGE_NAME="$IMAGE_NAME" python3 - <<'PY'
+import json,os,sys
 p=json.load(open("/tmp/aq27-create.json"))
-assert p.get("id")==os.environ["TARGET_POD_ID"],p
+if p.get("id")!=os.environ["TARGET_POD_ID"]:
+    sys.exit(2)
+status=str(p.get("desiredStatus") or p.get("status") or "")
+if status!="RUNNING":
+    sys.exit(3)
 img=str(p.get("image") or p.get("imageName") or "")
-assert img==os.environ["AQLEVON_IMAGE_NAME"],(img,p)
+if img!=os.environ["AQLEVON_IMAGE_NAME"]:
+    sys.exit(4)
 price=float(p.get("costPerHr") or p.get("adjustedCostPerHr") or 999)
-assert price<=1.60,p
+if price>1.60:
+    sys.exit(5)
+gpu=p.get("gpu") or {}
+gpu_count=int(gpu.get("count") or p.get("gpuCount") or 0)
+if gpu_count!=1:
+    sys.exit(6)
 open("/tmp/aq27-price","w").write(str(price))
 open("/tmp/aq27-resumed-pod","w").write(str(p["id"]))
 print("AQLEVON_27B_EXISTING_POD_REST_START_PASS",p["id"],p.get("machineId"),price)
 PY
+      then
+        started=1
+        break
+      fi
+    fi
+    sleep 2
+  done
+  test "$started" = 1
   pod="$(cat /tmp/aq27-resumed-pod)"
   printf '%s' "$pod" >/tmp/aq27-pod
 else
