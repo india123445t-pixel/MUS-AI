@@ -37,6 +37,7 @@ export default function ChatPage({ onChatsChanged, newChat, onMenu }) {
 
   const isTemp = params.get('temp') === '1' || chat?.temporary === 1;
   const speechAvailable = typeof window !== 'undefined' && !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+  const speechSynthesisAvailable = typeof window !== 'undefined' && !!window.speechSynthesis && typeof window.SpeechSynthesisUtterance !== 'undefined';
 
   useEffect(() => {
     api.get('/bootstrap').then(setRuntime).catch(() => setRuntime({ inferenceReady:false, inferenceError:'HEALTH_CHECK_FAILED', webSearchAvailable:false }));
@@ -93,6 +94,7 @@ export default function ChatPage({ onChatsChanged, newChat, onMenu }) {
       const resp = await api.streamChat(chatId, {
         content: content || undefined,
         useWebSearch: webSearch || deepResearch,
+        deepResearch,
         ...extra
       }, controller.signal);
       const reader = resp.body.getReader();
@@ -116,7 +118,6 @@ export default function ChatPage({ onChatsChanged, newChat, onMenu }) {
           } else if (ev === 'done') {
             if (data.error) hadError = data.error;
             const fresh = await api.get('/chats/' + chatId);
-            if (sources) fresh.sources = sources;
             setChat(fresh);
             onChatsChanged();
           }
@@ -154,8 +155,23 @@ export default function ChatPage({ onChatsChanged, newChat, onMenu }) {
   };
 
   const readAloud = (text) => {
+    if(!speechSynthesisAvailable)return;
     speechSynthesis.cancel();
     speechSynthesis.speak(new SpeechSynthesisUtterance(text.replace(/[#*`>|]/g, '')));
+  };
+
+  const sendFeedback = async (messageId, rating) => {
+    try {
+      const result = await api.sendFeedback(id, messageId, rating);
+      if (!result?.ok) {
+        setLastError(result?.error_class === 'CHAT_LOG_UNAVAILABLE' ? t('chat.feedbackUnavailable') : t('chat.feedbackFailed'));
+        return;
+      }
+      const fresh = await api.get('/chats/' + id);
+      setChat(fresh);
+    } catch {
+      setLastError(t('chat.feedbackFailed'));
+    }
   };
 
   const dictate = () => {
@@ -270,9 +286,9 @@ export default function ChatPage({ onChatsChanged, newChat, onMenu }) {
                     {m.streaming && <span className="stream-caret" />}
                   </div>
                 )}
-                {m.role === 'assistant' && chat.sources && i === messages.length - 1 && (
+                {m.role === 'assistant' && Array.isArray(m.sources) && m.sources.length > 0 && (
                   <div className="sources-row">
-                    {chat.sources.map((s, n) => (
+                    {m.sources.map((s, n) => (
                       <a key={n} className="src-chip" href={s.url} target="_blank" rel="noreferrer">
                         <span className="n">{n + 1}</span> {s.title || new URL(s.url).hostname}
                       </a>
@@ -284,9 +300,9 @@ export default function ChatPage({ onChatsChanged, newChat, onMenu }) {
                     <button className="iconbtn" title={t('chat.copy')} onClick={() => navigator.clipboard.writeText(m.content)}><Icon name="copy" size={15} /></button>
                     {m.role === 'user' && <button className="iconbtn" title={t('chat.edit')} onClick={() => setEditing(m.id)}><Icon name="pencil" size={15} /></button>}
                     {m.role === 'assistant' && <>
-                      <button className="iconbtn" title={t('chat.readAloud')} onClick={() => readAloud(m.content)}><Icon name="volume" size={15} /></button>
-                      <button className="iconbtn" title={t('chat.good')}><Icon name="thumbUp" size={15} /></button>
-                      <button className="iconbtn" title={t('chat.bad')}><Icon name="thumbDown" size={15} /></button>
+                      <button className="iconbtn" disabled={!speechSynthesisAvailable} title={speechSynthesisAvailable ? t('chat.readAloud') : t('chat.readAloudUnavailable')} onClick={() => readAloud(m.content)}><Icon name="volume" size={15} /></button>
+                      <button className={'iconbtn' + (m.feedback === 'good' ? ' on' : '')} disabled={!m.chatLogId} aria-pressed={m.feedback === 'good'} title={m.chatLogId ? t('chat.good') : t('chat.feedbackUnavailable')} onClick={() => sendFeedback(m.id, 'good')}><Icon name="thumbUp" size={15} /></button>
+                      <button className={'iconbtn' + (m.feedback === 'bad' ? ' on' : '')} disabled={!m.chatLogId} aria-pressed={m.feedback === 'bad'} title={m.chatLogId ? t('chat.bad') : t('chat.feedbackUnavailable')} onClick={() => sendFeedback(m.id, 'bad')}><Icon name="thumbDown" size={15} /></button>
                       {i === messages.length - 1 && <button className="iconbtn" title={t('chat.retry')} onClick={regenerate} disabled={busy}><Icon name="retry" size={15} /> {t('chat.retry')}</button>}
                     </>}
                     <button className="iconbtn" title={t('chat.branch')} onClick={() => branch(m.id)}><Icon name="branch" size={15} /></button>
@@ -347,7 +363,7 @@ export default function ChatPage({ onChatsChanged, newChat, onMenu }) {
             <button className={'chip' + (webSearch ? ' on' : '')} disabled={runtime?.webSearchAvailable !== true} title={runtime?.webSearchAvailable !== true ? t('chat.webUnavailable') : undefined} onClick={() => setWebSearch(v => !v)}>
               <Icon name="globe" size={15} /><span className="chip-label">{t('chat.webSearch')}</span>
             </button>
-            <button className={'chip' + (deepResearch ? ' on' : '')} disabled={runtime?.webSearchAvailable !== true} title={runtime?.webSearchAvailable !== true ? t('chat.webUnavailable') : t('chat.researchHint')} onClick={() => setDeepResearch(v => !v)}>
+            <button className={'chip' + (deepResearch ? ' on' : '')} disabled={runtime?.deepResearchAvailable !== true} title={runtime?.deepResearchAvailable !== true ? t('chat.deepResearchUnavailable') : t('chat.researchHint')} onClick={() => setDeepResearch(v => !v)}>
               <Icon name="flask" size={15} /><span className="chip-label">{t('chat.deepResearch')}</span>
             </button>
 
@@ -399,9 +415,9 @@ function CodeSheet({ onSubmit, onClose, t }) {
   const [code, setCode] = useState('');
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal wide" onClick={e => e.stopPropagation()}>
+      <div className="modal wide" role="dialog" aria-modal="true" aria-labelledby="code-sheet-title" onClick={e => e.stopPropagation()}>
         <div className="row spread">
-          <h3 style={{ margin: 0 }}>{t('chat.codeSheetTitle')}</h3>
+          <h3 id="code-sheet-title" style={{ margin: 0 }}>{t('chat.codeSheetTitle')}</h3>
           <button className="iconbtn" title={t('common.close')} onClick={onClose}><Icon name="x" size={16} /></button>
         </div>
         <textarea className="input" rows={10} style={{ fontFamily: 'var(--mono)', marginTop: 12, direction: 'ltr', textAlign: 'left' }}
