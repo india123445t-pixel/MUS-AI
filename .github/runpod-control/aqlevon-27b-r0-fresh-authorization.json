@@ -7,9 +7,9 @@
   "authorized_by": "AQLEVON_OWNER",
   "owner_authorization_text": "Standing retry authorization granted in chat on 2026-09-27: continue issuing fresh single-use AQLEVON-27B retries until success, with cumulative actual paid GPU spend capped at USD 1.50.",
   "standing_retry_parent": "docs/coordination/accel-wave2-20260927/Manager_Output/20260927_STANDING_RETRY_AUTHORIZATION_UNTIL_SUCCESS.md",
-  "fresh_authorization": true,
+  "fresh_authorization": false,
   "single_use": true,
-  "training_authorized": true,
+  "training_authorized": false,
   "model_repo": "Qwen/Qwen3.8-27B",
   "model_revision": "1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0",
   "scientific_contract_sha256": "484c369ee9e4d19d1142f4d55cce4296a594d49697d5cf47afa13f31da0a283d",
@@ -20,5 +20,14 @@
   "automatic_cleanup_required": true,
   "artifact_preservation_required": true,
   "no_main_merge": true,
-  "sealed_eval_forbidden": true
+  "sealed_eval_forbidden": true,
+  "consumed": true,
+  "consumed_run_id": 36326291713,
+  "consumed_pod_id": "v3njg70l4mtazn",
+  "final_stage": "BUDGET_WINDOW_TIMEOUT",
+  "billed_seconds_estimate": 3004,
+  "compute_cost_estimate_usd": 1.326767,
+  "invalidated_after_attempt": true,
+  "invalidated_reason": "Single-use authorization consumed by paid provider run; run stopped fail-closed at budget window timeout and must never be reused.",
+  "invalidated_at_utc": "2026-09-27T15:22:59+00:00"
 }
