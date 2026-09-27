@@ -1,0 +1,68 @@
+name: Auth08 Evidence Recovery
+
+on:
+  push:
+    branches: [manager/auth08-unified-eval-20260927]
+    paths:
+      - "ops/auth08-eval/recovery-command.json"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aqlevon-auth08-evidence-recovery-single-flight
+  cancel-in-progress: false
+
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: manager/auth08-unified-eval-20260927
+          fetch-depth: 0
+      - name: Gate recovery command
+        id: gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          action="$(python3 -c 'import json; print(json.load(open("ops/auth08-eval/recovery-command.json")).get("action",""))')"
+          if [ "$action" = "recover_auth02_evidence" ]; then
+            echo "requested=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "requested=false" >> "$GITHUB_OUTPUT"
+            echo AQLEVON_AUTH02_RECOVERY_NOT_REQUESTED
+          fi
+      - name: Recover stopped Auth02 volume evidence
+        id: recovery
+        if: steps.gate.outputs.requested == 'true'
+        env:
+          RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          bash ops/auth08-eval/recover-auth02-evidence.sh
+      - name: Upload recovered Auth02 evidence
+        id: upload
+        if: steps.gate.outputs.requested == 'true' && steps.recovery.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: aqlevon-auth02-evidence-recovery-${{ github.run_id }}
+          path: /tmp/auth08-recovery/
+          if-no-files-found: error
+          retention-days: 90
+      - name: Delete Pod only after full evidence recovered and durable upload
+        if: steps.gate.outputs.requested == 'true' && steps.recovery.outcome == 'success' && steps.upload.outcome == 'success'
+        env:
+          RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$(cat /tmp/auth08-recovery/full-evidence.flag)" = "1" ]; then
+            curl -fsS -X DELETE "https://rest.runpod.io/v1/pods/hjwspv5aqtnqxd" \
+              -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/recovery-delete.json
+            echo AQLEVON_AUTH02_RECOVERY_FULL_EVIDENCE_DURABLE_THEN_POD_DELETED
+          else
+            echo AQLEVON_AUTH02_RECOVERY_PARTIAL_ONLY_POD_LEFT_STOPPED
+          fi
