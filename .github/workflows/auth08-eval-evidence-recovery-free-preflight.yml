@@ -27,7 +27,10 @@ jobs:
           grep -F '"no_inference":True' ops/auth08-eval/recover-auth02-evidence.sh
           grep -F '"no_model_dispatch":True' ops/auth08-eval/recover-auth02-evidence.sh
           grep -F 'python3 -m http.server 8000 --directory /workspace/aqlevon-auth08-eval' ops/auth08-eval/recover-auth02-evidence.sh
+          grep -F 'gpuCount: 0' ops/auth08-eval/recover-auth02-evidence.sh
+          grep -F 'AQLEVON_AUTH02_RECOVERY_RUNTIME_ZERO_GPU_VERIFIED' ops/auth08-eval/recover-auth02-evidence.sh
           grep -F '/pods/$POD_ID/stop' ops/auth08-eval/recover-auth02-evidence.sh
+          ! grep -F '/pods/$POD_ID/start' ops/auth08-eval/recover-auth02-evidence.sh
           ! grep -F 'auth08_unified_public_eval_runner_v1.py' ops/auth08-eval/recover-auth02-evidence.sh
           ! grep -F 'snapshot_download' ops/auth08-eval/recover-auth02-evidence.sh
           ! grep -F 'model.generate' ops/auth08-eval/recover-auth02-evidence.sh
