@@ -1,0 +1,68 @@
+name: AQLEVON Manager RunPod GraphQL Schema Readonly
+
+on:
+  push:
+    branches: [coord/aqlevon-accel-wave-20260927]
+    paths:
+      - ".github/workflows/manager-runpod-graphql-schema-readonly.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  schema:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - name: Inspect RunPod mutation schemas read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${RUNPOD_API_KEY:-}"
+          python3 - <<'PY' >/tmp/payload.json
+          import json
+          q='''query {
+            __schema {
+              mutationType {
+                fields {
+                  name
+                  args {
+                    name
+                    type {
+                      kind
+                      name
+                      ofType { kind name ofType { kind name } }
+                    }
+                  }
+                }
+              }
+            }
+            podEditJobInput: __type(name: "PodEditJobInput") {
+              name inputFields { name type { kind name ofType { kind name ofType { kind name } } } }
+            }
+            podResumeInput: __type(name: "PodResumeInput") {
+              name inputFields { name type { kind name ofType { kind name ofType { kind name } } } }
+            }
+          }'''
+          print(json.dumps({"query":q}))
+          PY
+          curl -fsS https://api.runpod.io/graphql \
+            -H "Authorization: Bearer $RUNPOD_API_KEY" \
+            -H 'Content-Type: application/json' \
+            --data-binary @/tmp/payload.json >/tmp/resp.json
+          python3 - <<'PY'
+          import json
+          d=json.load(open("/tmp/resp.json"))
+          if d.get("errors"):
+              raise SystemExit("GRAPHQL_ERRORS "+json.dumps(d["errors"]))
+          data=d.get("data") or {}
+          fields=((data.get("__schema") or {}).get("mutationType") or {}).get("fields") or []
+          wanted=[f for f in fields if f.get("name") in {"podEditJob","podResume"}]
+          print("AQLEVON_RUNPOD_MUTATIONS",json.dumps(wanted,sort_keys=True))
+          print("AQLEVON_RUNPOD_EDIT_INPUT",json.dumps(data.get("podEditJobInput"),sort_keys=True))
+          print("AQLEVON_RUNPOD_RESUME_INPUT",json.dumps(data.get("podResumeInput"),sort_keys=True))
+          if {f.get("name") for f in wanted}!={"podEditJob","podResume"}:
+              raise SystemExit("REQUIRED_MUTATIONS_MISSING")
+          PY
