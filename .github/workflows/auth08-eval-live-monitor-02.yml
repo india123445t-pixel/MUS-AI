@@ -26,7 +26,7 @@ jobs:
           python3 - <<'PY'
           import json
           d=json.load(open("/tmp/pod.json"))
-          keep={k:d.get(k) for k in ["id","name","desiredStatus","status","costPerHr","adjustedCostPerHr","createdAt","lastStatusChange","machineId","gpuCount","gpuTypeId","dataCenterId","imageName"]}
+          keep={k:d.get(k) for k in ["id","name","desiredStatus","status","costPerHr","adjustedCostPerHr","createdAt","lastStatusChange","machineId","gpuCount","gpuTypeId","dataCenterId","imageName","volumeId","networkVolumeId","volumeInGb","containerDiskInGb","volumeMountPath","dockerArgs"]}
           print("AQLEVON_AUTH02_MONITOR_POD",json.dumps(keep,sort_keys=True))
           PY
           code="$(curl -sS -o /tmp/status.json -w '%{http_code}' --connect-timeout 5 --max-time 10 "https://$POD_ID-8000.proxy.runpod.net/status.json?t=$(date +%s)" || true)"
