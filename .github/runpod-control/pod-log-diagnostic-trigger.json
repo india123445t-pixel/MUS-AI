@@ -1,6 +1,6 @@
 {
   "pod_id": "8sr0se37npmlje",
-  "source": "system",
-  "requested_at_utc": "2026-09-27T09:04:00Z",
-  "reason": "AQLEVON 27B R0 live startup system diagnostic"
+  "source": "container",
+  "requested_at_utc": "2026-09-27T09:05:00Z",
+  "reason": "AQLEVON 27B R0 post-image-pull container diagnostic"
 }
