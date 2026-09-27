@@ -1,0 +1,21 @@
+{
+  "kind": "AQLEVON_RUNPOD_STORAGE_CLEANUP_AUTHORIZATION_V1",
+  "authorization_id": "AQLEVON-RUNPOD-CLEANUP-20260927-01",
+  "issued_at_utc": "2026-09-27T23:21:20Z",
+  "authorized_by": "AQLEVON_OWNER",
+  "owner_authorization_text": "أصرح بحذف الـPods القديمة `a6hxcy4h40l5gd` و`v3njg70l4mtazn` فقط، بعد التحقق النهائي أن الأدلة المطلوبة محفوظة خارجيًا، مع منع حذف `hjwspv5aqtnqxd`",
+  "fresh_authorization": true,
+  "single_use": true,
+  "destructive_cleanup_authorized": true,
+  "delete_pod_ids": [
+    "a6hxcy4h40l5gd",
+    "v3njg70l4mtazn"
+  ],
+  "protected_pod_id": "hjwspv5aqtnqxd",
+  "required_precondition": "TARGETS_EXITED_AND_REQUIRED_EVIDENCE_EXTERNALLY_PRESERVED",
+  "no_gpu_start": true,
+  "no_inference": true,
+  "no_model_dispatch": true,
+  "no_main_merge": true,
+  "consumed": false
+}
