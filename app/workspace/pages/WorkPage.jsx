@@ -179,7 +179,7 @@ export default function WorkPage({ onMenu }) {
 
       {show && (
         <div className="modal-backdrop" onClick={() => setShow(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
+          <div className="modal" role="dialog" aria-modal="true" aria-label={t('work.newTask')} onClick={e => e.stopPropagation()}>
             <h3>{t('work.newTask')}</h3>
             <div className="field">
               <label className="lbl">{t('work.objective')}</label>
