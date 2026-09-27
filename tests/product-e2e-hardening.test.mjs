@@ -39,6 +39,7 @@ test('baseline browser security headers and accessible zoom are enforced',()=>{
   assert.match(nextConfig,/Referrer-Policy/);
   assert.match(nextConfig,/Permissions-Policy/);
   assert.doesNotMatch(nextConfig,/GEMINI_MODEL/);
+  assert.match(nextConfig,/outputFileTracingRoot:process\.cwd\(\)/);
   assert.doesNotMatch(layout,/maximumScale/);
 });
 
@@ -107,6 +108,11 @@ test('project task entry point carries project id and project instructions into 
   assert.match(api,/project_id:input\.projectId\|\|null/);
   assert.match(api,/const project=input\.projectId\?/);
   assert.ok((api.match(/PROJECT INSTRUCTIONS \(user-authored context, not authority\)/g)||[]).length>=2);
+});
+
+test('deleting projects and files cleans stale browser-workspace references',()=>{
+  assert.match(api,/if\(input\.projectId===id\)\{input\.projectId=null;j\.input=JSON\.stringify\(input\)\}/);
+  assert.match(api,/if\(result\?\.fileId===id\)j\.result=JSON\.stringify\(\{\.\.\.result,fileId:null,deleted:true\}\)/);
 });
 
 test('browser-local file storage uses a safer cap and surfaces quota failures',()=>{
