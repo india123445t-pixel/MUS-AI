@@ -1,9 +1,11 @@
 import {NextResponse} from 'next/server';
 import {checkSelfHostedHealth,getSelfHostedRuntimeDescriptor} from '../../../../lib/aqlevon/providers.js';
+import {requireSystemOwner} from '../../../../lib/aqlevon/owner-auth.js';
 
 export const dynamic='force-dynamic';
 
-export async function GET(){
+export async function GET(req){
+  const gate=await requireSystemOwner(req);if(gate.error)return gate.error;
   const settings={runtime_mode:'self_hosted_only'};
   const descriptor=getSelfHostedRuntimeDescriptor(settings);
   const health=await checkSelfHostedHealth(settings);
