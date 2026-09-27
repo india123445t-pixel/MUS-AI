@@ -28,7 +28,7 @@ jobs:
             echo "::error::literal backslash-n found in paid script"
             exit 1
           fi
-          grep -F 'MAX_ELAPSED=3200' .github/runpod-control/run-aqlevon-27b-r0-budget8.sh
+          grep -F 'MAX_ELAPSED=3350' .github/runpod-control/run-aqlevon-27b-r0-budget8.sh
           grep -F -- '--volume-in-gb 100' .github/runpod-control/run-aqlevon-27b-r0-budget8.sh
           grep -F 'CLAIMS_DIR/${AUTH_ID}.reservation.json' .github/runpod-control/run-aqlevon-27b-r0-budget8.sh
           grep -F 'EXPECTED_CURRENT_TRAINER_BLOB=9085e692d43110600e7bf214ffdab910f4821f1c' .github/runpod-control/run-aqlevon-27b-r0-budget8.sh
