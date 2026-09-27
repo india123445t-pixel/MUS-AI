@@ -1,0 +1,41 @@
+name: AQLEVON Manager Auth08 Pod Verify
+
+on:
+  push:
+    branches: [coord/aqlevon-accel-wave-20260927]
+    paths:
+      - ".github/workflows/manager-auth08-pod-verify.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      TARGET_POD_ID: y06z4plp60plbc
+    steps:
+      - name: Verify Auth08 Pod
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS --request GET \
+            --url "https://rest.runpod.io/v1/pods/$TARGET_POD_ID?includeMachine=true" \
+            --header "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/pod.json
+          python3 - <<'PY'
+          import json
+          p=json.load(open("/tmp/pod.json"))
+          keep={k:p.get(k) for k in (
+            "id","name","desiredStatus","costPerHr","adjustedCostPerHr",
+            "containerDiskInGb","volumeInGb","volumeMountPath","image","imageName",
+            "machineId","createdAt","lastStatusChange"
+          ) if k in p}
+          print("AQLEVON_AUTH08_POD_VERIFY",json.dumps(keep,sort_keys=True))
+          assert p.get("id")=="y06z4plp60plbc"
+          assert int(p.get("containerDiskInGb") or 0)>=100
+          assert int(p.get("volumeInGb") or 0)>=100
+          assert p.get("volumeMountPath")=="/workspace"
+          assert float(p.get("costPerHr") or p.get("adjustedCostPerHr") or 999)<=1.60
+          PY
