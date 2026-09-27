@@ -1,0 +1,26 @@
+name: AQLEVON Runpod Storage Cleanup
+
+on:
+  push:
+    branches: [manager/auth08-unified-eval-20260927]
+    paths:
+      - "ops/auth08-eval/runpod-cleanup-authorization.json"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aqlevon-runpod-destructive-cleanup
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Delete exactly authorized obsolete Pods
+        env:
+          RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+        shell: bash
+        run: bash ops/auth08-eval/runpod-cleanup-authorized.sh
