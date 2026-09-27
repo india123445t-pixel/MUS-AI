@@ -55,6 +55,17 @@ jobs:
         run: |
           set -euo pipefail
           python3 research/weight_factory/agent03/aqlevon_27b_rerun_contract_v1.py verify
+      - name: Reproduce and close bundle ownership extraction defect
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          mkdir -p "$tmp/src" "$tmp/dst"
+          printf 'auth08-eval-bundle-smoke\n' > "$tmp/src/payload.txt"
+          tar --owner=1001 --group=1001 -czf "$tmp/bundle.tgz" -C "$tmp/src" .
+          tar --no-same-owner -xzf "$tmp/bundle.tgz" -C "$tmp/dst"
+          test "$(cat "$tmp/dst/payload.txt")" = "auth08-eval-bundle-smoke"
+          grep -F 'tar --no-same-owner -xzf "$BUNDLE" -C "$ROOT/bundle"' ops/auth08-eval/bootstrap.sh
+          echo AQLEVON_AUTH08_EVAL_NO_SAME_OWNER_EXTRACTION_PASS
       - name: Static Auth08 runner contract
         run: |
           set -euo pipefail
