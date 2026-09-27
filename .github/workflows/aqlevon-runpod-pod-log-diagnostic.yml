@@ -31,6 +31,7 @@ jobs:
           set +e
           runpodctl pod logs "$pod" --tail 150 --source "$source" --max-wait 15s > /tmp/pod-system.jsonl 2>/tmp/pod-system.err
           rc=$?
+          curl -sS --connect-timeout 5 --max-time 12 "https://rest.runpod.io/v1/pods/$pod" -H "Authorization: Bearer $RUNPOD_API_KEY" -o /tmp/provider-pod.json 2>/tmp/provider-pod.err || true
           curl -fsS --connect-timeout 5 --max-time 12 "https://$pod-8000.proxy.runpod.net/status.json" -o /tmp/runtime-status.json 2>/tmp/runtime-status.err || true
           set -e
           python - <<'PY'
@@ -49,7 +50,11 @@ jobs:
               runtime=json.loads(Path('/tmp/runtime-status.json').read_text())
           except Exception:
               runtime={}
-          out={'pod_id':json.loads(Path('.github/runpod-control/pod-log-diagnostic-trigger.json').read_text())['pod_id'],'system_logs':rows,'stderr':Path('/tmp/pod-system.err').read_text(errors='replace')[-1500:],'runtime_status':runtime,'runtime_stderr':Path('/tmp/runtime-status.err').read_text(errors='replace')[-1000:] if Path('/tmp/runtime-status.err').exists() else ''}
+          try:
+              provider=json.loads(Path('/tmp/provider-pod.json').read_text())
+          except Exception:
+              provider={}
+          out={'pod_id':json.loads(Path('.github/runpod-control/pod-log-diagnostic-trigger.json').read_text())['pod_id'],'system_logs':rows,'stderr':Path('/tmp/pod-system.err').read_text(errors='replace')[-1500:],'runtime_status':runtime,'runtime_stderr':Path('/tmp/runtime-status.err').read_text(errors='replace')[-1000:] if Path('/tmp/runtime-status.err').exists() else '','provider_status':{k:provider.get(k) for k in ('id','name','desiredStatus','status','containerStatus','costPerHr','gpuCount','gpuTypeId','dataCenterId','createdAt','lastStatusChange') if k in provider},'provider_stderr':Path('/tmp/provider-pod.err').read_text(errors='replace')[-1000:] if Path('/tmp/provider-pod.err').exists() else ''}
           Path('.github/runpod-control/pod-log-diagnostic-result.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
           PY
           git config user.name aqlevon-runpod-bot
