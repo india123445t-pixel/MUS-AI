@@ -48,7 +48,7 @@ jobs:
           for p in pods or []:
               if not isinstance(p,dict): continue
               pid=str(p.get('id',''))
-              out['pods'].append({'fingerprint':hashlib.sha256(pid.encode()).hexdigest()[:12] if pid else None,'status':p.get('desiredStatus') or p.get('status'),'cost_per_hr':p.get('costPerHr'),'created_at':p.get('createdAt')})
+              out['pods'].append({'fingerprint':hashlib.sha256(pid.encode()).hexdigest()[:12] if pid else None,'status':p.get('desiredStatus') or p.get('status'),'container_status':p.get('containerStatus'),'gpu_type_id':p.get('gpuTypeId'),'data_center_id':p.get('dataCenterId'),'cost_per_hr':p.get('costPerHr'),'created_at':p.get('createdAt'),'last_status_change':p.get('lastStatusChange')})
           json.dump(out,open('.github/runpod-control/status.json','w'),indent=2,sort_keys=True);open('.github/runpod-control/status.json','a').write('\n')
           PY
       - name: Commit status
