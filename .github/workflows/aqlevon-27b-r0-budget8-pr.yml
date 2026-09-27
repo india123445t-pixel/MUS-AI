@@ -1,0 +1,273 @@
+name: AQLEVON 27B R0 Budget8 PR Execution
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+    paths:
+      - ".github/runpod-control/aqlevon-27b-r0-budget8-pr-trigger.json"
+      - ".github/runpod-control/aqlevon-27b-r0-budget8-pr-authorization.json"
+      - ".github/runpod-control/aqlevon-27b-r0-bootstrap.sh"
+      - "research/weight_factory/agent03/aqlevon_27b_r0_auth16_transfer.py"
+      - ".github/workflows/aqlevon-27b-r0-budget8-pr.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aqlevon-27b-r0-budget8-pr
+  cancel-in-progress: false
+
+jobs:
+  execute:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 280
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      AUTH_ID: P4-AQLEVON-27B-R0-BUDGET8-20260927-02
+      IMAGE_DIGEST: sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec
+      SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+      CONTROL_BRANCH: ops/runpod-control-v1
+      CONSUMED_PATH: .github/runpod-control/aqlevon-27b-r0-budget8-pr-consumed-02.json
+      RESULT_PATH: .github/runpod-control/aqlevon-27b-r0-budget8-pr-result-02.json
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Free fail-closed source and authorization preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${RUNPOD_API_KEY:-}" || { echo "::error::RUNPOD_API_KEY unavailable"; exit 10; }
+          python3 -m py_compile research/weight_factory/agent03/aqlevon_27b_r0_auth16_transfer.py
+          bash -n .github/runpod-control/aqlevon-27b-r0-bootstrap.sh
+          python3 - <<'PY'
+          import json, os
+          a=json.load(open(".github/runpod-control/aqlevon-27b-r0-budget8-pr-authorization.json"))
+          t=json.load(open(".github/runpod-control/aqlevon-27b-r0-budget8-pr-trigger.json"))
+          assert a["authorization_id"]==t["authorization_id"]==os.environ["AUTH_ID"]
+          assert a["training_authorized"] is True and a["single_use"] is True
+          assert a["model_repo"]=="Qwen/Qwen3.8-27B"
+          assert a["model_revision"]=="1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0"
+          assert float(a["owner_budget_ceiling_usd"])==8.0
+          assert float(a["max_total_cost_usd"])<=7.60
+          assert float(a["max_hourly_rate_usd"])<=1.60
+          assert int(a["max_billed_seconds"])<=16200
+          assert a["no_main_merge"] is True and a["sealed_eval_forbidden"] is True
+          print("AQLEVON_27B_FREE_SOURCE_AUTH_PREFLIGHT_PASS")
+          PY
+          git fetch -q origin "$CONTROL_BRANCH"
+          if git cat-file -e "origin/$CONTROL_BRANCH:$CONSUMED_PATH" 2>/dev/null; then
+            echo "::error::Fresh authorization #02 is already consumed"
+            exit 90
+          fi
+
+      - name: Free RunPod state and A100 capacity gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS https://rest.runpod.io/v1/pods -H "Authorization: Bearer $RUNPOD_API_KEY" > /tmp/pods.json
+          python3 - <<'PY'
+          import json
+          p=json.load(open("/tmp/pods.json"))
+          xs=p if isinstance(p,list) else p.get("pods") or p.get("items") or []
+          active=[x for x in xs if str(x.get("name","")).startswith("AQLEVON-27B-R0") and str(x.get("desiredStatus") or x.get("status"))!="EXITED"]
+          assert not active,active
+          print("AQLEVON_27B_NO_DUPLICATE_POD_PASS")
+          PY
+          curl -sSL https://cli.runpod.net | sudo bash >/dev/null
+          runpodctl gpu list --output json > /tmp/gpus.json
+          python3 - <<'PY'
+          import json
+          choices=[]
+          for g in json.load(open("/tmp/gpus.json")):
+              if str(g.get("gpuId"))!="NVIDIA A100-SXM4-80GB" or not g.get("secureCloud"):
+                  continue
+              price=float(g.get("securePricePerHr") or 999)
+              if price>1.60: continue
+              for d in g.get("dataCenterAvailability") or []:
+                  if str(d.get("stockStatus")).lower()!="none" and d.get("dataCenterId"):
+                      choices.append((price,str(d["dataCenterId"])))
+          assert choices,"no_a100_sxm_80_capacity_under_1_60"
+          price,dc=sorted(choices)[0]
+          open("/tmp/rate","w").write(str(price))
+          open("/tmp/dc","w").write(dc)
+          print("AQLEVON_27B_A100_CAPACITY_PASS",price,dc)
+          PY
+
+      - name: Create one budget-capped A100 and consume authorization
+        id: create
+        shell: bash
+        run: |
+          set -euo pipefail
+          pod=""
+          BOOT_URL="https://raw.githubusercontent.com/$GITHUB_REPOSITORY/$SOURCE_SHA/.github/runpod-control/aqlevon-27b-r0-bootstrap.sh"
+          DOCKER_ARGS="bash -lc 'export AQLEVON_SOURCE_SHA=$SOURCE_SHA; curl -fsSL $BOOT_URL -o /tmp/aq27.sh && chmod +x /tmp/aq27.sh && exec bash /tmp/aq27.sh'"
+          runpodctl pod create             --name AQLEVON-27B-R0-BUDGET8-02             --image "ghcr.io/india123445t-pixel/mus-ai@$IMAGE_DIGEST"             --gpu-id "NVIDIA A100-SXM4-80GB"             --gpu-count 1             --cloud-type SECURE             --data-center-ids "$(cat /tmp/dc)"             --container-disk-in-gb 100             --ports 8000/http             --ssh=false             --stop-after 270m             --docker-args "$DOCKER_ARGS"             --output json > /tmp/create.json
+          python3 - <<'PY'
+          import datetime,json,os,time
+          from pathlib import Path
+          p=json.load(open("/tmp/create.json")); pod=p.get("id") or p.get("podId"); assert pod
+          Path("/tmp/pod_id").write_text(str(pod))
+          Path("/tmp/start_epoch").write_text(str(int(time.time())))
+          out={
+            "kind":"AQLEVON_27B_R0_PAID_AUTH_CONSUMPTION_V1",
+            "authorization_id":os.environ["AUTH_ID"],
+            "source_sha":os.environ["SOURCE_SHA"],
+            "pod_id":str(pod),
+            "created_at_utc":datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "rate_per_hour_usd":float(Path("/tmp/rate").read_text()),
+            "max_billed_seconds":16200,
+            "owner_budget_ceiling_usd":8.0,
+            "single_use_consumed":True
+          }
+          Path("/tmp/consumed.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("AQLEVON_27B_POD_CREATED",pod)
+          PY
+          git worktree add -q /tmp/control "origin/$CONTROL_BRANCH"
+          cp /tmp/consumed.json "/tmp/control/$CONSUMED_PATH"
+          git -C /tmp/control config user.name aqlevon-runpod-bot
+          git -C /tmp/control config user.email actions@users.noreply.github.com
+          git -C /tmp/control add "$CONSUMED_PATH"
+          git -C /tmp/control commit -m "ops: consume AQLEVON 27B R0 authorization #02 [skip ci]"
+          git -C /tmp/control pull --rebase origin "$CONTROL_BRANCH"
+          git -C /tmp/control push origin HEAD:"$CONTROL_BRANCH"
+          echo "pod_created=true" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for model, training, reload and public gates
+        id: train
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          pod="$(cat /tmp/pod_id)"
+          proxy="https://$pod-8000.proxy.runpod.net"
+          final_stage=""
+          for i in $(seq 1 1560); do
+            now="$(date +%s)"
+            elapsed=$(( now - $(cat /tmp/start_epoch) ))
+            if curl -fsS --connect-timeout 5 --max-time 10 "$proxy/status.json?t=$now" -o /tmp/status.json 2>/dev/null; then
+              stage="$(python3 -c 'import json; print(json.load(open("/tmp/status.json")).get("stage",""))' 2>/dev/null)"
+              echo "AQLEVON_27B_STATUS elapsed=$elapsed stage=$stage"
+              case "$stage" in DONE|FAILED) final_stage="$stage"; break;; esac
+            fi
+            if [ "$elapsed" -ge 15600 ]; then final_stage="BUDGET_WATCHDOG_TIMEOUT"; break; fi
+            sleep 10
+          done
+          printf '%s\n' "$final_stage" >/tmp/final_stage
+          if [ "$final_stage" = DONE ] || [ "$final_stage" = FAILED ]; then
+            curl -fsS --retry 2 --connect-timeout 10 --max-time 300 "$proxy/evidence.tgz" -o /tmp/evidence.tgz || true
+          fi
+          test "$final_stage" = DONE
+          rc=$?
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          exit "$rc"
+
+      - name: Stop and delete exact Pod
+        if: always() && steps.create.outputs.pod_created == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          pod="$(cat /tmp/pod_id)"
+          curl -sS -X POST "https://rest.runpod.io/v1/pods/$pod/stop" -H "Authorization: Bearer $RUNPOD_API_KEY" -H 'Content-Type: application/json' -d '{}' >/tmp/stop.json || true
+          sleep 3
+          curl -sS -X DELETE "https://rest.runpod.io/v1/pods/$pod" -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/delete.json || true
+          deleted=0
+          for i in $(seq 1 40); do
+            code="$(curl -sS -o /tmp/final-pod.json -w '%{http_code}' "https://rest.runpod.io/v1/pods/$pod" -H "Authorization: Bearer $RUNPOD_API_KEY" || true)"
+            if [ "$code" = 404 ]; then deleted=1; break; fi
+            sleep 2
+          done
+          test "$deleted" = 1
+          echo AQLEVON_27B_POD_DELETE_VERIFIED
+
+      - name: Record result on control branch
+        if: always() && steps.create.outputs.pod_created == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import datetime,hashlib,json,os,tarfile
+          from pathlib import Path
+          def txt(p):
+              q=Path(p)
+              return q.read_text().strip() if q.exists() else None
+          start=txt("/tmp/start_epoch")
+          elapsed=int(datetime.datetime.now(datetime.timezone.utc).timestamp())-int(start) if start else None
+          rate=float(txt("/tmp/rate")) if txt("/tmp/rate") else None
+          stage=txt("/tmp/final_stage")
+          out={
+            "kind":"AQLEVON_27B_R0_BUDGET8_RESULT_V1",
+            "authorization_id":os.environ["AUTH_ID"],
+            "source_sha":os.environ["SOURCE_SHA"],
+            "checked_at_utc":datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "final_stage":stage,
+            "rate_per_hour_usd":rate,
+            "billed_seconds_estimate":elapsed,
+            "compute_cost_estimate_usd":round(rate*elapsed/3600,6) if rate is not None and elapsed is not None else None,
+            "pod_stop_delete_requested":True,
+            "sealed_eval_consumed":False
+          }
+          ev=Path("/tmp/evidence.tgz")
+          if ev.exists():
+              out["evidence_sha256"]=hashlib.sha256(ev.read_bytes()).hexdigest()
+              out["evidence_bytes"]=ev.stat().st_size
+              try:
+                  with tarfile.open(ev,"r:gz") as t:
+                      out["candidate_manifest"]=json.loads(t.extractfile("candidate/candidate_manifest.json").read())
+                      out["training_receipt"]=json.loads(t.extractfile("candidate/training_receipt.json").read())
+              except Exception as e:
+                  out["evidence_parse_error"]=repr(e)
+          Path("/tmp/result.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+          print("AQLEVON_27B_FINAL_RESULT",json.dumps(out,sort_keys=True))
+          PY
+          if [ ! -d /tmp/control/.git ]; then
+            git fetch -q origin "$CONTROL_BRANCH"
+            git worktree add -q /tmp/control "origin/$CONTROL_BRANCH"
+          fi
+          cp /tmp/result.json "/tmp/control/$RESULT_PATH"
+          git -C /tmp/control config user.name aqlevon-runpod-bot
+          git -C /tmp/control config user.email actions@users.noreply.github.com
+          git -C /tmp/control add "$RESULT_PATH"
+          git -C /tmp/control commit -m "ops: record AQLEVON 27B R0 result #02 [skip ci]" || true
+          git -C /tmp/control pull --rebase origin "$CONTROL_BRANCH"
+          git -C /tmp/control push origin HEAD:"$CONTROL_BRANCH"
+
+      - name: Upload AQLEVON 27B R0 artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aqlevon-27b-r0-budget8-02
+          path: |
+            /tmp/evidence.tgz
+            /tmp/status.json
+            /tmp/final_stage
+            /tmp/create.json
+            /tmp/stop.json
+            /tmp/delete.json
+            /tmp/result.json
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Enforce real candidate completion
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s /tmp/final_stage
+          test "$(cat /tmp/final_stage)" = DONE
+          test -s /tmp/evidence.tgz
+          python3 - <<'PY'
+          import json,tarfile
+          t=tarfile.open("/tmp/evidence.tgz","r:gz")
+          m=json.loads(t.extractfile("candidate/candidate_manifest.json").read())
+          assert m["status"]=="AQLEVON_27B_R0_PUBLIC_PASS",m
+          assert m["model_name"]=="AQLEVON-27B-R0"
+          assert m["sealed_eval_consumed"] is False
+          assert m["worker05_used_for_tuning"] is False
+          print("AQLEVON_27B_R0_REAL_CANDIDATE_PASS",m["manifest_sha256"])
+          PY
