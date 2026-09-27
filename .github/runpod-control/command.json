@@ -2,6 +2,6 @@
   "action": "status",
   "requested_by": "AQLEVON_MANAGER",
   "mode": "read_only",
-  "nonce": "aq27-live-status-20260927-0900z",
-  "note": "monitor authorized AQLEVON-27B-R0-BUDGET8 run"
+  "nonce": "aq27-live-status-20260927-0902z",
+  "note": "monitor exact live AQLEVON-27B-R0-BUDGET8 pod"
 }
