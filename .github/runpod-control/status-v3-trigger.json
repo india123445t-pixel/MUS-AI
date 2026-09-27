@@ -1,4 +1,5 @@
 {
-  "reason": "read-only live status for authorized AQLEVON 27B run",
-  "nonce": "aq27-live-20260927-01"
+  "requested_at_utc": "2026-09-27T15:18:00+00:00",
+  "reason": "read-only status for AQLEVON 27B fresh retry",
+  "pod_id": "v3njg70l4mtazn"
 }
