@@ -52,7 +52,7 @@ export default function ProjectsPage({ onMenu }) {
 
       {show && (
         <div className="modal-backdrop" onClick={() => setShow(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
+          <div className="modal" role="dialog" aria-modal="true" aria-label={t('proj.new')} onClick={e => e.stopPropagation()}>
             <h3>{t('proj.new')}</h3>
             <div className="field">
               <label className="lbl">{t('proj.name')}</label>

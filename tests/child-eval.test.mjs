@@ -2,10 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import {fileURLToPath} from 'node:url';
 import {buildChildTeachingCandidate} from '../lib/aqlevon/child-candidate.js';
 import {evaluateChildTeachingCandidate} from '../lib/aqlevon/child-eval.js';
 
-const root=path.resolve(path.dirname(new URL(import.meta.url).pathname),'..');
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const route=fs.readFileSync(path.join(root,'app/api/admin/child-lab/evaluate/route.js'),'utf8');
 
 test('child evaluation scores teaching quality but never authorizes training',()=>{

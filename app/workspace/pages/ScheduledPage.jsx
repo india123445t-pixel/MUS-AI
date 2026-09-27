@@ -23,7 +23,7 @@ function rel(ts, lang) {
   return fmt.format(Math.round(d / 86400000), 'day');
 }
 
-// Light natural-language parse: "every 2 hours", "every day at 9", "once tomorrow 14:00"
+// Light natural-language parse for simple recurring intervals; scheduler execution remains adapter-gated.
 function parseNatural(text) {
   const s = text.toLowerCase();
   let m;
@@ -51,6 +51,11 @@ export default function ScheduledPage({ onMenu }) {
     { id: 'recurring', label: t('auto.recurring') },
     { id: 'monitor', label: t('auto.monitor') }
   ];
+  const canCreate = !!form.title.trim() && !!form.prompt.trim() && (
+    form.kind === 'once' ? !!form.runAt && Date.parse(form.runAt) > Date.now() :
+    form.kind === 'monitor' ? Number(form.intervalMinutes) >= 1 && !!form.conditionQuery.trim() :
+    Number(form.intervalMinutes) >= 1
+  );
 
   const load = () => api.get('/scheduled').then(setItems).catch(() => {});
   useEffect(() => {
@@ -66,7 +71,7 @@ export default function ScheduledPage({ onMenu }) {
   };
 
   const create = async () => {
-    if (!form.title.trim()) return;
+    if (!canCreate) return;
     try {
       await api.post('/scheduled', form);
       setShow(false); setNatural('');
@@ -130,7 +135,7 @@ export default function ScheduledPage({ onMenu }) {
 
       {show && (
         <div className="modal-backdrop" onClick={() => setShow(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
+          <div className="modal" role="dialog" aria-modal="true" aria-label={t('auto.new')} onClick={e => e.stopPropagation()}>
             <h3>{t('auto.new')}</h3>
             <div className="field">
               <label className="lbl">{t('auto.name')}</label>
@@ -171,7 +176,7 @@ export default function ScheduledPage({ onMenu }) {
             )}
             <div className="row" style={{ justifyContent: 'flex-end' }}>
               <button className="btn ghost" onClick={() => setShow(false)}>{t('common.cancel')}</button>
-              <button className="btn" disabled={!form.title.trim()} onClick={create}>{t('auto.create')}</button>
+              <button className="btn" disabled={!canCreate} onClick={create}>{t('auto.create')}</button>
             </div>
           </div>
         </div>

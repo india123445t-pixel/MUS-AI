@@ -51,7 +51,7 @@ export default function SettingsPage({ theme, setTheme, density, setDensity, onM
             <Route path="providers" element={<Navigate to="../advanced" replace />} />
             <Route path="provider" element={<Navigate to="../advanced" replace />} />
             <Route path="web" element={<WebResearch t={t} s={s} save={save} />} />
-            <Route path="data" element={<DataControls t={t} />} />
+            <Route path="data" element={<DataControls t={t} s={s} save={save} />} />
             <Route path="advanced" element={<Advanced t={t} />} />
             <Route path="about" element={<About t={t} />} />
           </Routes>
@@ -171,33 +171,37 @@ function Memory({ t }) {
 }
 
 function WebResearch({ t, s, save }) {
-  const depth = s.research_depth || 'standard';
-  return (
-    <div className="set-card">
-      <h2>{t('set.web')}</h2>
-      <p className="muted small">{t('set.webUnavailable')}</p>
-      <Row label={t('set.searchDefault')}>
-        <button className={'switch' + (s.search_default === 'on' ? ' on' : '')} role="switch" aria-checked={false} disabled />
-      </Row>
-      <Row label={t('set.researchDepth')}>
-        <div className="seg">
-          {['quick', 'standard', 'thorough'].map(d => (
-            <button key={d} className={depth === d ? 'on' : ''} disabled>{t('set.depth.' + d)}</button>
-          ))}
-        </div>
-      </Row>
-    </div>
-  );
+  const depth=s.research_depth||'standard';
+  const [runtime,setRuntime]=useState(null);
+  useEffect(()=>{api.get('/bootstrap').then(setRuntime).catch(()=>setRuntime({webSearchAvailable:false,deepResearchAvailable:false}))},[]);
+  const ready=runtime?.webSearchAvailable===true;
+  return <div className="set-card">
+    <h2>{t('set.web')}</h2>
+    <p className="muted small">{ready?t('set.webReady'):t('set.webUnavailable')}</p>
+    <Row label={t('set.searchDefault')}><button className={'switch'+(s.search_default==='on'?' on':'')} role="switch" aria-checked={s.search_default==='on'} disabled={!ready} onClick={()=>ready&&save({search_default:s.search_default==='on'?'':'on'})}/></Row>
+    <Row label={t('set.researchDepth')}><div className="seg">{['quick','standard','thorough'].map(d=><button key={d} className={depth===d?'on':''} disabled title={t('chat.deepResearchUnavailable')}>{t('set.depth.'+d)}</button>)}</div></Row>
+  </div>;
 }
 
-function DataControls({ t }) {
+function DataControls({ t, s, save }) {
   return (
     <div className="set-card">
       <h2>{t('set.data')}</h2>
       <Row label={t('set.export')}>
         <button className="btn sm ghost" onClick={() => api.downloadExport()}><Icon name="download" size={14} /> JSON</button>
       </Row>
-      <Row label={t('set.clearChats')}>
+      <Row label={t('set.privacy')} hint={t('set.privacyHint')}>
+        <a className="btn sm ghost" href="/privacy">{t('set.openPrivacy')}</a>
+      </Row>
+      <Row label={t('set.trainingConsent')} hint={t('set.trainingConsentHint')}>
+        <button
+          className={'switch' + (s.contribute_training === true ? ' on' : '')}
+          role="switch"
+          aria-checked={s.contribute_training === true}
+          onClick={() => save({ contribute_training: s.contribute_training !== true })}
+        />
+      </Row>
+      <Row label={t('set.clearChats')} hint={t('set.localDeleteOnly')}>
         <button className="btn sm danger" onClick={async () => {
           const word = t('set.clearConfirmWord');
           const typed = prompt(t('set.clearConfirm', { word }));

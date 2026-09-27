@@ -1,0 +1,37 @@
+name: Product E2E Hardening CI
+
+on:
+  push:
+    branches:
+      - fix/product-e2e-hardening-20260927
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: BOS syntax checks
+        run: npm run bos:check
+      - name: BOS tests
+        run: npm run bos:test
+      - name: Next build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: test-only-placeholder
+        run: npm run build
+      - name: Runtime smoke
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: test-only-placeholder
+        run: node scripts/product-runtime-smoke.mjs

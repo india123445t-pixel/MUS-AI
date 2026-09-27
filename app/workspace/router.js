@@ -13,7 +13,7 @@ function normalizeTarget(to, pathname) {
   if (!to) return pathname || '/chat';
   if (to.startsWith('/')) return to;
   const current = pathname || '/chat';
-  if (current.startsWith('/settings/')) {
+  if (current === '/settings' || current === '/settings/' || current.startsWith('/settings/')) {
     if (to.startsWith('../')) return '/settings/' + to.replace(/^\.\.\//, '');
     return '/settings/' + to.replace(/^\.\//, '');
   }

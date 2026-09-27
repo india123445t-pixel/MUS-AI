@@ -2,7 +2,7 @@
 
 const STATE_KEY = 'aqlevon-workspace-web-v1';
 const SESSION_KEY = 'aqlevon-workspace-session-v1';
-const MAX_INLINE_FILE = 4 * 1024 * 1024;
+const MAX_INLINE_FILE = 2 * 1024 * 1024;
 
 const now = () => new Date().toISOString();
 const uid = () => globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -23,7 +23,7 @@ function blankState(){
     plugins:DEFAULT_PLUGINS,
     settings:{
       theme:'dark', personalization:'', voice_enabled:'', notifications:'', language:'ar',
-      search_default:'', research_depth:'standard', timezone_default:'', density:'comfortable', startup_page:'chat'
+      search_default:'', research_depth:'standard', timezone_default:'', density:'comfortable', startup_page:'chat', contribute_training:false
     },
     repos:{},
   };
@@ -39,7 +39,16 @@ function load(){
     return out;
   }catch{return blankState()}
 }
-function save(s){ if(typeof window!=='undefined') localStorage.setItem(STATE_KEY,JSON.stringify(s)); return s; }
+function save(s){
+  if(typeof window!=='undefined'){
+    try{ localStorage.setItem(STATE_KEY,JSON.stringify(s)); }
+    catch(error){
+      if(error?.name==='QuotaExceededError')throw new Error('BROWSER_STORAGE_FULL');
+      throw error;
+    }
+  }
+  return s;
+}
 function update(fn){ const s=load(); const out=fn(s)||s; save(out); return out; }
 function qs(path){ return new URL(path,'https://aqlevon.local'); }
 function findChat(s,id){ return s.chats.find(c=>c.id===id); }
@@ -62,17 +71,32 @@ function calcNext(item){
 function jobCancelled(id){ return load().jobs.find(j=>j.id===id)?.status==='cancelled'; }
 
 async function runJob(id){
-  const s0=load(); const j0=s0.jobs.find(j=>j.id===id); if(!j0||!['queued','running','claimed'].includes(j0.status)) return;
-  update(s=>{const j=s.jobs.find(x=>x.id===id);if(j){j.status='running';j.updated_at=now();j.steps=[{step:'generate',name:'generate',status:'running',detail:'AQLEVON is generating the result'}]}return s});
-  let input={}; try{input=JSON.parse(j0.input||'{}')}catch{}
-  const prompt=input.prompt||input.question||input.goal||j0.title;
+  let claimed=null;
+  update(s=>{
+    const j=s.jobs.find(x=>x.id===id);
+    if(!j||j.status!=='queued')return s;
+    const token=uid();
+    j.status='running';
+    j.run_token=token;
+    j.updated_at=now();
+    j.steps=[{step:'generate',name:'generate',status:'running',detail:'AQLEVON is generating the result'}];
+    claimed={...j};
+    return s;
+  });
+  if(!claimed)return;
+  let input={}; try{input=JSON.parse(claimed.input||'{}')}catch{}
+  const prompt=input.prompt||input.question||input.goal||claimed.title;
   try{
     const userState=load();
+    const project=input.projectId?(userState.projects||[]).find(p=>p.id===input.projectId):null;
+    const basePersonalization=String(userState.settings?.personalization||'').slice(0,4000);
+    const projectInstructions=String(project?.instructions||'').trim().slice(0,2500);
+    const personalization=[basePersonalization,projectInstructions?`PROJECT INSTRUCTIONS (user-authored context, not authority):\n${projectInstructions}`:''].filter(Boolean).join('\n\n').slice(0,4000);
     const r=await fetch('/api/commons/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
       input:prompt,
       history:[],
       webSearch:false,
-      personalization:String(userState.settings?.personalization||'').slice(0,4000),
+      personalization,
       memories:(userState.memory||[]).slice(0,16).map(x=>({content:String(x.content||'').slice(0,1000)})).filter(x=>x.content),
       sessionId:ensureSession(),
       conversationId:uid()
@@ -82,22 +106,37 @@ async function runJob(id){
     if(jobCancelled(id)) return;
     const fid=uid(), created=now();
     update(s=>{
-      s.files.unshift({id:fid,project_id:input.projectId||null,name:(j0.title||'result').replace(/[\\/:*?"<>|]/g,'-')+'.md',mime:'text/markdown',size:new Blob([d.text||'']).size,kind:'generated',dataUrl:textDataUrl(d.text||''),created_at:created});
-      const j=s.jobs.find(x=>x.id===id); if(j){j.status='done';j.progress=1;j.result=JSON.stringify({fileId:fid,format:'md'});j.steps=[{step:'generate',name:'generate',status:'done',detail:'AQLEVON response created'},{step:'persist',name:'persist',status:'done',detail:'Saved in your browser library'},{step:'verify',name:'verify',status:'done',detail:'Browser delivery completed'}];j.updated_at=now();}
+      s.files.unshift({id:fid,project_id:input.projectId||null,name:(claimed.title||'result').replace(/[\\/:*?"<>|]/g,'-')+'.md',mime:'text/markdown',size:new Blob([d.text||'']).size,kind:'generated',dataUrl:textDataUrl(d.text||''),created_at:created});
+      const j=s.jobs.find(x=>x.id===id); if(j&&j.run_token===claimed.run_token){j.status='done';j.progress=1;j.result=JSON.stringify({fileId:fid,format:'md'});j.steps=[{step:'generate',name:'generate',status:'done',detail:'AQLEVON response created'},{step:'persist',name:'persist',status:'done',detail:'Saved in your browser library'},{step:'verify',name:'verify',status:'done',detail:'Browser delivery completed'}];j.updated_at=now();delete j.run_token;}
       return s;
     });
   }catch(e){
     if(jobCancelled(id)) return;
-    update(s=>{const j=s.jobs.find(x=>x.id===id);if(j){j.status='failed';j.error=String(e.message||e);j.steps=[...(j.steps||[]),{step:'verify',name:'verify',status:'failed',detail:j.error}];j.updated_at=now()}return s});
+    update(s=>{const j=s.jobs.find(x=>x.id===id);if(j&&j.run_token===claimed.run_token){j.status='failed';j.error=String(e.message||e);j.steps=[...(j.steps||[]),{step:'verify',name:'verify',status:'failed',detail:j.error}];j.updated_at=now();delete j.run_token}return s});
   }
 }
+let jobsRecovered=false;
 function recoverJobs(){
+  if(jobsRecovered)return;
+  jobsRecovered=true;
+  const cutoff=Date.now()-120000;
+  update(s=>{
+    for(const j of s.jobs){
+      if(['running','claimed'].includes(j.status)&&Date.parse(j.updated_at||j.created_at||0)<cutoff){
+        j.status='failed';
+        j.error='BROWSER_JOB_INTERRUPTED';
+        j.updated_at=now();
+        delete j.run_token;
+      }
+    }
+    return s;
+  });
   const s=load();
   for(const j of s.jobs.filter(x=>x.status==='queued')) setTimeout(()=>runJob(j.id),10);
 }
 
 async function fileToDataUrl(file){
-  if(file.size>MAX_INLINE_FILE) throw new Error('Browser edition currently stores files up to 4 MB. Use the downloadable desktop/runtime package for larger files.');
+  if(file.size>MAX_INLINE_FILE) throw new Error('Browser edition currently stores files up to 2 MB. Use the downloadable desktop/runtime package for larger files.');
   return await new Promise((resolve,reject)=>{const fr=new FileReader();fr.onload=()=>resolve(fr.result);fr.onerror=()=>reject(fr.error);fr.readAsDataURL(file)});
 }
 
@@ -117,11 +156,25 @@ async function get(path){
     }catch{}
     const selfHostedConfigured=status?.self_hosted_configured===true;
     const inferenceReady=health?.inference_ready===true||commons?.available===true;
-    return {mode:'public-browser',workspace:{id:'local',name:'AQLEVON Workspace',created_at:now()},aiConfigured:selfHostedConfigured||commons?.available===true,inferenceReady,inferenceError:inferenceReady?null:(health?.primary_error_class||'ENV_MISSING'),webSearchAvailable:false,runtime:{provider:'AQLEVON',browserStorage:true,commonsAvailable:!!commons?.available,activeWorkers:Number(commons?.active_workers||0),runtimeMode:'self_hosted_only',sovereignRuntime:true,inferenceTarget:'aqlevon-engine',externalProviderRouting:false,providerHealth:health}};
+    const webSearchAvailable=status?.web_search_configured===true;
+    return {mode:'public-browser',workspace:{id:'local',name:'AQLEVON Workspace',created_at:now()},aiConfigured:selfHostedConfigured||commons?.available===true,inferenceReady,inferenceError:inferenceReady?null:(health?.primary_error_class||'ENV_MISSING'),webSearchAvailable,deepResearchAvailable:false,runtime:{provider:'AQLEVON',browserStorage:true,commonsAvailable:!!commons?.available,activeWorkers:Number(commons?.active_workers||0),runtimeMode:'self_hosted_only',sovereignRuntime:true,inferenceTarget:'aqlevon-engine',externalProviderRouting:false,providerHealth:health}};
   }
   if(p==='/chats'){
     const q=(u.searchParams.get('q')||'').toLowerCase();
     return s.chats.filter(c=>!c.temporary&&(q?(c.title||'').toLowerCase().includes(q)||(c.messages||[]).some(m=>(m.content||'').toLowerCase().includes(q)):c.project_id==null)).sort((a,b)=>String(b.updated_at).localeCompare(String(a.updated_at))).slice(0,100).map(publicChat);
+  }
+  if(p==='/search'){
+    const q=(u.searchParams.get('q')||'').trim().toLowerCase();
+    const out=[];
+    const add=(type,id,title,subtitle,path,updated_at)=>out.push({type,id,title:String(title||''),subtitle:String(subtitle||''),path,updated_at:updated_at||''});
+    const chats=s.chats.filter(c=>!c.temporary).slice().sort((a,b)=>String(b.updated_at).localeCompare(String(a.updated_at)));
+    if(!q){for(const c of chats.slice(0,12))add('chat',c.id,c.title||'Chat','',`/chat/${c.id}`,c.updated_at);return out;}
+    for(const c of chats){const hay=[c.title,...(c.messages||[]).map(m=>m.content)].join(' ').toLowerCase();if(hay.includes(q))add('chat',c.id,c.title||'Chat','',`/chat/${c.id}`,c.updated_at);}
+    for(const pr of s.projects){if([pr.name,pr.instructions].join(' ').toLowerCase().includes(q))add('project',pr.id,pr.name||'Project',pr.instructions||'',`/projects/${pr.id}`,pr.created_at);}
+    for(const f of s.files){if(String(f.name||'').toLowerCase().includes(q))add('file',f.id,f.name||'File',f.mime||'',`/library?q=${encodeURIComponent(f.name||'')}`,f.created_at);}
+    for(const j of s.jobs){let objective='';try{const input=JSON.parse(j.input||'{}');objective=input.prompt||input.question||input.goal||''}catch{}if([j.title,objective].join(' ').toLowerCase().includes(q))add('job',j.id,j.title||'Task',objective,`/work/${j.id}`,j.updated_at||j.created_at);}
+    for(const a of s.scheduled){if([a.title,a.prompt,a.condition_query].join(' ').toLowerCase().includes(q))add('automation',a.id,a.title||'Automation',a.prompt||a.condition_query||'', '/scheduled',a.created_at);}
+    return out.sort((a,b)=>String(b.updated_at).localeCompare(String(a.updated_at))).slice(0,50);
   }
   let m=p.match(/^\/chats\/([^/]+)$/); if(m){const c=findChat(s,decodeURIComponent(m[1]));if(!c)throw Error('not found');return structuredClone(c)}
   if(p==='/projects') return s.projects.map(pr=>({...pr,chatCount:s.chats.filter(c=>c.project_id===pr.id).length,fileCount:s.files.filter(f=>f.project_id===pr.id).length}));
@@ -174,7 +227,7 @@ async function post(path, body={}){
     const j={id:uid(),title:body.title||'Task',kind:body.kind||'work.deliverable',status:'queued',progress:0,input:JSON.stringify(body),result:null,error:null,created_at:now(),updated_at:now(),steps:[],evidence:[]};
     update(s=>{s.jobs.unshift(j);return s});setTimeout(()=>runJob(j.id),20);return j;
   }
-  m=p.match(/^\/jobs\/([^/]+)\/(cancel|retry)$/); if(m){const id=decodeURIComponent(m[1]);if(m[2]==='cancel')update(s=>{const j=s.jobs.find(x=>x.id===id);if(j)j.status='cancelled';return s});else{update(s=>{const j=s.jobs.find(x=>x.id===id);if(j){j.status='queued';j.error=null}return s});setTimeout(()=>runJob(id),20)}return {ok:true}}
+  m=p.match(/^\/jobs\/([^/]+)\/(cancel|retry)$/); if(m){const id=decodeURIComponent(m[1]);if(m[2]==='cancel')update(s=>{const j=s.jobs.find(x=>x.id===id);if(j){j.status='cancelled';delete j.run_token}return s});else{update(s=>{const j=s.jobs.find(x=>x.id===id);if(j){j.status='queued';j.error=null;delete j.run_token}return s});setTimeout(()=>runJob(id),20)}return {ok:true}}
   if(p==='/scheduled'){
     const item={id:uid(),title:body.title||'Automation draft',kind:body.kind||'once',prompt:body.prompt||'',runAt:body.runAt||'',interval_minutes:Number(body.intervalMinutes||60),condition_query:body.conditionQuery||'',enabled:false,next_run:null,adapter_state:'NOT_CONNECTED',created_at:now(),runs:[]};update(s=>{s.scheduled.unshift(item);return s});return item;
   }
@@ -215,8 +268,8 @@ async function patch(path, body={}){
 async function del(path){
   const p=qs(path).pathname; let m;
   m=p.match(/^\/chats\/([^/]+)$/);if(m){update(s=>{s.chats=s.chats.filter(x=>x.id!==decodeURIComponent(m[1]));return s});return {ok:true}}
-  m=p.match(/^\/projects\/([^/]+)$/);if(m){const id=decodeURIComponent(m[1]);update(s=>{s.projects=s.projects.filter(x=>x.id!==id);s.chats.forEach(c=>{if(c.project_id===id)c.project_id=null});s.files.forEach(f=>{if(f.project_id===id)f.project_id=null});return s});return {ok:true}}
-  m=p.match(/^\/files\/([^/]+)$/);if(m){update(s=>{s.files=s.files.filter(x=>x.id!==decodeURIComponent(m[1]));return s});return {ok:true}}
+  m=p.match(/^\/projects\/([^/]+)$/);if(m){const id=decodeURIComponent(m[1]);update(s=>{s.projects=s.projects.filter(x=>x.id!==id);s.chats.forEach(c=>{if(c.project_id===id)c.project_id=null});s.files.forEach(f=>{if(f.project_id===id)f.project_id=null});s.jobs.forEach(j=>{try{const input=JSON.parse(j.input||'{}');if(input.projectId===id){input.projectId=null;j.input=JSON.stringify(input)}}catch{}});return s});return {ok:true}}
+  m=p.match(/^\/files\/([^/]+)$/);if(m){const id=decodeURIComponent(m[1]);update(s=>{s.files=s.files.filter(x=>x.id!==id);s.jobs.forEach(j=>{try{const result=JSON.parse(j.result||'null');if(result?.fileId===id)j.result=JSON.stringify({...result,fileId:null,deleted:true})}catch{}});return s});return {ok:true}}
   m=p.match(/^\/scheduled\/([^/]+)$/);if(m){update(s=>{s.scheduled=s.scheduled.filter(x=>x.id!==decodeURIComponent(m[1]));return s});return {ok:true}}
   m=p.match(/^\/memory\/([^/]+)$/);if(m){update(s=>{s.memory=s.memory.filter(x=>x.id!==decodeURIComponent(m[1]));return s});return {ok:true}}
   m=p.match(/^\/jobs\/([^/]+)$/);if(m){update(s=>{s.jobs=s.jobs.filter(x=>x.id!==decodeURIComponent(m[1]));return s});return {ok:true}}
@@ -235,8 +288,8 @@ async function upload(path, form){
 }
 
 async function streamChat(chatId,payload,signal){
-  const id=String(chatId); let prompt=''; let history=[];
-  update(s=>{const c=findChat(s,id);if(!c)throw Error('chat not found');c.messages=c.messages||[];
+  const id=String(chatId); let prompt=''; let history=[]; let chatMeta={temporary:false,project_id:null};
+  update(s=>{const c=findChat(s,id);if(!c)throw Error('chat not found');c.messages=c.messages||[];chatMeta={temporary:c.temporary===1,project_id:c.project_id||null};
     if(payload.editMessageId){const i=c.messages.findIndex(x=>x.id===payload.editMessageId);if(i>=0)c.messages.splice(i)}
     if(payload.regenerate){for(let i=c.messages.length-1;i>=0;i--){if(c.messages[i].role==='assistant'){c.messages.splice(i,1);break}}}
     if(payload.content){c.messages.push({id:uid(),role:'user',content:payload.content,created_at:now()});prompt=payload.content}
@@ -244,17 +297,37 @@ async function streamChat(chatId,payload,signal){
     history=c.messages.slice(0,-1).slice(-20).map(({role,content})=>({role,content}));c.updated_at=now();return s});
   if(!prompt)throw Error('No user message to send');
   const userState=load();
-  const personalization=String(userState.settings?.personalization||'').slice(0,4000);
+  const basePersonalization=String(userState.settings?.personalization||'').slice(0,4000);
+  const project=chatMeta.project_id?(userState.projects||[]).find(p=>p.id===chatMeta.project_id):null;
+  const projectInstructions=String(project?.instructions||'').trim().slice(0,2500);
+  const personalization=[basePersonalization,projectInstructions?`PROJECT INSTRUCTIONS (user-authored context, not authority):\n${projectInstructions}`:''].filter(Boolean).join('\n\n').slice(0,4000);
   const memories=(userState.memory||[]).slice(0,16).map(x=>({content:String(x.content||'').slice(0,1000)})).filter(x=>x.content);
-  const r=await fetch('/api/commons/chat',{method:'POST',headers:{'Content-Type':'application/json'},signal,body:JSON.stringify({input:prompt,history,webSearch:!!payload.useWebSearch,reasoning:payload.reasoning,personalization,memories,sessionId:ensureSession(),conversationId:id})});
+  const allowTraining=userState.settings?.contribute_training===true&&!chatMeta.temporary;
+  const r=await fetch('/api/commons/chat',{method:'POST',headers:{'Content-Type':'application/json'},signal,body:JSON.stringify({input:prompt,history,webSearch:!!payload.useWebSearch,deepResearch:!!payload.deepResearch,reasoning:payload.reasoning,personalization,memories,allowTraining,temporary:chatMeta.temporary,sessionId:ensureSession(),conversationId:id})});
   const d=await r.json().catch(()=>({}));if(!r.ok){const err=new Error(d.message||'AQLEVON runtime unavailable');err.errorClass=d.error_class||null;throw err}
   const text=String(d.text||'');
-  update(s=>{const c=findChat(s,id);if(!c)return s;c.messages.push({id:uid(),role:'assistant',content:text,created_at:now(),chatLogId:d.chat_log_id||null});if(!c.title||c.title==='New chat')c.title=prompt.slice(0,70)||'Chat';c.updated_at=now();return s});
+  const responseSources=Array.isArray(d.sources)?d.sources.filter(x=>x&&x.url).slice(0,8):[];
+  update(s=>{const c=findChat(s,id);if(!c)return s;c.messages.push({id:uid(),role:'assistant',content:text,created_at:now(),chatLogId:d.chat_log_id||null,sources:responseSources});if(!c.title||c.title==='New chat')c.title=prompt.slice(0,70)||'Chat';c.updated_at=now();return s});
   const enc=new TextEncoder();
   return new Response(new ReadableStream({start(controller){
     let i=0;const step=Math.max(12,Math.ceil(text.length/24));
+    if(responseSources.length)controller.enqueue(enc.encode(`event: sources\ndata: ${JSON.stringify({sources:responseSources})}\n\n`));
     const pump=()=>{if(signal?.aborted){controller.error(new DOMException('Aborted','AbortError'));return}if(i<text.length){const chunk=text.slice(i,i+step);i+=step;controller.enqueue(enc.encode(`event: delta\ndata: ${JSON.stringify({t:chunk})}\n\n`));setTimeout(pump,8);return}controller.enqueue(enc.encode(`event: done\ndata: ${JSON.stringify({ok:true})}\n\n`));controller.close()};pump();
   }}),{status:200,headers:{'Content-Type':'text/event-stream'}});
+}
+
+async function sendFeedback(chatId,messageId,rating){
+  const normalized=rating==='good'?'good':rating==='bad'?'bad':null;
+  if(!normalized)return {ok:false,error_class:'RATING_INVALID'};
+  const state=load();
+  const chat=findChat(state,String(chatId));
+  const message=(chat?.messages||[]).find(m=>m.id===messageId);
+  if(!message?.chatLogId)return {ok:false,error_class:'CHAT_LOG_UNAVAILABLE'};
+  const r=await fetch('/api/status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'feedback',rating:normalized,chatLogId:message.chatLogId,sessionId:ensureSession()})});
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok)throw new Error(d.message||'FEEDBACK_FAILED');
+  update(s=>{const c=findChat(s,String(chatId));const m=(c?.messages||[]).find(x=>x.id===messageId);if(m)m.feedback=normalized;return s});
+  return {ok:true,rating:normalized};
 }
 
 function fileUrl(id){ return fileFromState(id)?.dataUrl || 'data:text/plain,File%20not%20found'; }
@@ -263,4 +336,4 @@ function downloadExport(){
   const s=load();const clean={...s,files:s.files.map(({dataUrl,...f})=>f)};const blob=new Blob([JSON.stringify(clean,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='aqlevon-export.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 
-export const api={get,post,patch,del,put,upload,streamChat,fileUrl,fileText,downloadExport};
+export const api={get,post,patch,del,put,upload,streamChat,sendFeedback,fileUrl,fileText,downloadExport};

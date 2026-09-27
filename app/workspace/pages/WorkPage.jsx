@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { useNavigate, useParams } from '../router.js';
+import { useNavigate, useParams, useSearchParams } from '../router.js';
 import { api } from '../api.js';
 import { useI18n } from '../i18n/index.js';
 import Icon from '../components/Icon.jsx';
@@ -26,7 +26,10 @@ function StatusTag({ status, t }) {
 
 export default function WorkPage({ onMenu }) {
   const { id } = useParams();
+  const [params] = useSearchParams();
   const nav = useNavigate();
+  const projectId = params.get('project') || null;
+  const openNew = params.get('new') === '1';
   const { t } = useI18n();
   const [jobs, setJobs] = useState([]);
   const [detail, setDetail] = useState(null);
@@ -45,6 +48,7 @@ export default function WorkPage({ onMenu }) {
     const timer = setInterval(load, 2500);
     return () => clearInterval(timer);
   }, [load]);
+  useEffect(() => { if (openNew) setShow(true); }, [openNew]);
 
   const create = async () => {
     if (!form.prompt.trim() || runtime?.inferenceReady !== true) return;
@@ -52,7 +56,7 @@ export default function WorkPage({ onMenu }) {
     const title = form.prompt.trim().slice(0, 60);
     const j = await api.post('/jobs', {
       title, kind: tp.kind, format: tp.format,
-      prompt: form.prompt, question: form.prompt, goal: form.prompt, iterations: 3
+      prompt: form.prompt, question: form.prompt, goal: form.prompt, iterations: 3, projectId
     });
     setShow(false); setForm({ prompt: '', type: 'md' });
     nav('/work/' + j.id);
@@ -175,7 +179,7 @@ export default function WorkPage({ onMenu }) {
 
       {show && (
         <div className="modal-backdrop" onClick={() => setShow(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
+          <div className="modal" role="dialog" aria-modal="true" aria-label={t('work.newTask')} onClick={e => e.stopPropagation()}>
             <h3>{t('work.newTask')}</h3>
             <div className="field">
               <label className="lbl">{t('work.objective')}</label>
