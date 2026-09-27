@@ -1,0 +1,41 @@
+name: AQLEVON HTTP Status Probe
+on:
+  push:
+    branches: [ops/runpod-control-v1]
+    paths: [".github/runpod-control/http-status-probe-trigger.json"]
+permissions:
+  contents: write
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/runpod-control-v1
+      - name: Read public AQLEVON pod status
+        shell: bash
+        run: |
+          set -euo pipefail
+          pod="$(jq -r '.pod_id' .github/runpod-control/http-status-probe-trigger.json)"
+          test -n "$pod"
+          code="$(curl -sS --connect-timeout 8 --max-time 15 -o /tmp/status.json -w '%{http_code}' "https://$pod-8000.proxy.runpod.net/status.json" || true)"
+          python3 - "$code" <<'PY'
+          import json,sys
+          from pathlib import Path
+          code=sys.argv[1]
+          raw={}
+          if Path('/tmp/status.json').exists():
+              try: raw=json.loads(Path('/tmp/status.json').read_text())
+              except Exception: raw={}
+          allowed={k:raw.get(k) for k in ('kind','checked_at_utc','stage','rc','detail','candidate_status','public_gate_pass','discovery_dev_gate_pass','public_shadow_gate_pass','selected_optimizer_updates','selected_phase','dev_pre_successes','dev_post_successes','shadow_pre_successes','shadow_post_successes') if k in raw}
+          out={'http_code':code,'reachable':code=='200','status':allowed}
+          Path('.github/runpod-control/http-status-probe-result.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
+          print(json.dumps(out,sort_keys=True))
+          PY
+          git config user.name aqlevon-runpod-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/runpod-control/http-status-probe-result.json
+          git commit -m "ops: record AQLEVON HTTP status probe [skip ci]" || true
+          git pull --rebase origin ops/runpod-control-v1 || true
+          git push origin HEAD:ops/runpod-control-v1 || true
