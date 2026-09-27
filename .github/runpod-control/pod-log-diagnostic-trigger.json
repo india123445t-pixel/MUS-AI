@@ -1,6 +1,6 @@
 {
-  "pod_id": "8sr0se37npmlje",
+  "pod_id": "v3njg70l4mtazn",
   "source": "container",
-  "requested_at_utc": "2026-09-27T15:15:00+00:00",
-  "reason": "AQLEVON 27B R0 continuation status after user interruption"
+  "requested_at_utc": "2026-09-27T15:16:00+00:00",
+  "reason": "AQLEVON 27B fresh retry live progress check"
 }
