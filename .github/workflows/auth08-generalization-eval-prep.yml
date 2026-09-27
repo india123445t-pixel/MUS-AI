@@ -1,0 +1,55 @@
+name: Auth08 Generalization Eval Prep
+
+on:
+  push:
+    branches: [manager/auth08-generalization-eval-prep-20260927]
+    paths:
+      - "research/weight_factory/auth08_eval_binding_v1.json"
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify frozen challenge tests
+        run: |
+          set -euo pipefail
+          python3 research/weight_factory/agent04/test_aqlevon_27b_public_generalization_challenge_v1.py
+          python3 research/weight_factory/agent04/test_aqlevon_27b_public_generalization_result_harness_v1.py
+      - name: Prepare Auth08 frozen execution manifest
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json,subprocess
+          b=json.load(open("research/weight_factory/auth08_eval_binding_v1.json"))
+          cmd=[
+            "python3","research/weight_factory/agent04/aqlevon_27b_public_generalization_result_harness_v1.py","prepare",
+            "--template","research/weight_factory/agent04/aqlevon_27b_public_generalization_execution_manifest_template_v1.json",
+            "--adapter-sha256",b["adapter_sha256"],
+            "--adapter-state-sha256",b["adapter_state_sha256"],
+            "--candidate-manifest-sha256",b["candidate_manifest_sha256"],
+            "--manifest-out","auth08-generalization-manifest.json",
+            "--results-out","auth08-generalization-results-skeleton.json",
+          ]
+          subprocess.run(cmd,check=True)
+          PY
+          python3 - <<'PY'
+          import json,hashlib
+          m=json.load(open("auth08-generalization-manifest.json"))
+          r=json.load(open("auth08-generalization-results-skeleton.json"))
+          assert len(r)==128
+          assert m["candidate_identity"]["adapter_sha256"]=="5ed9a22e963eca99f5ebd00f13a46fa6afadd9b74bb9d2e501b23c1ff9219c74"
+          print("AQLEVON_AUTH08_GENERALIZATION_PREP_PASS",m["manifest_sha256"],len(r))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aqlevon-auth08-generalization-eval-prep
+          path: |
+            auth08-generalization-manifest.json
+            auth08-generalization-results-skeleton.json
+            research/weight_factory/auth08_eval_binding_v1.json
+          if-no-files-found: error
