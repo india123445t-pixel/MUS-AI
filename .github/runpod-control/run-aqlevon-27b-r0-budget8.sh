@@ -234,64 +234,55 @@ DOCKER_ARGS="bash -lc 'export AQLEVON_SOURCE_SHA=$GITHUB_SHA; curl -fsSL $BOOT_U
 IMAGE_NAME="ghcr.io/india123445t-pixel/mus-ai@$IMAGE_DIGEST"
 
 if [ -n "$RESUME_POD_ID" ]; then
-  TARGET_POD_ID="$RESUME_POD_ID" AQLEVON_DOCKER_ARGS="$DOCKER_ARGS" AQLEVON_IMAGE_NAME="$IMAGE_NAME" python3 - <<'PY' >/tmp/aq27-edit-payload.json
+  TARGET_POD_ID="$RESUME_POD_ID" AQLEVON_BOOT_URL="$BOOT_URL" AQLEVON_SOURCE_SHA="$GITHUB_SHA" AQLEVON_IMAGE_NAME="$IMAGE_NAME" python3 - <<'PY' >/tmp/aq27-update-body.json
 import json,os
-q="""mutation podEditJob($input: PodEditJobInput!) {
-  podEditJob(input: $input) {
-    id name desiredStatus costPerHr gpuCount imageName machineId
-    containerDiskInGb volumeInGb volumeMountPath ports dockerArgs
-  }
-}"""
-inp={
-  "podId":os.environ["TARGET_POD_ID"],
-  "imageName":os.environ["AQLEVON_IMAGE_NAME"],
-  "dockerArgs":os.environ["AQLEVON_DOCKER_ARGS"],
-  "ports":"8000/http",
+script=(
+    "export AQLEVON_SOURCE_SHA="+os.environ["AQLEVON_SOURCE_SHA"]+"; "
+    "curl -fsSL "+os.environ["AQLEVON_BOOT_URL"]+" -o /tmp/aq27.sh && "
+    "chmod +x /tmp/aq27.sh && exec bash /tmp/aq27.sh"
+)
+body={
   "containerDiskInGb":100,
+  "dockerEntrypoint":["bash","-lc"],
+  "dockerStartCmd":[script],
+  "imageName":os.environ["AQLEVON_IMAGE_NAME"],
+  "name":"AQLEVON-27B-R0-BUDGET8",
+  "ports":["8000/http"],
   "volumeInGb":100,
   "volumeMountPath":"/workspace"
 }
-print(json.dumps({"query":q,"variables":{"input":inp}}))
+print(json.dumps(body))
 PY
-  curl -fsS https://api.runpod.io/graphql     -H "Authorization: Bearer $RUNPOD_API_KEY"     -H 'Content-Type: application/json'     --data-binary @/tmp/aq27-edit-payload.json >/tmp/aq27-edit-response.json
+  curl -fsS --request PATCH \
+    --url "https://rest.runpod.io/v1/pods/$RESUME_POD_ID" \
+    --header "Authorization: Bearer $RUNPOD_API_KEY" \
+    --header 'Content-Type: application/json' \
+    --data-binary @/tmp/aq27-update-body.json >/tmp/aq27-edit-response.json
   TARGET_POD_ID="$RESUME_POD_ID" AQLEVON_IMAGE_NAME="$IMAGE_NAME" python3 - <<'PY'
 import json,os
-d=json.load(open("/tmp/aq27-edit-response.json"))
-assert not d.get("errors"),d.get("errors")
-p=(d.get("data") or {}).get("podEditJob")
-assert p and p.get("id")==os.environ["TARGET_POD_ID"],p
-assert p.get("desiredStatus")=="EXITED",p
-assert str(p.get("imageName") or "")==os.environ["AQLEVON_IMAGE_NAME"],p
+p=json.load(open("/tmp/aq27-edit-response.json"))
+assert p.get("id")==os.environ["TARGET_POD_ID"],p
+assert str(p.get("image") or p.get("imageName") or "")==os.environ["AQLEVON_IMAGE_NAME"],p
 assert int(p.get("containerDiskInGb") or 0)>=100,p
 assert int(p.get("volumeInGb") or 0)>=100,p
 assert str(p.get("volumeMountPath") or "")=="/workspace",p
-print("AQLEVON_27B_STOPPED_POD_EDIT_PASS",p["id"],p.get("machineId"))
+print("AQLEVON_27B_STOPPED_POD_REST_UPDATE_PASS",p["id"],p.get("machineId"))
 PY
-  TARGET_POD_ID="$RESUME_POD_ID" python3 - <<'PY' >/tmp/aq27-resume-payload.json
-import json,os
-q="""mutation podResume($input: PodResumeInput!) {
-  podResume(input: $input) {
-    id name desiredStatus costPerHr gpuCount imageName machineId
-    containerDiskInGb volumeInGb volumeMountPath ports
-  }
-}"""
-print(json.dumps({"query":q,"variables":{"input":{"podId":os.environ["TARGET_POD_ID"],"gpuCount":1,"computeType":"GPU"}}}))
-PY
-  curl -fsS https://api.runpod.io/graphql     -H "Authorization: Bearer $RUNPOD_API_KEY"     -H 'Content-Type: application/json'     --data-binary @/tmp/aq27-resume-payload.json >/tmp/aq27-create.json
+
+  curl -fsS --request POST \
+    --url "https://rest.runpod.io/v1/pods/$RESUME_POD_ID/start" \
+    --header "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/aq27-create.json
   TARGET_POD_ID="$RESUME_POD_ID" AQLEVON_IMAGE_NAME="$IMAGE_NAME" python3 - <<'PY'
 import json,os
-d=json.load(open("/tmp/aq27-create.json"))
-assert not d.get("errors"),d.get("errors")
-p=(d.get("data") or {}).get("podResume")
-assert p and p.get("id")==os.environ["TARGET_POD_ID"],p
-assert p.get("desiredStatus")=="RUNNING",p
-assert int(p.get("gpuCount") or 0)==1,p
-assert str(p.get("imageName") or "")==os.environ["AQLEVON_IMAGE_NAME"],p
-price=float(p.get("costPerHr") or 999)
+p=json.load(open("/tmp/aq27-create.json"))
+assert p.get("id")==os.environ["TARGET_POD_ID"],p
+img=str(p.get("image") or p.get("imageName") or "")
+assert img==os.environ["AQLEVON_IMAGE_NAME"],(img,p)
+price=float(p.get("costPerHr") or p.get("adjustedCostPerHr") or 999)
 assert price<=1.60,p
 open("/tmp/aq27-price","w").write(str(price))
 open("/tmp/aq27-resumed-pod","w").write(str(p["id"]))
-print("AQLEVON_27B_EXISTING_POD_RESUME_PASS",p["id"],p.get("machineId"),price)
+print("AQLEVON_27B_EXISTING_POD_REST_START_PASS",p["id"],p.get("machineId"),price)
 PY
   pod="$(cat /tmp/aq27-resumed-pod)"
   printf '%s' "$pod" >/tmp/aq27-pod
