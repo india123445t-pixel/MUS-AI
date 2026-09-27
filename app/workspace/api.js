@@ -255,8 +255,8 @@ async function patch(path, body={}){
 async function del(path){
   const p=qs(path).pathname; let m;
   m=p.match(/^\/chats\/([^/]+)$/);if(m){update(s=>{s.chats=s.chats.filter(x=>x.id!==decodeURIComponent(m[1]));return s});return {ok:true}}
-  m=p.match(/^\/projects\/([^/]+)$/);if(m){const id=decodeURIComponent(m[1]);update(s=>{s.projects=s.projects.filter(x=>x.id!==id);s.chats.forEach(c=>{if(c.project_id===id)c.project_id=null});s.files.forEach(f=>{if(f.project_id===id)f.project_id=null});return s});return {ok:true}}
-  m=p.match(/^\/files\/([^/]+)$/);if(m){update(s=>{s.files=s.files.filter(x=>x.id!==decodeURIComponent(m[1]));return s});return {ok:true}}
+  m=p.match(/^\/projects\/([^/]+)$/);if(m){const id=decodeURIComponent(m[1]);update(s=>{s.projects=s.projects.filter(x=>x.id!==id);s.chats.forEach(c=>{if(c.project_id===id)c.project_id=null});s.files.forEach(f=>{if(f.project_id===id)f.project_id=null});s.jobs.forEach(j=>{try{const input=JSON.parse(j.input||'{}');if(input.projectId===id){input.projectId=null;j.input=JSON.stringify(input)}}catch{}});return s});return {ok:true}}
+  m=p.match(/^\/files\/([^/]+)$/);if(m){const id=decodeURIComponent(m[1]);update(s=>{s.files=s.files.filter(x=>x.id!==id);s.jobs.forEach(j=>{try{const result=JSON.parse(j.result||'null');if(result?.fileId===id)j.result=JSON.stringify({...result,fileId:null,deleted:true})}catch{}});return s});return {ok:true}}
   m=p.match(/^\/scheduled\/([^/]+)$/);if(m){update(s=>{s.scheduled=s.scheduled.filter(x=>x.id!==decodeURIComponent(m[1]));return s});return {ok:true}}
   m=p.match(/^\/memory\/([^/]+)$/);if(m){update(s=>{s.memory=s.memory.filter(x=>x.id!==decodeURIComponent(m[1]));return s});return {ok:true}}
   m=p.match(/^\/jobs\/([^/]+)$/);if(m){update(s=>{s.jobs=s.jobs.filter(x=>x.id!==decodeURIComponent(m[1]));return s});return {ok:true}}
