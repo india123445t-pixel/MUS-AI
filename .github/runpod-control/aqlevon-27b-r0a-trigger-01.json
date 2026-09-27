@@ -1,0 +1,7 @@
+{
+  "authorization_id": "P4-27B-R0A-BUDGET8-20260927-01",
+  "authorization_sha256": "24e0143ebd908134f0974640250fe1553d8d84f0534a085710e2f46d4847fecc",
+  "action": "execute_single_use_27b_progressive_training",
+  "requested_at_utc": "2026-09-27T04:05:00Z",
+  "single_use": true
+}
