@@ -1,0 +1,56 @@
+name: AQLEVON 27B R0A Budget8
+on:
+  push:
+    branches: [ops/aqlevon-27b-r0a-budget8-20260927]
+    paths: [".github/runpod-control/aqlevon-27b-r0a-trigger-01.json"]
+permissions:
+  contents: write
+concurrency:
+  group: aqlevon-p4-paid-single-use
+  cancel-in-progress: false
+jobs:
+  execute:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 270
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/aqlevon-27b-r0a-budget8-20260927
+          fetch-depth: 0
+      - name: Execute guarded 27B controller
+        id: run
+        continue-on-error: true
+        shell: bash
+        run: bash .github/runpod-control/aqlevon-27b-r0a-paid-driver.sh
+      - name: Persist terminal result
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -f .github/runpod-control/aqlevon-27b-r0a-result-01.json ]; then
+            git config user.name aqlevon-runpod-bot
+            git config user.email actions@users.noreply.github.com
+            git add .github/runpod-control/aqlevon-27b-r0a-result-01.json
+            git commit -m "ops: record authorized 27B R0A result [skip ci]" || true
+            git pull --rebase origin ops/aqlevon-27b-r0a-budget8-20260927 || true
+            git push origin HEAD:ops/aqlevon-27b-r0a-budget8-20260927 || true
+          fi
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aqlevon-27b-r0a-budget8-01
+          path: |
+            /tmp/aq27-evidence.tgz
+            /tmp/aq27-status.json
+            /tmp/aq27-create.json
+            /tmp/aq27-stop.json
+            /tmp/aq27-delete.json
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Enforce controller result
+        if: always()
+        shell: bash
+        run: test "${{ steps.run.outcome }}" = success
