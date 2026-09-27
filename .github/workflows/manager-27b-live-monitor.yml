@@ -66,3 +66,28 @@ jobs:
           print("AQLEVON_MANAGER_MONITOR_RUNTIME",json.dumps(keep,sort_keys=True))
           PY
           fi
+          curl -sS "https://rest.runpod.io/v1/pods/${POD_ID}" -H "Authorization: Bearer $RUNPOD_API_KEY" -o /tmp/pod-detail.json || echo '{}' >/tmp/pod-detail.json
+          python3 - <<'PY'
+          import json
+          try: d=json.load(open("/tmp/pod-detail.json"))
+          except Exception: d={}
+          keep={k:d.get(k) for k in ["name","desiredStatus","status","containerStatus","gpuCount","gpuTypeId","dataCenterId","costPerHr","createdAt","lastStatusChange","portMappings","imageName"] if k in d}
+          print("AQLEVON_MANAGER_MONITOR_DETAIL",json.dumps(keep,sort_keys=True))
+          PY
+          RUNPODCTL_URL="https://github.com/runpod/runpodctl/releases/latest/download/runpodctl-linux-amd64"
+          curl -fL --retry 2 --retry-all-errors --connect-timeout 10 --max-time 90 "$RUNPODCTL_URL" -o /tmp/runpodctl >/dev/null 2>&1 || true
+          if [ -s /tmp/runpodctl ]; then
+            chmod +x /tmp/runpodctl
+            /tmp/runpodctl pod logs "$POD_ID" --tail 120 >/tmp/pod.log 2>/tmp/pod.err || true
+            python3 - <<'PY'
+          import re
+          from pathlib import Path
+          lines=Path("/tmp/pod.log").read_text(errors="replace").splitlines()[-120:]
+          for line in lines:
+              line=re.sub(r'rpa_[A-Za-z0-9_-]+','<REDACTED_RUNPOD_KEY>',line)
+              line=re.sub(r'gh[pousr]_[A-Za-z0-9_]+','<REDACTED_GITHUB_TOKEN>',line)
+              print("AQLEVON_MANAGER_MONITOR_LOG",line[:3000])
+          err=Path("/tmp/pod.err").read_text(errors="replace").strip()
+          if err: print("AQLEVON_MANAGER_MONITOR_LOGERR",err[:3000])
+          PY
+          fi
