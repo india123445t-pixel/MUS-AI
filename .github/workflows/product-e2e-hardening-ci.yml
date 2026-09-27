@@ -30,3 +30,8 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: test-only-placeholder
         run: npm run build
+      - name: Runtime smoke
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: test-only-placeholder
+        run: node scripts/product-runtime-smoke.mjs
