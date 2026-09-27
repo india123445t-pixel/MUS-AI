@@ -108,10 +108,63 @@ assert d.get("volumeMountPath")=="/workspace",d
 print("AQLEVON_AUTH02_RECOVERY_NO_INFERENCE_BOOT_PASS")
 PY
 
-curl -fsS -X POST "https://rest.runpod.io/v1/pods/$POD_ID/start" \
-  -H "Authorization: Bearer $RUNPOD_API_KEY" >"$OUT/pod-start.json"
+cat > /tmp/zero-gpu-resume.json <<'JSON'
+{"query":"mutation { podResume(input: { podId: \"hjwspv5aqtnqxd\", gpuCount: 0 }) { id desiredStatus imageName } }"}
+JSON
+curl -fsS -X POST \
+  -H "content-type: application/json" \
+  --url "https://api.runpod.io/graphql?api_key=$RUNPOD_API_KEY" \
+  --data-binary @/tmp/zero-gpu-resume.json >"$OUT/pod-start-zero-gpu.json"
+python3 - "$OUT/pod-start-zero-gpu.json" <<'PY'
+import json,sys
+d=json.load(open(sys.argv[1]))
+assert not d.get("errors"),d
+p=(d.get("data") or {}).get("podResume")
+assert p and p.get("id")=="hjwspv5aqtnqxd",d
+assert p.get("desiredStatus")=="RUNNING",d
+print("AQLEVON_AUTH02_RECOVERY_ZERO_GPU_RESUME_ACCEPTED")
+PY
 STARTED=1
 date +%s >/tmp/recovery-start
+
+cat > /tmp/zero-gpu-runtime-query.json <<'JSON'
+{"query":"query { pod(input: { podId: \"hjwspv5aqtnqxd\" }) { id desiredStatus runtime { uptimeInSeconds gpus { id } } } }"}
+JSON
+zero_gpu_ready=0
+for _ in $(seq 1 30); do
+  curl -fsS -X POST \
+    -H "content-type: application/json" \
+    --url "https://api.runpod.io/graphql?api_key=$RUNPOD_API_KEY" \
+    --data-binary @/tmp/zero-gpu-runtime-query.json >"$OUT/pod-runtime.json" || true
+  if python3 - "$OUT/pod-runtime.json" <<'PY'
+import json,sys
+d=json.load(open(sys.argv[1]))
+if d.get("errors"):
+    raise SystemExit(1)
+p=(d.get("data") or {}).get("pod") or {}
+rt=p.get("runtime")
+if not rt:
+    raise SystemExit(1)
+gpus=rt.get("gpus")
+if gpus is None:
+    raise SystemExit(1)
+if len(gpus) != 0:
+    raise SystemExit(2)
+print("AQLEVON_AUTH02_RECOVERY_RUNTIME_ZERO_GPU_VERIFIED")
+PY
+  then
+    zero_gpu_ready=1
+    break
+  else
+    rc=$?
+    if [ "$rc" = "2" ]; then
+      echo AQLEVON_AUTH02_RECOVERY_GPU_PRESENT_FAIL
+      exit 52
+    fi
+  fi
+  sleep 2
+done
+test "$zero_gpu_ready" = 1
 proxy="https://$POD_ID-8000.proxy.runpod.net"
 
 ready=0
