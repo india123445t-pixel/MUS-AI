@@ -33,17 +33,11 @@ jobs:
         run: |
           set -euo pipefail
           curl -sS --fail https://rest.runpod.io/v1/pods -H "Authorization: Bearer $RUNPOD_API_KEY" -o /tmp/pods.json
-          POD_ID="$(python3 - <<'PY'
-import json
-from pathlib import Path
-p=Path('.github/runpod-control/aqlevon-27b-r0-budget8-pr-consumed-04.json')
-print(json.loads(p.read_text()).get('pod_id') if p.exists() else '')
-PY
-)"
+          POD_ID="$(jq -r '.. | objects | select(.name? == "AQLEVON-27B-R0-BUDGET8-04") | .id // empty' /tmp/pods.json | tail -n1)"
           if [ -n "$POD_ID" ]; then
-            curl -sS "https://rest.runpod.io/v1/pods/$POD_ID" -H "Authorization: Bearer $RUNPOD_API_KEY" -o /tmp/pod-detail.json || true
+            curl -sS "https://rest.runpod.io/v1/pods/$POD_ID" -H "Authorization: Bearer $RUNPOD_API_KEY" -o /tmp/pod-detail.json || echo '{}' >/tmp/pod-detail.json
           else
-            echo '{}' > /tmp/pod-detail.json
+            echo '{}' >/tmp/pod-detail.json
           fi
           mkdir -p .github/runpod-control
           python - <<'PY'
@@ -65,7 +59,7 @@ PY
               detail=json.load(open('/tmp/pod-detail.json'))
           except Exception:
               detail={}
-          out['target_detail']={k:detail.get(k) for k in ('name','desiredStatus','status','containerStatus','gpuCount','gpuTypeId','dataCenterId','costPerHr','createdAt','lastStatusChange','portMappings','publicIp','imageName') if k in detail}
+          out['target_detail']={k:detail.get(k) for k in ('name','desiredStatus','status','containerStatus','gpuCount','gpuTypeId','dataCenterId','costPerHr','createdAt','lastStatusChange','portMappings','imageName') if k in detail}
           json.dump(out,open('.github/runpod-control/status.json','w'),indent=2,sort_keys=True);open('.github/runpod-control/status.json','a').write('\n')
           PY
       - name: Commit status
