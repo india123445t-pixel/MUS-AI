@@ -22,15 +22,15 @@ jobs:
   execute:
     if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
-    timeout-minutes: 280
+    timeout-minutes: 275
     env:
       RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
-      AUTH_ID: P4-AQLEVON-27B-R0-BUDGET8-20260927-02
+      AUTH_ID: P4-AQLEVON-27B-R0-BUDGET8-20260927-03
       IMAGE_DIGEST: sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec
       SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
       CONTROL_BRANCH: ops/runpod-control-v1
-      CONSUMED_PATH: .github/runpod-control/aqlevon-27b-r0-budget8-pr-consumed-02.json
-      RESULT_PATH: .github/runpod-control/aqlevon-27b-r0-budget8-pr-result-02.json
+      CONSUMED_PATH: .github/runpod-control/aqlevon-27b-r0-budget8-pr-consumed-03.json
+      RESULT_PATH: .github/runpod-control/aqlevon-27b-r0-budget8-pr-result-03.json
 
     steps:
       - uses: actions/checkout@v4
@@ -54,9 +54,9 @@ jobs:
           assert a["model_repo"]=="Qwen/Qwen3.8-27B"
           assert a["model_revision"]=="1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0"
           assert float(a["owner_budget_ceiling_usd"])==8.0
-          assert float(a["max_total_cost_usd"])<=7.60
+          assert float(a["max_total_cost_usd"])<=7.20
           assert float(a["max_hourly_rate_usd"])<=1.60
-          assert int(a["max_billed_seconds"])<=16200
+          assert int(a["max_billed_seconds"])<=15300
           assert a["no_main_merge"] is True and a["sealed_eval_forbidden"] is True
           print("AQLEVON_27B_FREE_SOURCE_AUTH_PREFLIGHT_PASS")
           PY
@@ -121,13 +121,14 @@ jobs:
             "pod_id":str(pod),
             "created_at_utc":datetime.datetime.now(datetime.timezone.utc).isoformat(),
             "rate_per_hour_usd":float(Path("/tmp/rate").read_text()),
-            "max_billed_seconds":16200,
+            "max_billed_seconds":15300,
             "owner_budget_ceiling_usd":8.0,
             "single_use_consumed":True
           }
           Path("/tmp/consumed.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
           print("AQLEVON_27B_POD_CREATED",pod)
           PY
+          echo "pod_created=true" >> "$GITHUB_OUTPUT"
           git worktree add -q /tmp/control "origin/$CONTROL_BRANCH"
           cp /tmp/consumed.json "/tmp/control/$CONSUMED_PATH"
           git -C /tmp/control config user.name aqlevon-runpod-bot
@@ -136,7 +137,6 @@ jobs:
           git -C /tmp/control commit -m "ops: consume AQLEVON 27B R0 authorization #02 [skip ci]"
           git -C /tmp/control pull --rebase origin "$CONTROL_BRANCH"
           git -C /tmp/control push origin HEAD:"$CONTROL_BRANCH"
-          echo "pod_created=true" >> "$GITHUB_OUTPUT"
 
       - name: Wait for model, training, reload and public gates
         id: train
@@ -147,7 +147,7 @@ jobs:
           pod="$(cat /tmp/pod_id)"
           proxy="https://$pod-8000.proxy.runpod.net"
           final_stage=""
-          for i in $(seq 1 1560); do
+          for i in $(seq 1 1530); do
             now="$(date +%s)"
             elapsed=$(( now - $(cat /tmp/start_epoch) ))
             if curl -fsS --connect-timeout 5 --max-time 10 "$proxy/status.json?t=$now" -o /tmp/status.json 2>/dev/null; then
@@ -155,7 +155,7 @@ jobs:
               echo "AQLEVON_27B_STATUS elapsed=$elapsed stage=$stage"
               case "$stage" in DONE|FAILED) final_stage="$stage"; break;; esac
             fi
-            if [ "$elapsed" -ge 15600 ]; then final_stage="BUDGET_WATCHDOG_TIMEOUT"; break; fi
+            if [ "$elapsed" -ge 15300 ]; then final_stage="BUDGET_WATCHDOG_TIMEOUT"; break; fi
             sleep 10
           done
           printf '%s\n' "$final_stage" >/tmp/final_stage
@@ -225,7 +225,7 @@ jobs:
           Path("/tmp/result.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
           print("AQLEVON_27B_FINAL_RESULT",json.dumps(out,sort_keys=True))
           PY
-          if [ ! -d /tmp/control/.git ]; then
+          if [ ! -e /tmp/control/.git ]; then
             git fetch -q origin "$CONTROL_BRANCH"
             git worktree add -q /tmp/control "origin/$CONTROL_BRANCH"
           fi

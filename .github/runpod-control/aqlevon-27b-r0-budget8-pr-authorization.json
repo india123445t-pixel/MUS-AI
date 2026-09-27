@@ -1,19 +1,20 @@
 {
   "kind": "AQLEVON_MANAGER_PAID_AUTHORIZATION_V1",
-  "authorization_id": "P4-AQLEVON-27B-R0-BUDGET8-20260927-02",
-  "issued_at_utc": "2026-09-27T06:39:00Z",
+  "authorization_id": "P4-AQLEVON-27B-R0-BUDGET8-20260927-03",
+  "issued_at_utc": "2026-09-27T06:59:00Z",
   "issued_by": "owner_explicit_chat_authorization",
   "purpose": "One AQLEVON-27B-R0 training/evaluation run using the verified Auth16 synthetic curriculum transfer on canonical Qwen3.8-27B.",
   "model_repo": "Qwen/Qwen3.8-27B",
   "model_revision": "1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0",
   "training_authorized": true,
   "single_use": true,
-  "max_total_cost_usd": "7.60",
+  "max_total_cost_usd": "7.20",
   "owner_budget_ceiling_usd": "8.00",
   "max_hourly_rate_usd": "1.60",
-  "max_billed_seconds": 16200,
+  "max_billed_seconds": 15300,
   "required_gpu": "NVIDIA A100-SXM4-80GB",
   "automatic_cleanup_required": true,
   "no_main_merge": true,
-  "sealed_eval_forbidden": true
+  "sealed_eval_forbidden": true,
+  "prior_authorization_02_outcome": "CONTROL_PLANE_CREATE_REJECTED_BEFORE_POD_NO_SPEND_DO_NOT_REUSE"
 }
