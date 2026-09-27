@@ -108,6 +108,9 @@ export default function ProjectDetail({ onChatsChanged, onMenu }) {
 
         {tab === 'tasks' && (
           <div className="card">
+            <div className="row" style={{ marginBottom: 8 }}>
+              <button className="btn sm ghost" onClick={() => nav('/work?project=' + encodeURIComponent(id) + '&new=1')}><Icon name="plus" size={14} /> {t('proj.newTask')}</button>
+            </div>
             {jobs.length === 0 && <div className="muted">{t('proj.noTasks')}</div>}
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               {jobs.map(j => (
