@@ -1,0 +1,11 @@
+{
+  "kind": "AQLEVON_RUNPOD_STORAGE_CLEANUP_CLAIM_V1",
+  "authorization_id": "AQLEVON-RUNPOD-CLEANUP-20260927-01",
+  "consumed_at_utc": "2026-09-27T23:22:01.927479+00:00",
+  "delete_pod_ids": [
+    "a6hxcy4h40l5gd",
+    "v3njg70l4mtazn"
+  ],
+  "protected_pod_id": "hjwspv5aqtnqxd",
+  "evidence_preconditions_verified": true
+}
