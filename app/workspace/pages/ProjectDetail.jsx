@@ -13,6 +13,7 @@ export default function ProjectDetail({ onChatsChanged, onMenu }) {
   const [savedTick, setSavedTick] = useState(false);
   const [tab, setTab] = useState('chats');
   const [jobs, setJobs] = useState([]);
+  const [lastError, setLastError] = useState(null);
   const fileRef = useRef();
 
   const load = () => api.get('/projects/' + id).then(r => { setP(r); setInstr(r.instructions || ''); }).catch(() => nav('/projects'));
@@ -32,11 +33,16 @@ export default function ProjectDetail({ onChatsChanged, onMenu }) {
   };
 
   const upload = async f => {
-    const fd = new FormData();
-    fd.append('file', f);
-    fd.append('projectId', id);
-    await api.upload('/files', fd);
-    load();
+    setLastError(null);
+    try {
+      const fd = new FormData();
+      fd.append('file', f);
+      fd.append('projectId', id);
+      await api.upload('/files', fd);
+      load();
+    } catch (e) {
+      setLastError(e?.message === 'BROWSER_STORAGE_FULL' ? t('lib.storageFull') : String(e?.message || t('common.error')));
+    }
   };
 
   const saveInstr = async () => {
@@ -64,6 +70,7 @@ export default function ProjectDetail({ onChatsChanged, onMenu }) {
         }}><Icon name="trash" size={16} /></button>
       </div>
       <div className="content narrow" style={{ maxWidth: 760 }}>
+        {lastError && <div className="error-strip" style={{ marginBottom: 12 }}><Icon name="warn" size={16} /><span>{lastError}</span></div>}
         <div className="seg" style={{ marginBottom: 16 }}>
           {TABS.map(([k, label, n]) => (
             <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>
@@ -91,7 +98,7 @@ export default function ProjectDetail({ onChatsChanged, onMenu }) {
           <div className="card">
             <div className="row" style={{ marginBottom: 8 }}>
               <button className="btn sm ghost" onClick={() => fileRef.current.click()}><Icon name="plus" size={14} /> {t('lib.upload')}</button>
-              <input hidden type="file" ref={fileRef} onChange={e => e.target.files[0] && upload(e.target.files[0])} />
+              <input hidden type="file" ref={fileRef} onChange={e => { const f=e.target.files[0]; e.target.value=''; if(f)upload(f); }} />
             </div>
             {p.files.length === 0 && <div className="muted">{t('proj.noFiles')}</div>}
             <div style={{ display: 'flex', flexDirection: 'column' }}>
