@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-AUTH=.github/runpod-control/aqlevon-27b-r0-budget8-authorization.json
-CONSUMED=.github/runpod-control/aqlevon-27b-r0-budget8-consumed.json
-RESULT=.github/runpod-control/aqlevon-27b-r0-budget8-result.json
+AUTH=.github/runpod-control/aqlevon-27b-r0-preserve-authorization-02.json
+CONSUMED=.github/runpod-control/aqlevon-27b-r0-preserve-consumed-02.json
+RESULT=.github/runpod-control/aqlevon-27b-r0-preserve-result-02.json
 IMAGE_DIGEST=sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec
-AUTH_ID=P4-AQLEVON-27B-R0-BUDGET8-20260927-01
-MAX_ELAPSED=14500
+AUTH_ID=P4-AQLEVON-27B-R0-PRESERVE-20260927-02
+MAX_ELAPSED=3000
 pod=""
 cleaned=0
 
@@ -30,14 +30,14 @@ echo AQLEVON_27B_FREE_SYNTAX_PREFLIGHT_PASS
 
 python3 - <<'PY'
 import json
-a=json.load(open(".github/runpod-control/aqlevon-27b-r0-budget8-authorization.json"))
-assert a["authorization_id"]=="P4-AQLEVON-27B-R0-BUDGET8-20260927-01"
+a=json.load(open(".github/runpod-control/aqlevon-27b-r0-preserve-authorization-02.json"))
+assert a["authorization_id"]=="P4-AQLEVON-27B-R0-PRESERVE-20260927-02"
 assert a["single_use"] is True and a["training_authorized"] is True
 assert a["model_repo"]=="Qwen/Qwen3.8-27B"
 assert a["model_revision"]=="1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0"
-assert float(a["max_total_cost_usd"])<=7.60
+assert float(a["max_total_cost_usd"])<=1.50
 assert float(a["max_hourly_rate_usd"])<=1.60
-assert int(a["max_billed_seconds"])<=16800
+assert int(a["max_billed_seconds"])<=3200
 assert a["automatic_cleanup_required"] is True
 assert a["no_main_merge"] is True
 assert a["sealed_eval_forbidden"] is True
@@ -94,7 +94,7 @@ assert pod
 Path("/tmp/aq27-pod").write_text(str(pod))
 Path("/tmp/aq27-start").write_text(str(int(time.time())))
 out={
- "authorization_id":"P4-AQLEVON-27B-R0-BUDGET8-20260927-01",
+ "authorization_id":"P4-AQLEVON-27B-R0-PRESERVE-20260927-02",
  "pod_id":pod,
  "source_sha":os.environ["GITHUB_SHA"],
  "created_at_utc":datetime.datetime.now(datetime.timezone.utc).isoformat(),
@@ -102,7 +102,7 @@ out={
  "max_total_cost_usd":7.60,
  "controller_budget_window_seconds":14500
 }
-Path(".github/runpod-control/aqlevon-27b-r0-budget8-consumed.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+Path(".github/runpod-control/aqlevon-27b-r0-preserve-consumed-02.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
 PY
 pod="$(cat /tmp/aq27-pod)"
 git config user.name aqlevon-runpod-bot
@@ -135,7 +135,7 @@ done
 printf '%s\n' "$final_stage" >/tmp/aq27-final-stage
 
 if [ "$final_stage" = "DONE" ] || [ "$final_stage" = "FAILED" ]; then
-  curl -fsS --connect-timeout 10 --max-time 240 "$proxy/evidence.tgz" -o /tmp/aq27-evidence.tgz || true
+  curl -fsS --connect-timeout 10 --max-time 240 "$proxy/evidence.tgz" -o /tmp/aq27-r2-evidence.tgz || true
 fi
 
 curl -sS -X POST "https://rest.runpod.io/v1/pods/$pod/stop" -H "Authorization: Bearer $RUNPOD_API_KEY" -H 'Content-Type: application/json' -d '{}' >/tmp/aq27-stop.json || true
@@ -156,8 +156,8 @@ elapsed=int(datetime.datetime.now(datetime.timezone.utc).timestamp())-start
 price=float(Path("/tmp/aq27-price").read_text())
 stage=Path("/tmp/aq27-final-stage").read_text().strip()
 out={
- "kind":"AQLEVON_27B_R0_BUDGET8_RUN_RECEIPT_V1",
- "authorization_id":"P4-AQLEVON-27B-R0-BUDGET8-20260927-01",
+ "kind":"AQLEVON_27B_R0_PRESERVE_RUN_RECEIPT_V1",
+ "authorization_id":"P4-AQLEVON-27B-R0-PRESERVE-20260927-02",
  "source_sha":os.environ["GITHUB_SHA"],
  "final_stage":stage,
  "billed_seconds_estimate":elapsed,
@@ -166,7 +166,7 @@ out={
  "pod_stopped_and_deleted":True,
  "sealed_eval_consumed":False
 }
-p=Path("/tmp/aq27-evidence.tgz")
+p=Path("/tmp/aq27-r2-evidence.tgz")
 if p.exists():
     out["evidence_sha256"]=hashlib.sha256(p.read_bytes()).hexdigest()
     try:
@@ -175,7 +175,7 @@ if p.exists():
             out["training_receipt"]=json.loads(t.extractfile("candidate/training_receipt.json").read())
     except Exception as e:
         out["parse_error"]=repr(e)
-Path(".github/runpod-control/aqlevon-27b-r0-budget8-result.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
+Path(".github/runpod-control/aqlevon-27b-r0-preserve-result-02.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
 print("AQLEVON_27B_RUN_RESULT",json.dumps(out,sort_keys=True))
 PY
 
