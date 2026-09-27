@@ -1,8 +1,7 @@
 {
-  "action": "execute_aqlevon_27b_r0_budget8",
+  "action": "status",
   "requested_by": "AQLEVON_MANAGER",
-  "authorization_id": "P4-AQLEVON-27B-R0-FRESH-20260927-1606-08",
-  "cumulative_budget_cap_usd": 4,
-  "nonce": "aq27-auth08-newpod-20260927-1606z",
-  "note": "Fresh single-use retry 08. Create new secure A100 Pod with 100GB persistent /workspace volume; preserve verified evidence before deletion."
+  "mode": "read_only",
+  "nonce": "aq27-auth08-success-close-20260927",
+  "note": "Auth08 completed successfully; paid retries stopped. Read-only status only."
 }
