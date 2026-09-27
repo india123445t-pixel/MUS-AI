@@ -1,0 +1,30 @@
+name: AQLEVON Manager runpodctl Update Help
+
+on:
+  push:
+    branches: [coord/aqlevon-accel-wave-20260927]
+    paths:
+      - ".github/workflows/manager-runpodctl-update-help.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  help:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Install runpodctl
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fL --retry 3 --retry-all-errors \
+            https://github.com/runpod/runpodctl/releases/latest/download/runpodctl-linux-amd64 \
+            -o /tmp/runpodctl
+          sudo install -m 0755 /tmp/runpodctl /usr/local/bin/runpodctl
+          runpodctl version
+      - name: Show update help
+        shell: bash
+        run: |
+          set -euo pipefail
+          runpodctl pod update --help
