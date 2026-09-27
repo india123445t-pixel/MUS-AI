@@ -1,15 +1,7 @@
 {
-  "action": "recover_auth02_evidence",
-  "mode": "zero_gpu_recovery_single_use_authorized",
+  "action": "status",
+  "mode": "read_only",
   "authorization_id": "AQLEVON-AUTH02-EVIDENCE-RECOVERY-ZEROGPU-20260927-02",
   "target_pod_id": "hjwspv5aqtnqxd",
-  "zero_gpu_required": true,
-  "required_gpu_count": 0,
-  "no_inference": true,
-  "no_model_dispatch": true,
-  "max_total_cost_usd": 0.2,
-  "max_billed_seconds": 300,
-  "historical_w05_forbidden": true,
-  "no_main_merge": true,
-  "nonce": "auth02-zero-gpu-evidence-recovery-20260927T2244Z"
+  "note": "Zero-GPU recovery auth02 consumed. podResume(gpuCount=0) returned GPU-capacity error; Pod remained EXITED. No inference/model dispatch occurred. No paid retry is authorized."
 }
