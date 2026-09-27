@@ -4,9 +4,9 @@
   "issued_at_utc": "2026-09-27T23:21:20Z",
   "authorized_by": "AQLEVON_OWNER",
   "owner_authorization_text": "أصرح بحذف الـPods القديمة `a6hxcy4h40l5gd` و`v3njg70l4mtazn` فقط، بعد التحقق النهائي أن الأدلة المطلوبة محفوظة خارجيًا، مع منع حذف `hjwspv5aqtnqxd`",
-  "fresh_authorization": true,
+  "fresh_authorization": false,
   "single_use": true,
-  "destructive_cleanup_authorized": true,
+  "destructive_cleanup_authorized": false,
   "delete_pod_ids": [
     "a6hxcy4h40l5gd",
     "v3njg70l4mtazn"
@@ -17,5 +17,12 @@
   "no_inference": true,
   "no_model_dispatch": true,
   "no_main_merge": true,
-  "consumed": false
+  "consumed": true,
+  "consumed_run_id": 36358443315,
+  "deleted_pod_ids": [
+    "a6hxcy4h40l5gd",
+    "v3njg70l4mtazn"
+  ],
+  "protected_pod_verified_preserved": true,
+  "completed_at_utc": "2026-09-27T23:22:04Z"
 }
