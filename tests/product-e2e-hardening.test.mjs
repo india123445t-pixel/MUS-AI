@@ -178,3 +178,11 @@ test('developer and workbench expose truthful control labels and permission loca
   assert.match(dev,/t\('dev\.checkpoint'\)/);
   assert.match(policy,/href="\/admin\/child-lab"/);
 });
+
+
+test('library honors global-search query handoff',()=>{
+  const library=read('app/workspace/pages/LibraryPage.jsx');
+  assert.match(library,/useSearchParams/);
+  assert.match(library,/params\.get\('q'\)/);
+  assert.match(library,/setQ\(queryQ\)/);
+});

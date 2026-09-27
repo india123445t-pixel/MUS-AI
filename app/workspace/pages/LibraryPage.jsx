@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useSearchParams } from '../router.js';
 import { api } from '../api.js';
 import { useI18n } from '../i18n/index.js';
 import Icon from '../components/Icon.jsx';
@@ -8,8 +9,10 @@ const extOf = n => (n.match(/\.([a-z0-9]+)$/i) || [])[1]?.toUpperCase() || 'FILE
 
 export default function LibraryPage({ onMenu }) {
   const { t } = useI18n();
+  const [params] = useSearchParams();
+  const queryQ = params.get('q') || '';
   const [files, setFiles] = useState([]);
-  const [q, setQ] = useState('');
+  const [q, setQ] = useState(queryQ);
   const [kind, setKind] = useState('all');
   const [view, setView] = useState(() => typeof window !== 'undefined' ? (localStorage.getItem('aqlevon-lib-view') || localStorage.getItem('kite-lib-view') || 'grid') : 'grid');
   const [renaming, setRenaming] = useState(null);
@@ -25,6 +28,7 @@ export default function LibraryPage({ onMenu }) {
   ];
 
   const load = () => api.get(`/files?kind=${kind}&q=${encodeURIComponent(q)}`).then(setFiles).catch(() => {});
+  useEffect(() => { if (queryQ && queryQ !== q) setQ(queryQ); }, [queryQ]);
   useEffect(() => { const timer = setTimeout(() => { load(); }, 150); return () => clearTimeout(timer); }, [q, kind]);
   useEffect(() => { localStorage.setItem('aqlevon-lib-view', view); }, [view]);
 
