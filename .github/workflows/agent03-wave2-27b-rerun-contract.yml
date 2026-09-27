@@ -1,0 +1,67 @@
+name: Agent03 Wave2 27B Scientific Contract
+
+on:
+  push:
+    branches:
+      - agent/03-wave2-27b-scientific-contract-v1
+    paths:
+      - "research/weight_factory/agent03/aqlevon_27b_rerun_scientific_contract_v1.json"
+      - "research/weight_factory/agent03/aqlevon_27b_rerun_contract_v1.py"
+      - "tests/test_aqlevon_27b_rerun_contract_v1.py"
+      - ".github/workflows/agent03-wave2-27b-rerun-contract.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Ensure pinned historical commits are present
+        shell: bash
+        run: |
+          set -euo pipefail
+          git cat-file -e 4e3f1b03cfe77ac4355907ec692574f30d180252^{commit}
+          if ! git cat-file -e abb94ef134e2e97036b6959dbc9db4278d3736b6^{commit} 2>/dev/null; then
+            git fetch --no-tags origin abb94ef134e2e97036b6959dbc9db4278d3736b6
+          fi
+          git cat-file -e abb94ef134e2e97036b6959dbc9db4278d3736b6^{commit}
+
+      - name: CPU syntax checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile research/weight_factory/agent03/aqlevon_27b_rerun_contract_v1.py
+          python3 -m py_compile tests/test_aqlevon_27b_rerun_contract_v1.py
+          git show 4e3f1b03cfe77ac4355907ec692574f30d180252:research/weight_factory/agent03/aqlevon_27b_r0_auth16_transfer.py > /tmp/historical_trainer.py
+          git show abb94ef134e2e97036b6959dbc9db4278d3736b6:research/weight_factory/agent02/gene1_data_verifier_pack_v1.py > /tmp/pinned_w02.py
+          python3 -m py_compile /tmp/historical_trainer.py /tmp/pinned_w02.py
+
+      - name: Verify frozen contract
+        run: python3 research/weight_factory/agent03/aqlevon_27b_rerun_contract_v1.py verify
+
+      - name: Run CPU unit tests
+        run: python3 -m unittest -v tests/test_aqlevon_27b_rerun_contract_v1.py
+
+      - name: Emit preregistered no-inference plan
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 research/weight_factory/agent03/aqlevon_27b_rerun_contract_v1.py plan --output /tmp/paired-public-plan.json
+          python3 - <<'PY'
+          import json
+          p=json.load(open("/tmp/paired-public-plan.json"))
+          assert p["contract_sha256"]=="484c369ee9e4d19d1142f4d55cce4296a594d49697d5cf47afa13f31da0a283d"
+          assert p["task_catalog_sha256"]=="1ec78429ca5dc681361be281f94d945c0671f16328c983bd7494480ec4205388"
+          assert p["pair_matrix_sha256"]=="60e2653de2aaee2dae86414d5e69f5adf5dd2973a67056774ae7db3209f403a8"
+          assert len(p["rows"])==224
+          assert {x["system"] for x in p["rows"]}=={"base","candidate"}
+          assert {x["seed"] for x in p["rows"]}=={1701,271828}
+          print("AQLEVON_WAVE2_AGENT03_PLAN_PASS", len(p["rows"]))
+          PY
