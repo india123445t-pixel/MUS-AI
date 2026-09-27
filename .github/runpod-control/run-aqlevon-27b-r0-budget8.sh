@@ -134,8 +134,38 @@ for i in $(seq 1 2900); do
 done
 printf '%s\n' "$final_stage" >/tmp/aq27-final-stage
 
+evidence_ok=0
 if [ "$final_stage" = "DONE" ] || [ "$final_stage" = "FAILED" ]; then
-  curl -fsS --connect-timeout 10 --max-time 240 "$proxy/evidence.tgz" -o /tmp/aq27-r2-evidence.tgz || true
+  for attempt in $(seq 1 8); do
+    if curl -fsS --connect-timeout 10 --max-time 240 "$proxy/evidence.tgz" -o /tmp/aq27-r2-evidence.tgz; then
+      if python3 - <<'PY'
+import tarfile
+from pathlib import Path
+p=Path("/tmp/aq27-r2-evidence.tgz")
+assert p.exists() and p.stat().st_size > 0
+with tarfile.open(p,"r:gz") as t:
+    names=set(t.getnames())
+required={
+    "candidate/candidate_manifest.json",
+    "candidate/training_receipt.json",
+    "candidate/adapter/adapter_model.safetensors",
+    "candidate/adapter/adapter_config.json",
+}
+missing=required-names
+assert not missing, missing
+print("AQLEVON_27B_R2_EVIDENCE_ARCHIVE_VERIFIED", p.stat().st_size)
+PY
+      then
+        evidence_ok=1
+        break
+      fi
+    fi
+    sleep 3
+  done
+fi
+if [ "$final_stage" = "DONE" ] && [ "$evidence_ok" != 1 ]; then
+  final_stage="EVIDENCE_EGRESS_FAILED"
+  printf '%s\n' "$final_stage" >/tmp/aq27-final-stage
 fi
 
 curl -sS -X POST "https://rest.runpod.io/v1/pods/$pod/stop" -H "Authorization: Bearer $RUNPOD_API_KEY" -H 'Content-Type: application/json' -d '{}' >/tmp/aq27-stop.json || true
