@@ -1,0 +1,17 @@
+{
+  "kind": "AQLEVON_27B_FREE_RETRY_READINESS_TRIGGER_V3",
+  "requested_by": "AQLEVON_MANAGER",
+  "paid_execution": false,
+  "provider_mutation": false,
+  "cumulative_budget_cap_usd": 4,
+  "target_resume_pod_id": "v3njg70l4mtazn",
+  "verifies": [
+    "documented_rest_resume_script_syntax",
+    "persistent_volume_flags",
+    "per_authorization_claim_ledger",
+    "current_trainer_blob_binding",
+    "cumulative_budget_gate",
+    "no_active_pod",
+    "live_a100_capacity"
+  ]
+}
