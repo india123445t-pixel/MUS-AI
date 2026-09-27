@@ -130,7 +130,7 @@ export default function ScheduledPage({ onMenu }) {
 
       {show && (
         <div className="modal-backdrop" onClick={() => setShow(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
+          <div className="modal" role="dialog" aria-modal="true" aria-label={t('auto.new')} onClick={e => e.stopPropagation()}>
             <h3>{t('auto.new')}</h3>
             <div className="field">
               <label className="lbl">{t('auto.name')}</label>
