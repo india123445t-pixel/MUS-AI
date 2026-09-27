@@ -1,0 +1,5 @@
+{
+  "kind": "AQLEVON_AUTH08_EVAL_CANCEL_FAILED_RUN_V1",
+  "run_id": 36339275953,
+  "reason": "provider pod stopped after bootstrap failure; prevent idle GitHub wait"
+}
