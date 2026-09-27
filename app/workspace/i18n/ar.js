@@ -105,7 +105,7 @@ export default {
   'set.searchDefault': 'تفعيل بحث الويب افتراضيًا',
   'set.researchDepth': 'عمق البحث', 'set.depth.quick': 'سريع', 'set.depth.standard': 'قياسي', 'set.depth.thorough': 'شامل',
   'set.timezone': 'المنطقة الزمنية الافتراضية',
-  'set.export': 'تصدير بيانات Workspace الوصفية (دون محتوى الملفات)', 'set.clearChats': 'حذف كل المحادثات', 'set.trainingConsent': 'المساهمة في تحسين AQLEVON', 'set.trainingConsentHint': 'موقوف افتراضيًا. عند تفعيله يمكن فقط للردود المؤهلة والمتَحققة أن تُعلَّم كمرشحات تحسين. المحادثات العامة قد تبقى مسجلة خادميًا لأغراض التشغيل والتدقيق.', 'set.localDeleteOnly': 'الحذف هنا يزيل المحادثات من هذا المتصفح فقط؛ لا يدّعي حذف سجلات التشغيل الخادمية.',
+  'set.export': 'تصدير بيانات Workspace الوصفية (دون محتوى الملفات)', 'set.privacy': 'الخصوصية والبيانات', 'set.privacyHint': 'اطّلع على ما يبقى محليًا وما يُرسل إلى خادم AQLEVON وما لا يحذفه الحذف المحلي.', 'set.openPrivacy': 'فتح صفحة الشفافية', 'set.clearChats': 'حذف كل المحادثات', 'set.trainingConsent': 'المساهمة في تحسين AQLEVON', 'set.trainingConsentHint': 'موقوف افتراضيًا. عند تفعيله يمكن فقط للردود المؤهلة والمتَحققة أن تُعلَّم كمرشحات تحسين. المحادثات العامة قد تبقى مسجلة خادميًا لأغراض التشغيل والتدقيق.', 'set.localDeleteOnly': 'الحذف هنا يزيل المحادثات من هذا المتصفح فقط؛ لا يدّعي حذف سجلات التشغيل الخادمية.',
   'set.clearConfirmWord': 'حذف', 'set.clearConfirm': 'اكتب {word} لتأكيد حذف كل المحادثات.',
   'set.diagnostics': 'التشخيصات', 'set.save': 'حفظ', 'set.savedOk': 'حُفظ',
   'set.aboutText': 'AQLEVON — مساحة عمل مرتبطة بمحرك AQLEVON السيادي عند توفره. لا يعتمد تشغيل النموذج الأساسي على مزود ذكاء خارجي.',
