@@ -1,8 +1,9 @@
 {
   "authorization_id": "P4-AQLEVON-27B-R0-FRESH-20260927-1606-08",
   "kind": "AQLEVON_27B_AUTH_RESERVATION_V1",
-  "pod_id": null,
-  "provider_create_attempted": false,
+  "pod_id": "y06z4plp60plbc",
+  "provider_create_attempted": true,
+  "provider_created_at_utc": "2026-09-27T16:08:59.636686+00:00",
   "reservation_id": "40abe3e3f2afdc88f46c362c70994915c0a5c1204775511b699fcca7c12d231b",
   "reserved_at_utc": "2026-09-27T16:08:56.906354+00:00",
   "run_attempt": "1",
@@ -10,5 +11,5 @@
   "scientific_contract_sha256": "484c369ee9e4d19d1142f4d55cce4296a594d49697d5cf47afa13f31da0a283d",
   "single_use_claimed": true,
   "source_sha": "e07d41dd140c7a56b3a27a45fb8ca04b5e03ac74",
-  "state": "RESERVED_BEFORE_PROVIDER_CREATE"
+  "state": "PROVIDER_CREATED"
 }
