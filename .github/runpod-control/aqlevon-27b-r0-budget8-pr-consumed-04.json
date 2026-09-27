@@ -1,0 +1,11 @@
+{
+  "authorization_id": "P4-AQLEVON-27B-R0-BUDGET8-20260927-04",
+  "created_at_utc": "2026-09-27T07:00:46.165371+00:00",
+  "kind": "AQLEVON_27B_R0_PAID_AUTH_CONSUMPTION_V1",
+  "max_billed_seconds": 15300,
+  "owner_budget_ceiling_usd": 8.0,
+  "pod_id": "y6hkpr1bu32t1s",
+  "rate_per_hour_usd": 1.59,
+  "single_use_consumed": true,
+  "source_sha": "f7f27edc2292395741069d2e29175b0d7c8b584a"
+}
