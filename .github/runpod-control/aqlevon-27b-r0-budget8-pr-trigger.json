@@ -1,10 +1,11 @@
 {
   "kind": "AQLEVON_27B_R0_PR_TRIGGER_V1",
-  "authorization_id": "P4-AQLEVON-27B-R0-BUDGET8-20260927-04",
-  "action": "execute_once_on_pr_synchronize",
-  "requested_at_utc": "2026-09-27T07:01:00Z",
+  "authorization_id": "P4-AQLEVON-27B-R0-BUDGET8-20260927-05",
+  "action": "execute_once_on_pr_reopen",
+  "requested_at_utc": "2026-09-27T07:14:00Z",
   "owner_budget_ceiling_usd": "8.00",
-  "max_compute_authorization_usd": "7.20",
-  "prior_authorization_03": "CONTROL_PLANE_CREATE_REJECTED_BEFORE_POD_NO_SPEND_DO_NOT_REUSE",
+  "max_compute_authorization_usd": "7.00",
+  "http_readiness_timeout_seconds": 480,
+  "prior_authorization_04": "STOPPED_DELETED_AFTER_NO_BOOTSTRAP_DO_NOT_REUSE",
   "no_main_merge": true
 }
