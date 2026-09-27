@@ -2,6 +2,7 @@
 set -euo pipefail
 
 AUTH=.github/runpod-control/aqlevon-27b-r0-preserve-authorization-02.json
+RESERVATION=.github/runpod-control/aqlevon-27b-r0-preserve-reservation-02.json
 CONSUMED=.github/runpod-control/aqlevon-27b-r0-preserve-consumed-02.json
 RESULT=.github/runpod-control/aqlevon-27b-r0-preserve-result-02.json
 IMAGE_DIGEST=sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec
@@ -24,8 +25,9 @@ trap cleanup EXIT
 
 test -n "${RUNPOD_API_KEY:-}"
 test -f "$AUTH"
+test ! -e "$RESERVATION"
 test ! -e "$CONSUMED"
-python3 -m py_compile research/weight_factory/agent03/aqlevon_27b_r0_auth16_transfer.py
+python3 -m py_compile research/weight_factory/agent03/aqlevon_27b_r0_auth16_transfer.py .github/runpod-control/aqlevon-27b-reservation.py
 bash -n .github/runpod-control/aqlevon-27b-r0-bootstrap.sh
 echo AQLEVON_27B_FREE_SYNTAX_PREFLIGHT_PASS
 
@@ -83,37 +85,82 @@ open("/tmp/aq27-dc","w").write(dc)
 print("AQLEVON_27B_CAPACITY_PASS",price,dc,stock)
 PY
 
+# Durable pre-create claim. The authorization is consumed before any provider
+# create mutation. Ordinary non-force Git push is the cross-run CAS: if another
+# claimant moves the control branch first, this run fails before pod creation.
+: "${GITHUB_RUN_ID:?missing GITHUB_RUN_ID}"
+: "${GITHUB_RUN_ATTEMPT:?missing GITHUB_RUN_ATTEMPT}"
+git config user.name aqlevon-runpod-bot
+git config user.email actions@users.noreply.github.com
+git fetch origin ops/runpod-control-v1
+git rebase origin/ops/runpod-control-v1
+test ! -e "$RESERVATION"
+test ! -e "$CONSUMED"
+python3 .github/runpod-control/aqlevon-27b-reservation.py reserve \
+  --authorization "$AUTH" --reservation "$RESERVATION" --consumed "$CONSUMED" \
+  --run-id "$GITHUB_RUN_ID" --run-attempt "$GITHUB_RUN_ATTEMPT" \
+  --source-sha "$GITHUB_SHA" --expected-authorization-id "$AUTH_ID"
+git add "$RESERVATION" "$CONSUMED"
+git commit -m "ops: reserve and consume AQLEVON 27B authorization before provider create [skip ci]"
+if ! git push origin HEAD:ops/runpod-control-v1; then
+  echo "AQLEVON_27B_PRECREATE_RESERVATION_PUSH_CONFLICT"
+  exit 73
+fi
+
+# Re-check provider state after the durable claim and immediately before create.
+curl -fsS https://rest.runpod.io/v1/pods -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/aq27-pods-after-reservation.json
+python3 - <<'PY'
+import json
+p=json.load(open("/tmp/aq27-pods-after-reservation.json"))
+xs=p if isinstance(p,list) else p.get("pods") or p.get("items") or []
+active=[]
+for x in xs:
+    name=str(x.get("name") or "")
+    status=str(x.get("desiredStatus") or x.get("status") or "")
+    if name.startswith("AQLEVON-27B-R0") and status!="EXITED":
+        active.append({"id":x.get("id"),"name":name,"status":status})
+assert not active,active
+print("AQLEVON_27B_POST_RESERVATION_NO_ACTIVE_POD_PASS")
+PY
+
+# Verify the exact claim from the remote control branch, not only local files.
+git fetch origin ops/runpod-control-v1
+git show origin/ops/runpod-control-v1:"$RESERVATION" >/tmp/aq27-reservation-remote.json
+git show origin/ops/runpod-control-v1:"$CONSUMED" >/tmp/aq27-consumed-remote.json
+python3 .github/runpod-control/aqlevon-27b-reservation.py verify \
+  --authorization "$AUTH" --reservation /tmp/aq27-reservation-remote.json --consumed /tmp/aq27-consumed-remote.json \
+  --run-id "$GITHUB_RUN_ID" --run-attempt "$GITHUB_RUN_ATTEMPT" \
+  --source-sha "$GITHUB_SHA" --expected-authorization-id "$AUTH_ID" --require-precreate
+echo AQLEVON_27B_DURABLE_PRECREATE_RESERVATION_PASS
+
 BOOT_URL="https://raw.githubusercontent.com/india123445t-pixel/MUS-AI/$GITHUB_SHA/.github/runpod-control/aqlevon-27b-r0-bootstrap.sh"
 DOCKER_ARGS="bash -lc 'export AQLEVON_SOURCE_SHA=$GITHUB_SHA; curl -fsSL $BOOT_URL -o /tmp/aq27.sh && chmod +x /tmp/aq27.sh && exec bash /tmp/aq27.sh'"
 runpodctl pod create   --name AQLEVON-27B-R0-BUDGET8   --image "ghcr.io/india123445t-pixel/mus-ai@$IMAGE_DIGEST"   --gpu-id "NVIDIA A100-SXM4-80GB"   --gpu-count 1   --cloud-type SECURE   --container-disk-in-gb 100   --ports 8000/http   --ssh=false   --docker-args "$DOCKER_ARGS"   --output json >/tmp/aq27-create.json
 
 python3 - <<'PY'
-import datetime,json,os,time
+import json,time
 from pathlib import Path
 p=json.load(open("/tmp/aq27-create.json"))
 pod=p.get("id") or p.get("podId")
 assert pod
 Path("/tmp/aq27-pod").write_text(str(pod))
 Path("/tmp/aq27-start").write_text(str(int(time.time())))
-out={
- "authorization_id":"P4-AQLEVON-27B-R0-PRESERVE-20260927-02",
- "pod_id":pod,
- "source_sha":os.environ["GITHUB_SHA"],
- "created_at_utc":datetime.datetime.now(datetime.timezone.utc).isoformat(),
- "single_use_consumed":True,
- "max_total_cost_usd":1.50,
- "controller_budget_window_seconds":3000
-}
-Path(".github/runpod-control/aqlevon-27b-r0-preserve-consumed-02.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
 PY
 pod="$(cat /tmp/aq27-pod)"
-git config user.name aqlevon-runpod-bot
-git config user.email actions@users.noreply.github.com
-git add "$CONSUMED"
-git commit -m "ops: consume AQLEVON 27B R0 budget8 authorization [skip ci]"
+python3 .github/runpod-control/aqlevon-27b-reservation.py mark-created \
+  --authorization "$AUTH" --reservation "$RESERVATION" --consumed "$CONSUMED" \
+  --run-id "$GITHUB_RUN_ID" --run-attempt "$GITHUB_RUN_ATTEMPT" \
+  --source-sha "$GITHUB_SHA" --expected-authorization-id "$AUTH_ID" --pod-id "$pod"
+git add "$RESERVATION" "$CONSUMED"
+git commit -m "ops: bind AQLEVON 27B reservation to created pod [skip ci]"
 git fetch origin ops/runpod-control-v1
 git rebase origin/ops/runpod-control-v1
+python3 .github/runpod-control/aqlevon-27b-reservation.py verify \
+  --authorization "$AUTH" --reservation "$RESERVATION" --consumed "$CONSUMED" \
+  --run-id "$GITHUB_RUN_ID" --run-attempt "$GITHUB_RUN_ATTEMPT" \
+  --source-sha "$GITHUB_SHA" --expected-authorization-id "$AUTH_ID" --require-created --pod-id "$pod"
 git push origin HEAD:ops/runpod-control-v1
+echo AQLEVON_27B_PROVIDER_RESOURCE_ID_DURABLY_BOUND
 
 proxy="https://$pod-8000.proxy.runpod.net"
 final_stage=""
@@ -189,7 +236,11 @@ if p.exists():
     except Exception as e:
         out["parse_error"]=repr(e)
 v=Path("/tmp/aq27-evidence-verified.json")
-if v.exists(): out["artifact_verification"]=json.loads(v.read_text())
+if v.exists():
+    verification=json.loads(v.read_text())
+    out["artifact_verification"]=verification
+    out["runtime_versions"]=verification["runtime_versions"]
+    out["runtime_versions_sha256"]=verification["runtime_versions_sha256"]
 Path(".github/runpod-control/aqlevon-27b-r0-preserve-result-02.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
 print("AQLEVON_27B_RUN_RESULT",json.dumps(out,sort_keys=True))
 PY

@@ -1,4 +1,4 @@
-name: Agent 01 27B Artifact Durability Free Test
+name: Agent 01 27B Control Plane Free Test
 
 on:
   push:
@@ -6,6 +6,8 @@ on:
       - agent/01-27b-artifact-durability-20260927
     paths:
       - ".github/runpod-control/verify-aqlevon-27b-evidence.py"
+      - ".github/runpod-control/aqlevon-27b-reservation.py"
+      - ".github/runpod-control/aqlevon-27b-r0-bootstrap.sh"
       - ".github/runpod-control/finalize-aqlevon-27b-preservation.sh"
       - ".github/runpod-control/run-aqlevon-27b-r0-budget8.sh"
       - ".github/runpod-control/test-aqlevon-27b-artifact-durability.sh"
@@ -21,5 +23,5 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - name: Run free artifact durability contract
+      - name: Run free control-plane contract
         run: bash .github/runpod-control/test-aqlevon-27b-artifact-durability.sh

@@ -27,7 +27,7 @@ package_evidence() {
 import tarfile,sys
 from pathlib import Path
 root=Path(sys.argv[1]); out=root/"http"/"evidence.tgz"
-members=[x for x in ("candidate","train.log","hardware.txt","versions.txt","input") if (root/x).exists()]
+members=[x for x in ("candidate","train.log","hardware.txt","versions.txt","runtime_versions.json","input") if (root/x).exists()]
 with tarfile.open(out,"w:gz") as t:
     for name in members: t.add(root/name,arcname=name)
 PY
@@ -50,6 +50,20 @@ PY
   python3 - <<'PY' >"$ROOT/versions.txt"
 import torch,transformers,peft,accelerate
 print("torch",torch.__version__); print("transformers",transformers.__version__); print("peft",peft.__version__); print("accelerate",accelerate.__version__)
+PY
+  python3 - <<'PY' >"$ROOT/runtime_versions.json"
+import importlib.metadata as md
+import json
+import platform
+import torch
+packages = ["torch", "transformers", "peft", "accelerate", "huggingface-hub", "safetensors"]
+out = {
+    "kind": "AQLEVON_27B_RUNTIME_VERSIONS_V1",
+    "python": platform.python_version(),
+    "packages": {name: md.version(name) for name in packages},
+    "torch_cuda": str(torch.version.cuda or ""),
+}
+print(json.dumps(out, indent=2, sort_keys=True))
 PY
   write_status INPUT_STAGING 0 public_only
   curl -fsSL "$RAW/$SOURCE_SHA/research/weight_factory/agent03/aqlevon_27b_r0_auth16_transfer.py" -o "$ROOT/input/trainer.py"
