@@ -1,6 +1,6 @@
 {
-  "account_balance": 0.6546700982,
-  "checked_at_utc": "2026-09-24T06:13:20.695507+00:00",
+  "account_balance": 7.437698534,
+  "checked_at_utc": "2026-09-27T04:00:16.147336+00:00",
   "ok": true,
   "rtx4090": [
     {
@@ -20,15 +20,15 @@
         },
         {
           "id": "EUR-IS-1",
-          "stock": "Low"
+          "stock": "none"
         },
         {
           "id": "EUR-IS-2",
-          "stock": "Low"
+          "stock": "none"
         },
         {
           "id": "EUR-NO-1",
-          "stock": "Low"
+          "stock": "none"
         },
         {
           "id": "US-CA-2",
@@ -36,7 +36,7 @@
         },
         {
           "id": "US-IL-1",
-          "stock": "Low"
+          "stock": "none"
         },
         {
           "id": "US-NC-1",
