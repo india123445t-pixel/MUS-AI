@@ -190,6 +190,9 @@ function DataControls({ t, s, save }) {
       <Row label={t('set.export')}>
         <button className="btn sm ghost" onClick={() => api.downloadExport()}><Icon name="download" size={14} /> JSON</button>
       </Row>
+      <Row label={t('set.privacy')} hint={t('set.privacyHint')}>
+        <a className="btn sm ghost" href="/privacy">{t('set.openPrivacy')}</a>
+      </Row>
       <Row label={t('set.trainingConsent')} hint={t('set.trainingConsentHint')}>
         <button
           className={'switch' + (s.contribute_training === true ? ' on' : '')}
