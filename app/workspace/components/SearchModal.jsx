@@ -21,7 +21,7 @@ export default function SearchModal({ onClose }) {
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" onClick={e => e.stopPropagation()}>
+      <div className="modal" role="dialog" aria-modal="true" aria-label={t('app.search')} onClick={e => e.stopPropagation()}>
         <input ref={ref} className="input" placeholder={t('search.placeholder')}
           value={q} onChange={e => setQ(e.target.value)}
           onKeyDown={e => { if (e.key === 'Escape') onClose(); }} />
