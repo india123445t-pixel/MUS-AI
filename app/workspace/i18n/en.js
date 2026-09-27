@@ -165,6 +165,6 @@ export default {
   'apps.browserNotice': 'Tools and apps here do not execute externally in the current browser edition. Do not enter access tokens or secrets.',
   'apps.adapterRequired': 'Adapter required', 'apps.ready': 'Ready',
   'lib.browserOnly': 'Local on this device',
-  'lib.browserNotice': 'Files in this edition are stored in browser data on this device (up to 4 MB per file), not in a server library.',
+  'lib.browserNotice': 'Files in this edition are stored in browser data on this device (up to 2 MB per file), not in a server library.', 'lib.storageFull': 'This browser does not have enough local storage. Delete some files or use a smaller file.',
   'set.webUnavailable': 'Web search is an optional tool and is not connected yet. The core AQLEVON model does not depend on it.'
 };
