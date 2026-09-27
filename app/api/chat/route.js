@@ -143,7 +143,7 @@ export async function POST(req){
 
     const redactedInput=redactSecrets(rawInput);
     if(!SUPABASE_URL||!SUPABASE_KEY){
-      return NextResponse.json({message:'قاعدة بيانات AQLEVON غير مهيأة.',error_class:'ENV_MISSING'},{status:503});
+      return NextResponse.json({message:'قاعدة بيانات AQLEVON غير مهيأة.',error_class:'CONTROL_PLANE_ENV_MISSING'},{status:503});
     }
     const sb=client();
     const runtime=await loadRuntime(sb);
