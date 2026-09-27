@@ -33,6 +33,8 @@ assert a["fresh_authorization"] is True
 assert a["single_use"] is True
 assert a["artifact_recovery_authorized"] is True
 assert a["no_inference"] is True and a["no_model_dispatch"] is True
+assert a.get("zero_gpu_required") is True
+assert int(a.get("required_gpu_count")) == 0
 assert a["target_pod_id"]=="hjwspv5aqtnqxd"
 assert float(a["max_total_cost_usd"]) <= 0.20
 assert float(a["max_hourly_rate_usd"]) <= 1.60
@@ -109,7 +111,7 @@ print("AQLEVON_AUTH02_RECOVERY_NO_INFERENCE_BOOT_PASS")
 PY
 
 cat > /tmp/zero-gpu-resume.json <<'JSON'
-{"query":"mutation { podResume(input: { podId: \"hjwspv5aqtnqxd\", gpuCount: 0 }) { id desiredStatus imageName } }"}
+{"query":"mutation { podResume(input: { podId: \"hjwspv5aqtnqxd\", gpuCount: 0, computeType: CPU }) { id desiredStatus imageName gpuCount } }"}
 JSON
 curl -fsS -X POST \
   -H "content-type: application/json" \
@@ -122,7 +124,8 @@ assert not d.get("errors"),d
 p=(d.get("data") or {}).get("podResume")
 assert p and p.get("id")=="hjwspv5aqtnqxd",d
 assert p.get("desiredStatus")=="RUNNING",d
-print("AQLEVON_AUTH02_RECOVERY_ZERO_GPU_RESUME_ACCEPTED")
+assert int(p.get("gpuCount") or 0) == 0,d
+print("AQLEVON_AUTH02_RECOVERY_CPU_ZERO_GPU_RESUME_ACCEPTED")
 PY
 STARTED=1
 date +%s >/tmp/recovery-start
