@@ -5,13 +5,14 @@
   "generalization_manifest_sha256": "25fa2777010255bd8d91431632ba65d72355340086250fe4bce8dffa64e33b0f",
   "kind": "AQLEVON_AUTH08_PUBLIC_EVAL_RESERVATION_V1",
   "paired_binding_sha256": "b5f26e20bcdd13cead301623cc5e3496e231b32418a98c895e31db5dfdf9a888",
-  "pod_id": null,
-  "provider_create_attempted": false,
+  "pod_id": "a6hxcy4h40l5gd",
+  "provider_create_attempted": true,
+  "provider_created_at_utc": "2026-09-27T18:04:32.987772+00:00",
   "reservation_id": "e4a1efaed48bcec227f824a30a4adc3343bad60d92c00bb0e3dfbc145d20d4b7",
   "reserved_at_utc": "2026-09-27T18:04:24.200179+00:00",
   "run_attempt": "1",
   "run_id": "36339275953",
   "single_use_claimed": true,
   "source_sha": "f2da8599886703a9b389d109a1e7c7304746c199",
-  "state": "RESERVED_BEFORE_PROVIDER_CREATE"
+  "state": "PROVIDER_CREATED"
 }
