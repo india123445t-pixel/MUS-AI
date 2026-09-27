@@ -1,0 +1,6 @@
+{
+  "action": "status",
+  "mode": "read_only",
+  "target_pod_id": "hjwspv5aqtnqxd",
+  "note": "Recovery path prepared only. No paid recovery start is authorized."
+}
