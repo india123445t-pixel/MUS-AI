@@ -1,7 +1,7 @@
 {
   "action": "status",
   "api": "v1",
-  "checked_at_utc": "2026-09-27T09:00:25.475823+00:00",
+  "checked_at_utc": "2026-09-27T09:01:25.543167+00:00",
   "ok": true,
   "pod_count": 1,
   "pods": [
@@ -16,5 +16,13 @@
       "status": "RUNNING"
     }
   ],
-  "target_detail": {}
+  "target_detail": {
+    "costPerHr": 1.59,
+    "createdAt": "2026-09-27 08:59:23.847 +0000 UTC",
+    "desiredStatus": "RUNNING",
+    "gpuCount": 1,
+    "imageName": "ghcr.io/india123445t-pixel/mus-ai@sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec",
+    "lastStatusChange": "Rented by User: Sun Sep 27 2026 08:59:23 GMT+0000 (Coordinated Universal Time)",
+    "name": "AQLEVON-27B-R0-BUDGET8"
+  }
 }
