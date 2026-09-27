@@ -5,6 +5,7 @@ on:
     paths:
       - "research/weight_factory/agent03/p4_27b_progressive_curriculum.py"
       - ".github/runpod-control/aqlevon-27b-r0a-bootstrap.sh"
+      - ".github/runpod-control/aqlevon-27b-r0a-paid-driver.sh"
       - ".github/workflows/aqlevon-27b-r0a-free-gate.yml"
 permissions:
   contents: read
@@ -22,6 +23,7 @@ jobs:
           set -euo pipefail
           python3 -m py_compile research/weight_factory/agent03/p4_27b_progressive_curriculum.py
           bash -n .github/runpod-control/aqlevon-27b-r0a-bootstrap.sh
+          bash -n .github/runpod-control/aqlevon-27b-r0a-paid-driver.sh
           mkdir -p /tmp/aq27
           curl -fsSL https://raw.githubusercontent.com/india123445t-pixel/MUS-AI/abb94ef134e2e97036b6959dbc9db4278d3736b6/research/weight_factory/agent02/gene1_training_visible_pack_v1.json -o /tmp/aq27/public-pack.json
           curl -fsSL https://raw.githubusercontent.com/india123445t-pixel/MUS-AI/abb94ef134e2e97036b6959dbc9db4278d3736b6/research/weight_factory/agent02/gene1_data_verifier_pack_v1.py -o /tmp/aq27/w02.py
