@@ -1,0 +1,8 @@
+{
+  "kind": "AQLEVON_27B_R0_BUDGET8_EXECUTION_TRIGGER_V1",
+  "authorization_id": "P4-AQLEVON-27B-R0-BUDGET8-20260927-01",
+  "requested_at_utc": "2026-09-27T06:39:00Z",
+  "action": "execute_once",
+  "max_total_cost_usd": "7.60",
+  "no_main_merge": true
+}
