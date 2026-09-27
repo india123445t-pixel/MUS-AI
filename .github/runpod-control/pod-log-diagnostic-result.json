@@ -1,5 +1,26 @@
 {
-  "pod_id": "8sr0se37npmlje",
-  "stderr": "{\"error\":\"pod not found\",\"code\":\"not_found\",\"status\":404}\n",
-  "system_logs": []
+  "pod_id": "v3njg70l4mtazn",
+  "stderr": "",
+  "system_logs": [
+    {
+      "line": "AQLEVON_27B_HARDWARE_PASS 81152.0",
+      "source": "container",
+      "ts": "2026-09-27T14:59:14.558294404Z"
+    },
+    {
+      "line": "\rFetching 32 files:   0%|          | 0/32 [00:00<?, ?it/s]Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.",
+      "source": "container",
+      "ts": "2026-09-27T14:59:35.541070680Z"
+    },
+    {
+      "line": "\rFetching 32 files:   3%|\u258e         | 1/32 [00:00<00:10,  3.01it/s]\rFetching 32 files:  25%|\u2588\u2588\u258c       | 8/32 [00:00<00:01, 14.09it/s]\rFetching 32 files:  25%|\u2588\u2588\u258c       | 8/32 [00:20<00:01, 14.09it/s]\rFetching 32 files:  28%|\u2588\u2588\u258a       | 9/32 [00:44<02:39,  6.95s/it]\rFetching 32 files:  56%|\u2588\u2588\u2588\u2588\u2588\u258b    | 18/32 [01:00<00:49,  3.51s/it]\rFetching 32 files:  62%|\u2588\u2588\u2588\u2588\u2588\u2588\u258e   | 20/32 [01:17<00:52,  4.37s/it]\rFetching 32 files:  75%|\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u258c  | 24/32 [01:22<00:26,  3.32s/it]\rFetching 32 files:  81%|\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u258f | 26/32 [01:23<00:16,  2.74s/it]\rFetching 32 files: 100%|\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588| 32/32 [01:23<00:00,  2.60s/it]",
+      "source": "container",
+      "ts": "2026-09-27T15:00:58.506516632Z"
+    },
+    {
+      "line": "AQLEVON_27B_MODEL_STAGED",
+      "source": "container",
+      "ts": "2026-09-27T15:00:58.509928810Z"
+    }
+  ]
 }
