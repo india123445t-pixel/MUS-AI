@@ -15,7 +15,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: aqlevon-27b-r0-budget8-pr
+  group: aqlevon-27b-r0-budget8-pr-05
   cancel-in-progress: false
 
 jobs:
@@ -25,12 +25,12 @@ jobs:
     timeout-minutes: 275
     env:
       RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
-      AUTH_ID: P4-AQLEVON-27B-R0-BUDGET8-20260927-04
+      AUTH_ID: P4-AQLEVON-27B-R0-BUDGET8-20260927-05
       IMAGE_DIGEST: sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec
       SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
       CONTROL_BRANCH: ops/runpod-control-v1
-      CONSUMED_PATH: .github/runpod-control/aqlevon-27b-r0-budget8-pr-consumed-04.json
-      RESULT_PATH: .github/runpod-control/aqlevon-27b-r0-budget8-pr-result-04.json
+      CONSUMED_PATH: .github/runpod-control/aqlevon-27b-r0-budget8-pr-consumed-05.json
+      RESULT_PATH: .github/runpod-control/aqlevon-27b-r0-budget8-pr-result-05.json
 
     steps:
       - uses: actions/checkout@v4
@@ -54,15 +54,15 @@ jobs:
           assert a["model_repo"]=="Qwen/Qwen3.8-27B"
           assert a["model_revision"]=="1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0"
           assert float(a["owner_budget_ceiling_usd"])==8.0
-          assert float(a["max_total_cost_usd"])<=7.20
+          assert float(a["max_total_cost_usd"])<=7.00
           assert float(a["max_hourly_rate_usd"])<=1.60
-          assert int(a["max_billed_seconds"])<=15300
+          assert int(a["max_billed_seconds"])<=15000
           assert a["no_main_merge"] is True and a["sealed_eval_forbidden"] is True
           print("AQLEVON_27B_FREE_SOURCE_AUTH_PREFLIGHT_PASS")
           PY
           git fetch -q origin "$CONTROL_BRANCH"
           if git cat-file -e "origin/$CONTROL_BRANCH:$CONSUMED_PATH" 2>/dev/null; then
-            echo "::error::Fresh authorization #04 is already consumed"
+            echo "::error::Fresh authorization #05 is already consumed"
             exit 90
           fi
 
@@ -93,7 +93,16 @@ jobs:
                   if str(d.get("stockStatus")).lower()!="none" and d.get("dataCenterId"):
                       choices.append((price,str(d["dataCenterId"])))
           assert choices,"no_a100_sxm_80_capacity_under_1_60"
-          price,dc=sorted(choices)[0]
+          preferred=["US-KS-2","US-MD-1","US-WA-1","CA-MTL-3","EU-RO-1","EUR-IS-1"]
+          selected=None
+          for pdc in preferred:
+              hit=[x for x in choices if x[1]==pdc]
+              if hit:
+                  selected=sorted(hit)[0]
+                  break
+          if selected is None:
+              selected=sorted(choices)[0]
+          price,dc=selected
           open("/tmp/rate","w").write(str(price))
           open("/tmp/dc","w").write(dc)
           print("AQLEVON_27B_A100_CAPACITY_PASS",price,dc)
@@ -107,7 +116,7 @@ jobs:
           pod=""
           BOOT_URL="https://raw.githubusercontent.com/$GITHUB_REPOSITORY/$SOURCE_SHA/.github/runpod-control/aqlevon-27b-r0-bootstrap.sh"
           DOCKER_ARGS="bash -lc 'export AQLEVON_SOURCE_SHA=$SOURCE_SHA; curl -fsSL $BOOT_URL -o /tmp/aq27.sh && chmod +x /tmp/aq27.sh && exec bash /tmp/aq27.sh'"
-          runpodctl pod create             --name AQLEVON-27B-R0-BUDGET8-04             --image "ghcr.io/india123445t-pixel/mus-ai@$IMAGE_DIGEST"             --gpu-id "NVIDIA A100-SXM4-80GB"             --gpu-count 1             --cloud-type SECURE             --data-center-ids "$(cat /tmp/dc)"             --container-disk-in-gb 100             --ports 8000/http             --ssh=false             --docker-args "$DOCKER_ARGS"             --output json > /tmp/create.json
+          runpodctl pod create             --name AQLEVON-27B-R0-BUDGET8-05             --image "ghcr.io/india123445t-pixel/mus-ai@$IMAGE_DIGEST"             --gpu-id "NVIDIA A100-SXM4-80GB"             --gpu-count 1             --cloud-type SECURE             --data-center-ids "$(cat /tmp/dc)"             --container-disk-in-gb 100             --ports 8000/http             --ssh=false             --docker-args "$DOCKER_ARGS"             --output json > /tmp/create.json
           python3 - <<'PY'
           import datetime,json,os,time
           from pathlib import Path
@@ -121,7 +130,7 @@ jobs:
             "pod_id":str(pod),
             "created_at_utc":datetime.datetime.now(datetime.timezone.utc).isoformat(),
             "rate_per_hour_usd":float(Path("/tmp/rate").read_text()),
-            "max_billed_seconds":15300,
+            "max_billed_seconds":15000,
             "owner_budget_ceiling_usd":8.0,
             "single_use_consumed":True
           }
@@ -134,7 +143,7 @@ jobs:
           git -C /tmp/control config user.name aqlevon-runpod-bot
           git -C /tmp/control config user.email actions@users.noreply.github.com
           git -C /tmp/control add "$CONSUMED_PATH"
-          git -C /tmp/control commit -m "ops: consume AQLEVON 27B R0 authorization #04 [skip ci]"
+          git -C /tmp/control commit -m "ops: consume AQLEVON 27B R0 authorization #05 [skip ci]"
           git -C /tmp/control pull --rebase origin "$CONTROL_BRANCH"
           git -C /tmp/control push origin HEAD:"$CONTROL_BRANCH"
 
@@ -147,15 +156,18 @@ jobs:
           pod="$(cat /tmp/pod_id)"
           proxy="https://$pod-8000.proxy.runpod.net"
           final_stage=""
-          for i in $(seq 1 1530); do
+          http_seen=0
+          for i in $(seq 1 1500); do
             now="$(date +%s)"
             elapsed=$(( now - $(cat /tmp/start_epoch) ))
             if curl -fsS --connect-timeout 5 --max-time 10 "$proxy/status.json?t=$now" -o /tmp/status.json 2>/dev/null; then
+              http_seen=1
               stage="$(python3 -c 'import json; print(json.load(open("/tmp/status.json")).get("stage",""))' 2>/dev/null)"
               echo "AQLEVON_27B_STATUS elapsed=$elapsed stage=$stage"
               case "$stage" in DONE|FAILED) final_stage="$stage"; break;; esac
             fi
-            if [ "$elapsed" -ge 15300 ]; then final_stage="BUDGET_WATCHDOG_TIMEOUT"; break; fi
+            if [ "$http_seen" = 0 ] && [ "$elapsed" -ge 480 ]; then final_stage="HTTP_READINESS_TIMEOUT"; break; fi
+            if [ "$elapsed" -ge 15000 ]; then final_stage="BUDGET_WATCHDOG_TIMEOUT"; break; fi
             sleep 10
           done
           printf '%s\n' "$final_stage" >/tmp/final_stage
