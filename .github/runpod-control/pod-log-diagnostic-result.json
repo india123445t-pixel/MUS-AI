@@ -1,5 +1,5 @@
 {
-  "pod_id": "i03qv6jnsw72pr",
-  "stderr": "",
+  "pod_id": "8sr0se37npmlje",
+  "stderr": "{\"error\":\"timed out waiting for the log stream to respond. the api sends nothing until it has a line, so this can also mean no logs match --since/--source, or the pod has not started writing yet\",\"code\":\"timeout\"}\n",
   "system_logs": []
 }
