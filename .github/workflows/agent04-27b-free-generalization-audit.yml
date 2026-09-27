@@ -1,0 +1,64 @@
+name: Agent04 27B Free Generalization Audit
+
+on:
+  push:
+    branches:
+      - agent/04-27b-generalization-audit-20260927
+    paths:
+      - 'research/weight_factory/agent04/**'
+      - '.github/workflows/agent04-27b-free-generalization-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compile challenge code
+        run: |
+          python3 -m py_compile \
+            research/weight_factory/agent04/aqlevon_27b_public_generalization_challenge_v1.py \
+            research/weight_factory/agent04/test_aqlevon_27b_public_generalization_challenge_v1.py
+
+      - name: Run CPU verifier tests
+        run: |
+          python3 -m unittest -v \
+            research/weight_factory/agent04/test_aqlevon_27b_public_generalization_challenge_v1.py
+
+      - name: Verify frozen hashes and regenerated public pack
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, pathlib, subprocess
+          root=pathlib.Path("research/weight_factory/agent04")
+          gen=root/"aqlevon_27b_public_generalization_challenge_v1.py"
+          test=root/"test_aqlevon_27b_public_generalization_challenge_v1.py"
+          freeze_path=root/"aqlevon_27b_public_generalization_freeze_v1.json"
+          freeze=json.loads(freeze_path.read_text())
+          def sha_file(p):
+              return hashlib.sha256(p.read_bytes()).hexdigest()
+          assert sha_file(gen)==freeze["challenge"]["generator_file_sha256"]
+          assert sha_file(test)==freeze["challenge"]["unit_test_file_sha256"]
+          raw=subprocess.check_output(["python3",str(gen)],text=True)
+          pack=json.loads(raw)
+          claimed=pack["pack_sha256"]
+          body={k:v for k,v in pack.items() if k!="pack_sha256"}
+          canon=json.dumps(body,ensure_ascii=False,sort_keys=True,separators=(",",":"),allow_nan=False).encode()
+          assert hashlib.sha256(canon).hexdigest()==claimed
+          assert claimed==freeze["challenge"]["logical_pack_sha256"]
+          assert pack["task_count"]==16
+          assert all(t["exact_steps"] in (2,3) for t in pack["tasks"])
+          assert all("oracle_program" not in t for t in pack["tasks"])
+          freeze_claim=freeze["freeze_manifest_sha256"]
+          freeze_body={k:v for k,v in freeze.items() if k!="freeze_manifest_sha256"}
+          freeze_canon=json.dumps(freeze_body,ensure_ascii=False,sort_keys=True,separators=(",",":"),allow_nan=False).encode()
+          assert hashlib.sha256(freeze_canon).hexdigest()==freeze_claim
+          assert freeze["candidate_answers_observed_before_freeze"] is False
+          assert freeze["inference_executed_by_agent04"] is False
+          assert freeze["protected_or_sealed_material_used"] is False
+          print("AGENT04_PUBLIC_GENERALIZATION_FREEZE_PASS",claimed,freeze_claim)
+          PY
