@@ -1,6 +1,12 @@
 {
-  "action": "status",
-  "mode": "read_only",
+  "action": "recover_auth02_evidence",
+  "mode": "paid_recovery_single_use_authorized",
+  "authorization_id": "AQLEVON-AUTH02-EVIDENCE-RECOVERY-20260927-01",
   "target_pod_id": "hjwspv5aqtnqxd",
-  "note": "Recovery path prepared only. No paid recovery start is authorized."
+  "no_inference": true,
+  "no_model_dispatch": true,
+  "max_total_cost_usd": 0.2,
+  "max_hourly_rate_usd": 1.6,
+  "max_billed_seconds": 300,
+  "nonce": "auth02-evidence-recovery-20260927T2233Z"
 }
