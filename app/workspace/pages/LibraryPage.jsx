@@ -164,7 +164,7 @@ export default function LibraryPage({ onMenu }) {
 
       {preview && (
         <div className="modal-backdrop" onClick={() => setPreview(null)}>
-          <div className="modal wide" onClick={e => e.stopPropagation()}>
+          <div className="modal wide" role="dialog" aria-modal="true" aria-label={preview.file.name} onClick={e => e.stopPropagation()}>
             <div className="row spread">
               <h3 style={{ margin: 0 }} dir="auto">{preview.file.name}</h3>
               <button className="iconbtn" title={t('common.close')} onClick={() => setPreview(null)}><Icon name="x" size={16} /></button>
