@@ -1,4 +1,4 @@
-name: RunPod Emergency Cleanup R18H V2
+name: RunPod Emergency Cleanup AQLEVON 27B R0
 
 on:
   push:
@@ -18,15 +18,15 @@ jobs:
       - name: Install runpodctl
         run: curl -sSL https://cli.runpod.net | sudo bash
 
-      - name: Stop and delete exact Retry18H V2 pod
+      - name: Stop and delete exact AQLEVON 27B R0 pod
         env:
           RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
         shell: bash
         run: |
           set -euo pipefail
-          POD_ID="k0asg9w5vlhcnr"
+          POD_ID="y6hkpr1bu32t1s"
           runpodctl pod stop "$POD_ID" --output json || true
           sleep 2
           runpodctl pod delete "$POD_ID" --output json || true
           echo "POST_CLEANUP_STATE"
-          runpodctl pod list --all --output json | jq '[.[] | select(.id=="k0asg9w5vlhcnr" or .name=="AQLEVON-P4-A1-R18H-V2") | {id,name,status:(.status // .desiredStatus),costPerHr}]'
+          runpodctl pod list --all --output json | jq '[.[] | select(.id=="y6hkpr1bu32t1s" or .name=="AQLEVON-27B-R0-BUDGET8-04") | {id,name,status:(.status // .desiredStatus),costPerHr}]'
