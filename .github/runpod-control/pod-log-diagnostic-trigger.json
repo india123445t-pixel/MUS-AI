@@ -1,6 +1,6 @@
 {
   "pod_id": "8sr0se37npmlje",
   "source": "container",
-  "requested_at_utc": "2026-09-27T09:07:00Z",
-  "reason": "AQLEVON 27B R0 model download progress"
+  "requested_at_utc": "2026-09-27T15:15:00+00:00",
+  "reason": "AQLEVON 27B R0 continuation status after user interruption"
 }
