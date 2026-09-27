@@ -39,6 +39,7 @@ assert float(a["max_total_cost_usd"])<=1.50
 assert float(a["max_hourly_rate_usd"])<=1.60
 assert int(a["max_billed_seconds"])<=3200
 assert a["automatic_cleanup_required"] is True
+assert a["artifact_preservation_required"] is True
 assert a["no_main_merge"] is True
 assert a["sealed_eval_forbidden"] is True
 print("AQLEVON_27B_AUTHORIZATION_PASS")
@@ -99,8 +100,8 @@ out={
  "source_sha":os.environ["GITHUB_SHA"],
  "created_at_utc":datetime.datetime.now(datetime.timezone.utc).isoformat(),
  "single_use_consumed":True,
- "max_total_cost_usd":7.60,
- "controller_budget_window_seconds":14500
+ "max_total_cost_usd":1.50,
+ "controller_budget_window_seconds":3000
 }
 Path(".github/runpod-control/aqlevon-27b-r0-preserve-consumed-02.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
 PY
