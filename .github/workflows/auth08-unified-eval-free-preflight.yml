@@ -80,5 +80,15 @@ jobs:
           grep -F 'price*3300/3600<=1.50' ops/auth08-eval/run-auth08-unified-eval.sh
           grep -F 'runpodctl send "$BUNDLE"' ops/auth08-eval/run-auth08-unified-eval.sh
           grep -F 'runpodctl receive "$TRANSFER_CODE"' ops/auth08-eval/bootstrap.sh
+          grep -F 'tar --no-same-owner -xzf "$BUNDLE" -C "$ROOT/bundle"' ops/auth08-eval/bootstrap.sh
           grep -F 'AQLEVON_AUTH08_EVAL_DURABLE_ARTIFACT_BEFORE_DELETE_PASS' ops/auth08-eval/finalize.sh
+          python3 - <<'PY'
+          import json
+          a=json.load(open("ops/auth08-eval/authorization.json"))
+          c=json.load(open("ops/auth08-eval/command.json"))
+          assert a["consumed"] is True and a["fresh_authorization"] is False
+          assert a["model_dispatches_executed"] == 0
+          assert c["action"] == "status"
+          print("AQLEVON_AUTH08_EVAL_FAILED_AUTH_CLOSED_PASS")
+          PY
           echo AQLEVON_AUTH08_UNIFIED_EVAL_STATIC_PASS
