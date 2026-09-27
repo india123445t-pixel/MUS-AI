@@ -1,9 +1,7 @@
 {
-  "action": "execute_aqlevon_27b_r0_budget8",
+  "action": "status",
   "requested_by": "AQLEVON_MANAGER",
-  "authorization_id": "P4-AQLEVON-27B-R0-FRESH-20260927-1554-06",
-  "cumulative_budget_cap_usd": 4,
-  "resume_pod_id": "v3njg70l4mtazn",
-  "nonce": "aq27-auth06-20260927-1554z",
-  "note": "Fresh single-use retry 06. Use documented stopped-pod REST resume path; preserve artifact durably before deletion."
+  "mode": "read_only",
+  "nonce": "aq27-post-auth06-start500-status-20260927",
+  "note": "Read provider state after auth06 stopped-pod update succeeded but documented REST start returned HTTP 500."
 }
