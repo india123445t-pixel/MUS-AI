@@ -23,7 +23,7 @@ jobs:
           set -euo pipefail
           test -n "${RUNPOD_API_KEY:-}"
           curl -fsS https://rest.runpod.io/v1/pods -H "Authorization: Bearer $RUNPOD_API_KEY" -o /tmp/pods.json
-          python3 - <<'PY' > /tmp/monitor-env
+          python3 - <<'PY' > /tmp/monitor.json
           import json
           p=json.load(open("/tmp/pods.json"))
           xs=p if isinstance(p,list) else p.get("pods") or p.get("items") or []
@@ -33,21 +33,29 @@ jobs:
               status=str(x.get("desiredStatus") or x.get("status") or "")
               if name.startswith("AQLEVON-27B-R0") and status!="EXITED":
                   hits.append(x)
-          print("COUNT="+str(len(hits)))
+          out={"count":len(hits)}
           if hits:
               x=hits[-1]
-              print("POD_ID="+str(x.get("id") or ""))
-              print("STATUS="+str(x.get("desiredStatus") or x.get("status") or ""))
-              print("COST="+str(x.get("costPerHr") or ""))
-              print("CREATED="+str(x.get("createdAt") or ""))
+              out.update({
+                  "pod_id":str(x.get("id") or ""),
+                  "status":str(x.get("desiredStatus") or x.get("status") or ""),
+                  "cost_per_hr":x.get("costPerHr"),
+                  "created_at":str(x.get("createdAt") or "")
+              })
+          print(json.dumps(out))
           PY
-          cat /tmp/monitor-env
-          . /tmp/monitor-env
-          if [ "${COUNT:-0}" = "0" ]; then
+          cat /tmp/monitor.json
+          COUNT="$(python3 -c 'import json; print(json.load(open("/tmp/monitor.json"))["count"])')"
+          if [ "$COUNT" = "0" ]; then
             echo AQLEVON_MANAGER_MONITOR_NO_ACTIVE_POD
             exit 0
           fi
-          echo "AQLEVON_MANAGER_MONITOR_POD status=$STATUS cost_per_hr=$COST created=$CREATED"
+          POD_ID="$(python3 -c 'import json; print(json.load(open("/tmp/monitor.json"))["pod_id"])')"
+          python3 - <<'PY'
+          import json,datetime
+          d=json.load(open("/tmp/monitor.json"))
+          print("AQLEVON_MANAGER_MONITOR_POD",json.dumps(d,sort_keys=True))
+          PY
           code="$(curl -sS -o /tmp/status.json -w '%{http_code}' --connect-timeout 5 --max-time 10 "https://${POD_ID}-8000.proxy.runpod.net/status.json?t=$(date +%s)" || true)"
           echo "AQLEVON_MANAGER_MONITOR_HTTP $code"
           if [ "$code" = "200" ]; then
