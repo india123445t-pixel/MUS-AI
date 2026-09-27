@@ -4,6 +4,6 @@
   "read_only": true,
   "target_run_id": 36332132785,
   "target_pod_id": "y06z4plp60plbc",
-  "note": "auth08 read-only progress poll 2",
-  "poll": 1
+  "note": "auth08 final-eval read-only poll",
+  "poll": 2
 }
