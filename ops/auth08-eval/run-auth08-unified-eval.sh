@@ -8,6 +8,19 @@ RESULT=ops/auth08-eval/result.json
 IMAGE_DIGEST=sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec
 IMAGE_NAME="ghcr.io/india123445t-pixel/mus-ai@$IMAGE_DIGEST"
 MAX_ELAPSED=3300
+SEND_PID=""
+
+fail_closed_cleanup() {
+  local rc=$?
+  set +e
+  if [ -n "$SEND_PID" ]; then kill "$SEND_PID" 2>/dev/null || true; fi
+  if [ -s /tmp/pod ] && command -v runpodctl >/dev/null 2>&1; then
+    runpodctl pod stop "$(cat /tmp/pod)" >/dev/null 2>&1 || true
+    echo AQLEVON_AUTH08_EVAL_FAIL_CLOSED_POD_STOP_ATTEMPTED
+  fi
+  exit "$rc"
+}
+trap fail_closed_cleanup ERR
 
 action="$(python3 -c 'import json; print(json.load(open("'"$COMMAND"'")).get("action",""))')"
 if [ "$action" != "execute_auth08_unified_public_eval" ]; then
@@ -274,4 +287,5 @@ git fetch origin manager/auth08-unified-eval-20260927
 git rebase origin/manager/auth08-unified-eval-20260927
 git push origin HEAD:manager/auth08-unified-eval-20260927
 
+trap - ERR
 echo AQLEVON_AUTH08_EVAL_RESULT_READY_FOR_DURABLE_UPLOAD
