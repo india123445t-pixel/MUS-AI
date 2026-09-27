@@ -1,0 +1,56 @@
+name: Agent04 Wave2 Generalization Harness
+
+on:
+  push:
+    branches:
+      - agent/04-wave2-generalization-harness-20260927
+    paths:
+      - 'research/weight_factory/agent04/**'
+      - '.github/workflows/agent04-wave2-generalization-harness.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  harness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compile frozen challenge and Wave2 harness
+        run: |
+          python3 -m py_compile \
+            research/weight_factory/agent04/aqlevon_27b_public_generalization_challenge_v1.py \
+            research/weight_factory/agent04/test_aqlevon_27b_public_generalization_challenge_v1.py \
+            research/weight_factory/agent04/aqlevon_27b_public_generalization_result_harness_v1.py \
+            research/weight_factory/agent04/test_aqlevon_27b_public_generalization_result_harness_v1.py
+
+      - name: Run frozen challenge plus Wave2 CPU tests
+        run: |
+          python3 -m unittest -v \
+            research/weight_factory/agent04/test_aqlevon_27b_public_generalization_challenge_v1.py \
+            research/weight_factory/agent04/test_aqlevon_27b_public_generalization_result_harness_v1.py
+
+      - name: Smoke-test no-GPU manifest preparation
+        run: |
+          python3 research/weight_factory/agent04/aqlevon_27b_public_generalization_result_harness_v1.py prepare \
+            --template research/weight_factory/agent04/aqlevon_27b_public_generalization_execution_manifest_template_v1.json \
+            --adapter-sha256 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa \
+            --adapter-state-sha256 bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb \
+            --candidate-manifest-sha256 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc \
+            --manifest-out /tmp/manifest.json \
+            --results-out /tmp/results.json
+          python3 - <<'PY'
+          import json
+          m=json.load(open('/tmp/manifest.json'))
+          r=json.load(open('/tmp/results.json'))
+          assert m['authoritative_freeze_git_commit']=='061ef205664aa7af27708c2ee27741a6cf246667'
+          assert m['challenge_pack_sha256']=='10e049fa86fb034023bfa7e93a9dc0cfa58b3cff35718ef32b26533a18ff2b3b'
+          assert m['freeze_manifest_sha256']=='5d1e848c5609874d0f1e184f285f4202538fab4a0456828e008f77ba9914c7fd'
+          assert len(r)==128
+          assert len({(x['system'],x['task_id'],x['seed']) for x in r})==128
+          assert all(x['raw_output']=='' for x in r)
+          print('AGENT04_WAVE2_HARNESS_PREPARE_PASS',m['manifest_sha256'],len(r))
+          PY
