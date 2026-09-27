@@ -1,0 +1,173 @@
+{
+  "contract_sha256": "484c369ee9e4d19d1142f4d55cce4296a594d49697d5cf47afa13f31da0a283d",
+  "future_run_binding": {
+    "contract_hash_field": "contract_sha256",
+    "require_contract_hash_in_consumed_marker": true,
+    "require_contract_hash_in_final_result_receipt": true,
+    "require_contract_self_hash_match": true,
+    "require_source_blob_matches": true,
+    "require_training_constant_matches": true,
+    "required_before_provider_create": true
+  },
+  "historical_public_metric_path": {
+    "generation": {
+      "do_sample": true,
+      "max_new_tokens": 256,
+      "num_return_sequences": 1,
+      "pad_token": "tokenizer.eos_token_id",
+      "seed_formula": "1701 + int(sha256(label + ':' + task_id).hexdigest()[:8], 16)",
+      "temperature": 0.7,
+      "top_k": 20,
+      "top_p": 0.8,
+      "use_cache": true
+    },
+    "historical_gain_field": "final_dev_successes > baseline_dev_successes OR final_shadow_successes > baseline_shadow_successes",
+    "historical_pass_rule": "final_dev_successes >= baseline_dev_successes AND final_shadow_successes >= baseline_shadow_successes",
+    "interpretation": "Historical public metric only; label-derived seed confound intentionally preserved here solely for comparability with R0.",
+    "labels": {
+      "baseline_dev": "baseline_dev",
+      "baseline_shadow": "baseline_shadow",
+      "checkpoint_dev": "dev_after_{optimizer_updates}",
+      "final_dev": "final_dev",
+      "final_shadow": "final_shadow"
+    },
+    "prompt_perturbation_index": 0,
+    "splits": {
+      "dev": [0, 1],
+      "shadow": [2, 3]
+    },
+    "status": "PRESERVED_UNCHANGED_FOR_COMPARABILITY",
+    "strict_output_parser": "strip -> json.loads -> nonempty list only",
+    "task_source": "historical_reference.w02_generator"
+  },
+  "historical_reference": {
+    "run_id": 36307917194,
+    "source_commit": "4e3f1b03cfe77ac4355907ec692574f30d180252",
+    "trainer": {
+      "git_blob_sha1": "9085e692d43110600e7bf214ffdab910f4821f1c",
+      "path": "research/weight_factory/agent03/aqlevon_27b_r0_auth16_transfer.py"
+    },
+    "w02_generator": {
+      "commit": "abb94ef134e2e97036b6959dbc9db4278d3736b6",
+      "git_blob_sha1": "bcdf1326a891dc082a6843f764c052f9192187b8",
+      "path": "research/weight_factory/agent02/gene1_data_verifier_pack_v1.py",
+      "source_class": "public_training_visible_generator_and_objective_verifier"
+    }
+  },
+  "kind": "AQLEVON_27B_RERUN_SCIENTIFIC_CONTRACT_V1",
+  "paired_public_eval_v1": {
+    "common_seeds": [1701, 271828],
+    "completeness_rule": {
+      "reject_duplicate_pairs": true,
+      "reject_extra_pairs": true,
+      "reject_missing_pairs": true,
+      "reject_seed_mismatch_between_systems": true,
+      "require_exact_task_seed_cartesian_product": true,
+      "systems": ["base", "candidate"]
+    },
+    "expected_attempts_per_system": 112,
+    "expected_pair_matrix_sha256": "60e2653de2aaee2dae86414d5e69f5adf5dd2973a67056774ae7db3209f403a8",
+    "expected_task_count_per_system": 56,
+    "expected_total_attempts": 224,
+    "generation": {
+      "do_sample": true,
+      "enable_thinking": false,
+      "max_new_tokens": 256,
+      "num_return_sequences": 1,
+      "pad_token": "tokenizer.eos_token_id",
+      "temperature": 0.7,
+      "top_k": 20,
+      "top_p": 0.8,
+      "use_cache": true
+    },
+    "prompt_perturbation_index": 0,
+    "retry_policy": {
+      "model_dispatch_attempts_per_task_seed": 1,
+      "pre_dispatch_retry_requires_proof_no_model_request_was_sent": true,
+      "pre_dispatch_setup_retry_limit": 1,
+      "retry_after_model_dispatch": false,
+      "retry_malformed_output": false,
+      "retry_unknown_dispatch_state": false,
+      "retry_verifier_failure": false,
+      "unknown_dispatch_state_action": "abort_evaluation_fail_closed"
+    },
+    "role": "Additional paired public evidence. It does not rewrite historical R0 metrics and does not substitute for Agent 04 structural generalization or future private W05-style evaluation.",
+    "seed_application": "Before every model generation attempt, set random.seed(seed), torch.manual_seed(seed), and torch.cuda.manual_seed_all(seed). The same exact seed is used for base and candidate for the same task_id.",
+    "splits": {
+      "dev": [0, 1],
+      "shadow": [2, 3]
+    },
+    "status": "PREREGISTERED_ADDITIONAL_EVIDENCE",
+    "task_catalog_sha256": "1ec78429ca5dc681361be281f94d945c0671f16328c983bd7494480ec4205388",
+    "task_source": "historical_reference.w02_generator",
+    "thresholds": {
+      "dev_candidate_minus_base_min_successes": 0,
+      "paired_public_pass_rule": "complete AND dev_delta >= 0 AND shadow_delta >= 0 AND total_delta >= 0",
+      "shadow_candidate_minus_base_min_successes": 0,
+      "strict_gain_report_only": "candidate_total_successes > base_total_successes",
+      "total_candidate_minus_base_min_successes": 0
+    },
+    "verifier_mode": "hardened"
+  },
+  "purpose": "Freeze the next 27B scientific training and dual-public-evaluation contract before any future candidate answers are observed.",
+  "schema_version": 1,
+  "source_policy": {
+    "allowed_evaluation_sources": [
+      {
+        "commit": "abb94ef134e2e97036b6959dbc9db4278d3736b6",
+        "git_blob_sha1": "bcdf1326a891dc082a6843f764c052f9192187b8",
+        "path": "research/weight_factory/agent02/gene1_data_verifier_pack_v1.py",
+        "purpose": "task_generation_and_objective_verification",
+        "visibility": "public"
+      }
+    ],
+    "future_private_evaluation_authority": false,
+    "private_or_sealed_source_count": 0
+  },
+  "training_recipe": {
+    "architecture_class": "Qwen3_5ForConditionalGeneration",
+    "base_repo": "Qwen/Qwen3.8-27B",
+    "base_revision": "1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0",
+    "data": {
+      "expected_training_rows": 672,
+      "families": ["increment", "rename", "append_unique", "sort_list", "delete", "normalize_ws", "slugify", "map_add", "filter_ge", "toggle_bool", "dedupe_list", "replace_text", "dict_put", "move_item"],
+      "prompt_loss_mask": -100,
+      "prompt_perturbation_indices": [0, 1, 2],
+      "row_order": "sorted_by_id_then_random.Random(1701).shuffle",
+      "target_encoding": "json.dumps(oracle_program, ensure_ascii=False, separators=(',', ':')) + eos",
+      "training_indices": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19],
+      "verifier_mode": "hardened"
+    },
+    "device_requirement": "cuda_bf16",
+    "enable_thinking": false,
+    "lora": {
+      "alpha": 8,
+      "bias": "none",
+      "dropout": 0.0,
+      "expected_target_module_count": 32,
+      "expected_trainable_parameters": 1507328,
+      "rank": 4,
+      "target_scope": "model.language_model.layers.*.self_attn.*",
+      "target_suffixes": ["q_proj", "v_proj"],
+      "task_type": "CAUSAL_LM"
+    },
+    "optimizer": {
+      "gradient_clip_norm": 1.0,
+      "learning_rate": 0.00001,
+      "minimum_learning_rate": 0.000001,
+      "name": "AdamW",
+      "schedule": "cosine_per_optimizer_step",
+      "schedule_formula": "min_lr + (lr-min_lr)*(1+cos(pi*global_step/(max_updates-1)))/2",
+      "weight_decay": 0.05
+    },
+    "precision": "bfloat16",
+    "seed": 1701,
+    "sequence_cap_tokens": 1024,
+    "updates": {
+      "early_stop_check_every": 112,
+      "early_stop_condition": "public_dev_successes == public_dev_tasks and public_dev_successes >= baseline_public_dev_successes",
+      "max_optimizer_updates": 672
+    }
+  },
+  "truth_boundary": "This contract freezes the historical scientific recipe plus an additional paired public evaluation path. It authorizes no paid execution, no provider action, no model promotion, and no historical private-evaluation reconstruction."
+}
