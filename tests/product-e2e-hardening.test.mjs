@@ -14,6 +14,11 @@ const chatUi=read('app/workspace/pages/ChatPage.jsx');
 const settingsUi=read('app/workspace/pages/SettingsPage.jsx');
 const projectUi=read('app/workspace/pages/ProjectDetail.jsx');
 const libraryUi=read('app/workspace/pages/LibraryPage.jsx');
+const workUi=read('app/workspace/pages/WorkPage.jsx');
+const projectsUi=read('app/workspace/pages/ProjectsPage.jsx');
+const scheduledUi=read('app/workspace/pages/ScheduledPage.jsx');
+const searchUi=read('app/workspace/components/SearchModal.jsx');
+const workspaceCss=read('app/workspace.css');
 const ar=read('app/workspace/i18n/ar.js');
 const en=read('app/workspace/i18n/en.js');
 const chatRoute=read('app/api/chat/route.js');
@@ -113,6 +118,15 @@ test('project task entry point carries project id and project instructions into 
 test('deleting projects and files cleans stale browser-workspace references',()=>{
   assert.match(api,/if\(input\.projectId===id\)\{input\.projectId=null;j\.input=JSON\.stringify\(input\)\}/);
   assert.match(api,/if\(result\?\.fileId===id\)j\.result=JSON\.stringify\(\{\.\.\.result,fileId:null,deleted:true\}\)/);
+});
+
+test('workspace modals and keyboard navigation expose baseline accessibility semantics',()=>{
+  for(const src of [chatUi,libraryUi,workUi,projectsUi,scheduledUi,searchUi]){
+    assert.match(src,/role="dialog"/);
+    assert.match(src,/aria-modal="true"/);
+  }
+  assert.match(workspaceCss,/button:focus-visible/);
+  assert.match(workspaceCss,/outline: 2px solid var\(--accent\)/);
 });
 
 test('browser-local file storage uses a safer cap and surfaces quota failures',()=>{
