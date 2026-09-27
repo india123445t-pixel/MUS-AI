@@ -1,0 +1,34 @@
+name: AQLEVON 27B R0A Free Contract Gate
+on:
+  push:
+    branches: [ops/aqlevon-27b-r0a-budget8-20260927]
+    paths:
+      - "research/weight_factory/agent03/p4_27b_progressive_curriculum.py"
+      - ".github/runpod-control/aqlevon-27b-r0a-bootstrap.sh"
+      - ".github/workflows/aqlevon-27b-r0a-free-gate.yml"
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/aqlevon-27b-r0a-budget8-20260927
+      - name: Validate source and public-only curriculum
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile research/weight_factory/agent03/p4_27b_progressive_curriculum.py
+          bash -n .github/runpod-control/aqlevon-27b-r0a-bootstrap.sh
+          mkdir -p /tmp/aq27
+          curl -fsSL https://raw.githubusercontent.com/india123445t-pixel/MUS-AI/abb94ef134e2e97036b6959dbc9db4278d3736b6/research/weight_factory/agent02/gene1_training_visible_pack_v1.json -o /tmp/aq27/public-pack.json
+          curl -fsSL https://raw.githubusercontent.com/india123445t-pixel/MUS-AI/abb94ef134e2e97036b6959dbc9db4278d3736b6/research/weight_factory/agent02/gene1_data_verifier_pack_v1.py -o /tmp/aq27/w02.py
+          python3 research/weight_factory/agent03/p4_27b_progressive_curriculum.py \
+            --w02-module /tmp/aq27/w02.py \
+            --training-pack /tmp/aq27/public-pack.json \
+            --preflight-only | tee /tmp/aq27/preflight.txt
+          grep -Fq 'AQLEVON_27B_PUBLIC_PREFLIGHT_PASS phases=[168, 168, 168, 168] max_updates=672 dev=28 shadow=28 families=14 sealed_eval=forbidden' /tmp/aq27/preflight.txt
+          ! grep -R -E 'AQLEVON_EVAL_SECRET|AQLEVON_SEALED_EVAL_PATH' /tmp/aq27/public-pack.json /tmp/aq27/w02.py
+          echo AQLEVON_27B_FREE_CONTRACT_PASS
