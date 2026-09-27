@@ -14,6 +14,7 @@ export default function LibraryPage({ onMenu }) {
   const [view, setView] = useState(() => typeof window !== 'undefined' ? (localStorage.getItem('aqlevon-lib-view') || localStorage.getItem('kite-lib-view') || 'grid') : 'grid');
   const [renaming, setRenaming] = useState(null);
   const [preview, setPreview] = useState(null);
+  const [lastError, setLastError] = useState(null);
   const fileRef = useRef();
 
   const FILTERS = [
@@ -28,10 +29,15 @@ export default function LibraryPage({ onMenu }) {
   useEffect(() => { localStorage.setItem('aqlevon-lib-view', view); }, [view]);
 
   const upload = async f => {
-    const fd = new FormData();
-    fd.append('file', f);
-    await api.upload('/files', fd);
-    load();
+    setLastError(null);
+    try {
+      const fd = new FormData();
+      fd.append('file', f);
+      await api.upload('/files', fd);
+      load();
+    } catch (e) {
+      setLastError(e?.message === 'BROWSER_STORAGE_FULL' ? t('lib.storageFull') : String(e?.message || t('common.error')));
+    }
   };
 
   const saveRename = async () => {
@@ -77,9 +83,10 @@ export default function LibraryPage({ onMenu }) {
         <h1>{t('lib.title')}</h1>
         <span className="tag warn">{t('lib.browserOnly')}</span>
         <button className="btn" onClick={() => fileRef.current.click()}><Icon name="plus" size={15} /> {t('lib.upload')}</button>
-        <input hidden type="file" ref={fileRef} onChange={e => e.target.files[0] && upload(e.target.files[0])} />
+        <input hidden type="file" ref={fileRef} onChange={e => { const f=e.target.files[0]; e.target.value=''; if(f)upload(f); }} />
       </div>
       <div className="content narrow">
+        {lastError && <div className="error-strip" style={{ marginBottom: 12 }}><Icon name="warn" size={16} /><span>{lastError}</span></div>}
         <div className="card" style={{ marginBottom: 14 }}><p className="muted small" style={{ margin: 0 }}>{t('lib.browserNotice')}</p></div>
         <div className="lib-toolbar">
           <input className="input" style={{ maxWidth: 260 }} placeholder={t('lib.search')} value={q} onChange={e => setQ(e.target.value)} />
