@@ -1,7 +1,7 @@
 {
   "action": "status",
   "api": "v1",
-  "checked_at_utc": "2026-09-27T09:02:28.184967+00:00",
+  "checked_at_utc": "2026-09-27T09:05:15.707842+00:00",
   "ok": true,
   "pod_count": 1,
   "pods": [
@@ -16,7 +16,12 @@
       "status": "RUNNING"
     }
   ],
-  "runtime_status": {},
+  "runtime_status": {
+    "detail": "auth16_recipe_transfer",
+    "kind": "AQLEVON_27B_R0_STATUS_V1",
+    "rc": 0,
+    "stage": "TRAINING"
+  },
   "target_detail": {
     "costPerHr": 1.59,
     "createdAt": "2026-09-27 08:59:23.847 +0000 UTC",
