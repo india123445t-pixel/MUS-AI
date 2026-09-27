@@ -40,6 +40,10 @@ assert "aqlevon-27b-r0-fresh-authorization.json" in run
 assert "AQLEVON_MANAGER_PAID_AUTHORIZATION_V2" in run
 assert "AQLEVON_27B_CONTROL_PLANE_V2" in run
 assert "fresh_authorization" in run
+assert "484c369ee9e4d19d1142f4d55cce4296a594d49697d5cf47afa13f31da0a283d" in run
+assert "4ddb508ea0dc99ab7e02588e19915915fc67976c" in run
+assert "484c369ee9e4d19d1142f4d55cce4296a594d49697d5cf47afa13f31da0a283d" in Path(".github/runpod-control/aqlevon-27b-reservation.py").read_text()
+assert '"scientific_contract_sha256":os.environ["SCIENTIFIC_CONTRACT_SHA256"]' in run
 assert "P4-AQLEVON-27B-R0-PRESERVE-20260927-02" not in run
 assert "aqlevon-27b-r0-preserve-authorization-02.json" not in run
 print("AQLEVON_27B_CONTROL_ORDER_STATIC_PASS")
@@ -49,6 +53,31 @@ PY
 trainer_blob="$(git rev-parse HEAD:research/weight_factory/agent03/aqlevon_27b_r0_auth16_transfer.py)"
 test "$trainer_blob" = "9085e692d43110600e7bf214ffdab910f4821f1c"
 echo AQLEVON_27B_SCIENTIFIC_CONSTANTS_UNCHANGED_PASS
+
+# Verify the exact released Agent 03 scientific contract and source identities.
+CONTRACT_COMMIT=4ddb508ea0dc99ab7e02588e19915915fc67976c
+HIST_SOURCE=4e3f1b03cfe77ac4355907ec692574f30d180252
+W02_COMMIT=abb94ef134e2e97036b6959dbc9db4278d3736b6
+for ref in "$CONTRACT_COMMIT" "$HIST_SOURCE" "$W02_COMMIT"; do
+  git cat-file -e "$ref^{commit}" 2>/dev/null || git fetch --no-tags --depth=1 origin "$ref"
+done
+test "$(git rev-parse "$CONTRACT_COMMIT:research/weight_factory/agent03/aqlevon_27b_rerun_scientific_contract_v1.json")" = "6d2424a589af250f878c1a83a3811aa6ccd5b4b0"
+test "$(git rev-parse "$CONTRACT_COMMIT:research/weight_factory/agent03/aqlevon_27b_rerun_contract_v1.py")" = "990ab86bebcbe69050dc5f644c6ff12f60db75d3"
+mkdir -p "$tmp/contract"
+git show "$CONTRACT_COMMIT:research/weight_factory/agent03/aqlevon_27b_rerun_scientific_contract_v1.json" > "$tmp/contract/aqlevon_27b_rerun_scientific_contract_v1.json"
+git show "$CONTRACT_COMMIT:research/weight_factory/agent03/aqlevon_27b_rerun_contract_v1.py" > "$tmp/contract/aqlevon_27b_rerun_contract_v1.py"
+python3 "$tmp/contract/aqlevon_27b_rerun_contract_v1.py" verify > "$tmp/contract-verification.json"
+python3 - "$tmp/contract-verification.json" <<'PY'
+import json,sys
+x=json.load(open(sys.argv[1]))
+assert x["status"]=="PASS"
+assert x["contract_sha256"]=="484c369ee9e4d19d1142f4d55cce4296a594d49697d5cf47afa13f31da0a283d"
+assert x["training_recipe_match"] is True
+assert x["source_blobs_match"] is True
+assert x["same_seed_pairing"] is True
+assert x["private_or_sealed_source_count"]==0
+PY
+echo AQLEVON_27B_SCIENTIFIC_CONTRACT_BINDING_PASS
 
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
@@ -115,6 +144,7 @@ cat >"$tmp/auth.json" <<'JSON'
   "kind": "AQLEVON_MANAGER_PAID_AUTHORIZATION_V2",
   "control_plane_contract": "AQLEVON_27B_CONTROL_PLANE_V2",
   "fresh_authorization": true,
+  "scientific_contract_sha256": "484c369ee9e4d19d1142f4d55cce4296a594d49697d5cf47afa13f31da0a283d",
   "issued_at_utc": "2099-01-01T00:00:00Z",
   "authorization_id": "TEST-FRESH-AUTH",
   "single_use": true,
@@ -219,6 +249,7 @@ import json,sys
 x=json.load(open(sys.argv[1]))
 assert x["run_id"]=="201"
 assert x["state"]=="RESERVED_BEFORE_PROVIDER_CREATE"
+assert x["scientific_contract_sha256"]=="484c369ee9e4d19d1142f4d55cce4296a594d49697d5cf47afa13f31da0a283d"
 PY
 echo AQLEVON_27B_SINGLE_FLIGHT_RESERVATION_CAS_PASS
 

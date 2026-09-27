@@ -6,6 +6,14 @@ RESERVATION=.github/runpod-control/aqlevon-27b-r0-fresh-reservation.json
 CONSUMED=.github/runpod-control/aqlevon-27b-r0-fresh-consumed.json
 RESULT=.github/runpod-control/aqlevon-27b-r0-fresh-result.json
 IMAGE_DIGEST=sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d66ec
+SCIENTIFIC_CONTRACT_SHA256=484c369ee9e4d19d1142f4d55cce4296a594d49697d5cf47afa13f31da0a283d
+SCIENTIFIC_CONTRACT_COMMIT=4ddb508ea0dc99ab7e02588e19915915fc67976c
+SCIENTIFIC_CONTRACT_BLOB=6d2424a589af250f878c1a83a3811aa6ccd5b4b0
+SCIENTIFIC_CONTRACT_PATH=research/weight_factory/agent03/aqlevon_27b_rerun_scientific_contract_v1.json
+SCIENTIFIC_CONTRACT_VERIFIER_PATH=research/weight_factory/agent03/aqlevon_27b_rerun_contract_v1.py
+SCIENTIFIC_CONTRACT_VERIFIER_BLOB=990ab86bebcbe69050dc5f644c6ff12f60db75d3
+HISTORICAL_SOURCE_COMMIT=4e3f1b03cfe77ac4355907ec692574f30d180252
+W02_COMMIT=abb94ef134e2e97036b6959dbc9db4278d3736b6
 MAX_ELAPSED=3000
 pod=""
 stopped=0
@@ -30,7 +38,7 @@ python3 -m py_compile research/weight_factory/agent03/aqlevon_27b_r0_auth16_tran
 bash -n .github/runpod-control/aqlevon-27b-r0-bootstrap.sh
 echo AQLEVON_27B_FREE_SYNTAX_PREFLIGHT_PASS
 
-AUTH="$AUTH" python3 - <<'PY'
+SCIENTIFIC_CONTRACT_SHA256="$SCIENTIFIC_CONTRACT_SHA256" AUTH="$AUTH" python3 - <<'PY'
 import json,os,re
 from pathlib import Path
 p=Path(os.environ["AUTH"])
@@ -38,6 +46,7 @@ a=json.loads(p.read_text())
 assert a["kind"]=="AQLEVON_MANAGER_PAID_AUTHORIZATION_V2"
 assert a["control_plane_contract"]=="AQLEVON_27B_CONTROL_PLANE_V2"
 assert a["fresh_authorization"] is True
+assert a["scientific_contract_sha256"]==os.environ["SCIENTIFIC_CONTRACT_SHA256"]
 auth_id=str(a.get("authorization_id") or "")
 assert auth_id and re.fullmatch(r"[A-Za-z0-9._:-]{8,160}",auth_id)
 assert a["single_use"] is True and a["training_authorized"] is True
@@ -56,6 +65,31 @@ print("AQLEVON_27B_FRESH_AUTHORIZATION_V2_PASS",auth_id)
 PY
 AUTH_ID="$(cat /tmp/aq27-auth-id)"
 export AUTH_ID
+export SCIENTIFIC_CONTRACT_SHA256
+
+# Verify Agent 03's frozen scientific contract, source blobs, and training
+# constants before any provider API call or provider-create action.
+for ref in "$SCIENTIFIC_CONTRACT_COMMIT" "$HISTORICAL_SOURCE_COMMIT" "$W02_COMMIT"; do
+  git cat-file -e "$ref^{commit}" 2>/dev/null || git fetch --no-tags --depth=1 origin "$ref"
+done
+test "$(git rev-parse "$SCIENTIFIC_CONTRACT_COMMIT:$SCIENTIFIC_CONTRACT_PATH")" = "$SCIENTIFIC_CONTRACT_BLOB"
+test "$(git rev-parse "$SCIENTIFIC_CONTRACT_COMMIT:$SCIENTIFIC_CONTRACT_VERIFIER_PATH")" = "$SCIENTIFIC_CONTRACT_VERIFIER_BLOB"
+rm -rf /tmp/aq27-scientific-contract
+mkdir -p /tmp/aq27-scientific-contract
+git show "$SCIENTIFIC_CONTRACT_COMMIT:$SCIENTIFIC_CONTRACT_PATH" > /tmp/aq27-scientific-contract/aqlevon_27b_rerun_scientific_contract_v1.json
+git show "$SCIENTIFIC_CONTRACT_COMMIT:$SCIENTIFIC_CONTRACT_VERIFIER_PATH" > /tmp/aq27-scientific-contract/aqlevon_27b_rerun_contract_v1.py
+python3 /tmp/aq27-scientific-contract/aqlevon_27b_rerun_contract_v1.py verify > /tmp/aq27-scientific-contract-verification.json
+SCIENTIFIC_CONTRACT_SHA256="$SCIENTIFIC_CONTRACT_SHA256" python3 - <<'PY'
+import json,os
+x=json.load(open("/tmp/aq27-scientific-contract-verification.json"))
+assert x["status"]=="PASS"
+assert x["contract_sha256"]==os.environ["SCIENTIFIC_CONTRACT_SHA256"]
+assert x["training_recipe_match"] is True
+assert x["source_blobs_match"] is True
+assert x["same_seed_pairing"] is True
+assert x["private_or_sealed_source_count"]==0
+print("AQLEVON_27B_SCIENTIFIC_CONTRACT_PRECREATE_PASS",x["contract_sha256"])
+PY
 
 curl -fsS https://rest.runpod.io/v1/pods -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/aq27-pods.json
 python3 - <<'PY'
@@ -225,6 +259,7 @@ stage=Path("/tmp/aq27-final-stage").read_text().strip()
 out={
  "kind":"AQLEVON_27B_R0_FRESH_AUTH_RUN_RECEIPT_V2",
  "authorization_id":os.environ["AUTH_ID"],
+ "scientific_contract_sha256":os.environ["SCIENTIFIC_CONTRACT_SHA256"],
  "source_sha":os.environ["GITHUB_SHA"],
  "final_stage":stage,
  "billed_seconds_estimate":elapsed,

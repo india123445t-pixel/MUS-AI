@@ -15,6 +15,7 @@ RESERVATION_KIND = "AQLEVON_27B_AUTH_RESERVATION_V1"
 CONSUMPTION_KIND = "AQLEVON_27B_AUTH_CONSUMPTION_V2"
 AUTHORIZATION_KIND = "AQLEVON_MANAGER_PAID_AUTHORIZATION_V2"
 CONTROL_PLANE_CONTRACT = "AQLEVON_27B_CONTROL_PLANE_V2"
+SCIENTIFIC_CONTRACT_SHA256 = "484c369ee9e4d19d1142f4d55cce4296a594d49697d5cf47afa13f31da0a283d"
 
 
 def utc_now() -> str:
@@ -42,6 +43,8 @@ def validate_authorization(auth: dict[str, Any], expected_authorization_id: str 
         raise ValueError("authorization_control_plane_contract_mismatch")
     if auth.get("fresh_authorization") is not True:
         raise ValueError("authorization_not_marked_fresh")
+    if auth.get("scientific_contract_sha256") != SCIENTIFIC_CONTRACT_SHA256:
+        raise ValueError("authorization_scientific_contract_mismatch")
     if not str(auth.get("issued_at_utc") or "").strip():
         raise ValueError("authorization_missing_issued_at")
     required_true = (
@@ -136,6 +139,8 @@ def verify_claim(
             raise ValueError(f"{label}_run_identity_mismatch")
         if str(obj.get("source_sha")) != str(source_sha):
             raise ValueError(f"{label}_source_sha_mismatch")
+        if obj.get("scientific_contract_sha256") != SCIENTIFIC_CONTRACT_SHA256:
+            raise ValueError(f"{label}_scientific_contract_mismatch")
     if res.get("single_use_claimed") is not True or con.get("single_use_consumed") is not True:
         raise ValueError("single_use_not_claimed")
 
@@ -180,6 +185,7 @@ def reserve(args: argparse.Namespace) -> None:
         "run_id": str(args.run_id),
         "run_attempt": str(args.run_attempt),
         "source_sha": args.source_sha,
+        "scientific_contract_sha256": SCIENTIFIC_CONTRACT_SHA256,
         "reserved_at_utc": now,
         "state": "RESERVED_BEFORE_PROVIDER_CREATE",
         "single_use_claimed": True,
@@ -193,6 +199,7 @@ def reserve(args: argparse.Namespace) -> None:
         "run_id": str(args.run_id),
         "run_attempt": str(args.run_attempt),
         "source_sha": args.source_sha,
+        "scientific_contract_sha256": SCIENTIFIC_CONTRACT_SHA256,
         "consumed_at_utc": now,
         "consumption_state": "CONSUMED_BY_PRECREATE_RESERVATION",
         "single_use_consumed": True,
