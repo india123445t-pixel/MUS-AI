@@ -106,7 +106,19 @@ assert not active,active
 print("AQLEVON_27B_NO_ACTIVE_POD_PASS")
 PY
 
-sudo wget -q https://github.com/runpod/runpodctl/releases/latest/download/runpodctl-linux-amd64 -O /usr/local/bin/runpodctl\nsudo chmod +x /usr/local/bin/runpodctl
+RUNPODCTL_URL="https://github.com/runpod/runpodctl/releases/latest/download/runpodctl-linux-amd64"
+RUNPODCTL_TMP="/tmp/aqlevon-runpodctl"
+rm -f "$RUNPODCTL_TMP"
+for attempt in 1 2 3 4 5; do
+  if curl -fL --retry 2 --retry-all-errors --connect-timeout 10 --max-time 90 "$RUNPODCTL_URL" -o "$RUNPODCTL_TMP"; then
+    break
+  fi
+  rm -f "$RUNPODCTL_TMP"
+  sleep $((attempt * 2))
+done
+test -s "$RUNPODCTL_TMP"
+sudo install -m 0755 "$RUNPODCTL_TMP" /usr/local/bin/runpodctl
+runpodctl version
 runpodctl gpu list --output json >/tmp/aq27-gpus.json
 python3 - <<'PY'
 import json
