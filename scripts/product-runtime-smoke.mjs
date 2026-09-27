@@ -78,6 +78,14 @@ try{
   const intelJson=await intelligence.json();
   assert.equal(intelJson.error_class,'AUTH_REQUIRED');
 
+  const bosInternal=await get('/api/internal/bos-status');
+  assert.equal(bosInternal.status,401);
+  assert.equal((await bosInternal.json()).message,'TOKEN_MISSING');
+
+  const runtimeInternal=await get('/api/internal/self-hosted-health');
+  assert.equal(runtimeInternal.status,401);
+  assert.equal((await runtimeInternal.json()).message,'TOKEN_MISSING');
+
   const status=await get('/api/status');
   assert.equal(status.status,200);
   const statusJson=await status.json();
