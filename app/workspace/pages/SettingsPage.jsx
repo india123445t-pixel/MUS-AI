@@ -51,7 +51,7 @@ export default function SettingsPage({ theme, setTheme, density, setDensity, onM
             <Route path="providers" element={<Navigate to="../advanced" replace />} />
             <Route path="provider" element={<Navigate to="../advanced" replace />} />
             <Route path="web" element={<WebResearch t={t} s={s} save={save} />} />
-            <Route path="data" element={<DataControls t={t} />} />
+            <Route path="data" element={<DataControls t={t} s={s} save={save} />} />
             <Route path="advanced" element={<Advanced t={t} />} />
             <Route path="about" element={<About t={t} />} />
           </Routes>
@@ -190,14 +190,22 @@ function WebResearch({ t, s, save }) {
   );
 }
 
-function DataControls({ t }) {
+function DataControls({ t, s, save }) {
   return (
     <div className="set-card">
       <h2>{t('set.data')}</h2>
       <Row label={t('set.export')}>
         <button className="btn sm ghost" onClick={() => api.downloadExport()}><Icon name="download" size={14} /> JSON</button>
       </Row>
-      <Row label={t('set.clearChats')}>
+      <Row label={t('set.trainingConsent')} hint={t('set.trainingConsentHint')}>
+        <button
+          className={'switch' + (s.contribute_training === true ? ' on' : '')}
+          role="switch"
+          aria-checked={s.contribute_training === true}
+          onClick={() => save({ contribute_training: s.contribute_training !== true })}
+        />
+      </Row>
+      <Row label={t('set.clearChats')} hint={t('set.localDeleteOnly')}>
         <button className="btn sm danger" onClick={async () => {
           const word = t('set.clearConfirmWord');
           const typed = prompt(t('set.clearConfirm', { word }));
