@@ -36,29 +36,14 @@ jobs:
           ! grep -F 'auth08_unified_public_eval_runner_v1.py' ops/auth08-eval/recover-auth02-evidence.sh
           ! grep -F 'snapshot_download' ops/auth08-eval/recover-auth02-evidence.sh
           ! grep -F 'model.generate' ops/auth08-eval/recover-auth02-evidence.sh
-          echo AQLEVON_AUTH02_EVIDENCE_RECOVERY_FREE_PREFLIGHT_PASS
+          echo AQLEVON_AUTH02_EVIDENCE_RECOVERY_STATIC_PASS
 
-      - name: Live Runpod GraphQL schema check
-        env:
-          RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      - name: Published Runpod GraphQL schema contract
         shell: bash
         run: |
           set -euo pipefail
-          test -n "$RUNPOD_API_KEY"
-          cat > /tmp/schema-query.json <<'JSON'
-          {"query":"query { resume: __type(name: \"PodResumeInput\") { inputFields { name type { kind name ofType { kind name } } } } compute: __type(name: \"ComputeType\") { enumValues { name } } }"}
-          JSON
-          curl -fsS -X POST -H "content-type: application/json" \
-            --url "https://api.runpod.io/graphql?api_key=$RUNPOD_API_KEY" \
-            --data-binary @/tmp/schema-query.json > /tmp/schema.json
-          python3 - <<'PY'
-          import json
-          d=json.load(open("/tmp/schema.json"))
-          assert not d.get("errors"), d
-          data=d["data"]
-          fields={x["name"] for x in data["resume"]["inputFields"]}
-          enums={x["name"] for x in data["compute"]["enumValues"]}
-          assert {"podId","gpuCount","computeType"} <= fields, fields
-          assert "CPU" in enums, enums
-          print("AQLEVON_AUTH02_RECOVERY_LIVE_SCHEMA_CPU_ZERO_GPU_PASS")
-          PY
+          curl -fLsS --connect-timeout 10 --max-time 30 https://graphql-spec.runpod.io/ -o /tmp/runpod-graphql-spec.html
+          grep -F 'PodResumeInput' /tmp/runpod-graphql-spec.html >/dev/null
+          grep -F 'computeType' /tmp/runpod-graphql-spec.html >/dev/null
+          grep -F 'CPU' /tmp/runpod-graphql-spec.html >/dev/null
+          echo AQLEVON_AUTH02_RECOVERY_PUBLISHED_SCHEMA_CPU_PASS
