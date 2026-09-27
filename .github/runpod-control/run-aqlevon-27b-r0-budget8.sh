@@ -8,15 +8,16 @@ IMAGE_DIGEST=sha256:ad4f48dd206b317e09d8fe1a834e57e79c444f9f581ebd45179c4072cb0d
 AUTH_ID=P4-AQLEVON-27B-R0-PRESERVE-20260927-02
 MAX_ELAPSED=3000
 pod=""
-cleaned=0
+stopped=0
 
 cleanup() {
   status=$?
-  if [ -n "$pod" ] && [ "$cleaned" != 1 ]; then
+  if [ -n "$pod" ] && [ "$stopped" != 1 ]; then
     curl -sS -X POST "https://rest.runpod.io/v1/pods/$pod/stop" -H "Authorization: Bearer $RUNPOD_API_KEY" -H 'Content-Type: application/json' -d '{}' >/tmp/aq27-exit-stop.json || true
-    sleep 2
-    curl -sS -X DELETE "https://rest.runpod.io/v1/pods/$pod" -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/aq27-exit-delete.json || true
+    stopped=1
   fi
+  # Fail closed on durability: never delete here. Deletion is a later workflow
+  # step permitted only after durable artifact upload succeeds.
   exit "$status"
 }
 trap cleanup EXIT
@@ -139,46 +140,24 @@ evidence_ok=0
 if [ "$final_stage" = "DONE" ] || [ "$final_stage" = "FAILED" ]; then
   for attempt in $(seq 1 8); do
     if curl -fsS --connect-timeout 10 --max-time 240 "$proxy/evidence.tgz" -o /tmp/aq27-r2-evidence.tgz; then
-      if python3 - <<'PY'
-import tarfile
-from pathlib import Path
-p=Path("/tmp/aq27-r2-evidence.tgz")
-assert p.exists() and p.stat().st_size > 0
-with tarfile.open(p,"r:gz") as t:
-    names=set(t.getnames())
-required={
-    "candidate/candidate_manifest.json",
-    "candidate/training_receipt.json",
-    "candidate/adapter/adapter_model.safetensors",
-    "candidate/adapter/adapter_config.json",
-}
-missing=required-names
-assert not missing, missing
-print("AQLEVON_27B_R2_EVIDENCE_ARCHIVE_VERIFIED", p.stat().st_size)
-PY
-      then
+      if python3 .github/runpod-control/verify-aqlevon-27b-evidence.py \
+        --archive /tmp/aq27-r2-evidence.tgz \
+        --output /tmp/aq27-evidence-verified.json; then
         evidence_ok=1
         break
       fi
     fi
     sleep 3
   done
-fi
-if [ "$final_stage" = "DONE" ] && [ "$evidence_ok" != 1 ]; then
+fiif [ "$final_stage" = "DONE" ] && [ "$evidence_ok" != 1 ]; then
   final_stage="EVIDENCE_EGRESS_FAILED"
   printf '%s\n' "$final_stage" >/tmp/aq27-final-stage
 fi
 
+# Stop GPU billing after egress verification, but retain the pod until
+# actions/upload-artifact has completed durably in the next workflow step.
 curl -sS -X POST "https://rest.runpod.io/v1/pods/$pod/stop" -H "Authorization: Bearer $RUNPOD_API_KEY" -H 'Content-Type: application/json' -d '{}' >/tmp/aq27-stop.json || true
-sleep 3
-curl -sS -X DELETE "https://rest.runpod.io/v1/pods/$pod" -H "Authorization: Bearer $RUNPOD_API_KEY" >/tmp/aq27-delete.json || true
-for i in $(seq 1 45); do
-  code="$(curl -sS -o /tmp/aq27-final.json -w '%{http_code}' "https://rest.runpod.io/v1/pods/$pod" -H "Authorization: Bearer $RUNPOD_API_KEY" || true)"
-  if [ "$code" = 404 ]; then cleaned=1; break; fi
-  sleep 2
-done
-test "$cleaned" = 1
-
+stopped=1
 python3 - <<'PY'
 import datetime,hashlib,json,os,tarfile
 from pathlib import Path
@@ -194,7 +173,9 @@ out={
  "billed_seconds_estimate":elapsed,
  "rate_per_hour_usd":price,
  "compute_cost_estimate_usd":round(price*elapsed/3600,6),
- "pod_stopped_and_deleted":True,
+ "pod_stopped":True,
+ "pod_stopped_and_deleted":False,
+ "artifact_preservation_state":"PENDING_DURABLE_UPLOAD",
  "sealed_eval_consumed":False
 }
 p=Path("/tmp/aq27-r2-evidence.tgz")
@@ -206,15 +187,16 @@ if p.exists():
             out["training_receipt"]=json.loads(t.extractfile("candidate/training_receipt.json").read())
     except Exception as e:
         out["parse_error"]=repr(e)
+v=Path("/tmp/aq27-evidence-verified.json")
+if v.exists(): out["artifact_verification"]=json.loads(v.read_text())
 Path(".github/runpod-control/aqlevon-27b-r0-preserve-result-02.json").write_text(json.dumps(out,indent=2,sort_keys=True)+"\n")
 print("AQLEVON_27B_RUN_RESULT",json.dumps(out,sort_keys=True))
 PY
 
-git add "$RESULT"
-git commit -m "ops: record AQLEVON 27B R0 budget8 result [skip ci]" || true
-git fetch origin ops/runpod-control-v1
-git rebase origin/ops/runpod-control-v1
-git push origin HEAD:ops/runpod-control-v1
+# Do not commit or delete yet. The workflow must first complete durable upload.
+# The finalizer records preservation metadata and only then deletes the pod.
 trap - EXIT
 
 test "$final_stage" = "DONE"
+test "$evidence_ok" = 1
+test -s /tmp/aq27-evidence-verified.json
