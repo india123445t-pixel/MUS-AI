@@ -1,0 +1,24 @@
+name: Runpod Balance Safety Readonly Probe
+
+on:
+  push:
+    branches: [manager/auth08-unified-eval-20260927]
+    paths:
+      - "ops/auth08-eval/runpod-balance-safety-probe.sh"
+      - "ops/auth08-eval/runpod-balance-safety-trigger.json"
+      - ".github/workflows/runpod-balance-safety-probe.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read Runpod balance and pod safety state
+        env:
+          RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+        shell: bash
+        run: bash ops/auth08-eval/runpod-balance-safety-probe.sh
