@@ -2,9 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import {fileURLToPath} from 'node:url';
 import {defaultChildPermissions,normalizeChildPermissions,isChildPermissionGranted,requiredChildPermissions,CHILD_PERMISSION_CATALOG,CHILD_TOOL_ACTIONS} from '../lib/aqlevon/child-permissions.js';
 
-const root=path.resolve(path.dirname(new URL(import.meta.url).pathname),'..');
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const tools=fs.readFileSync(path.join(root,'lib/aqlevon/child-tools.js'),'utf8');
 const route=fs.readFileSync(path.join(root,'app/api/admin/child-lab/tool/route.js'),'utf8');
 const page=fs.readFileSync(path.join(root,'app/admin/child-lab/page.js'),'utf8');
