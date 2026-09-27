@@ -1,0 +1,14 @@
+{
+  "kind": "AQLEVON_27B_AUTH08_PUBLIC_EVAL_BINDING_V1",
+  "model_name": "AQLEVON-27B-R0",
+  "base_repo": "Qwen/Qwen3.8-27B",
+  "base_revision": "1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0",
+  "adapter_sha256": "5ed9a22e963eca99f5ebd00f13a46fa6afadd9b74bb9d2e501b23c1ff9219c74",
+  "adapter_state_sha256": "1e3ff8a0fbc88686a2d96f93d4f04fdd66db2034ffdfafc2cc91e532ed0bf80f",
+  "candidate_manifest_sha256": "e020c6b140ffba104d1fe4485333fb225afd29c52dc03bf9a62d0f8c614e01c5",
+  "artifact_id": 10936543533,
+  "source_run_id": 36332132785,
+  "source_sha": "e07d41dd140c7a56b3a27a45fb8ca04b5e03ac74",
+  "sealed_eval_consumed": false,
+  "trigger_nonce": "prep-01"
+}
