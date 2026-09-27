@@ -1,5 +1,15 @@
 {
   "pod_id": "v3njg70l4mtazn",
+  "runtime_status": {
+    "checked_at_utc": "2026-09-27T15:00:58.755364+00:00",
+    "detail": "auth16_recipe_transfer",
+    "kind": "AQLEVON_27B_R0_STATUS_V1",
+    "rc": 0,
+    "sealed_eval_consumed": false,
+    "stage": "TRAINING",
+    "worker05_used_for_tuning": false
+  },
+  "runtime_stderr": "",
   "stderr": "",
   "system_logs": [
     {
