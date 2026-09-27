@@ -1,5 +1,5 @@
 {
-  "nonce": "auth02-cpu-zero-gpu-schema-preflight-20260927T2247Z",
+  "nonce": "auth02-cpu-zero-gpu-published-schema-preflight-20260927T2249Z",
   "mode": "free_only",
   "expected": "computeType_CPU_gpuCount_0"
 }
