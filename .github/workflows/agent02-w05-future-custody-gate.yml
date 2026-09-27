@@ -1,0 +1,33 @@
+name: Agent02 W05 Future Custody Gate
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "research/evaluation/w05_future_sealed_custody_gate_v1.py"
+      - "research/evaluation/test_w05_future_sealed_custody_gate_v1.py"
+      - "docs/AQLEVON_W05_FUTURE_SEALED_CUSTODY_GATE_V1.md"
+      - ".github/workflows/agent02-w05-future-custody-gate.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  chronology-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install test dependency
+        run: python -m pip install --disable-pip-version-check pytest
+      - name: Compile gate and tests
+        run: |
+          python -m py_compile             research/evaluation/w05_future_sealed_custody_gate_v1.py             research/evaluation/test_w05_future_sealed_custody_gate_v1.py
+      - name: Run future custody chronology tests
+        run: |
+          python -m pytest -q             research/evaluation/test_w05_future_sealed_custody_gate_v1.py
