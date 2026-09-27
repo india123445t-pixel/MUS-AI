@@ -56,7 +56,7 @@ test -n "$BUNDLE"
 ACTUAL_BUNDLE_SHA="$(sha256sum "$BUNDLE" | awk '{print $1}')"
 test "$ACTUAL_BUNDLE_SHA" = "$EXPECTED_BUNDLE_SHA"
 mkdir -p "$ROOT/bundle"
-tar -xzf "$BUNDLE" -C "$ROOT/bundle"
+tar --no-same-owner -xzf "$BUNDLE" -C "$ROOT/bundle"
 
 test -f "$ROOT/bundle/adapter/adapter_model.safetensors"
 test -f "$ROOT/bundle/candidate_manifest.json"
