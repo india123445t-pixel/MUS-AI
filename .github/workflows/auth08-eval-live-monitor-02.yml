@@ -38,3 +38,17 @@ jobs:
           print("AQLEVON_AUTH02_MONITOR_RUNTIME",json.dumps(d,sort_keys=True))
           PY
           fi
+          curl -fL --retry 2 --retry-all-errors --connect-timeout 10 --max-time 90 \
+            https://github.com/runpod/runpodctl/releases/latest/download/runpodctl-linux-amd64 \
+            -o /tmp/runpodctl >/dev/null 2>&1 || true
+          if [ -s /tmp/runpodctl ]; then
+            chmod +x /tmp/runpodctl
+            /tmp/runpodctl pod logs "$POD_ID" --tail 500 >/tmp/pod.log 2>/tmp/pod.err || true
+            python3 - <<'PY'
+          from pathlib import Path
+          for line in Path("/tmp/pod.log").read_text(errors="replace").splitlines()[-500:]:
+              print("AQLEVON_AUTH02_MONITOR_LOG",line[:4000])
+          err=Path("/tmp/pod.err").read_text(errors="replace").strip()
+          if err: print("AQLEVON_AUTH02_MONITOR_LOGERR",err[:4000])
+          PY
+          fi
