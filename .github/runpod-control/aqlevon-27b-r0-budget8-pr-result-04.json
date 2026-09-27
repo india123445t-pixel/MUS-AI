@@ -1,0 +1,12 @@
+{
+  "authorization_id": "P4-AQLEVON-27B-R0-BUDGET8-20260927-04",
+  "billed_seconds_estimate": 15306,
+  "checked_at_utc": "2026-09-27T11:15:52.903656+00:00",
+  "compute_cost_estimate_usd": 6.76015,
+  "final_stage": "BUDGET_WATCHDOG_TIMEOUT",
+  "kind": "AQLEVON_27B_R0_BUDGET8_RESULT_V1",
+  "pod_stop_delete_requested": true,
+  "rate_per_hour_usd": 1.59,
+  "sealed_eval_consumed": false,
+  "source_sha": "f7f27edc2292395741069d2e29175b0d7c8b584a"
+}
