@@ -1,0 +1,10 @@
+{
+  "authorization_id": "AQLEVON-AUTH02-EVIDENCE-RECOVERY-CPU-ZEROGPU-20260927-03",
+  "consumed_at_utc": "2026-09-27T22:51:46.701245+00:00",
+  "kind": "AQLEVON_AUTH08_EVIDENCE_RECOVERY_CONSUMPTION_V1",
+  "no_inference": true,
+  "no_model_dispatch": true,
+  "run_id": "36356729545",
+  "state": "CONSUMED_BEFORE_PROVIDER_START",
+  "target_pod_id": "hjwspv5aqtnqxd"
+}
