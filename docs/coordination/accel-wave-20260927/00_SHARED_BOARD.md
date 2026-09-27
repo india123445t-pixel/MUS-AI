@@ -3,6 +3,7 @@
 Status: ACTIVE / MULTI-AGENT PARALLEL EXECUTION
 
 Rules:
+- MANDATORY before every AQLEVON answer/action: read `/AQLEVON/Coordination/AQLEVON_MANDATORY_PRE_RESPONSE_LIBRARY_LAW_V1.md` from Library, then refresh the newest relevant Coordination state.
 - Read /AQLEVON/Coordination/AQLEVON_CONCURRENT_EXECUTION_PROTOCOL_V1.md first.
 - Read this board and your own task before any mutation.
 - Own only your assigned lane.
