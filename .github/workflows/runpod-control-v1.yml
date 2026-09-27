@@ -33,7 +33,7 @@ jobs:
         run: |
           set -euo pipefail
           curl -sS --fail https://rest.runpod.io/v1/pods -H "Authorization: Bearer $RUNPOD_API_KEY" -o /tmp/pods.json
-          POD_ID="$(jq -r '.. | objects | select(.name? == "AQLEVON-27B-R0-BUDGET8-04") | .id // empty' /tmp/pods.json | tail -n1)"
+          POD_ID="$(jq -r '.. | objects | select(.name? == "AQLEVON-27B-R0-BUDGET8") | .id // empty' /tmp/pods.json | tail -n1)"
           if [ -n "$POD_ID" ]; then
             curl -sS "https://rest.runpod.io/v1/pods/$POD_ID" -H "Authorization: Bearer $RUNPOD_API_KEY" -o /tmp/pod-detail.json || echo '{}' >/tmp/pod-detail.json
           else
