@@ -33,6 +33,18 @@ jobs:
         run: |
           set -euo pipefail
           curl -sS --fail https://rest.runpod.io/v1/pods -H "Authorization: Bearer $RUNPOD_API_KEY" -o /tmp/pods.json
+          POD_ID="$(python3 - <<'PY'
+import json
+from pathlib import Path
+p=Path('.github/runpod-control/aqlevon-27b-r0-budget8-pr-consumed-04.json')
+print(json.loads(p.read_text()).get('pod_id') if p.exists() else '')
+PY
+)"
+          if [ -n "$POD_ID" ]; then
+            curl -sS "https://rest.runpod.io/v1/pods/$POD_ID" -H "Authorization: Bearer $RUNPOD_API_KEY" -o /tmp/pod-detail.json || true
+          else
+            echo '{}' > /tmp/pod-detail.json
+          fi
           mkdir -p .github/runpod-control
           python - <<'PY'
           import json,datetime,hashlib
@@ -49,6 +61,11 @@ jobs:
               if not isinstance(p,dict): continue
               pid=str(p.get('id',''))
               out['pods'].append({'fingerprint':hashlib.sha256(pid.encode()).hexdigest()[:12] if pid else None,'status':p.get('desiredStatus') or p.get('status'),'container_status':p.get('containerStatus'),'gpu_type_id':p.get('gpuTypeId'),'data_center_id':p.get('dataCenterId'),'cost_per_hr':p.get('costPerHr'),'created_at':p.get('createdAt'),'last_status_change':p.get('lastStatusChange')})
+          try:
+              detail=json.load(open('/tmp/pod-detail.json'))
+          except Exception:
+              detail={}
+          out['target_detail']={k:detail.get(k) for k in ('name','desiredStatus','status','containerStatus','gpuCount','gpuTypeId','dataCenterId','costPerHr','createdAt','lastStatusChange','portMappings','publicIp','imageName') if k in detail}
           json.dump(out,open('.github/runpod-control/status.json','w'),indent=2,sort_keys=True);open('.github/runpod-control/status.json','a').write('\n')
           PY
       - name: Commit status
