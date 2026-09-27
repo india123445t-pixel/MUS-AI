@@ -36,8 +36,10 @@ jobs:
           POD_ID="$(jq -r '.. | objects | select(.name? == "AQLEVON-27B-R0-BUDGET8") | .id // empty' /tmp/pods.json | tail -n1)"
           if [ -n "$POD_ID" ]; then
             curl -sS "https://rest.runpod.io/v1/pods/$POD_ID" -H "Authorization: Bearer $RUNPOD_API_KEY" -o /tmp/pod-detail.json || echo '{}' >/tmp/pod-detail.json
+            curl -fsS --connect-timeout 5 --max-time 10 "https://$POD_ID-8000.proxy.runpod.net/status.json" -o /tmp/runtime-status.json || echo '{}' >/tmp/runtime-status.json
           else
             echo '{}' >/tmp/pod-detail.json
+            echo '{}' >/tmp/runtime-status.json
           fi
           mkdir -p .github/runpod-control
           python - <<'PY'
@@ -59,7 +61,12 @@ jobs:
               detail=json.load(open('/tmp/pod-detail.json'))
           except Exception:
               detail={}
+          try:
+              runtime=json.load(open('/tmp/runtime-status.json'))
+          except Exception:
+              runtime={}
           out['target_detail']={k:detail.get(k) for k in ('name','desiredStatus','status','containerStatus','gpuCount','gpuTypeId','dataCenterId','costPerHr','createdAt','lastStatusChange','portMappings','imageName') if k in detail}
+          out['runtime_status']={k:runtime.get(k) for k in ('kind','stage','rc','detail','model_name','status','optimizer_updates','baseline_dev_successes','final_dev_successes','baseline_shadow_successes','final_shadow_successes','adapter_sha256','manifest_sha256') if k in runtime}
           json.dump(out,open('.github/runpod-control/status.json','w'),indent=2,sort_keys=True);open('.github/runpod-control/status.json','a').write('\n')
           PY
       - name: Commit status
