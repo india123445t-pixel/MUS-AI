@@ -25,8 +25,9 @@ PY
 
 
 
+
 cat >/tmp/gpu-market.json <<'JSON'
-{"query":"query { a6000Community: gpuTypes(input: {id: \"NVIDIA RTX A6000\"}) { id displayName memoryInGb communityPrice securePrice lowestPrice(input: {gpuCount: 2, secureCloud: false}) { stockStatus uninterruptablePrice minimumBidPrice availableGpuCounts maxGpuCount maxUnreservedGpuCount minMemory minVcpu } } a6000Secure: gpuTypes(input: {id: \"NVIDIA RTX A6000\"}) { id displayName memoryInGb communityPrice securePrice lowestPrice(input: {gpuCount: 2, secureCloud: true}) { stockStatus uninterruptablePrice minimumBidPrice availableGpuCounts maxGpuCount maxUnreservedGpuCount minMemory minVcpu } } a40Secure: gpuTypes(input: {id: \"NVIDIA A40\"}) { id displayName memoryInGb communityPrice securePrice lowestPrice(input: {gpuCount: 2, secureCloud: true}) { stockStatus uninterruptablePrice minimumBidPrice availableGpuCounts maxGpuCount maxUnreservedGpuCount minMemory minVcpu } } }"}
+{"query":"query { a6000Community: gpuTypes(input: {id: \"NVIDIA RTX A6000\"}) { id displayName memoryInGb communityPrice securePrice lowestPrice(input: {gpuCount: 1, secureCloud: false}) { stockStatus uninterruptablePrice minimumBidPrice availableGpuCounts maxGpuCount maxUnreservedGpuCount minMemory minVcpu } } a6000Secure: gpuTypes(input: {id: \"NVIDIA RTX A6000\"}) { id displayName memoryInGb communityPrice securePrice lowestPrice(input: {gpuCount: 1, secureCloud: true}) { stockStatus uninterruptablePrice minimumBidPrice availableGpuCounts maxGpuCount maxUnreservedGpuCount minMemory minVcpu } } a40Secure: gpuTypes(input: {id: \"NVIDIA A40\"}) { id displayName memoryInGb communityPrice securePrice lowestPrice(input: {gpuCount: 1, secureCloud: true}) { stockStatus uninterruptablePrice minimumBidPrice availableGpuCounts maxGpuCount maxUnreservedGpuCount minMemory minVcpu } } }"}
 JSON
 curl -fsS -X POST -H "content-type: application/json" \
   --url "https://api.runpod.io/graphql?api_key=$RUNPOD_API_KEY" \
