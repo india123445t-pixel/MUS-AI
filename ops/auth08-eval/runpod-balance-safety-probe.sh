@@ -24,8 +24,9 @@ print("AQLEVON_RUNPOD_RESOURCE_INVENTORY",json.dumps(out,sort_keys=True))
 PY
 
 
+
 cat >/tmp/gpu-market.json <<'JSON'
-{"query":"query { gpuTypes { id displayName memoryInGb secureCloud communityCloud lowestPrice(input: { gpuCount: 2 }) { stockStatus minimumBidPrice uninterruptablePrice } } }"}
+{"query":"query { a6000Community: gpuTypes(input: {id: \"NVIDIA RTX A6000\"}) { id displayName memoryInGb communityPrice securePrice lowestPrice(input: {gpuCount: 2, secureCloud: false}) { stockStatus uninterruptablePrice minimumBidPrice availableGpuCounts maxGpuCount maxUnreservedGpuCount minMemory minVcpu } } a6000Secure: gpuTypes(input: {id: \"NVIDIA RTX A6000\"}) { id displayName memoryInGb communityPrice securePrice lowestPrice(input: {gpuCount: 2, secureCloud: true}) { stockStatus uninterruptablePrice minimumBidPrice availableGpuCounts maxGpuCount maxUnreservedGpuCount minMemory minVcpu } } a40Secure: gpuTypes(input: {id: \"NVIDIA A40\"}) { id displayName memoryInGb communityPrice securePrice lowestPrice(input: {gpuCount: 2, secureCloud: true}) { stockStatus uninterruptablePrice minimumBidPrice availableGpuCounts maxGpuCount maxUnreservedGpuCount minMemory minVcpu } } }"}
 JSON
 curl -fsS -X POST -H "content-type: application/json" \
   --url "https://api.runpod.io/graphql?api_key=$RUNPOD_API_KEY" \
@@ -36,10 +37,5 @@ d=json.load(open("/tmp/gpu-market-out.json"))
 if d.get("errors"):
     print("AQLEVON_RUNPOD_GPU_MARKET_QUERY_ERROR",json.dumps(d["errors"],sort_keys=True))
 else:
-    rows=[]
-    for g in d.get("data",{}).get("gpuTypes") or []:
-        name=(g.get("displayName") or "")
-        if any(x in name.upper() for x in ["A6000","A40","A100"]):
-            rows.append(g)
-    print("AQLEVON_RUNPOD_GPU_MARKET",json.dumps(rows,sort_keys=True))
+    print("AQLEVON_RUNPOD_GPU_MARKET",json.dumps(d.get("data"),sort_keys=True))
 PY
