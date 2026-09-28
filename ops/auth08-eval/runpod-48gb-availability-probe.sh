@@ -3,7 +3,7 @@ set -euo pipefail
 test -n "${RUNPOD_API_KEY:-}"
 python3 - <<'PY'
 import os,json,urllib.request
-url="https://api.runpod.io/graphql"
+url="https://api.runpod.io/graphql?api_key="+os.environ["RUNPOD_API_KEY"]
 q=r'''query {
   gpuTypes {
     id
@@ -26,10 +26,7 @@ q=r'''query {
   }
   myself { clientBalance currentSpendPerHr underBalance }
 }'''
-req=urllib.request.Request(url,data=json.dumps({"query":q}).encode(),headers={
-  "Authorization":"Bearer "+os.environ["RUNPOD_API_KEY"],
-  "Content-Type":"application/json"
-})
+req=urllib.request.Request(url,data=json.dumps({"query":q}).encode(),headers={"Content-Type":"application/json"})
 with urllib.request.urlopen(req,timeout=30) as r:
     d=json.load(r)
 if d.get("errors"):
